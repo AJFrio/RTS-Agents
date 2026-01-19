@@ -407,11 +407,12 @@ class GeminiService {
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
-   * @param {boolean} [options.yolo] - Whether to auto-approve all actions (default: false)
+   * @param {boolean} [options.yolo] - Whether to auto-approve all actions (default: true for headless)
+   * @param {string} [options.approvalMode] - Approval mode: 'auto_edit', 'full_auto', etc.
    */
   async startSession(options) {
     const { spawn } = require('child_process');
-    const { prompt, projectPath, yolo = false } = options;
+    const { prompt, projectPath, yolo = true, approvalMode } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -429,9 +430,14 @@ class GeminiService {
 
     // Build command args for headless mode
     // Using --output-format json for structured output
+    // Default to yolo mode since headless can't prompt for approval
     const args = ['-p', prompt, '--output-format', 'json'];
     
-    if (yolo) {
+    if (approvalMode) {
+      // Use specific approval mode if provided
+      args.push('--approval-mode', approvalMode);
+    } else if (yolo) {
+      // Default to yolo for headless since we can't interactively approve
       args.push('--yolo');
     }
 

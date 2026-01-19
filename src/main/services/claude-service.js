@@ -592,11 +592,12 @@ class ClaudeService {
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
-   * @param {string} [options.allowedTools] - Tools to auto-approve (e.g., "Read,Edit,Bash")
+   * @param {string} [options.allowedTools] - Tools to auto-approve (default: "Read,Edit,Bash" for full access)
    */
   async startLocalSession(options) {
     const { spawn } = require('child_process');
-    const { prompt, projectPath, allowedTools } = options;
+    // Default to allowing Read, Edit, Bash tools since headless can't prompt for approval
+    const { prompt, projectPath, allowedTools = 'Read,Edit,Bash' } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -614,6 +615,7 @@ class ClaudeService {
 
     // Build command args for headless mode
     // Using -p for prompt and --output-format json for structured output
+    // Default to allowing common tools since headless can't interactively approve
     const args = ['-p', prompt, '--output-format', 'json'];
     
     if (allowedTools) {

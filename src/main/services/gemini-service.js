@@ -429,7 +429,8 @@ class GeminiService {
     // Build command: gemini -p "prompt" -y
     // -p: prompt/headless mode
     // -y: yolo mode (auto-approve all actions)
-    const args = ['-p', prompt, '-y'];
+    // Wrap prompt in quotes to handle spaces and special characters
+    const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '-y'];
 
     return new Promise((resolve, reject) => {
       const geminiCmd = process.platform === 'win32' ? 'gemini.cmd' : 'gemini';

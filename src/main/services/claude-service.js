@@ -615,7 +615,8 @@ class ClaudeService {
     // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
     // -p: prompt/headless mode
     // --allowedTools: auto-approve these tools
-    const args = ['-p', prompt, '--allowedTools', allowedTools];
+    // Wrap prompt in quotes to handle spaces and special characters
+    const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '--allowedTools', allowedTools];
 
     return new Promise((resolve, reject) => {
       const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';

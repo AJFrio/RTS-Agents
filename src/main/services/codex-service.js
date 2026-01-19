@@ -209,24 +209,34 @@ class CodexService {
 
   /**
    * Get all agents (threads) formatted for the dashboard
+   * Fetches all thread details in parallel for better performance
    */
   async getAllAgents() {
     try {
-      const agents = [];
-
-      // Fetch details for each tracked thread
-      for (const tracked of trackedThreads) {
-        try {
-          const thread = await this.getThread(tracked.id);
-          const runsResponse = await this.listRuns(tracked.id, 1);
+      // Fetch details for all tracked threads in parallel
+      const results = await Promise.allSettled(
+        trackedThreads.map(async (tracked) => {
+          // Fetch thread and runs in parallel for each thread
+          const [thread, runsResponse] = await Promise.all([
+            this.getThread(tracked.id),
+            this.listRuns(tracked.id, 1)
+          ]);
           const latestRun = runsResponse.data?.[0];
+          return this.normalizeThread(thread, tracked, latestRun);
+        })
+      );
 
-          agents.push(this.normalizeThread(thread, tracked, latestRun));
-        } catch (err) {
-          // Thread might have been deleted, skip it
-          console.warn(`Could not fetch thread ${tracked.id}:`, err.message);
-        }
-      }
+      // Filter out failed fetches and extract successful results
+      const agents = results
+        .filter((result, index) => {
+          if (result.status === 'rejected') {
+            // Thread might have been deleted, skip it
+            console.warn(`Could not fetch thread ${trackedThreads[index].id}:`, result.reason?.message);
+            return false;
+          }
+          return true;
+        })
+        .map(result => result.value);
 
       return agents;
     } catch (err) {

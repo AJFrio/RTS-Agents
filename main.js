@@ -7,6 +7,7 @@ const geminiService = require('./src/main/services/gemini-service');
 const julesService = require('./src/main/services/jules-service');
 const cursorService = require('./src/main/services/cursor-service');
 const codexService = require('./src/main/services/codex-service');
+const claudeService = require('./src/main/services/claude-service');
 
 let mainWindow;
 let pollingInterval = null;
@@ -48,6 +49,7 @@ function initializeServices() {
   const julesKey = configStore.getApiKey('jules');
   const cursorKey = configStore.getApiKey('cursor');
   const codexKey = configStore.getApiKey('codex');
+  const claudeKey = configStore.getApiKey('claude');
   
   if (julesKey) {
     julesService.setApiKey(julesKey);
@@ -60,6 +62,12 @@ function initializeServices() {
     // Restore tracked threads from config
     const trackedThreads = configStore.getCodexThreads();
     codexService.setTrackedThreads(trackedThreads);
+  }
+  if (claudeKey) {
+    claudeService.setApiKey(claudeKey);
+    // Restore tracked conversations from config
+    const trackedConversations = configStore.getClaudeConversations();
+    claudeService.setTrackedConversations(trackedConversations);
   }
 }
 
@@ -109,17 +117,22 @@ ipcMain.handle('agents:get-all', async () => {
     jules: [],
     cursor: [],
     codex: [],
+    claude: [],
     errors: []
   };
 
   // Fetch from all providers in parallel
   const geminiPaths = configStore.getGeminiPaths();
   
-  const [geminiResult, julesResult, cursorResult, codexResult] = await Promise.allSettled([
+  // Claude can work with local CLI or API key
+  const claudeAvailable = claudeService.isClaudeInstalled() || configStore.hasApiKey('claude');
+  
+  const [geminiResult, julesResult, cursorResult, codexResult, claudeResult] = await Promise.allSettled([
     geminiService.getAllAgents(geminiPaths),
     configStore.hasApiKey('jules') ? julesService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('cursor') ? cursorService.getAllAgents() : Promise.resolve([]),
-    configStore.hasApiKey('codex') ? codexService.getAllAgents() : Promise.resolve([])
+    configStore.hasApiKey('codex') ? codexService.getAllAgents() : Promise.resolve([]),
+    claudeAvailable ? claudeService.getAllAgents(geminiPaths) : Promise.resolve([])
   ]);
 
   if (geminiResult.status === 'fulfilled') {
@@ -146,8 +159,14 @@ ipcMain.handle('agents:get-all', async () => {
     results.errors.push({ provider: 'codex', error: codexResult.reason?.message || 'Unknown error' });
   }
 
+  if (claudeResult.status === 'fulfilled') {
+    results.claude = claudeResult.value;
+  } else if (claudeAvailable) {
+    results.errors.push({ provider: 'claude', error: claudeResult.reason?.message || 'Unknown error' });
+  }
+
   // Combine and sort all agents by date
-  const allAgents = [...results.gemini, ...results.jules, ...results.cursor, ...results.codex]
+  const allAgents = [...results.gemini, ...results.jules, ...results.cursor, ...results.codex, ...results.claude]
     .sort((a, b) => {
       const dateA = new Date(a.updatedAt || a.createdAt || 0);
       const dateB = new Date(b.updatedAt || b.createdAt || 0);
@@ -162,6 +181,7 @@ ipcMain.handle('agents:get-all', async () => {
       jules: results.jules.length,
       cursor: results.cursor.length,
       codex: results.codex.length,
+      claude: results.claude.length,
       total: allAgents.length
     }
   };
@@ -181,6 +201,8 @@ ipcMain.handle('agents:get-details', async (event, { provider, rawId, filePath }
         return await cursorService.getAgentDetails(rawId);
       case 'codex':
         return await codexService.getAgentDetails(rawId);
+      case 'claude':
+        return await claudeService.getAgentDetails(rawId, filePath);
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
@@ -203,10 +225,13 @@ ipcMain.handle('settings:get', async () => {
     apiKeys: {
       jules: configStore.hasApiKey('jules'),
       cursor: configStore.hasApiKey('cursor'),
-      codex: configStore.hasApiKey('codex')
+      codex: configStore.hasApiKey('codex'),
+      claude: configStore.hasApiKey('claude')
     },
     geminiInstalled: geminiService.isGeminiInstalled(),
-    geminiDefaultPath: geminiService.getDefaultPath()
+    geminiDefaultPath: geminiService.getDefaultPath(),
+    claudeInstalled: claudeService.isClaudeInstalled(),
+    claudeDefaultPath: claudeService.getDefaultPath()
   };
 });
 
@@ -226,6 +251,11 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     // Restore tracked threads from config
     const trackedThreads = configStore.getCodexThreads();
     codexService.setTrackedThreads(trackedThreads);
+  } else if (provider === 'claude') {
+    claudeService.setApiKey(key);
+    // Restore tracked conversations from config
+    const trackedConversations = configStore.getClaudeConversations();
+    claudeService.setTrackedConversations(trackedConversations);
   }
   
   return { success: true };
@@ -242,6 +272,8 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
       return await cursorService.testConnection();
     } else if (provider === 'codex') {
       return await codexService.testConnection();
+    } else if (provider === 'claude') {
+      return await claudeService.testConnection();
     }
     return { success: false, error: 'Unknown provider' };
   } catch (err) {
@@ -313,12 +345,17 @@ ipcMain.handle('utils:open-external', async (event, { url }) => {
  * Get provider connection status
  */
 ipcMain.handle('utils:get-status', async () => {
-  const [julesStatus, cursorStatus, codexStatus] = await Promise.allSettled([
+  const [julesStatus, cursorStatus, codexStatus, claudeStatus] = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
     configStore.hasApiKey('cursor') ? cursorService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
-    configStore.hasApiKey('codex') ? codexService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
+    configStore.hasApiKey('codex') ? codexService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
+    configStore.hasApiKey('claude') ? claudeService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
   ]);
 
+  // Claude status: connected if CLI is installed OR API key is valid
+  const claudeCliInstalled = claudeService.isClaudeInstalled();
+  const claudeApiValid = claudeStatus.status === 'fulfilled' && claudeStatus.value.success;
+  
   return {
     gemini: {
       connected: geminiService.isGeminiInstalled(),
@@ -326,7 +363,14 @@ ipcMain.handle('utils:get-status', async () => {
     },
     jules: julesStatus.status === 'fulfilled' ? julesStatus.value : { success: false, error: julesStatus.reason?.message },
     cursor: cursorStatus.status === 'fulfilled' ? cursorStatus.value : { success: false, error: cursorStatus.reason?.message },
-    codex: codexStatus.status === 'fulfilled' ? codexStatus.value : { success: false, error: codexStatus.reason?.message }
+    codex: codexStatus.status === 'fulfilled' ? codexStatus.value : { success: false, error: codexStatus.reason?.message },
+    claude: {
+      success: claudeCliInstalled || claudeApiValid,
+      connected: claudeCliInstalled || claudeApiValid,
+      cliInstalled: claudeCliInstalled,
+      apiConfigured: configStore.hasApiKey('claude'),
+      error: (!claudeCliInstalled && !claudeApiValid) ? 'Claude CLI not installed and API key not configured' : null
+    }
   };
 });
 
@@ -369,6 +413,14 @@ ipcMain.handle('repos:get', async (event, { provider }) => {
         const codexProjects = await codexService.getAvailableProjects();
         return { success: true, repositories: codexProjects };
 
+      case 'claude':
+        if (!claudeService.isClaudeInstalled() && !configStore.hasApiKey('claude')) {
+          return { success: false, error: 'Claude CLI not installed and API key not configured', repositories: [] };
+        }
+        const claudePaths = configStore.getGeminiPaths(); // Reuse Gemini paths for project scanning
+        const claudeProjects = await claudeService.getAvailableProjects(claudePaths);
+        return { success: true, repositories: claudeProjects };
+
       default:
         return { success: false, error: `Unknown provider: ${provider}`, repositories: [] };
     }
@@ -387,17 +439,20 @@ ipcMain.handle('repos:get-all', async () => {
     cursor: [],
     gemini: [],
     codex: [],
+    claude: [],
     errors: []
   };
 
   // Fetch from all providers in parallel
   const geminiPaths = configStore.getGeminiPaths();
+  const claudeAvailable = claudeService.isClaudeInstalled() || configStore.hasApiKey('claude');
 
-  const [julesResult, cursorResult, geminiResult, codexResult] = await Promise.allSettled([
+  const [julesResult, cursorResult, geminiResult, codexResult, claudeResult] = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.getAllSources() : Promise.resolve([]),
     configStore.hasApiKey('cursor') ? cursorService.getAllRepositories() : Promise.resolve([]),
     geminiService.isGeminiInstalled() ? geminiService.getAvailableProjects(geminiPaths) : Promise.resolve([]),
-    configStore.hasApiKey('codex') ? codexService.getAvailableProjects() : Promise.resolve([])
+    configStore.hasApiKey('codex') ? codexService.getAvailableProjects() : Promise.resolve([]),
+    claudeAvailable ? claudeService.getAvailableProjects(geminiPaths) : Promise.resolve([])
   ]);
 
   if (julesResult.status === 'fulfilled') {
@@ -422,6 +477,12 @@ ipcMain.handle('repos:get-all', async () => {
     results.codex = codexResult.value;
   } else if (configStore.hasApiKey('codex')) {
     results.errors.push({ provider: 'codex', error: codexResult.reason?.message || 'Unknown error' });
+  }
+
+  if (claudeResult.status === 'fulfilled') {
+    results.claude = claudeResult.value;
+  } else if (claudeAvailable) {
+    results.errors.push({ provider: 'claude', error: claudeResult.reason?.message || 'Unknown error' });
   }
 
   return results;
@@ -462,6 +523,15 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
         // Save tracked threads to config for persistence
         configStore.setCodexThreads(codexService.getTrackedThreads());
         return { success: true, task: codexTask };
+
+      case 'claude':
+        if (!claudeService.isClaudeInstalled() && !configStore.hasApiKey('claude')) {
+          throw new Error('Claude CLI not installed and API key not configured');
+        }
+        const claudeTask = await claudeService.createTask(options);
+        // Save tracked conversations to config for persistence
+        configStore.setClaudeConversations(claudeService.getTrackedConversations());
+        return { success: true, task: claudeTask };
 
       default:
         throw new Error(`Unknown provider: ${provider}`);

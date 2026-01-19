@@ -15,6 +15,10 @@ const schema = {
       codex: {
         type: 'string',
         default: ''
+      },
+      claude: {
+        type: 'string',
+        default: ''
       }
     },
     default: {}
@@ -30,6 +34,22 @@ const schema = {
         repository: { type: 'string' },
         branch: { type: 'string' },
         title: { type: 'string' }
+      }
+    },
+    default: []
+  },
+  claudeConversations: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        createdAt: { type: 'string' },
+        updatedAt: { type: 'string' },
+        prompt: { type: 'string' },
+        repository: { type: 'string' },
+        title: { type: 'string' },
+        status: { type: 'string' }
       }
     },
     default: []
@@ -178,6 +198,37 @@ class ConfigStore {
     const threads = this.getCodexThreads().filter(t => t.id !== threadId);
     this.setCodexThreads(threads);
     return threads;
+  }
+
+  // Claude conversation tracking
+  getClaudeConversations() {
+    return this.store.get('claudeConversations', []);
+  }
+
+  setClaudeConversations(conversations) {
+    this.store.set('claudeConversations', conversations || []);
+  }
+
+  addClaudeConversation(conversation) {
+    const conversations = this.getClaudeConversations();
+    const existingIndex = conversations.findIndex(c => c.id === conversation.id);
+    
+    if (existingIndex >= 0) {
+      conversations[existingIndex] = { ...conversations[existingIndex], ...conversation };
+    } else {
+      conversations.unshift(conversation);
+    }
+
+    // Keep only last 100 conversations
+    const trimmedConversations = conversations.slice(0, 100);
+    this.setClaudeConversations(trimmedConversations);
+    return trimmedConversations;
+  }
+
+  removeClaudeConversation(conversationId) {
+    const conversations = this.getClaudeConversations().filter(c => c.id !== conversationId);
+    this.setClaudeConversations(conversations);
+    return conversations;
   }
 
   // Clear all data

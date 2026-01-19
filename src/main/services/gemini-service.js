@@ -6,6 +6,9 @@ class GeminiService {
   constructor() {
     this.baseDir = path.join(os.homedir(), '.gemini', 'tmp');
     this.historyDir = path.join(os.homedir(), '.gemini', 'history');
+    // Debug: log the paths being used
+    console.log('[GeminiService] Base dir:', this.baseDir);
+    console.log('[GeminiService] History dir:', this.historyDir);
   }
 
   /**
@@ -30,18 +33,30 @@ class GeminiService {
     const projects = [];
     const pathsToScan = [this.baseDir, ...additionalPaths];
 
+    console.log(`[GeminiService] Scanning paths:`, pathsToScan);
+
     for (const basePath of pathsToScan) {
-      if (!fs.existsSync(basePath)) continue;
+      if (!fs.existsSync(basePath)) {
+        console.log(`[GeminiService] Path does not exist: ${basePath}`);
+        continue;
+      }
 
       try {
         const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        console.log(`[GeminiService] Found ${entries.length} entries in ${basePath}`);
         
         for (const entry of entries) {
           if (entry.isDirectory()) {
+            // Skip known non-project directories
+            if (entry.name === 'bin' || entry.name === 'cache') {
+              continue;
+            }
+            
             const projectPath = path.join(basePath, entry.name);
             const chatsPath = path.join(projectPath, 'chats');
             
             if (fs.existsSync(chatsPath)) {
+              console.log(`[GeminiService] Found project: ${entry.name}`);
               projects.push({
                 hash: entry.name,
                 path: projectPath,
@@ -51,10 +66,11 @@ class GeminiService {
           }
         }
       } catch (err) {
-        console.error(`Error scanning ${basePath}:`, err);
+        console.error(`[GeminiService] Error scanning ${basePath}:`, err);
       }
     }
 
+    console.log(`[GeminiService] Total projects discovered: ${projects.length}`);
     return projects;
   }
 
@@ -67,11 +83,13 @@ class GeminiService {
     const sessions = [];
 
     if (!fs.existsSync(chatsPath)) {
+      console.log(`[GeminiService] No chats directory at: ${chatsPath}`);
       return sessions;
     }
 
     try {
       const files = fs.readdirSync(chatsPath).filter(f => f.endsWith('.json'));
+      console.log(`[GeminiService] Found ${files.length} session files in ${chatsPath}`);
 
       for (const file of files) {
         try {
@@ -80,6 +98,10 @@ class GeminiService {
           const content = fs.readFileSync(filePath, 'utf-8');
           const session = JSON.parse(content);
 
+          // Use session timestamps if available, fall back to file stats
+          const createdAt = session.startTime ? new Date(session.startTime) : stats.birthtime;
+          const updatedAt = session.lastUpdated ? new Date(session.lastUpdated) : stats.mtime;
+
           sessions.push({
             id: `gemini-${path.basename(projectPath)}-${file.replace('.json', '')}`,
             provider: 'gemini',
@@ -87,21 +109,22 @@ class GeminiService {
             status: this.inferStatus(session, stats),
             prompt: this.extractInitialPrompt(session),
             repository: this.extractRepository(projectPath),
-            createdAt: stats.birthtime,
-            updatedAt: stats.mtime,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
             summary: this.extractSummary(session),
             filePath: filePath,
             projectHash: path.basename(projectPath),
             messageCount: this.countMessages(session)
           });
         } catch (err) {
-          console.error(`Error parsing session file ${file}:`, err);
+          console.error(`[GeminiService] Error parsing session file ${file}:`, err);
         }
       }
     } catch (err) {
-      console.error(`Error reading chats directory:`, err);
+      console.error(`[GeminiService] Error reading chats directory:`, err);
     }
 
+    console.log(`[GeminiService] Returning ${sessions.length} sessions from ${projectPath}`);
     return sessions;
   }
 
@@ -110,6 +133,7 @@ class GeminiService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async getAllAgents(additionalPaths = []) {
+    console.log('[GeminiService] getAllAgents called with paths:', additionalPaths);
     const projects = await this.discoverProjects(additionalPaths);
     const allSessions = [];
 
@@ -118,6 +142,8 @@ class GeminiService {
       allSessions.push(...sessions);
     }
 
+    console.log(`[GeminiService] Total sessions found: ${allSessions.length}`);
+    
     // Sort by most recent first
     return allSessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   }
@@ -180,7 +206,21 @@ class GeminiService {
       const msgType = msg.type || msg.role;
       if (msgType === 'user' && msg.content) {
         const content = typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || '';
-        return content.substring(0, 50) + (content.length > 50 ? '...' : '');
+        // Skip very short inputs like "exit" or single commands
+        if (content.trim().length > 5) {
+          return content.substring(0, 50) + (content.length > 50 ? '...' : '');
+        }
+      }
+    }
+    
+    // If no good user message found, try to get something meaningful from first info message
+    for (const msg of messages) {
+      const msgType = msg.type || msg.role;
+      if ((msgType === 'info' || msgType === 'error') && msg.content) {
+        const content = typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || '';
+        if (content.trim().length > 10) {
+          return content.substring(0, 50) + (content.length > 50 ? '...' : '');
+        }
       }
     }
     

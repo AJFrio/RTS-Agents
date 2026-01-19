@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.cursor.com https://jules.googleapis.com https://api.openai.com;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https://api.cursor.com https://jules.googleapis.com https://api.openai.com https://api.anthropic.com;">
   <title>RTS Agents Dashboard</title>
   <link rel="stylesheet" href="./styles/output.css">
 </head>
@@ -75,6 +75,14 @@
               <span id="count-codex" class="text-xs text-gray-500 ml-auto">0</span>
             </span>
           </label>
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" id="filter-claude" checked class="provider-filter w-4 h-4 rounded bg-gray-700 border-gray-600 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800">
+            <span class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+              <span class="text-sm group-hover:text-white transition-colors">Claude Code</span>
+              <span id="count-claude" class="text-xs text-gray-500 ml-auto">0</span>
+            </span>
+          </label>
         </div>
       </div>
 
@@ -121,6 +129,10 @@
             <span class="text-gray-400">Codex</span>
             <span id="status-codex" class="status-indicator">--</span>
           </div>
+          <div class="flex items-center justify-between">
+            <span class="text-gray-400">Claude</span>
+            <span id="status-claude" class="status-indicator">--</span>
+          </div>
         </div>
       </div>
     </aside>
@@ -135,13 +147,13 @@
             <span id="total-count" class="text-sm text-gray-400">0 agents</span>
           </div>
           <div class="flex items-center gap-3">
-            <!-- Search -->
+              <!-- Search -->
             <div class="relative">
-              <input type="text" id="search-input" placeholder="Search agents..." 
-                class="w-64 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 pl-10 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
               </svg>
+              <input type="text" id="search-input" placeholder="Search agents..." 
+                class="w-64 bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             </div>
             <!-- New Task Button -->
             <button id="new-task-btn" class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors">
@@ -238,22 +250,34 @@
                 <div class="flex gap-2">
                   <input type="password" id="cursor-api-key" placeholder="Enter your Cursor Cloud API key"
                     class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500">
-                  <button id="save-cursor-key" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors">Save</button>
+                  <button id="save-cursor-key" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">Save</button>
                   <button id="test-cursor-key" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-medium transition-colors">Test</button>
                 </div>
                 <p class="mt-1 text-xs text-gray-500">Get your API key from cursor.com/settings</p>
               </div>
 
               <!-- Codex API Key -->
-              <div>
+              <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-300 mb-2">OpenAI Codex API Key</label>
                 <div class="flex gap-2">
                   <input type="password" id="codex-api-key" placeholder="Enter your OpenAI API key"
                     class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                  <button id="save-codex-key" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-sm font-medium transition-colors">Save</button>
+                  <button id="save-codex-key" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">Save</button>
                   <button id="test-codex-key" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-medium transition-colors">Test</button>
                 </div>
                 <p class="mt-1 text-xs text-gray-500">Get your API key from platform.openai.com/api-keys</p>
+              </div>
+
+              <!-- Claude API Key -->
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Anthropic Claude API Key</label>
+                <div class="flex gap-2">
+                  <input type="password" id="claude-api-key" placeholder="Enter your Anthropic API key"
+                    class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                  <button id="save-claude-key" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors">Save</button>
+                  <button id="test-claude-key" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-medium transition-colors">Test</button>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Get your API key from console.anthropic.com. Claude Code CLI is also supported if installed locally.</p>
               </div>
             </div>
 
@@ -353,7 +377,7 @@
                 <span class="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">1</span>
                 <h4 class="text-sm font-semibold text-white uppercase tracking-wide">Choose Service</h4>
               </div>
-              <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
                 <!-- Gemini CLI -->
                 <button type="button" id="service-gemini" onclick="selectService('gemini')" 
                   class="service-btn group relative flex flex-col items-start p-4 rounded-lg border-2 border-gray-600 hover:border-emerald-500 bg-gray-700/30 hover:bg-emerald-500/10 transition-all text-left">
@@ -389,6 +413,15 @@
                     <span class="text-sm font-medium text-white">OpenAI Codex</span>
                   </div>
                   <span class="text-xs text-gray-400 leading-relaxed">Cloud tasks via OpenAI API</span>
+                </button>
+                <!-- Claude Code -->
+                <button type="button" id="service-claude" onclick="selectService('claude')"
+                  class="service-btn group relative flex flex-col items-start p-4 rounded-lg border-2 border-gray-600 hover:border-orange-500 bg-gray-700/30 hover:bg-orange-500/10 transition-all text-left">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                    <span class="text-sm font-medium text-white">Claude Code</span>
+                  </div>
+                  <span class="text-xs text-gray-400 leading-relaxed">Local CLI or Anthropic API</span>
                 </button>
               </div>
               <p id="service-status" class="mt-3 text-xs text-gray-500"></p>

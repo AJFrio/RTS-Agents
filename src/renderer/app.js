@@ -15,7 +15,8 @@ const state = {
       gemini: true,
       jules: true,
       cursor: true,
-      codex: true
+      codex: true,
+      claude: true
     },
     statuses: {
       running: true,
@@ -36,6 +37,7 @@ const state = {
     jules: 0,
     cursor: 0,
     codex: 0,
+    claude: 0,
     total: 0
   },
   // Track which services are configured/available
@@ -43,7 +45,8 @@ const state = {
     gemini: false,
     jules: false,
     cursor: false,
-    codex: false
+    codex: false,
+    claude: false
   },
   loading: false,
   errors: [],
@@ -84,17 +87,20 @@ const elements = {
   countJules: document.getElementById('count-jules'),
   countCursor: document.getElementById('count-cursor'),
   countCodex: document.getElementById('count-codex'),
+  countClaude: document.getElementById('count-claude'),
   
   // Status indicators
   statusGemini: document.getElementById('status-gemini'),
   statusJules: document.getElementById('status-jules'),
   statusCursor: document.getElementById('status-cursor'),
   statusCodex: document.getElementById('status-codex'),
+  statusClaude: document.getElementById('status-claude'),
   
   // Settings
   julesApiKey: document.getElementById('jules-api-key'),
   cursorApiKey: document.getElementById('cursor-api-key'),
   codexApiKey: document.getElementById('codex-api-key'),
+  claudeApiKey: document.getElementById('claude-api-key'),
   autoPolling: document.getElementById('auto-polling'),
   pollingInterval: document.getElementById('polling-interval'),
   intervalValue: document.getElementById('interval-value'),
@@ -179,6 +185,8 @@ function setupEventListeners() {
   document.getElementById('test-cursor-key').addEventListener('click', () => testApiKey('cursor'));
   document.getElementById('save-codex-key').addEventListener('click', () => saveApiKey('codex'));
   document.getElementById('test-codex-key').addEventListener('click', () => testApiKey('codex'));
+  document.getElementById('save-claude-key').addEventListener('click', () => saveApiKey('claude'));
+  document.getElementById('test-claude-key').addEventListener('click', () => testApiKey('claude'));
 
   // Settings - Polling
   elements.autoPolling.addEventListener('change', (e) => {
@@ -277,6 +285,7 @@ async function loadSettings() {
     state.configuredServices.jules = result.apiKeys?.jules || false;
     state.configuredServices.cursor = result.apiKeys?.cursor || false;
     state.configuredServices.codex = result.apiKeys?.codex || false;
+    state.configuredServices.claude = result.claudeInstalled || result.apiKeys?.claude || false;
 
     // Update provider filter visibility based on configured services
     updateProviderFilterVisibility();
@@ -290,6 +299,9 @@ async function loadSettings() {
     }
     if (result.apiKeys?.codex) {
       elements.codexApiKey.placeholder = '••••••••••••••••';
+    }
+    if (result.apiKeys?.claude) {
+      elements.claudeApiKey.placeholder = '••••••••••••••••';
     }
   } catch (err) {
     console.error('Error loading settings:', err);
@@ -306,6 +318,7 @@ async function checkConnectionStatus() {
     updateStatusIndicator('jules', status.jules);
     updateStatusIndicator('cursor', status.cursor);
     updateStatusIndicator('codex', status.codex);
+    updateStatusIndicator('claude', status.claude);
   } catch (err) {
     console.error('Error checking connection status:', err);
   }
@@ -315,7 +328,7 @@ async function checkConnectionStatus() {
  * Update visibility of provider filters based on configured services
  */
 function updateProviderFilterVisibility() {
-  const providers = ['gemini', 'jules', 'cursor', 'codex'];
+  const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude'];
   
   providers.forEach(provider => {
     const filterContainer = document.getElementById(`filter-${provider}`)?.closest('label');
@@ -421,7 +434,8 @@ function createAgentCard(agent) {
     gemini: 'emerald',
     jules: 'blue',
     cursor: 'purple',
-    codex: 'cyan'
+    codex: 'cyan',
+    claude: 'orange'
   };
 
   const statusColors = {
@@ -556,6 +570,7 @@ function updateCounts() {
   elements.countJules.textContent = state.counts.jules;
   elements.countCursor.textContent = state.counts.cursor;
   elements.countCodex.textContent = state.counts.codex;
+  elements.countClaude.textContent = state.counts.claude;
   elements.totalCount.textContent = `${state.counts.total} agent${state.counts.total !== 1 ? 's' : ''}`;
 }
 
@@ -596,7 +611,8 @@ async function saveApiKey(provider) {
   const inputMap = {
     jules: elements.julesApiKey,
     cursor: elements.cursorApiKey,
-    codex: elements.codexApiKey
+    codex: elements.codexApiKey,
+    claude: elements.claudeApiKey
   };
   const input = inputMap[provider];
   const key = input.value.trim();
@@ -690,8 +706,8 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
     </div>
   `;
 
-  const providerColors = { gemini: 'emerald', jules: 'blue', cursor: 'purple', codex: 'cyan' };
-  const color = providerColors[provider];
+  const providerColors = { gemini: 'emerald', jules: 'blue', cursor: 'purple', codex: 'cyan', claude: 'orange' };
+  const color = providerColors[provider] || 'gray';
   elements.modalProviderBadge.className = `provider-badge bg-${color}-500/20 text-${color}-400 text-xs font-medium px-2 py-1 rounded`;
   elements.modalProviderBadge.textContent = capitalizeFirst(provider);
 
@@ -980,7 +996,7 @@ window.closeNewTaskModal = function() {
 function resetNewTaskForm() {
   // Reset service selection
   document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-emerald-500', 'border-blue-500', 'border-purple-500', 'border-cyan-500', 'bg-emerald-500/10', 'bg-blue-500/10', 'bg-purple-500/10', 'bg-cyan-500/10');
+    btn.classList.remove('border-emerald-500', 'border-blue-500', 'border-purple-500', 'border-cyan-500', 'border-orange-500', 'bg-emerald-500/10', 'bg-blue-500/10', 'bg-purple-500/10', 'bg-cyan-500/10', 'bg-orange-500/10');
     btn.classList.add('border-gray-600');
   });
 
@@ -1007,11 +1023,12 @@ window.selectService = async function(service) {
     gemini: 'emerald',
     jules: 'blue',
     cursor: 'purple',
-    codex: 'cyan'
+    codex: 'cyan',
+    claude: 'orange'
   };
 
   document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-emerald-500', 'border-blue-500', 'border-purple-500', 'border-cyan-500', 'bg-emerald-500/10', 'bg-blue-500/10', 'bg-purple-500/10', 'bg-cyan-500/10');
+    btn.classList.remove('border-emerald-500', 'border-blue-500', 'border-purple-500', 'border-cyan-500', 'border-orange-500', 'bg-emerald-500/10', 'bg-blue-500/10', 'bg-purple-500/10', 'bg-cyan-500/10', 'bg-orange-500/10');
     btn.classList.add('border-gray-600');
   });
 
@@ -1020,9 +1037,8 @@ window.selectService = async function(service) {
   selectedBtn.classList.remove('border-gray-600');
   selectedBtn.classList.add(`border-${color}-500`, `bg-${color}-500/10`);
 
-  // Show/hide branch input for Gemini (local project doesn't need branch)
-  // Codex also doesn't require branch for simple tasks
-  if (service === 'gemini' || service === 'codex') {
+  // Show/hide branch input for Gemini, Codex, and Claude (local projects don't need branch)
+  if (service === 'gemini' || service === 'codex' || service === 'claude') {
     elements.branchInputContainer.classList.add('hidden');
   } else {
     elements.branchInputContainer.classList.remove('hidden');
@@ -1099,8 +1115,8 @@ function validateNewTaskForm() {
   const hasRepo = elements.taskRepo.value !== '';
   const hasPrompt = elements.taskPrompt.value.trim() !== '';
 
-  // Codex doesn't require a repository - just a prompt
-  const repoRequired = state.newTask.selectedService !== 'codex';
+  // Codex and Claude (cloud) don't require a repository - just a prompt
+  const repoRequired = state.newTask.selectedService !== 'codex' && state.newTask.selectedService !== 'claude';
   
   elements.createTaskBtn.disabled = !(hasService && hasPrompt && (hasRepo || !repoRequired));
 }
@@ -1144,6 +1160,13 @@ window.submitNewTask = async function() {
       options.projectPath = repoData?.path || repoValue;
     } else if (service === 'codex') {
       // For Codex, use repository context if provided
+      options.repository = repoValue || null;
+      options.title = prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '');
+    } else if (service === 'claude') {
+      // For Claude, use project path if provided (local) or just prompt (cloud)
+      const selectedOption = elements.taskRepo.options[elements.taskRepo.selectedIndex];
+      const repoData = selectedOption?.dataset?.repoData ? JSON.parse(selectedOption.dataset.repoData) : null;
+      options.projectPath = repoData?.path || repoValue || null;
       options.repository = repoValue || null;
       options.title = prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '');
     }

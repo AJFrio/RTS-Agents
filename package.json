@@ -21,7 +21,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "p5": "^2.2.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

@@ -184,3 +184,44 @@
     backdrop-filter: blur(4px);
   }
 }
+
+/* Hex World Canvas Styles */
+#hex-canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #111827;
+}
+
+#hex-canvas-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Hex overlay styles */
+#hex-overlay {
+  pointer-events: none;
+}
+
+#hex-overlay button,
+#hex-overlay a {
+  pointer-events: auto;
+}
+
+/* Smooth transitions for hex UI elements */
+#hex-back-btn,
+#hex-service-info,
+#hex-instructions {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#hex-back-btn:hover {
+  transform: translateX(-2px);
+}
+
+/* Hex service info badge */
+#hex-service-dot {
+  transition: background-color 0.3s ease;
+}

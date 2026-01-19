@@ -1,5 +1,6 @@
 /**
  * RTS Agents Dashboard - Main Application
+ * Now with hexagonal game interface using p5.js
  */
 
 // ============================================
@@ -53,7 +54,9 @@ const state = {
     repositories: [],
     loadingRepos: false,
     creating: false
-  }
+  },
+  // Hex world state
+  hexWorld: null
 };
 
 // ============================================
@@ -66,10 +69,17 @@ const elements = {
   viewSettings: document.getElementById('view-settings'),
   viewTitle: document.getElementById('view-title'),
   
+  // Hex World Canvas
+  hexCanvasContainer: document.getElementById('hex-canvas-container'),
+  hexBackBtn: document.getElementById('hex-back-btn'),
+  hexServiceInfo: document.getElementById('hex-service-info'),
+  hexServiceDot: document.getElementById('hex-service-dot'),
+  hexServiceName: document.getElementById('hex-service-name'),
+  hexServiceCount: document.getElementById('hex-service-count'),
+  hexInstructions: document.getElementById('hex-instructions'),
+  
   // Dashboard
-  agentsGrid: document.getElementById('agents-grid'),
   loadingState: document.getElementById('loading-state'),
-  emptyState: document.getElementById('empty-state'),
   errorBanner: document.getElementById('error-banner'),
   errorList: document.getElementById('error-list'),
   totalCount: document.getElementById('total-count'),
@@ -131,9 +141,150 @@ const elements = {
 async function init() {
   setupEventListeners();
   setupPollingListener();
+  setupHexWorld();
   await loadSettings();
   await loadAgents();
   await checkConnectionStatus();
+  
+  // Ensure hex world is updated after all data is loaded
+  // This handles the race condition where hex world may initialize after agents load
+  setTimeout(() => {
+    if (state.hexWorld && state.agents.length > 0) {
+      console.log('Post-init hex world update with', state.agents.length, 'agents');
+      updateHexWorld();
+    }
+  }, 500);
+}
+
+/**
+ * Initialize the hexagonal world canvas
+ */
+function setupHexWorld() {
+  if (!elements.hexCanvasContainer || !window.createHexWorld) {
+    console.warn('Hex world not available - missing container or createHexWorld');
+    return;
+  }
+  
+  // Wait for container to have dimensions before creating canvas
+  const waitForContainer = () => {
+    const width = elements.hexCanvasContainer.clientWidth;
+    const height = elements.hexCanvasContainer.clientHeight;
+    
+    console.log('Checking container dimensions:', width, 'x', height);
+    
+    if (width > 0 && height > 0) {
+      // Container is ready, create the hex world
+      console.log('Container ready, creating hex world');
+      window.createHexWorld(elements.hexCanvasContainer);
+      
+      // Wait for hex world to initialize with polling
+      let attempts = 0;
+      const maxAttempts = 50; // Increased attempts
+      
+      const checkHexWorld = () => {
+        attempts++;
+        if (window.hexWorld) {
+          state.hexWorld = window.hexWorld;
+          
+          // Connect hex world callbacks to modal functions
+          state.hexWorld.onTaskClick = (task) => {
+            // Open agent details modal
+            window.openAgentDetails(task.provider, task.rawId || '', task.filePath || '');
+          };
+          
+          state.hexWorld.onNewTaskClick = (serviceKey) => {
+            // Open new task modal with service pre-selected
+            openNewTaskModalWithService(serviceKey);
+          };
+          
+          state.hexWorld.onServiceSelect = (serviceKey) => {
+            // Update UI when zooming into a service
+            updateHexOverlay(serviceKey);
+          };
+          
+          state.hexWorld.onServiceDeselect = () => {
+            // Update UI when zooming back out
+            updateHexOverlay(null);
+          };
+          
+          // Initial update with current agents
+          updateHexWorld();
+          console.log('Hex world initialized successfully with', state.agents.length, 'agents');
+        } else if (attempts < maxAttempts) {
+          // Retry after a short delay
+          setTimeout(checkHexWorld, 100);
+        } else {
+          console.warn('Hex world failed to initialize after', maxAttempts, 'attempts');
+        }
+      };
+      
+      // Start checking after initial delay for p5 to run setup
+      setTimeout(checkHexWorld, 200);
+    } else {
+      // Container not ready, wait a bit more
+      console.log('Container not ready, waiting...');
+      setTimeout(waitForContainer, 50);
+    }
+  };
+  
+  // Start waiting for container
+  waitForContainer();
+}
+
+/**
+ * Update the hex overlay UI based on current view
+ */
+function updateHexOverlay(serviceKey) {
+  if (!elements.hexBackBtn || !elements.hexServiceInfo) return;
+  
+  if (serviceKey) {
+    // Zoomed into a service
+    elements.hexBackBtn.classList.remove('hidden');
+    elements.hexServiceInfo.classList.remove('hidden');
+    elements.hexInstructions.classList.add('hidden');
+    
+    // Update service info
+    const service = state.hexWorld?.services[serviceKey];
+    if (service) {
+      elements.hexServiceName.textContent = service.name;
+      elements.hexServiceDot.style.backgroundColor = service.color;
+      elements.hexServiceCount.textContent = `${service.taskCount} task${service.taskCount !== 1 ? 's' : ''}`;
+    }
+  } else {
+    // World view
+    elements.hexBackBtn.classList.add('hidden');
+    elements.hexServiceInfo.classList.add('hidden');
+    elements.hexInstructions.classList.remove('hidden');
+  }
+}
+
+/**
+ * Update hex world with current agent data
+ */
+function updateHexWorld() {
+  if (!state.hexWorld) {
+    console.log('Hex world not ready yet, skipping update');
+    return;
+  }
+  
+  // Update hex world with ALL agents (not filtered) and configured services
+  // The hex world shows all tasks per service - filtering is for search only
+  console.log('Updating hex world with', state.agents.length, 'agents');
+  state.hexWorld.updateAgents(state.agents, state.configuredServices);
+}
+
+/**
+ * Open new task modal with a service pre-selected
+ */
+function openNewTaskModalWithService(serviceKey) {
+  openNewTaskModal();
+  
+  // Pre-select the service after modal opens
+  setTimeout(() => {
+    if (state.configuredServices[serviceKey]) {
+      window.selectService(serviceKey);
+    }
+  }, 50);
 }
 
 function setupEventListeners() {
@@ -205,6 +356,15 @@ function setupEventListeners() {
   elements.newTaskBtn.addEventListener('click', openNewTaskModal);
   elements.taskRepo.addEventListener('change', validateNewTaskForm);
   elements.taskPrompt.addEventListener('input', validateNewTaskForm);
+  
+  // Hex World - Back button
+  if (elements.hexBackBtn) {
+    elements.hexBackBtn.addEventListener('click', () => {
+      if (state.hexWorld) {
+        state.hexWorld.zoomToWorld();
+      }
+    });
+  }
 }
 
 function setupPollingListener() {
@@ -233,12 +393,20 @@ async function loadAgents(silent = false) {
     const result = await window.electronAPI.getAgents();
     
     state.agents = result.agents || [];
-    state.counts = result.counts || { gemini: 0, jules: 0, cursor: 0, total: 0 };
+    state.counts = result.counts || { gemini: 0, jules: 0, cursor: 0, codex: 0, total: 0 };
     state.errors = result.errors || [];
+
+    console.log('Loaded agents:', state.agents.length, 'total');
+    console.log('Counts:', state.counts);
 
     updateCounts();
     applyFilters();
     showErrors();
+    
+    // Explicitly update hex world after loading agents
+    if (state.hexWorld) {
+      updateHexWorld();
+    }
   } catch (err) {
     console.error('Error loading agents:', err);
     state.errors = [{ provider: 'system', error: err.message }];
@@ -278,8 +446,15 @@ async function loadSettings() {
     state.configuredServices.cursor = result.apiKeys?.cursor || false;
     state.configuredServices.codex = result.apiKeys?.codex || false;
 
+    console.log('Configured services:', state.configuredServices);
+
     // Update provider filter visibility based on configured services
     updateProviderFilterVisibility();
+    
+    // Update hex world with configured services info
+    if (state.hexWorld) {
+      updateHexWorld();
+    }
 
     // Show configured status for API keys
     if (result.apiKeys?.jules) {
@@ -397,96 +572,8 @@ function applyFilters() {
 // ============================================
 
 function renderAgents() {
-  if (state.filteredAgents.length === 0) {
-    elements.agentsGrid.innerHTML = '';
-    if (state.agents.length === 0) {
-      elements.emptyState.classList.remove('hidden');
-    } else {
-      elements.emptyState.classList.add('hidden');
-      elements.agentsGrid.innerHTML = `
-        <div class="col-span-full text-center py-12 text-gray-400">
-          <p>No agents match your current filters</p>
-        </div>
-      `;
-    }
-    return;
-  }
-
-  elements.emptyState.classList.add('hidden');
-  elements.agentsGrid.innerHTML = state.filteredAgents.map(agent => createAgentCard(agent)).join('');
-}
-
-function createAgentCard(agent) {
-  const providerColors = {
-    gemini: 'emerald',
-    jules: 'blue',
-    cursor: 'purple',
-    codex: 'cyan'
-  };
-
-  const statusColors = {
-    running: 'blue',
-    completed: 'green',
-    pending: 'yellow',
-    failed: 'red',
-    stopped: 'gray'
-  };
-
-  const color = providerColors[agent.provider] || 'gray';
-  const statusColor = statusColors[agent.status] || 'gray';
-  const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
-
-  return `
-    <div class="agent-card bg-gray-800 rounded-xl border border-gray-700 hover:border-${color}-500/50 transition-all cursor-pointer overflow-hidden"
-         onclick="openAgentDetails('${agent.provider}', '${agent.rawId || ''}', '${agent.filePath || ''}')">
-      <div class="p-4">
-        <!-- Header -->
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <span class="provider-badge bg-${color}-500/20 text-${color}-400 text-xs font-medium px-2 py-1 rounded">
-              ${capitalizeFirst(agent.provider)}
-            </span>
-            <span class="status-badge bg-${statusColor}-500/20 text-${statusColor}-400 text-xs font-medium px-2 py-1 rounded flex items-center gap-1">
-              ${agent.status === 'running' ? '<span class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>' : ''}
-              ${capitalizeFirst(agent.status)}
-            </span>
-          </div>
-          <span class="text-xs text-gray-500">${timeAgo}</span>
-        </div>
-
-        <!-- Title -->
-        <h4 class="text-sm font-medium text-white mb-2 line-clamp-2">${escapeHtml(agent.name)}</h4>
-
-        <!-- Prompt preview -->
-        ${agent.prompt ? `
-          <p class="text-xs text-gray-400 line-clamp-2 mb-3">${escapeHtml(agent.prompt)}</p>
-        ` : ''}
-
-        <!-- Repository -->
-        ${agent.repository ? `
-          <div class="flex items-center gap-2 text-xs text-gray-500">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-            </svg>
-            <span class="truncate">${extractRepoName(agent.repository)}</span>
-          </div>
-        ` : ''}
-
-        <!-- PR Link -->
-        ${agent.prUrl ? `
-          <div class="mt-2">
-            <a href="#" onclick="event.stopPropagation(); openExternal('${agent.prUrl}')" 
-               class="text-xs text-${color}-400 hover:text-${color}-300 flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-              </svg>
-              View Pull Request
-            </a>
-          </div>
-        ` : ''}
-      </div>
-    </div>
-  `;
+  // Update hex world with filtered agents
+  updateHexWorld();
 }
 
 function renderGeminiPaths() {
@@ -536,14 +623,15 @@ function showView(view) {
 window.showView = showView;
 
 function showLoading() {
-  elements.loadingState.classList.remove('hidden');
-  elements.agentsGrid.classList.add('hidden');
-  elements.emptyState.classList.add('hidden');
+  if (elements.loadingState) {
+    elements.loadingState.classList.remove('hidden');
+  }
 }
 
 function hideLoading() {
-  elements.loadingState.classList.add('hidden');
-  elements.agentsGrid.classList.remove('hidden');
+  if (elements.loadingState) {
+    elements.loadingState.classList.add('hidden');
+  }
 }
 
 function setRefreshing(refreshing) {

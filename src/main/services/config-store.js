@@ -72,12 +72,21 @@ const schema = {
         items: { type: 'string' },
         default: []
       },
+      githubPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        default: []
+      },
       theme: {
         type: 'string',
         enum: ['light', 'dark', 'system'],
         default: 'system'
       }
     },
+    default: {}
+  },
+  sessionOutputs: {
+    type: 'object',
     default: {}
   }
 };
@@ -233,6 +242,78 @@ class ConfigStore {
     const conversations = this.getClaudeConversations().filter(c => c.id !== conversationId);
     this.setClaudeConversations(conversations);
     return conversations;
+  }
+
+  // GitHub repository paths
+  getGithubPaths() {
+    return this.store.get('settings.githubPaths', []);
+  }
+
+  addGithubPath(path) {
+    const paths = this.getGithubPaths();
+    if (!paths.includes(path)) {
+      paths.push(path);
+      this.store.set('settings.githubPaths', paths);
+    }
+    return paths;
+  }
+
+  removeGithubPath(path) {
+    const paths = this.getGithubPaths().filter(p => p !== path);
+    this.store.set('settings.githubPaths', paths);
+    return paths;
+  }
+
+  // Get all project paths (combines Gemini paths and GitHub paths)
+  getAllProjectPaths() {
+    const geminiPaths = this.getGeminiPaths();
+    const githubPaths = this.getGithubPaths();
+    // Combine and deduplicate
+    return [...new Set([...geminiPaths, ...githubPaths])];
+  }
+
+  // Session output persistence (for terminated CLI sessions)
+  saveSessionOutput(sessionId, output) {
+    const outputs = this.store.get('sessionOutputs', {});
+    outputs[sessionId] = {
+      output: output,
+      savedAt: new Date().toISOString()
+    };
+    
+    // Clean up old outputs (keep only last 50)
+    const entries = Object.entries(outputs);
+    if (entries.length > 50) {
+      entries.sort((a, b) => new Date(b[1].savedAt) - new Date(a[1].savedAt));
+      const trimmed = Object.fromEntries(entries.slice(0, 50));
+      this.store.set('sessionOutputs', trimmed);
+    } else {
+      this.store.set('sessionOutputs', outputs);
+    }
+  }
+
+  getSessionOutput(sessionId) {
+    const outputs = this.store.get('sessionOutputs', {});
+    return outputs[sessionId]?.output || null;
+  }
+
+  removeSessionOutput(sessionId) {
+    const outputs = this.store.get('sessionOutputs', {});
+    delete outputs[sessionId];
+    this.store.set('sessionOutputs', outputs);
+  }
+
+  clearOldSessionOutputs(maxAgeDays = 7) {
+    const outputs = this.store.get('sessionOutputs', {});
+    const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
+    
+    const filtered = {};
+    for (const [id, data] of Object.entries(outputs)) {
+      if (new Date(data.savedAt) > cutoff) {
+        filtered[id] = data;
+      }
+    }
+    
+    this.store.set('sessionOutputs', filtered);
   }
 
   // Clear all data

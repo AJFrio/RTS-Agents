@@ -113,6 +113,9 @@ const elements = {
   defaultGeminiPath: document.getElementById('default-gemini-path'),
   newGeminiPath: document.getElementById('new-gemini-path'),
   geminiPathsList: document.getElementById('gemini-paths-list'),
+  newGithubPath: document.getElementById('new-github-path'),
+  githubPathsList: document.getElementById('github-paths-list'),
+  githubPathsEmpty: document.getElementById('github-paths-empty'),
   
   // Modal
   agentModal: document.getElementById('agent-modal'),
@@ -296,6 +299,12 @@ function setupEventListeners() {
   document.getElementById('add-gemini-path').addEventListener('click', addGeminiPath);
   elements.newGeminiPath.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addGeminiPath();
+  });
+
+  // Settings - GitHub Paths
+  document.getElementById('add-github-path').addEventListener('click', addGithubPath);
+  elements.newGithubPath.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addGithubPath();
   });
 
   // New Task Modal
@@ -560,7 +569,8 @@ async function loadSettings() {
     state.settings = {
       pollingInterval: result.settings?.pollingInterval || 30000,
       autoPolling: result.settings?.autoPolling !== false,
-      geminiPaths: result.settings?.geminiPaths || []
+      geminiPaths: result.settings?.geminiPaths || [],
+      githubPaths: result.githubPaths || result.settings?.githubPaths || []
     };
 
     // Update UI
@@ -572,6 +582,9 @@ async function loadSettings() {
     // Update Gemini paths
     elements.defaultGeminiPath.textContent = result.geminiDefaultPath || 'Not detected';
     renderGeminiPaths();
+
+    // Update GitHub paths
+    renderGithubPaths();
 
     // Track configured services
     state.configuredServices.gemini = result.geminiInstalled || false;
@@ -1041,11 +1054,70 @@ window.removeGeminiPath = async function(path) {
   }
 };
 
+async function addGithubPath() {
+  const path = elements.newGithubPath.value.trim();
+  if (!path) return;
+
+  try {
+    const result = await window.electronAPI.addGithubPath(path);
+    state.settings.githubPaths = result.paths;
+    elements.newGithubPath.value = '';
+    renderGithubPaths();
+    await loadAgents();
+    showToast('GitHub path added successfully', 'success');
+  } catch (err) {
+    showToast(`Failed to add path: ${err.message}`, 'error');
+  }
+}
+
+// Make removeGithubPath available globally
+window.removeGithubPath = async function(path) {
+  try {
+    const result = await window.electronAPI.removeGithubPath(path);
+    state.settings.githubPaths = result.paths;
+    renderGithubPaths();
+    await loadAgents();
+    showToast('GitHub path removed', 'success');
+  } catch (err) {
+    showToast(`Failed to remove path: ${err.message}`, 'error');
+  }
+};
+
+function renderGithubPaths() {
+  const paths = state.settings.githubPaths || [];
+  
+  if (paths.length === 0) {
+    elements.githubPathsList.innerHTML = '';
+    elements.githubPathsEmpty.classList.remove('hidden');
+    return;
+  }
+
+  elements.githubPathsEmpty.classList.add('hidden');
+  elements.githubPathsList.innerHTML = paths.map(path => `
+    <div class="flex items-center justify-between p-3 bg-slate-700/20 border border-[#2A2A2A]">
+      <span class="text-sm text-slate-300 font-mono truncate">${escapeHtml(path)}</span>
+      <button onclick="removeGithubPath('${escapeHtml(path)}')" 
+              class="text-slate-400 hover:text-red-400 transition-colors">
+        <span class="material-symbols-outlined text-sm">close</span>
+      </button>
+    </div>
+  `).join('');
+}
+
 // ============================================
 // Modal
 // ============================================
 
+// Store reference to current terminal instance
+let currentTerminalInstance = null;
+
 window.openAgentDetails = async function(provider, rawId, filePath) {
+  // Clean up any existing terminal
+  if (currentTerminalInstance) {
+    currentTerminalInstance.dispose();
+    currentTerminalInstance = null;
+  }
+
   elements.agentModal.classList.remove('hidden');
   elements.modalContent.innerHTML = `
     <div class="flex items-center justify-center h-32">
@@ -1059,7 +1131,27 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
 
   try {
     const details = await window.electronAPI.getAgentDetails(provider, rawId, filePath);
-    renderAgentDetails(provider, details);
+    
+    // Check if this is an active CLI session with embedded terminal
+    let isActiveCliSession = false;
+    let cliSessionId = null;
+    
+    if ((provider === 'gemini' || provider === 'claude-cli') && details.cliSessionId) {
+      const statusResult = await window.electronAPI.isCliSessionActive(details.cliSessionId);
+      isActiveCliSession = statusResult.isActive;
+      cliSessionId = details.cliSessionId;
+    }
+    
+    // Also check by rawId pattern for sessions started with embedded terminal
+    if (!isActiveCliSession && rawId && (rawId.startsWith('gemini-') || rawId.startsWith('claude-cli-'))) {
+      const statusResult = await window.electronAPI.isCliSessionActive(rawId);
+      if (statusResult.isActive) {
+        isActiveCliSession = true;
+        cliSessionId = rawId;
+      }
+    }
+    
+    renderAgentDetails(provider, details, isActiveCliSession, cliSessionId);
   } catch (err) {
     elements.modalContent.innerHTML = `
       <div class="text-center py-8">
@@ -1070,7 +1162,7 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
   }
 };
 
-function renderAgentDetails(provider, details) {
+function renderAgentDetails(provider, details, isActiveCliSession = false, cliSessionId = null) {
   elements.modalTitle.textContent = details.name || 'Task Details';
   
   // Update status badge
@@ -1078,10 +1170,14 @@ function renderAgentDetails(provider, details) {
   elements.modalStatusBadge.className = `px-2 py-0.5 text-[10px] technical-font ${statusStyle.bg} ${statusStyle.text} font-bold`;
   elements.modalStatusBadge.textContent = getTacticalStatus(details.status);
   
-  // Update subtitle
+  // Update subtitle with LIVE indicator for active sessions
   const modalSubtitle = document.getElementById('modal-subtitle');
   if (modalSubtitle) {
-    modalSubtitle.textContent = `STATUS: ${getTacticalStatus(details.status)}`;
+    if (isActiveCliSession) {
+      modalSubtitle.innerHTML = `<span class="inline-flex items-center gap-1"><span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> LIVE TERMINAL</span>`;
+    } else {
+      modalSubtitle.textContent = `STATUS: ${getTacticalStatus(details.status)}`;
+    }
   }
 
   // Update task ID
@@ -1090,6 +1186,26 @@ function renderAgentDetails(provider, details) {
   }
 
   let content = '<div class="space-y-8">';
+  
+  // If this is an active CLI session, show embedded terminal
+  if (isActiveCliSession && cliSessionId) {
+    content += `
+      <section>
+        <div class="flex items-center justify-between mb-3 border-l-2 border-green-500 pl-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm text-green-500">terminal</span>
+            <h3 class="text-[11px] technical-font text-green-500 font-bold">Live Terminal</h3>
+            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          </div>
+          <button onclick="terminateCliSession('${cliSessionId}')" class="px-3 py-1 text-[10px] technical-font border border-red-500/50 text-red-400 hover:bg-red-500/10 transition-colors">
+            <span class="material-symbols-outlined text-xs align-middle mr-1">stop_circle</span>
+            Terminate
+          </button>
+        </div>
+        <div id="embedded-terminal-container" class="bg-[#0a0a0a] border border-[#2A2A2A] h-80 overflow-hidden"></div>
+      </section>
+    `;
+  }
 
   // Metadata Grid
   content += `
@@ -1251,9 +1367,72 @@ function renderAgentDetails(provider, details) {
 
   content += '</div>';
   elements.modalContent.innerHTML = content;
+  
+  // Initialize embedded terminal if active CLI session
+  if (isActiveCliSession && cliSessionId) {
+    initializeEmbeddedTerminal(cliSessionId);
+  }
 }
 
+/**
+ * Initialize the embedded terminal for an active CLI session
+ */
+async function initializeEmbeddedTerminal(sessionId) {
+  const container = document.getElementById('embedded-terminal-container');
+  if (!container) return;
+  
+  try {
+    // Create terminal instance using the terminal component
+    currentTerminalInstance = await window.createTerminal('embedded-terminal-container', sessionId, {
+      onExit: (data) => {
+        // Update UI when session exits
+        const modalSubtitle = document.getElementById('modal-subtitle');
+        if (modalSubtitle) {
+          modalSubtitle.innerHTML = `<span class="text-slate-500">Session ended (exit code: ${data.exitCode})</span>`;
+        }
+      },
+      onStatusChange: (data) => {
+        console.log('Session status changed:', data);
+      }
+    });
+    
+    // Focus the terminal
+    currentTerminalInstance.focus();
+  } catch (err) {
+    console.error('Failed to initialize terminal:', err);
+    container.innerHTML = `
+      <div class="flex items-center justify-center h-full text-red-400">
+        <span class="material-symbols-outlined mr-2">error</span>
+        <span class="technical-font text-sm">Failed to connect to terminal: ${err.message}</span>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Terminate a CLI session
+ */
+window.terminateCliSession = async function(sessionId) {
+  if (!confirm('Are you sure you want to terminate this session?')) return;
+  
+  try {
+    await window.electronAPI.terminateSession(sessionId);
+    showToast('Session terminated', 'success');
+    
+    // Refresh the modal content
+    window.closeModal();
+  } catch (err) {
+    showToast(`Failed to terminate session: ${err.message}`, 'error');
+  }
+};
+
 window.closeModal = function() {
+  // Clean up terminal instance when closing modal
+  if (currentTerminalInstance) {
+    currentTerminalInstance.dispose();
+    currentTerminalInstance = null;
+  }
+  
   elements.agentModal.classList.add('hidden');
 };
 
@@ -1466,8 +1645,17 @@ window.submitNewTask = async function() {
     if (result.success) {
       showToast('Task created successfully', 'success');
       closeNewTaskModal();
-      // Refresh the agents list to show the new task
-      await loadAgents();
+      
+      // If this is a CLI task with embedded terminal, open the details modal immediately
+      if (result.task && result.task.hasEmbeddedTerminal && result.task.id) {
+        // Small delay to let the modal close animation complete
+        setTimeout(() => {
+          window.openAgentDetails(service, result.task.id, null);
+        }, 300);
+      } else {
+        // Refresh the agents list to show the new task
+        await loadAgents();
+      }
     } else {
       showToast(`Failed to create task: ${result.error}`, 'error');
     }

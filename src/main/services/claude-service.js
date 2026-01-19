@@ -588,13 +588,14 @@ class ClaudeService {
 
   /**
    * Start a new local Claude Code CLI session
+   * Uses CLI Process Manager for embedded terminal support
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
+   * @param {boolean} [options.useEmbeddedTerminal] - Whether to use embedded terminal (default: true)
    */
   async startLocalSession(options) {
-    const { spawn } = require('child_process');
-    const { prompt, projectPath } = options;
+    const { prompt, projectPath, useEmbeddedTerminal = true } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -607,11 +608,39 @@ class ClaudeService {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
-    // Build the claude command
+    // Generate session ID
+    const sessionId = `claude-cli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // If using embedded terminal, delegate to CLI Process Manager
+    if (useEmbeddedTerminal) {
+      const cliProcessManager = require('./cli-process-manager');
+      
+      try {
+        const session = cliProcessManager.createSession(sessionId, 'claude', projectPath, prompt);
+        
+        return {
+          id: sessionId,
+          provider: 'claude',
+          source: 'local',
+          name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+          status: 'running',
+          prompt: prompt,
+          repository: projectPath,
+          createdAt: new Date(),
+          hasEmbeddedTerminal: true,
+          cliSessionId: session.id,
+          message: 'Claude Code CLI session started with embedded terminal.'
+        };
+      } catch (err) {
+        throw new Error(`Failed to start Claude Code CLI session: ${err.message}`);
+      }
+    }
+
+    // Fallback to detached process (legacy behavior)
+    const { spawn } = require('child_process');
     const args = ['-p', prompt, '--print'];
 
     return new Promise((resolve, reject) => {
-      // Check if claude CLI is available
       const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 
       const child = spawn(claudeCmd, args, {
@@ -629,13 +658,11 @@ class ClaudeService {
         }
       });
 
-      // Detach the process so it runs independently
       child.unref();
 
-      // Give it a moment to start, then resolve
       setTimeout(() => {
         resolve({
-          id: `claude-local-${Date.now()}`,
+          id: sessionId,
           provider: 'claude',
           source: 'local',
           name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
@@ -643,6 +670,7 @@ class ClaudeService {
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
+          hasEmbeddedTerminal: false,
           message: 'Claude Code CLI session started. Check your terminal for the interactive session.'
         });
       }, 500);
@@ -651,38 +679,30 @@ class ClaudeService {
 
   /**
    * Get available local projects that can be used with Claude Code CLI
+   * Scans for directories with .git folders in the provided paths
+   * Only returns actual Git repositories, not Claude session folders
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async getAvailableProjects(additionalPaths = []) {
     const projects = [];
     const scannedPaths = new Set();
 
-    // Scan the Claude projects directory for existing project hashes
-    const claudeProjects = await this.discoverProjects(additionalPaths);
-
-    for (const project of claudeProjects) {
-      if (!scannedPaths.has(project.path)) {
-        scannedPaths.add(project.path);
-        projects.push({
-          id: project.hash,
-          name: project.hash,
-          path: project.path,
-          claudePath: project.path,
-          displayName: project.hash,
-          hasExistingSessions: true
-        });
-      }
-    }
-
-    // Also scan additional paths for git repositories
+    // Only scan the provided paths for git repositories
+    // Do NOT include Claude session folders from .claude/projects
     for (const basePath of additionalPaths) {
       if (!fs.existsSync(basePath)) continue;
+
+      // Skip the Claude directories - these are session data, not project repos
+      if (basePath.includes('.claude')) continue;
 
       try {
         const entries = fs.readdirSync(basePath, { withFileTypes: true });
 
         for (const entry of entries) {
           if (entry.isDirectory()) {
+            // Skip hidden directories and common non-project folders
+            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+            
             const dirPath = path.join(basePath, entry.name);
             const gitPath = path.join(dirPath, '.git');
 

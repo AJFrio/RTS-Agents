@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles/output.css">
+  <link rel="stylesheet" href="./node_modules/@xterm/xterm/css/xterm.css">
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -391,12 +392,38 @@
               
               <div class="flex gap-2 mb-4">
                 <input type="text" id="new-gemini-path" placeholder="Add custom path..."
-                  class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
+                  class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
                 <button id="add-gemini-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
               </div>
               
               <div id="gemini-paths-list" class="space-y-2">
                 <!-- Custom paths will be listed here -->
+              </div>
+            </section>
+
+            <!-- GitHub Repository Paths -->
+            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
+              <div class="flex items-center gap-3 mb-8">
+                <span class="material-symbols-outlined text-[#C2B280]">source</span>
+                <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">GitHub Repository Paths</h3>
+              </div>
+              
+              <p class="text-sm text-slate-400 mb-4 technical-font">
+                Add paths to folders containing your Git repositories. CLI tools will scan these for available projects.
+              </p>
+              
+              <div class="flex gap-2 mb-4">
+                <input type="text" id="new-github-path" placeholder="e.g., D:\GitHub or ~/projects..."
+                  class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                <button id="add-github-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
+              </div>
+              
+              <div id="github-paths-list" class="space-y-2">
+                <!-- GitHub paths will be listed here -->
+              </div>
+              
+              <div id="github-paths-empty" class="text-center py-6 text-slate-500 technical-font text-sm">
+                No repository paths configured. Add a path to scan for Git repositories.
               </div>
             </section>
           </div>
@@ -592,6 +619,15 @@
     </div>
   </div>
 
+  <!-- xterm.js and addons -->
+  <script src="./node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="./node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="./node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+  
+  <!-- Terminal component -->
+  <script src="./src/renderer/terminal-component.js"></script>
+  
+  <!-- Main app -->
   <script src="./src/renderer/app.js"></script>
 </body>
 </html>

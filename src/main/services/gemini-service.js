@@ -354,55 +354,29 @@ class GeminiService {
 
   /**
    * Get available local projects that can be used with Gemini CLI
-   * Scans for directories with .git folders in common locations
+   * Scans for directories with .git folders in the provided paths
+   * Only returns actual Git repositories, not Gemini session folders
    */
   async getAvailableProjects(additionalPaths = []) {
     const projects = [];
     const scannedPaths = new Set();
 
-    // Scan the Gemini tmp directory for existing project hashes
-    const geminiProjects = await this.discoverProjects(additionalPaths);
-    
-    for (const project of geminiProjects) {
-      // Try to find the original project path from project-info.json if it exists
-      const infoPath = path.join(project.path, 'project-info.json');
-      let projectPath = project.path;
-      let projectName = project.hash;
-
-      if (fs.existsSync(infoPath)) {
-        try {
-          const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-          if (info.path) {
-            projectPath = info.path;
-            projectName = path.basename(info.path);
-          }
-        } catch (err) {
-          // Ignore parse errors
-        }
-      }
-
-      if (!scannedPaths.has(projectPath)) {
-        scannedPaths.add(projectPath);
-        projects.push({
-          id: project.hash,
-          name: projectName,
-          path: projectPath,
-          geminiPath: project.path,
-          displayName: projectName,
-          hasExistingSessions: true
-        });
-      }
-    }
-
-    // Also scan additional paths for git repositories
+    // Only scan the provided paths for git repositories
+    // Do NOT include Gemini session folders from .gemini/tmp
     for (const basePath of additionalPaths) {
       if (!fs.existsSync(basePath)) continue;
+
+      // Skip the Gemini directories - these are session data, not project repos
+      if (basePath.includes('.gemini')) continue;
 
       try {
         const entries = fs.readdirSync(basePath, { withFileTypes: true });
         
         for (const entry of entries) {
           if (entry.isDirectory()) {
+            // Skip hidden directories and common non-project folders
+            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+            
             const dirPath = path.join(basePath, entry.name);
             const gitPath = path.join(dirPath, '.git');
             
@@ -429,14 +403,15 @@ class GeminiService {
 
   /**
    * Start a new Gemini CLI session
+   * Uses CLI Process Manager for embedded terminal support
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
-   * @param {boolean} [options.sandbox] - Whether to run in sandbox mode
+   * @param {boolean} [options.sandbox] - Whether to run in sandbox mode (not used with PTY)
+   * @param {boolean} [options.useEmbeddedTerminal] - Whether to use embedded terminal (default: true)
    */
   async startSession(options) {
-    const { spawn } = require('child_process');
-    const { prompt, projectPath, sandbox = false } = options;
+    const { prompt, projectPath, useEmbeddedTerminal = true } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -449,15 +424,38 @@ class GeminiService {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
-    // Build the gemini command
-    const args = ['-p', prompt];
-    
-    if (sandbox) {
-      args.push('--sandbox');
+    // Generate session ID
+    const sessionId = `gemini-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // If using embedded terminal, delegate to CLI Process Manager
+    if (useEmbeddedTerminal) {
+      const cliProcessManager = require('./cli-process-manager');
+      
+      try {
+        const session = cliProcessManager.createSession(sessionId, 'gemini', projectPath, prompt);
+        
+        return {
+          id: sessionId,
+          provider: 'gemini',
+          name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+          status: 'running',
+          prompt: prompt,
+          repository: projectPath,
+          createdAt: new Date(),
+          hasEmbeddedTerminal: true,
+          cliSessionId: session.id,
+          message: 'Gemini CLI session started with embedded terminal.'
+        };
+      } catch (err) {
+        throw new Error(`Failed to start Gemini CLI session: ${err.message}`);
+      }
     }
 
+    // Fallback to detached process (legacy behavior)
+    const { spawn } = require('child_process');
+    const args = ['-p', prompt];
+
     return new Promise((resolve, reject) => {
-      // Check if gemini CLI is available
       const geminiCmd = process.platform === 'win32' ? 'gemini.cmd' : 'gemini';
       
       const child = spawn(geminiCmd, args, {
@@ -475,19 +473,18 @@ class GeminiService {
         }
       });
 
-      // Detach the process so it runs independently
       child.unref();
 
-      // Give it a moment to start, then resolve
       setTimeout(() => {
         resolve({
-          id: `gemini-${Date.now()}`,
+          id: sessionId,
           provider: 'gemini',
           name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
           status: 'running',
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
+          hasEmbeddedTerminal: false,
           message: 'Gemini CLI session started. Check your terminal for the interactive session.'
         });
       }, 500);

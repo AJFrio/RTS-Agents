@@ -170,7 +170,7 @@ class ConfigStore {
   // Check if API key is configured
   hasApiKey(provider) {
     const key = this.getApiKey(provider);
-    return key && key.length > 0;
+    return !!(key && key.length > 0);
   }
 
   // Codex thread tracking

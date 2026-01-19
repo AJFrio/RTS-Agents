@@ -130,11 +130,19 @@
             </li>
             <li class="flex items-center justify-between text-xs">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="filter-claude" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                <input type="checkbox" id="filter-claude-cli" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
                 <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                <span class="dark:text-slate-300">CLAUDE</span>
+                <span class="dark:text-slate-300">CLAUDE CLI</span>
               </label>
-              <span id="count-claude" class="technical-font text-slate-500">00</span>
+              <span id="count-claude-cli" class="technical-font text-slate-500">00</span>
+            </li>
+            <li class="flex items-center justify-between text-xs">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="filter-claude-cloud" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span class="dark:text-slate-300">CLAUDE CLOUD</span>
+              </label>
+              <span id="count-claude-cloud" class="technical-font text-slate-500">00</span>
             </li>
           </ul>
         </div>
@@ -184,8 +192,12 @@
             <span id="status-codex" class="font-bold text-slate-500">STBY</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">Claude</span>
-            <span id="status-claude" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 uppercase">Claude CLI</span>
+            <span id="status-claude-cli" class="font-bold text-slate-500">STBY</span>
+          </div>
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-slate-500 uppercase">Claude Cloud</span>
+            <span id="status-claude-cloud" class="font-bold text-slate-500">STBY</span>
           </div>
         </div>
       </div>
@@ -420,7 +432,7 @@
               <span class="flex items-center justify-center w-6 h-6 border border-[#C2B280] text-[10px] technical-font text-[#C2B280]">01</span>
               <h3 class="technical-font font-bold text-slate-300">Choose Service</h3>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <!-- Gemini CLI -->
               <button type="button" id="service-gemini" onclick="selectService('gemini')" 
                 class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
@@ -449,12 +461,19 @@
                 <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CODEX</div>
                 <div class="text-[9px] text-slate-500 uppercase leading-tight">Cloud tasks via OpenAI</div>
               </button>
-              <!-- Claude Code -->
-              <button type="button" id="service-claude" onclick="selectService('claude')"
+              <!-- Claude CLI (Local) -->
+              <button type="button" id="service-claude-cli" onclick="selectService('claude-cli')"
                 class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
-                <span class="material-symbols-outlined text-slate-400 mb-3">neurology</span>
-                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CLAUDE</div>
-                <div class="text-[9px] text-slate-500 uppercase leading-tight">Local CLI or Anthropic</div>
+                <span class="material-symbols-outlined text-slate-400 mb-3">terminal</span>
+                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CLAUDE CLI</div>
+                <div class="text-[9px] text-slate-500 uppercase leading-tight">Local projects via CLI</div>
+              </button>
+              <!-- Claude Cloud (API) -->
+              <button type="button" id="service-claude-cloud" onclick="selectService('claude-cloud')"
+                class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                <span class="material-symbols-outlined text-slate-400 mb-3">cloud</span>
+                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CLAUDE CLOUD</div>
+                <div class="text-[9px] text-slate-500 uppercase leading-tight">Anthropic API</div>
               </button>
             </div>
             <p id="service-status" class="mt-3 text-xs technical-font text-slate-500"></p>
@@ -471,13 +490,17 @@
               <!-- Repository Selection -->
               <div>
                 <label class="technical-font text-[10px] text-slate-500 mb-2 block">Repository</label>
-                <div class="relative">
-                  <select id="task-repo" disabled
-                    class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-4 pr-10 appearance-none focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                    <option value="">Select service first...</option>
-                  </select>
+                <div class="relative" id="repo-search-container">
+                  <input type="text" id="task-repo-search" disabled autocomplete="off"
+                    placeholder="Select service first..."
+                    class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-4 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  <input type="hidden" id="task-repo" value="">
                   <span id="repo-loading" class="hidden material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#C2B280] text-sm animate-spin">sync</span>
-                  <span id="repo-chevron" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">expand_more</span>
+                  <span id="repo-chevron" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none cursor-pointer">expand_more</span>
+                  <!-- Dropdown list -->
+                  <div id="repo-dropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-black border border-[#2A2A2A] shadow-lg">
+                    <!-- Repo options will be populated here -->
+                  </div>
                 </div>
                 <p id="repo-error" class="mt-1 text-xs text-red-400 hidden"></p>
               </div>

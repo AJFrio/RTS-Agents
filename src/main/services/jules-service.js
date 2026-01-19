@@ -160,24 +160,32 @@ class JulesService {
 
   /**
    * Map Jules session state to common status
+   * Jules states: QUEUED, PLANNING, AWAITING_PLAN_APPROVAL, AWAITING_USER_FEEDBACK,
+   *               IN_PROGRESS, PAUSED, FAILED, COMPLETED, STATE_UNSPECIFIED
    */
   mapStatus(session) {
-    // Check for outputs (completion)
+    // Check for outputs (completion) first
     if (session.outputs && session.outputs.length > 0) {
       return 'completed';
     }
 
-    // Check for explicit state field if it exists
-    if (session.state) {
-      const state = session.state.toLowerCase();
-      if (state.includes('running') || state.includes('active')) return 'running';
-      if (state.includes('complete') || state.includes('finished')) return 'completed';
-      if (state.includes('failed') || state.includes('error')) return 'failed';
-      if (state.includes('stopped') || state.includes('paused')) return 'stopped';
+    if (!session.state) {
+      return 'pending';
     }
 
-    // Default based on whether there's activity
-    return 'pending';
+    const stateMap = {
+      'QUEUED': 'pending',
+      'PLANNING': 'running',
+      'AWAITING_PLAN_APPROVAL': 'pending',
+      'AWAITING_USER_FEEDBACK': 'pending',
+      'IN_PROGRESS': 'running',
+      'PAUSED': 'stopped',
+      'FAILED': 'failed',
+      'COMPLETED': 'completed',
+      'STATE_UNSPECIFIED': 'pending'
+    };
+
+    return stateMap[session.state] || 'pending';
   }
 
   /**

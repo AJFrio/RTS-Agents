@@ -17,7 +17,8 @@ const state = {
       jules: true,
       cursor: true,
       codex: true,
-      claude: true
+      'claude-cli': true,
+      'claude-cloud': true
     },
     statuses: {
       running: true,
@@ -38,7 +39,8 @@ const state = {
     jules: 0,
     cursor: 0,
     codex: 0,
-    claude: 0,
+    'claude-cli': 0,
+    'claude-cloud': 0,
     total: 0
   },
   // Track which services are configured/available
@@ -47,7 +49,8 @@ const state = {
     jules: false,
     cursor: false,
     codex: false,
-    claude: false
+    'claude-cli': false,
+    'claude-cloud': false
   },
   loading: false,
   errors: [],
@@ -88,14 +91,16 @@ const elements = {
   countJules: document.getElementById('count-jules'),
   countCursor: document.getElementById('count-cursor'),
   countCodex: document.getElementById('count-codex'),
-  countClaude: document.getElementById('count-claude'),
+  countClaudeCli: document.getElementById('count-claude-cli'),
+  countClaudeCloud: document.getElementById('count-claude-cloud'),
   
   // Status indicators
   statusGemini: document.getElementById('status-gemini'),
   statusJules: document.getElementById('status-jules'),
   statusCursor: document.getElementById('status-cursor'),
   statusCodex: document.getElementById('status-codex'),
-  statusClaude: document.getElementById('status-claude'),
+  statusClaudeCli: document.getElementById('status-claude-cli'),
+  statusClaudeCloud: document.getElementById('status-claude-cloud'),
   
   // Settings
   julesApiKey: document.getElementById('jules-api-key'),
@@ -122,6 +127,9 @@ const elements = {
   newTaskBtn: document.getElementById('new-task-btn'),
   serviceStatus: document.getElementById('service-status'),
   taskRepo: document.getElementById('task-repo'),
+  taskRepoSearch: document.getElementById('task-repo-search'),
+  repoDropdown: document.getElementById('repo-dropdown'),
+  repoSearchContainer: document.getElementById('repo-search-container'),
   taskBranch: document.getElementById('task-branch'),
   taskPrompt: document.getElementById('task-prompt'),
   taskAutoPr: document.getElementById('task-auto-pr'),
@@ -181,7 +189,9 @@ function getProviderStyle(provider) {
     jules: { border: 'border-[#C2B280]', text: 'text-[#C2B280]', dot: 'bg-[#C2B280]' },
     cursor: { border: 'border-blue-500', text: 'text-blue-500', dot: 'bg-blue-500' },
     codex: { border: 'border-cyan-500', text: 'text-cyan-500', dot: 'bg-cyan-500' },
-    claude: { border: 'border-orange-500', text: 'text-orange-500', dot: 'bg-orange-500' }
+    'claude-cli': { border: 'border-orange-500', text: 'text-orange-500', dot: 'bg-orange-500' },
+    'claude-cloud': { border: 'border-amber-500', text: 'text-amber-500', dot: 'bg-amber-500' },
+    claude: { border: 'border-orange-500', text: 'text-orange-500', dot: 'bg-orange-500' } // fallback for legacy
   };
   return styles[provider] || { border: 'border-slate-500', text: 'text-slate-500', dot: 'bg-slate-500' };
 }
@@ -290,8 +300,10 @@ function setupEventListeners() {
 
   // New Task Modal
   elements.newTaskBtn.addEventListener('click', openNewTaskModal);
-  elements.taskRepo.addEventListener('change', validateNewTaskForm);
   elements.taskPrompt.addEventListener('input', validateNewTaskForm);
+  
+  // Searchable repo dropdown
+  setupRepoSearchDropdown();
 }
 
 function setupPollingListener() {
@@ -300,6 +312,208 @@ function setupPollingListener() {
       loadAgents(true); // Silent refresh
     });
   }
+}
+
+/**
+ * Setup the searchable repository dropdown
+ */
+function setupRepoSearchDropdown() {
+  const searchInput = elements.taskRepoSearch;
+  const dropdown = elements.repoDropdown;
+  const chevron = elements.repoChevron;
+  const container = elements.repoSearchContainer;
+
+  // Filter repos on input
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase();
+    filterRepoDropdown(query);
+    showRepoDropdown();
+  });
+
+  // Show dropdown on focus
+  searchInput.addEventListener('focus', () => {
+    if (!searchInput.disabled && state.newTask.repositories.length > 0) {
+      filterRepoDropdown(searchInput.value.toLowerCase());
+      showRepoDropdown();
+    }
+  });
+
+  // Toggle dropdown on chevron click
+  chevron.addEventListener('click', () => {
+    if (!searchInput.disabled && state.newTask.repositories.length > 0) {
+      if (dropdown.classList.contains('hidden')) {
+        filterRepoDropdown(searchInput.value.toLowerCase());
+        showRepoDropdown();
+        searchInput.focus();
+      } else {
+        hideRepoDropdown();
+      }
+    }
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) {
+      hideRepoDropdown();
+    }
+  });
+
+  // Keyboard navigation
+  searchInput.addEventListener('keydown', (e) => {
+    const items = dropdown.querySelectorAll('.repo-option:not(.hidden)');
+    const activeItem = dropdown.querySelector('.repo-option.bg-\\[\\#C2B280\\]\\/20');
+    let activeIndex = Array.from(items).indexOf(activeItem);
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (dropdown.classList.contains('hidden')) {
+          showRepoDropdown();
+        } else {
+          activeIndex = Math.min(activeIndex + 1, items.length - 1);
+          highlightRepoOption(items, activeIndex);
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        highlightRepoOption(items, activeIndex);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (activeItem) {
+          selectRepoOption(activeItem);
+        } else if (items.length > 0) {
+          selectRepoOption(items[0]);
+        }
+        break;
+      case 'Escape':
+        hideRepoDropdown();
+        break;
+    }
+  });
+}
+
+/**
+ * Filter the repository dropdown based on search query
+ */
+function filterRepoDropdown(query) {
+  const items = elements.repoDropdown.querySelectorAll('.repo-option');
+  let visibleCount = 0;
+
+  items.forEach(item => {
+    const name = item.dataset.displayName?.toLowerCase() || '';
+    const url = item.dataset.repoUrl?.toLowerCase() || '';
+    const matches = name.includes(query) || url.includes(query);
+    
+    if (matches) {
+      item.classList.remove('hidden');
+      visibleCount++;
+    } else {
+      item.classList.add('hidden');
+    }
+  });
+
+  // Show "no results" message if nothing matches
+  let noResults = elements.repoDropdown.querySelector('.no-results');
+  if (visibleCount === 0 && query) {
+    if (!noResults) {
+      noResults = document.createElement('div');
+      noResults.className = 'no-results px-4 py-3 text-xs technical-font text-slate-500 text-center';
+      noResults.textContent = 'NO MATCHING REPOSITORIES';
+      elements.repoDropdown.appendChild(noResults);
+    }
+    noResults.classList.remove('hidden');
+  } else if (noResults) {
+    noResults.classList.add('hidden');
+  }
+}
+
+/**
+ * Show the repository dropdown
+ */
+function showRepoDropdown() {
+  elements.repoDropdown.classList.remove('hidden');
+  elements.repoChevron.style.transform = 'rotate(180deg)';
+}
+
+/**
+ * Hide the repository dropdown
+ */
+function hideRepoDropdown() {
+  elements.repoDropdown.classList.add('hidden');
+  elements.repoChevron.style.transform = 'rotate(0deg)';
+}
+
+/**
+ * Highlight a repo option for keyboard navigation
+ */
+function highlightRepoOption(items, index) {
+  items.forEach((item, i) => {
+    if (i === index) {
+      item.classList.add('bg-[#C2B280]/20');
+      item.scrollIntoView({ block: 'nearest' });
+    } else {
+      item.classList.remove('bg-[#C2B280]/20');
+    }
+  });
+}
+
+/**
+ * Select a repo option from the dropdown
+ */
+function selectRepoOption(optionElement) {
+  const value = optionElement.dataset.value;
+  const displayName = optionElement.dataset.displayName;
+  const repoData = optionElement.dataset.repoData;
+
+  elements.taskRepo.value = value;
+  elements.taskRepo.dataset.repoData = repoData;
+  elements.taskRepoSearch.value = displayName;
+  
+  hideRepoDropdown();
+  validateNewTaskForm();
+}
+
+/**
+ * Populate the repo dropdown with options
+ */
+function populateRepoDropdown(repositories, service) {
+  elements.repoDropdown.innerHTML = '';
+
+  if (repositories.length === 0) {
+    elements.repoDropdown.innerHTML = `
+      <div class="px-4 py-3 text-xs technical-font text-slate-500 text-center">NO REPOSITORIES FOUND</div>
+    `;
+    return;
+  }
+
+  repositories.forEach(repo => {
+    const value = service === 'jules' ? repo.id : (repo.url || repo.path || repo.id);
+    const displayName = (repo.displayName || repo.name).toUpperCase();
+    
+    const option = document.createElement('div');
+    option.className = 'repo-option px-4 py-3 text-xs technical-font text-slate-300 cursor-pointer hover:bg-[#C2B280]/10 border-b border-[#2A2A2A] last:border-b-0 transition-colors';
+    option.dataset.value = value;
+    option.dataset.displayName = displayName;
+    option.dataset.repoUrl = repo.url || repo.path || '';
+    option.dataset.repoData = JSON.stringify(repo);
+    
+    option.innerHTML = `
+      <div class="font-medium">${escapeHtml(displayName)}</div>
+      ${repo.url || repo.path ? `<div class="text-[10px] text-slate-500 mt-1 truncate">${escapeHtml(repo.url || repo.path)}</div>` : ''}
+    `;
+    
+    option.addEventListener('click', () => selectRepoOption(option));
+    option.addEventListener('mouseenter', () => {
+      elements.repoDropdown.querySelectorAll('.repo-option').forEach(item => {
+        item.classList.remove('bg-[#C2B280]/20');
+      });
+      option.classList.add('bg-[#C2B280]/20');
+    });
+    
+    elements.repoDropdown.appendChild(option);
+  });
 }
 
 // ============================================
@@ -364,7 +578,8 @@ async function loadSettings() {
     state.configuredServices.jules = result.apiKeys?.jules || false;
     state.configuredServices.cursor = result.apiKeys?.cursor || false;
     state.configuredServices.codex = result.apiKeys?.codex || false;
-    state.configuredServices.claude = result.claudeInstalled || result.apiKeys?.claude || false;
+    state.configuredServices['claude-cli'] = result.claudeCliInstalled || false;
+    state.configuredServices['claude-cloud'] = result.claudeCloudConfigured || result.apiKeys?.claude || false;
 
     // Update provider filter visibility based on configured services
     updateProviderFilterVisibility();
@@ -409,7 +624,8 @@ async function checkConnectionStatus() {
     updateStatusIndicator('jules', status.jules);
     updateStatusIndicator('cursor', status.cursor);
     updateStatusIndicator('codex', status.codex);
-    updateStatusIndicator('claude', status.claude);
+    updateStatusIndicator('claude-cli', status['claude-cli']);
+    updateStatusIndicator('claude-cloud', status['claude-cloud']);
   } catch (err) {
     console.error('Error checking connection status:', err);
   }
@@ -419,7 +635,7 @@ async function checkConnectionStatus() {
  * Update visibility of provider filters based on configured services
  */
 function updateProviderFilterVisibility() {
-  const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude'];
+  const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude-cli', 'claude-cloud'];
   
   providers.forEach(provider => {
     const filterContainer = document.getElementById(`filter-${provider}`)?.closest('li');
@@ -449,18 +665,26 @@ function updateProviderFilterVisibility() {
  * Update visibility of service buttons in new task modal
  */
 function updateServiceButtonVisibility() {
-  const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude'];
+  const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude-cli', 'claude-cloud'];
+  let availableCount = 0;
   
   providers.forEach(provider => {
     const serviceBtn = document.getElementById(`service-${provider}`);
     if (serviceBtn) {
       if (state.configuredServices[provider]) {
-        serviceBtn.classList.remove('opacity-50');
+        serviceBtn.classList.remove('hidden');
+        availableCount++;
       } else {
-        serviceBtn.classList.add('opacity-50');
+        serviceBtn.classList.add('hidden');
       }
     }
   });
+
+  // Update service status message if no services are available
+  if (availableCount === 0) {
+    elements.serviceStatus.textContent = 'No services configured. Please add API keys or install CLI tools in Settings.';
+    elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
+  }
 }
 
 // ============================================
@@ -649,24 +873,27 @@ function updateCounts() {
   elements.countJules.textContent = formatCount(state.counts.jules);
   elements.countCursor.textContent = formatCount(state.counts.cursor);
   elements.countCodex.textContent = formatCount(state.counts.codex);
-  elements.countClaude.textContent = formatCount(state.counts.claude);
+  elements.countClaudeCli.textContent = formatCount(state.counts['claude-cli'] || 0);
+  elements.countClaudeCloud.textContent = formatCount(state.counts['claude-cloud'] || 0);
   elements.totalCount.textContent = `${state.counts.total} Task${state.counts.total !== 1 ? 's' : ''}`;
 }
 
 function updateStatusIndicator(provider, status) {
-  const el = elements[`status${capitalizeFirst(provider)}`];
+  // Convert provider name to element key (e.g., 'claude-cli' -> 'ClaudeCli')
+  const elementKey = provider.split('-').map(part => capitalizeFirst(part)).join('');
+  const el = elements[`status${elementKey}`];
   if (!el) return;
 
-  if (status.success || status.connected) {
+  if (status && (status.success || status.connected)) {
     el.textContent = 'Connected';
     el.className = 'font-bold text-emerald-500';
-  } else if (status.error === 'Not configured') {
+  } else if (status && status.error === 'Not configured') {
     el.textContent = 'Offline';
     el.className = 'font-bold text-slate-500';
   } else {
     el.textContent = 'Error';
     el.className = 'font-bold text-red-500';
-    el.title = status.error || '';
+    el.title = status?.error || '';
   }
 }
 
@@ -1067,9 +1294,15 @@ function resetNewTaskForm() {
     btn.classList.add('border-[#2A2A2A]');
   });
 
-  // Reset form fields
-  elements.taskRepo.innerHTML = '<option value="">Select service first...</option>';
-  elements.taskRepo.disabled = true;
+  // Reset form fields - searchable dropdown
+  elements.taskRepo.value = '';
+  elements.taskRepo.dataset.repoData = '';
+  elements.taskRepoSearch.value = '';
+  elements.taskRepoSearch.placeholder = 'Select service first...';
+  elements.taskRepoSearch.disabled = true;
+  elements.repoDropdown.innerHTML = '';
+  hideRepoDropdown();
+  
   elements.taskBranch.value = 'main';
   elements.taskPrompt.value = '';
   elements.taskAutoPr.checked = true;
@@ -1095,8 +1328,8 @@ window.selectService = async function(service) {
   selectedBtn.classList.remove('border-[#2A2A2A]');
   selectedBtn.classList.add('border-[#C2B280]', 'bg-[#C2B280]/5');
 
-  // Show/hide branch input for Gemini, Codex, and Claude (local projects don't need branch)
-  if (service === 'gemini' || service === 'codex' || service === 'claude') {
+  // Show/hide branch input - hide for local CLI tools and cloud-only services
+  if (service === 'gemini' || service === 'codex' || service === 'claude-cli' || service === 'claude-cloud') {
     elements.branchInputContainer.classList.add('hidden');
   } else {
     elements.branchInputContainer.classList.remove('hidden');
@@ -1110,8 +1343,11 @@ async function loadRepositoriesForService(service) {
   if (!window.electronAPI) return;
 
   state.newTask.loadingRepos = true;
-  elements.taskRepo.disabled = true;
-  elements.taskRepo.innerHTML = '<option value="">Loading repositories...</option>';
+  elements.taskRepoSearch.disabled = true;
+  elements.taskRepoSearch.placeholder = 'Loading repositories...';
+  elements.taskRepoSearch.value = '';
+  elements.taskRepo.value = '';
+  elements.repoDropdown.innerHTML = '';
   elements.repoLoading.classList.remove('hidden');
   elements.repoChevron.classList.add('hidden');
   elements.repoError.classList.add('hidden');
@@ -1123,7 +1359,7 @@ async function loadRepositoriesForService(service) {
     if (!result.success) {
       elements.repoError.textContent = result.error;
       elements.repoError.classList.remove('hidden');
-      elements.taskRepo.innerHTML = '<option value="">No repositories available</option>';
+      elements.taskRepoSearch.placeholder = 'No repositories available';
       elements.serviceStatus.textContent = result.error;
       elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
       return;
@@ -1132,24 +1368,17 @@ async function loadRepositoriesForService(service) {
     state.newTask.repositories = result.repositories || [];
 
     if (state.newTask.repositories.length === 0) {
-      elements.taskRepo.innerHTML = '<option value="">No repositories found</option>';
+      elements.taskRepoSearch.placeholder = 'No repositories found';
       elements.serviceStatus.textContent = 'No repositories available for this service';
       elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
       return;
     }
 
-    // Populate dropdown
-    elements.taskRepo.innerHTML = '<option value="">Select repository...</option>';
-    
-    for (const repo of state.newTask.repositories) {
-      const option = document.createElement('option');
-      option.value = service === 'jules' ? repo.id : (repo.url || repo.path || repo.id);
-      option.textContent = (repo.displayName || repo.name).toUpperCase();
-      option.dataset.repoData = JSON.stringify(repo);
-      elements.taskRepo.appendChild(option);
-    }
+    // Populate searchable dropdown
+    populateRepoDropdown(state.newTask.repositories, service);
 
-    elements.taskRepo.disabled = false;
+    elements.taskRepoSearch.disabled = false;
+    elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
     elements.serviceStatus.textContent = `${state.newTask.repositories.length} repositories available`;
     elements.serviceStatus.className = 'mt-3 text-xs technical-font text-emerald-400';
 
@@ -1157,7 +1386,7 @@ async function loadRepositoriesForService(service) {
     console.error('Error loading repositories:', err);
     elements.repoError.textContent = err.message;
     elements.repoError.classList.remove('hidden');
-    elements.taskRepo.innerHTML = '<option value="">Error loading repositories</option>';
+    elements.taskRepoSearch.placeholder = 'Error loading repositories';
     elements.serviceStatus.textContent = err.message;
     elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
   } finally {
@@ -1173,8 +1402,8 @@ function validateNewTaskForm() {
   const hasRepo = elements.taskRepo.value !== '';
   const hasPrompt = elements.taskPrompt.value.trim() !== '';
 
-  // Codex and Claude (cloud) don't require a repository - just a prompt
-  const repoRequired = state.newTask.selectedService !== 'codex' && state.newTask.selectedService !== 'claude';
+  // Codex and Claude Cloud don't require a repository - just a prompt
+  const repoRequired = state.newTask.selectedService !== 'codex' && state.newTask.selectedService !== 'claude-cloud';
   
   elements.createTaskBtn.disabled = !(hasService && hasPrompt && (hasRepo || !repoRequired));
 }
@@ -1184,11 +1413,16 @@ window.submitNewTask = async function() {
 
   const service = state.newTask.selectedService;
   const repoValue = elements.taskRepo.value;
+  const repoDataStr = elements.taskRepo.dataset.repoData;
+  const repoData = repoDataStr ? JSON.parse(repoDataStr) : null;
   const branch = elements.taskBranch.value.trim() || 'main';
   const prompt = elements.taskPrompt.value.trim();
   const autoCreatePr = elements.taskAutoPr.checked;
 
-  if (!service || !repoValue || !prompt) {
+  // Codex and Claude Cloud don't require a repository
+  const repoRequired = service !== 'codex' && service !== 'claude-cloud';
+  
+  if (!service || (repoRequired && !repoValue) || !prompt) {
     showToast('Please fill in all required fields', 'error');
     return;
   }
@@ -1213,19 +1447,17 @@ window.submitNewTask = async function() {
       options.ref = branch;
     } else if (service === 'gemini') {
       // For Gemini, find the project path from the selected repo
-      const selectedOption = elements.taskRepo.options[elements.taskRepo.selectedIndex];
-      const repoData = selectedOption.dataset.repoData ? JSON.parse(selectedOption.dataset.repoData) : null;
       options.projectPath = repoData?.path || repoValue;
     } else if (service === 'codex') {
       // For Codex, use repository context if provided
       options.repository = repoValue || null;
       options.title = prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '');
-    } else if (service === 'claude') {
-      // For Claude, use project path if provided (local) or just prompt (cloud)
-      const selectedOption = elements.taskRepo.options[elements.taskRepo.selectedIndex];
-      const repoData = selectedOption?.dataset?.repoData ? JSON.parse(selectedOption.dataset.repoData) : null;
-      options.projectPath = repoData?.path || repoValue || null;
-      options.repository = repoValue || null;
+    } else if (service === 'claude-cli') {
+      // For Claude CLI, use project path (local)
+      options.projectPath = repoData?.path || repoValue;
+      options.title = prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '');
+    } else if (service === 'claude-cloud') {
+      // For Claude Cloud, just use prompt (no project needed)
       options.title = prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '');
     }
 

@@ -117,22 +117,25 @@ ipcMain.handle('agents:get-all', async () => {
     jules: [],
     cursor: [],
     codex: [],
-    claude: [],
+    'claude-cli': [],
+    'claude-cloud': [],
     errors: []
   };
 
   // Fetch from all providers in parallel
   const geminiPaths = configStore.getGeminiPaths();
   
-  // Claude can work with local CLI or API key
-  const claudeAvailable = claudeService.isClaudeInstalled() || configStore.hasApiKey('claude');
+  // Claude CLI (local) and Claude Cloud (API) are separate
+  const claudeCliAvailable = claudeService.isClaudeInstalled();
+  const claudeCloudAvailable = configStore.hasApiKey('claude');
   
-  const [geminiResult, julesResult, cursorResult, codexResult, claudeResult] = await Promise.allSettled([
+  const [geminiResult, julesResult, cursorResult, codexResult, claudeCliResult, claudeCloudResult] = await Promise.allSettled([
     geminiService.getAllAgents(geminiPaths),
     configStore.hasApiKey('jules') ? julesService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('cursor') ? cursorService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('codex') ? codexService.getAllAgents() : Promise.resolve([]),
-    claudeAvailable ? claudeService.getAllAgents(geminiPaths) : Promise.resolve([])
+    claudeCliAvailable ? claudeService.getAllLocalSessions(geminiPaths) : Promise.resolve([]),
+    claudeCloudAvailable ? claudeService.getAllCloudConversations() : Promise.resolve([])
   ]);
 
   if (geminiResult.status === 'fulfilled') {
@@ -159,14 +162,22 @@ ipcMain.handle('agents:get-all', async () => {
     results.errors.push({ provider: 'codex', error: codexResult.reason?.message || 'Unknown error' });
   }
 
-  if (claudeResult.status === 'fulfilled') {
-    results.claude = claudeResult.value;
-  } else if (claudeAvailable) {
-    results.errors.push({ provider: 'claude', error: claudeResult.reason?.message || 'Unknown error' });
+  if (claudeCliResult.status === 'fulfilled') {
+    // Tag CLI sessions with the correct provider
+    results['claude-cli'] = claudeCliResult.value.map(agent => ({ ...agent, provider: 'claude-cli' }));
+  } else if (claudeCliAvailable) {
+    results.errors.push({ provider: 'claude-cli', error: claudeCliResult.reason?.message || 'Unknown error' });
+  }
+
+  if (claudeCloudResult.status === 'fulfilled') {
+    // Tag cloud sessions with the correct provider
+    results['claude-cloud'] = claudeCloudResult.value.map(agent => ({ ...agent, provider: 'claude-cloud' }));
+  } else if (claudeCloudAvailable) {
+    results.errors.push({ provider: 'claude-cloud', error: claudeCloudResult.reason?.message || 'Unknown error' });
   }
 
   // Combine and sort all agents by date
-  const allAgents = [...results.gemini, ...results.jules, ...results.cursor, ...results.codex, ...results.claude]
+  const allAgents = [...results.gemini, ...results.jules, ...results.cursor, ...results.codex, ...results['claude-cli'], ...results['claude-cloud']]
     .sort((a, b) => {
       const dateA = new Date(a.updatedAt || a.createdAt || 0);
       const dateB = new Date(b.updatedAt || b.createdAt || 0);
@@ -181,7 +192,8 @@ ipcMain.handle('agents:get-all', async () => {
       jules: results.jules.length,
       cursor: results.cursor.length,
       codex: results.codex.length,
-      claude: results.claude.length,
+      'claude-cli': results['claude-cli'].length,
+      'claude-cloud': results['claude-cloud'].length,
       total: allAgents.length
     }
   };
@@ -202,6 +214,8 @@ ipcMain.handle('agents:get-details', async (event, { provider, rawId, filePath }
       case 'codex':
         return await codexService.getAgentDetails(rawId);
       case 'claude':
+      case 'claude-cli':
+      case 'claude-cloud':
         return await claudeService.getAgentDetails(rawId, filePath);
       default:
         throw new Error(`Unknown provider: ${provider}`);
@@ -226,11 +240,12 @@ ipcMain.handle('settings:get', async () => {
       jules: configStore.hasApiKey('jules'),
       cursor: configStore.hasApiKey('cursor'),
       codex: configStore.hasApiKey('codex'),
-      claude: configStore.hasApiKey('claude')
+      claude: configStore.hasApiKey('claude')  // Keep for backward compatibility
     },
     geminiInstalled: geminiService.isGeminiInstalled(),
     geminiDefaultPath: geminiService.getDefaultPath(),
-    claudeInstalled: claudeService.isClaudeInstalled(),
+    claudeCliInstalled: claudeService.isClaudeInstalled(),
+    claudeCloudConfigured: configStore.hasApiKey('claude'),
     claudeDefaultPath: claudeService.getDefaultPath()
   };
 });
@@ -371,16 +386,17 @@ ipcMain.handle('utils:open-external', async (event, { url }) => {
  * Get provider connection status
  */
 ipcMain.handle('utils:get-status', async () => {
-  const [julesStatus, cursorStatus, codexStatus, claudeStatus] = await Promise.allSettled([
+  const [julesStatus, cursorStatus, codexStatus, claudeCloudStatus] = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
     configStore.hasApiKey('cursor') ? cursorService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
     configStore.hasApiKey('codex') ? codexService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
     configStore.hasApiKey('claude') ? claudeService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
   ]);
 
-  // Claude status: connected if CLI is installed OR API key is valid
+  // Claude CLI status: connected if CLI is installed
   const claudeCliInstalled = claudeService.isClaudeInstalled();
-  const claudeApiValid = claudeStatus.status === 'fulfilled' && claudeStatus.value.success;
+  // Claude Cloud status: connected if API key is valid
+  const claudeCloudValid = claudeCloudStatus.status === 'fulfilled' && claudeCloudStatus.value.success;
   
   return {
     gemini: {
@@ -390,12 +406,15 @@ ipcMain.handle('utils:get-status', async () => {
     jules: julesStatus.status === 'fulfilled' ? julesStatus.value : { success: false, error: julesStatus.reason?.message },
     cursor: cursorStatus.status === 'fulfilled' ? cursorStatus.value : { success: false, error: cursorStatus.reason?.message },
     codex: codexStatus.status === 'fulfilled' ? codexStatus.value : { success: false, error: codexStatus.reason?.message },
-    claude: {
-      success: claudeCliInstalled || claudeApiValid,
-      connected: claudeCliInstalled || claudeApiValid,
-      cliInstalled: claudeCliInstalled,
-      apiConfigured: configStore.hasApiKey('claude'),
-      error: (!claudeCliInstalled && !claudeApiValid) ? 'Claude CLI not installed and API key not configured' : null
+    'claude-cli': {
+      success: claudeCliInstalled,
+      connected: claudeCliInstalled,
+      error: claudeCliInstalled ? null : 'Claude CLI not installed'
+    },
+    'claude-cloud': {
+      success: claudeCloudValid,
+      connected: claudeCloudValid,
+      error: claudeCloudValid ? null : (configStore.hasApiKey('claude') ? 'API key invalid' : 'Not configured')
     }
   };
 });
@@ -439,13 +458,20 @@ ipcMain.handle('repos:get', async (event, { provider }) => {
         const codexProjects = await codexService.getAvailableProjects();
         return { success: true, repositories: codexProjects };
 
-      case 'claude':
-        if (!claudeService.isClaudeInstalled() && !configStore.hasApiKey('claude')) {
-          return { success: false, error: 'Claude CLI not installed and API key not configured', repositories: [] };
+      case 'claude-cli':
+        if (!claudeService.isClaudeInstalled()) {
+          return { success: false, error: 'Claude CLI not installed', repositories: [] };
         }
-        const claudePaths = configStore.getGeminiPaths(); // Reuse Gemini paths for project scanning
-        const claudeProjects = await claudeService.getAvailableProjects(claudePaths);
-        return { success: true, repositories: claudeProjects };
+        const claudeCliPaths = configStore.getGeminiPaths(); // Reuse Gemini paths for project scanning
+        const claudeCliProjects = await claudeService.getAvailableProjects(claudeCliPaths);
+        return { success: true, repositories: claudeCliProjects };
+
+      case 'claude-cloud':
+        if (!configStore.hasApiKey('claude')) {
+          return { success: false, error: 'Claude API key not configured', repositories: [] };
+        }
+        // Cloud mode doesn't need a repository - return empty array (task just needs a prompt)
+        return { success: true, repositories: [] };
 
       default:
         return { success: false, error: `Unknown provider: ${provider}`, repositories: [] };
@@ -465,20 +491,21 @@ ipcMain.handle('repos:get-all', async () => {
     cursor: [],
     gemini: [],
     codex: [],
-    claude: [],
+    'claude-cli': [],
+    'claude-cloud': [],
     errors: []
   };
 
   // Fetch from all providers in parallel
   const geminiPaths = configStore.getGeminiPaths();
-  const claudeAvailable = claudeService.isClaudeInstalled() || configStore.hasApiKey('claude');
+  const claudeCliAvailable = claudeService.isClaudeInstalled();
 
-  const [julesResult, cursorResult, geminiResult, codexResult, claudeResult] = await Promise.allSettled([
+  const [julesResult, cursorResult, geminiResult, codexResult, claudeCliResult] = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.getAllSources() : Promise.resolve([]),
     configStore.hasApiKey('cursor') ? cursorService.getAllRepositories() : Promise.resolve([]),
     geminiService.isGeminiInstalled() ? geminiService.getAvailableProjects(geminiPaths) : Promise.resolve([]),
     configStore.hasApiKey('codex') ? codexService.getAvailableProjects() : Promise.resolve([]),
-    claudeAvailable ? claudeService.getAvailableProjects(geminiPaths) : Promise.resolve([])
+    claudeCliAvailable ? claudeService.getAvailableProjects(geminiPaths) : Promise.resolve([])
   ]);
 
   if (julesResult.status === 'fulfilled') {
@@ -505,11 +532,14 @@ ipcMain.handle('repos:get-all', async () => {
     results.errors.push({ provider: 'codex', error: codexResult.reason?.message || 'Unknown error' });
   }
 
-  if (claudeResult.status === 'fulfilled') {
-    results.claude = claudeResult.value;
-  } else if (claudeAvailable) {
-    results.errors.push({ provider: 'claude', error: claudeResult.reason?.message || 'Unknown error' });
+  if (claudeCliResult.status === 'fulfilled') {
+    results['claude-cli'] = claudeCliResult.value;
+  } else if (claudeCliAvailable) {
+    results.errors.push({ provider: 'claude-cli', error: claudeCliResult.reason?.message || 'Unknown error' });
   }
+
+  // Claude Cloud doesn't need repositories - it's prompt-only
+  results['claude-cloud'] = [];
 
   return results;
 });
@@ -550,14 +580,24 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
         configStore.setCodexThreads(codexService.getTrackedThreads());
         return { success: true, task: codexTask };
 
-      case 'claude':
-        if (!claudeService.isClaudeInstalled() && !configStore.hasApiKey('claude')) {
-          throw new Error('Claude CLI not installed and API key not configured');
+      case 'claude-cli':
+        if (!claudeService.isClaudeInstalled()) {
+          throw new Error('Claude CLI not installed');
         }
-        const claudeTask = await claudeService.createTask(options);
+        // Force local mode by ensuring projectPath is set
+        const claudeCliTask = await claudeService.startLocalSession(options);
+        return { success: true, task: { ...claudeCliTask, provider: 'claude-cli' } };
+
+      case 'claude-cloud':
+        if (!configStore.hasApiKey('claude')) {
+          throw new Error('Claude API key not configured');
+        }
+        // Force cloud mode by removing projectPath
+        const cloudOptions = { ...options, projectPath: null };
+        const claudeCloudTask = await claudeService.createTask(cloudOptions);
         // Save tracked conversations to config for persistence
         configStore.setClaudeConversations(claudeService.getTrackedConversations());
-        return { success: true, task: claudeTask };
+        return { success: true, task: { ...claudeCloudTask, provider: 'claude-cloud' } };
 
       default:
         throw new Error(`Unknown provider: ${provider}`);

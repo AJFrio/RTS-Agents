@@ -70,6 +70,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('settings:set-polling', { enabled, interval }),
   
   /**
+   * Set application theme
+   * @param {string} theme - 'system', 'light', or 'dark'
+   */
+  setTheme: (theme) => 
+    ipcRenderer.invoke('settings:set-theme', { theme }),
+
+  /**
    * Add a Gemini project path to scan
    * @param {string} path 
    */

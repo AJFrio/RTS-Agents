@@ -32,7 +32,8 @@ const state = {
   settings: {
     pollingInterval: 30000,
     autoPolling: true,
-    geminiPaths: []
+    geminiPaths: [],
+    theme: 'system'
   },
   counts: {
     gemini: 0,
@@ -280,6 +281,11 @@ function setupEventListeners() {
   document.getElementById('test-claude-key').addEventListener('click', () => testApiKey('claude'));
   document.getElementById('disconnect-claude-key').addEventListener('click', () => disconnectApiKey('claude'));
 
+  // Settings - Theme
+  ['system', 'light', 'dark'].forEach(theme => {
+    document.getElementById(`theme-${theme}`).addEventListener('click', () => setTheme(theme));
+  });
+
   // Settings - Polling
   elements.autoPolling.addEventListener('change', (e) => {
     updatePollingSettings(e.target.checked, state.settings.pollingInterval);
@@ -313,6 +319,13 @@ function setupEventListeners() {
   
   // Searchable repo dropdown
   setupRepoSearchDropdown();
+
+  // Listen for system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (state.settings.theme === 'system') {
+      applyTheme('system');
+    }
+  });
 }
 
 function setupPollingListener() {
@@ -570,8 +583,12 @@ async function loadSettings() {
       pollingInterval: result.settings?.pollingInterval || 30000,
       autoPolling: result.settings?.autoPolling !== false,
       geminiPaths: result.settings?.geminiPaths || [],
-      githubPaths: result.githubPaths || result.settings?.githubPaths || []
+      githubPaths: result.githubPaths || result.settings?.githubPaths || [],
+      theme: result.settings?.theme || 'system'
     };
+
+    // Apply theme
+    applyTheme(state.settings.theme);
 
     // Update UI
     elements.autoPolling.checked = state.settings.autoPolling;
@@ -1012,6 +1029,48 @@ async function disconnectApiKey(provider) {
     await loadAgents();
   } catch (err) {
     showToast(`Disconnect failed: ${err.message}`, 'error');
+  }
+}
+
+async function setTheme(theme) {
+  try {
+    await window.electronAPI.setTheme(theme);
+    state.settings.theme = theme;
+    applyTheme(theme);
+    showToast(`Theme set to ${theme}`, 'success');
+  } catch (err) {
+    showToast(`Failed to set theme: ${err.message}`, 'error');
+  }
+}
+
+function applyTheme(theme) {
+  // Update button states
+  ['system', 'light', 'dark'].forEach(t => {
+    const btn = document.getElementById(`theme-${t}`);
+    if (t === theme) {
+      btn.classList.add('border-[#C2B280]', 'bg-[#C2B280]/5');
+      btn.classList.remove('border-slate-200', 'dark:border-[#2A2A2A]');
+      btn.querySelector('.technical-font').classList.add('text-[#C2B280]');
+      btn.querySelector('.technical-font').classList.remove('text-slate-600', 'dark:text-slate-400');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-slate-500');
+    } else {
+      btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
+      btn.classList.add('border-slate-200', 'dark:border-[#2A2A2A]');
+      btn.querySelector('.technical-font').classList.remove('text-[#C2B280]');
+      btn.querySelector('.technical-font').classList.add('text-slate-600', 'dark:text-slate-400');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-slate-500');
+    }
+  });
+
+  // Apply theme to document
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
   }
 }
 

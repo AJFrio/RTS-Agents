@@ -345,6 +345,14 @@ ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
 });
 
 /**
+ * Set application theme
+ */
+ipcMain.handle('settings:set-theme', async (event, { theme }) => {
+  configStore.setSetting('theme', theme);
+  return { success: true };
+});
+
+/**
  * Add Gemini project path
  */
 ipcMain.handle('settings:add-gemini-path', async (event, { path: geminiPath }) => {

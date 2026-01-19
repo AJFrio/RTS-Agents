@@ -101,6 +101,10 @@ class ConfigStore {
     this.store.set(`apiKeys.${provider}`, key);
   }
 
+  removeApiKey(provider) {
+    this.store.set(`apiKeys.${provider}`, '');
+  }
+
   getAllApiKeys() {
     return this.store.get('apiKeys', {});
   }

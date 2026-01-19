@@ -282,6 +282,32 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
 });
 
 /**
+ * Remove API key (disconnect)
+ */
+ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
+  configStore.removeApiKey(provider);
+  
+  // Clear the API key from the service
+  if (provider === 'jules') {
+    julesService.setApiKey(null);
+  } else if (provider === 'cursor') {
+    cursorService.setApiKey(null);
+  } else if (provider === 'codex') {
+    codexService.setApiKey(null);
+    // Clear tracked threads
+    configStore.setCodexThreads([]);
+    codexService.setTrackedThreads([]);
+  } else if (provider === 'claude') {
+    claudeService.setApiKey(null);
+    // Clear tracked conversations
+    configStore.setClaudeConversations([]);
+    claudeService.setTrackedConversations([]);
+  }
+  
+  return { success: true };
+});
+
+/**
  * Update polling settings
  */
 ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {

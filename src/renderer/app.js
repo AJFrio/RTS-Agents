@@ -1,5 +1,6 @@
 /**
  * RTS Agents Dashboard - Main Application
+ * Tactical Sandstorm Theme v1.0
  */
 
 // ============================================
@@ -112,7 +113,9 @@ const elements = {
   agentModal: document.getElementById('agent-modal'),
   modalTitle: document.getElementById('modal-title'),
   modalProviderBadge: document.getElementById('modal-provider-badge'),
+  modalStatusBadge: document.getElementById('modal-status-badge'),
   modalContent: document.getElementById('modal-content'),
+  modalTaskId: document.getElementById('modal-task-id'),
   
   // New Task Modal
   newTaskModal: document.getElementById('new-task-modal'),
@@ -129,6 +132,78 @@ const elements = {
   createTaskLoading: document.getElementById('create-task-loading'),
   branchInputContainer: document.getElementById('branch-input-container')
 };
+
+// ============================================
+// Tactical Theme Helpers
+// ============================================
+
+/**
+ * Format count with leading zeros (tactical style)
+ */
+function formatCount(num) {
+  return String(num).padStart(2, '0');
+}
+
+/**
+ * Get tactical status label
+ */
+function getTacticalStatus(status) {
+  const statusMap = {
+    'running': 'RUNNING',
+    'completed': 'OP-COMPLETE',
+    'pending': 'PENDING_QUEUE',
+    'failed': 'FAILED',
+    'stopped': 'STOPPED'
+  };
+  return statusMap[status] || status?.toUpperCase() || 'UNKNOWN';
+}
+
+/**
+ * Get status styling for tactical theme
+ */
+function getStatusStyle(status) {
+  const styles = {
+    running: { bg: 'bg-yellow-500/20', border: 'border-yellow-500', text: 'text-yellow-500' },
+    completed: { bg: 'bg-[#C2B280]', border: 'border-[#C2B280]', text: 'text-black' },
+    pending: { bg: 'bg-slate-700', border: 'border-slate-600', text: 'text-slate-400' },
+    failed: { bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-500' },
+    stopped: { bg: 'bg-slate-700', border: 'border-slate-600', text: 'text-slate-400' }
+  };
+  return styles[status] || styles.pending;
+}
+
+/**
+ * Get provider styling for tactical theme
+ */
+function getProviderStyle(provider) {
+  const styles = {
+    gemini: { border: 'border-emerald-500', text: 'text-emerald-500', dot: 'bg-emerald-500' },
+    jules: { border: 'border-[#C2B280]', text: 'text-[#C2B280]', dot: 'bg-[#C2B280]' },
+    cursor: { border: 'border-blue-500', text: 'text-blue-500', dot: 'bg-blue-500' },
+    codex: { border: 'border-cyan-500', text: 'text-cyan-500', dot: 'bg-cyan-500' },
+    claude: { border: 'border-orange-500', text: 'text-orange-500', dot: 'bg-orange-500' }
+  };
+  return styles[provider] || { border: 'border-slate-500', text: 'text-slate-500', dot: 'bg-slate-500' };
+}
+
+/**
+ * Format time ago in tactical style (1H_AGO, 2D_AGO, 38M_AGO)
+ */
+function formatTimeAgo(date) {
+  if (!date) return '';
+  
+  const now = new Date();
+  const then = new Date(date);
+  const seconds = Math.floor((now - then) / 1000);
+
+  if (seconds < 60) return 'NOW';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}M_AGO`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}H_AGO`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}D_AGO`;
+  
+  // Return date in tactical format
+  return then.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }).replace(/\//g, '/');
+}
 
 // ============================================
 // Initialization
@@ -181,12 +256,16 @@ function setupEventListeners() {
   // Settings - API Keys
   document.getElementById('save-jules-key').addEventListener('click', () => saveApiKey('jules'));
   document.getElementById('test-jules-key').addEventListener('click', () => testApiKey('jules'));
+  document.getElementById('disconnect-jules-key').addEventListener('click', () => disconnectApiKey('jules'));
   document.getElementById('save-cursor-key').addEventListener('click', () => saveApiKey('cursor'));
   document.getElementById('test-cursor-key').addEventListener('click', () => testApiKey('cursor'));
+  document.getElementById('disconnect-cursor-key').addEventListener('click', () => disconnectApiKey('cursor'));
   document.getElementById('save-codex-key').addEventListener('click', () => saveApiKey('codex'));
   document.getElementById('test-codex-key').addEventListener('click', () => testApiKey('codex'));
+  document.getElementById('disconnect-codex-key').addEventListener('click', () => disconnectApiKey('codex'));
   document.getElementById('save-claude-key').addEventListener('click', () => saveApiKey('claude'));
   document.getElementById('test-claude-key').addEventListener('click', () => testApiKey('claude'));
+  document.getElementById('disconnect-claude-key').addEventListener('click', () => disconnectApiKey('claude'));
 
   // Settings - Polling
   elements.autoPolling.addEventListener('change', (e) => {
@@ -290,18 +369,30 @@ async function loadSettings() {
     // Update provider filter visibility based on configured services
     updateProviderFilterVisibility();
 
-    // Show configured status for API keys
+    // Show configured status for API keys and disconnect buttons
     if (result.apiKeys?.jules) {
       elements.julesApiKey.placeholder = '••••••••••••••••';
+      document.getElementById('disconnect-jules-key')?.classList.remove('hidden');
+    } else {
+      document.getElementById('disconnect-jules-key')?.classList.add('hidden');
     }
     if (result.apiKeys?.cursor) {
       elements.cursorApiKey.placeholder = '••••••••••••••••';
+      document.getElementById('disconnect-cursor-key')?.classList.remove('hidden');
+    } else {
+      document.getElementById('disconnect-cursor-key')?.classList.add('hidden');
     }
     if (result.apiKeys?.codex) {
       elements.codexApiKey.placeholder = '••••••••••••••••';
+      document.getElementById('disconnect-codex-key')?.classList.remove('hidden');
+    } else {
+      document.getElementById('disconnect-codex-key')?.classList.add('hidden');
     }
     if (result.apiKeys?.claude) {
       elements.claudeApiKey.placeholder = '••••••••••••••••';
+      document.getElementById('disconnect-claude-key')?.classList.remove('hidden');
+    } else {
+      document.getElementById('disconnect-claude-key')?.classList.add('hidden');
     }
   } catch (err) {
     console.error('Error loading settings:', err);
@@ -331,7 +422,7 @@ function updateProviderFilterVisibility() {
   const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude'];
   
   providers.forEach(provider => {
-    const filterContainer = document.getElementById(`filter-${provider}`)?.closest('label');
+    const filterContainer = document.getElementById(`filter-${provider}`)?.closest('li');
     const statusContainer = document.getElementById(`status-${provider}`)?.closest('.flex');
     
     if (filterContainer) {
@@ -358,15 +449,15 @@ function updateProviderFilterVisibility() {
  * Update visibility of service buttons in new task modal
  */
 function updateServiceButtonVisibility() {
-  const providers = ['gemini', 'jules', 'cursor', 'codex'];
+  const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude'];
   
   providers.forEach(provider => {
     const serviceBtn = document.getElementById(`service-${provider}`);
     if (serviceBtn) {
       if (state.configuredServices[provider]) {
-        serviceBtn.classList.remove('hidden');
+        serviceBtn.classList.remove('opacity-50');
       } else {
-        serviceBtn.classList.add('hidden');
+        serviceBtn.classList.add('opacity-50');
       }
     }
   });
@@ -417,8 +508,9 @@ function renderAgents() {
     } else {
       elements.emptyState.classList.add('hidden');
       elements.agentsGrid.innerHTML = `
-        <div class="col-span-full text-center py-12 text-gray-400">
-          <p>No agents match your current filters</p>
+        <div class="col-span-full text-center py-12">
+          <span class="material-symbols-outlined text-slate-600 text-4xl mb-4">filter_alt_off</span>
+          <p class="technical-font text-slate-500">No tasks match current filters</p>
         </div>
       `;
     }
@@ -430,75 +522,54 @@ function renderAgents() {
 }
 
 function createAgentCard(agent) {
-  const providerColors = {
-    gemini: 'emerald',
-    jules: 'blue',
-    cursor: 'purple',
-    codex: 'cyan',
-    claude: 'orange'
-  };
-
-  const statusColors = {
-    running: 'blue',
-    completed: 'green',
-    pending: 'yellow',
-    failed: 'red',
-    stopped: 'gray'
-  };
-
-  const color = providerColors[agent.provider] || 'gray';
-  const statusColor = statusColors[agent.status] || 'gray';
+  const providerStyle = getProviderStyle(agent.provider);
+  const statusStyle = getStatusStyle(agent.status);
   const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
+  const tacticalStatus = getTacticalStatus(agent.status);
 
   return `
-    <div class="agent-card bg-gray-800 rounded-xl border border-gray-700 hover:border-${color}-500/50 transition-all cursor-pointer overflow-hidden"
+    <div class="agent-card bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-6 group hover:border-[#C2B280] transition-colors cursor-pointer relative overflow-hidden"
          onclick="openAgentDetails('${agent.provider}', '${agent.rawId || ''}', '${agent.filePath || ''}')">
-      <div class="p-4">
-        <!-- Header -->
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <span class="provider-badge bg-${color}-500/20 text-${color}-400 text-xs font-medium px-2 py-1 rounded">
-              ${capitalizeFirst(agent.provider)}
-            </span>
-            <span class="status-badge bg-${statusColor}-500/20 text-${statusColor}-400 text-xs font-medium px-2 py-1 rounded flex items-center gap-1">
-              ${agent.status === 'running' ? '<span class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>' : ''}
-              ${capitalizeFirst(agent.status)}
-            </span>
-          </div>
-          <span class="text-xs text-gray-500">${timeAgo}</span>
+      <!-- Header with badges and time -->
+      <div class="flex justify-between items-start mb-4">
+        <div class="flex gap-2">
+          <span class="px-2 py-0.5 text-[9px] technical-font border ${providerStyle.border} ${providerStyle.text}">${agent.provider.toUpperCase()}</span>
+          <span class="px-2 py-0.5 text-[9px] technical-font ${statusStyle.bg} ${statusStyle.text}">${tacticalStatus}</span>
         </div>
+        <span class="text-[10px] technical-font text-slate-500">${timeAgo}</span>
+      </div>
 
-        <!-- Title -->
-        <h4 class="text-sm font-medium text-white mb-2 line-clamp-2">${escapeHtml(agent.name)}</h4>
+      <!-- Title -->
+      <h3 class="text-lg font-bold dark:text-white mb-2 tracking-tight group-hover:text-[#C2B280] transition-colors uppercase line-clamp-2">${escapeHtml(agent.name)}</h3>
 
-        <!-- Prompt preview -->
-        ${agent.prompt ? `
-          <p class="text-xs text-gray-400 line-clamp-2 mb-3">${escapeHtml(agent.prompt)}</p>
-        ` : ''}
+      <!-- Description/Prompt -->
+      ${agent.prompt ? `
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 line-clamp-2 font-light leading-relaxed">
+          ${escapeHtml(agent.prompt)}
+        </p>
+      ` : '<div class="mb-6"></div>'}
 
-        <!-- Repository -->
+      <!-- Footer with repo and PR link -->
+      <div class="flex items-center justify-between mt-auto">
         ${agent.repository ? `
-          <div class="flex items-center gap-2 text-xs text-gray-500">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-            </svg>
-            <span class="truncate">${extractRepoName(agent.repository)}</span>
+          <div class="flex items-center gap-2 text-[10px] technical-font text-slate-400">
+            <span class="material-symbols-outlined text-xs">folder_open</span>
+            ${extractRepoName(agent.repository)}
           </div>
-        ` : ''}
-
-        <!-- PR Link -->
+        ` : '<div></div>'}
         ${agent.prUrl ? `
-          <div class="mt-2">
-            <a href="#" onclick="event.stopPropagation(); openExternal('${agent.prUrl}')" 
-               class="text-xs text-${color}-400 hover:text-${color}-300 flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-              </svg>
-              View Pull Request
-            </a>
-          </div>
+          <a href="#" onclick="event.stopPropagation(); openExternal('${agent.prUrl}')" 
+             class="text-[10px] technical-font text-[#C2B280] hover:underline flex items-center gap-1">
+            <span class="material-symbols-outlined text-xs">open_in_new</span>
+            View PR
+          </a>
         ` : ''}
       </div>
+
+      <!-- Running indicator -->
+      ${agent.status === 'running' ? `
+        <div class="absolute top-0 right-0 w-2 h-2 bg-yellow-500 animate-pulse"></div>
+      ` : ''}
     </div>
   `;
 }
@@ -508,19 +579,17 @@ function renderGeminiPaths() {
   
   if (paths.length === 0) {
     elements.geminiPathsList.innerHTML = `
-      <p class="text-sm text-gray-500 italic">No custom paths added</p>
+      <p class="text-sm technical-font text-slate-500 italic">No custom paths configured</p>
     `;
     return;
   }
 
   elements.geminiPathsList.innerHTML = paths.map(path => `
-    <div class="flex items-center justify-between p-2 bg-gray-700/50 rounded-lg">
-      <span class="text-sm text-gray-300 font-mono truncate">${escapeHtml(path)}</span>
+    <div class="flex items-center justify-between p-3 bg-slate-700/20 border border-[#2A2A2A]">
+      <span class="text-sm text-slate-300 font-mono truncate">${escapeHtml(path)}</span>
       <button onclick="removeGeminiPath('${escapeHtml(path)}')" 
-              class="text-gray-400 hover:text-red-400 transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
+              class="text-slate-400 hover:text-red-400 transition-colors">
+        <span class="material-symbols-outlined text-sm">close</span>
       </button>
     </div>
   `).join('');
@@ -535,11 +604,17 @@ function showView(view) {
   
   // Update nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.view === view);
+    if (btn.dataset.view === view) {
+      btn.classList.add('active', 'bg-[#C2B280]', 'text-black', 'font-medium');
+      btn.classList.remove('text-slate-600', 'dark:text-slate-400');
+    } else {
+      btn.classList.remove('active', 'bg-[#C2B280]', 'text-black', 'font-medium');
+      btn.classList.add('text-slate-600', 'dark:text-slate-400');
+    }
   });
 
   // Update title
-  elements.viewTitle.textContent = view === 'dashboard' ? 'Dashboard' : 'Settings';
+  elements.viewTitle.textContent = view === 'dashboard' ? 'Agent Dashboard' : 'Settings';
 
   // Show/hide views
   elements.viewDashboard.classList.toggle('hidden', view !== 'dashboard');
@@ -561,17 +636,21 @@ function hideLoading() {
 }
 
 function setRefreshing(refreshing) {
-  elements.refreshIcon.classList.toggle('animate-spin', refreshing);
+  if (refreshing) {
+    elements.refreshIcon.classList.add('animate-spin');
+  } else {
+    elements.refreshIcon.classList.remove('animate-spin');
+  }
   elements.refreshBtn.disabled = refreshing;
 }
 
 function updateCounts() {
-  elements.countGemini.textContent = state.counts.gemini;
-  elements.countJules.textContent = state.counts.jules;
-  elements.countCursor.textContent = state.counts.cursor;
-  elements.countCodex.textContent = state.counts.codex;
-  elements.countClaude.textContent = state.counts.claude;
-  elements.totalCount.textContent = `${state.counts.total} agent${state.counts.total !== 1 ? 's' : ''}`;
+  elements.countGemini.textContent = formatCount(state.counts.gemini);
+  elements.countJules.textContent = formatCount(state.counts.jules);
+  elements.countCursor.textContent = formatCount(state.counts.cursor);
+  elements.countCodex.textContent = formatCount(state.counts.codex);
+  elements.countClaude.textContent = formatCount(state.counts.claude);
+  elements.totalCount.textContent = `${state.counts.total} Task${state.counts.total !== 1 ? 's' : ''}`;
 }
 
 function updateStatusIndicator(provider, status) {
@@ -580,13 +659,13 @@ function updateStatusIndicator(provider, status) {
 
   if (status.success || status.connected) {
     el.textContent = 'Connected';
-    el.className = 'status-indicator text-green-400';
+    el.className = 'font-bold text-emerald-500';
   } else if (status.error === 'Not configured') {
-    el.textContent = 'Not configured';
-    el.className = 'status-indicator text-gray-500';
+    el.textContent = 'Offline';
+    el.className = 'font-bold text-slate-500';
   } else {
     el.textContent = 'Error';
-    el.className = 'status-indicator text-red-400';
+    el.className = 'font-bold text-red-500';
     el.title = status.error || '';
   }
 }
@@ -599,7 +678,7 @@ function showErrors() {
 
   elements.errorBanner.classList.remove('hidden');
   elements.errorList.innerHTML = state.errors.map(e => 
-    `<li>${capitalizeFirst(e.provider)}: ${escapeHtml(e.error)}</li>`
+    `<li>${e.provider.toUpperCase()}: ${escapeHtml(e.error)}</li>`
   ).join('');
 }
 
@@ -628,6 +707,12 @@ async function saveApiKey(provider) {
     input.placeholder = '••••••••••••••••';
     showToast(`${capitalizeFirst(provider)} API key saved`, 'success');
     
+    // Show disconnect button
+    const disconnectBtn = document.getElementById(`disconnect-${provider}-key`);
+    if (disconnectBtn) {
+      disconnectBtn.classList.remove('hidden');
+    }
+    
     // Update configured services state and UI visibility
     state.configuredServices[provider] = true;
     updateProviderFilterVisibility();
@@ -635,7 +720,7 @@ async function saveApiKey(provider) {
     await checkConnectionStatus();
     await loadAgents();
   } catch (err) {
-    showToast(`Failed to save API key: ${err.message}`, 'error');
+    showToast(`Save failed: ${err.message}`, 'error');
   }
 }
 
@@ -643,12 +728,50 @@ async function testApiKey(provider) {
   try {
     const result = await window.electronAPI.testApiKey(provider);
     if (result.success) {
-      showToast(`${capitalizeFirst(provider)} connection successful`, 'success');
+      showToast(`${capitalizeFirst(provider)} connection verified`, 'success');
     } else {
       showToast(`${capitalizeFirst(provider)} connection failed: ${result.error}`, 'error');
     }
   } catch (err) {
     showToast(`Test failed: ${err.message}`, 'error');
+  }
+}
+
+async function disconnectApiKey(provider) {
+  if (!confirm(`Are you sure you want to disconnect from ${capitalizeFirst(provider)}? This will remove the saved API key.`)) {
+    return;
+  }
+
+  try {
+    await window.electronAPI.removeApiKey(provider);
+    
+    // Reset the input and placeholder
+    const inputMap = {
+      jules: elements.julesApiKey,
+      cursor: elements.cursorApiKey,
+      codex: elements.codexApiKey,
+      claude: elements.claudeApiKey
+    };
+    const input = inputMap[provider];
+    input.value = '';
+    input.placeholder = `Enter ${capitalizeFirst(provider)} API key`;
+    
+    // Hide disconnect button
+    const disconnectBtn = document.getElementById(`disconnect-${provider}-key`);
+    if (disconnectBtn) {
+      disconnectBtn.classList.add('hidden');
+    }
+    
+    showToast(`${capitalizeFirst(provider)} disconnected`, 'success');
+    
+    // Update configured services state and UI visibility
+    state.configuredServices[provider] = false;
+    updateProviderFilterVisibility();
+    
+    await checkConnectionStatus();
+    await loadAgents();
+  } catch (err) {
+    showToast(`Disconnect failed: ${err.message}`, 'error');
   }
 }
 
@@ -658,7 +781,7 @@ async function updatePollingSettings(enabled, interval) {
     state.settings.autoPolling = enabled;
     state.settings.pollingInterval = interval;
   } catch (err) {
-    showToast(`Failed to update settings: ${err.message}`, 'error');
+    showToast(`Settings update failed: ${err.message}`, 'error');
   }
 }
 
@@ -699,17 +822,13 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
   elements.agentModal.classList.remove('hidden');
   elements.modalContent.innerHTML = `
     <div class="flex items-center justify-center h-32">
-      <svg class="w-8 h-8 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
+      <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
     </div>
   `;
 
-  const providerColors = { gemini: 'emerald', jules: 'blue', cursor: 'purple', codex: 'cyan', claude: 'orange' };
-  const color = providerColors[provider] || 'gray';
-  elements.modalProviderBadge.className = `provider-badge bg-${color}-500/20 text-${color}-400 text-xs font-medium px-2 py-1 rounded`;
-  elements.modalProviderBadge.textContent = capitalizeFirst(provider);
+  const providerStyle = getProviderStyle(provider);
+  elements.modalProviderBadge.className = `px-3 py-1 text-[10px] technical-font border ${providerStyle.border} ${providerStyle.text}`;
+  elements.modalProviderBadge.textContent = provider.toUpperCase();
 
   try {
     const details = await window.electronAPI.getAgentDetails(provider, rawId, filePath);
@@ -717,241 +836,189 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
   } catch (err) {
     elements.modalContent.innerHTML = `
       <div class="text-center py-8">
-        <p class="text-red-400">Failed to load details: ${escapeHtml(err.message)}</p>
+        <span class="material-symbols-outlined text-red-400 text-4xl mb-4">error</span>
+        <p class="technical-font text-red-400">Failed to load: ${escapeHtml(err.message)}</p>
       </div>
     `;
   }
 };
 
 function renderAgentDetails(provider, details) {
-  elements.modalTitle.textContent = details.name || 'Agent Details';
+  elements.modalTitle.textContent = details.name || 'Task Details';
   
-  // Update subtitle with status
+  // Update status badge
+  const statusStyle = getStatusStyle(details.status);
+  elements.modalStatusBadge.className = `px-2 py-0.5 text-[10px] technical-font ${statusStyle.bg} ${statusStyle.text} font-bold`;
+  elements.modalStatusBadge.textContent = getTacticalStatus(details.status);
+  
+  // Update subtitle
   const modalSubtitle = document.getElementById('modal-subtitle');
   if (modalSubtitle) {
-    modalSubtitle.textContent = details.status ? `Status: ${capitalizeFirst(details.status)}` : 'Task overview and activity';
+    modalSubtitle.textContent = `STATUS: ${getTacticalStatus(details.status)}`;
   }
 
-  const statusColors = {
-    running: 'blue',
-    completed: 'green',
-    pending: 'yellow',
-    failed: 'red',
-    stopped: 'gray'
-  };
-  const statusColor = statusColors[details.status] || 'gray';
+  // Update task ID
+  if (elements.modalTaskId && details.rawId) {
+    elements.modalTaskId.textContent = `TASK_ID: ${details.rawId}`;
+  }
 
-  let content = '';
+  let content = '<div class="space-y-8">';
 
-  // Status Bar with key info
+  // Metadata Grid
   content += `
-    <div class="space-y-6 text-left">
-      <!-- Status & Metadata Section -->
-      <div class="bg-gray-700/30 rounded-lg border border-gray-700/50 overflow-hidden">
-        <!-- Status Header -->
-        <div class="px-4 py-3 border-b border-gray-700/50 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <span class="status-badge bg-${statusColor}-500/20 text-${statusColor}-400 text-xs font-medium px-2.5 py-1 rounded flex items-center gap-1.5">
-              ${details.status === 'running' ? '<span class="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>' : ''}
-              ${capitalizeFirst(details.status || 'Unknown')}
-            </span>
-            <span class="text-xs text-gray-500">
-              ${details.createdAt ? 'Created ' + formatTimeAgo(details.createdAt) : ''}
-            </span>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
+        <div class="text-[9px] technical-font text-[#C2B280] mb-2">Info</div>
+        <div class="space-y-3">
+          <div class="flex flex-col">
+            <span class="text-[9px] technical-font text-slate-500">Created</span>
+            <span class="text-xs font-mono text-slate-300">${details.createdAt ? new Date(details.createdAt).toLocaleString() : '--'}</span>
           </div>
-          ${details.prUrl ? `
-            <a href="#" onclick="openExternal('${details.prUrl}')" 
-               class="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-medium">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-              </svg>
-              View PR
-            </a>
+          ${details.updatedAt ? `
+          <div class="flex flex-col">
+            <span class="text-[9px] technical-font text-slate-500">Last Update</span>
+            <span class="text-xs font-mono text-slate-300">${new Date(details.updatedAt).toLocaleString()}</span>
+          </div>
           ` : ''}
         </div>
-        
-        <!-- Metadata Grid -->
-        <div class="grid grid-cols-2 divide-x divide-gray-700/50">
-          <div class="p-4 space-y-3 text-left">
-            <div class="flex items-start gap-3">
-              <svg class="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <div class="text-left">
-                <span class="text-xs text-gray-500 uppercase tracking-wide block text-left">Created</span>
-                <p class="text-sm text-white mt-0.5 text-left">${details.createdAt ? new Date(details.createdAt).toLocaleString() : 'Unknown'}</p>
-              </div>
-            </div>
-            ${details.updatedAt ? `
-            <div class="flex items-start gap-3">
-              <svg class="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-              </svg>
-              <div class="text-left">
-                <span class="text-xs text-gray-500 uppercase tracking-wide block text-left">Updated</span>
-                <p class="text-sm text-white mt-0.5 text-left">${new Date(details.updatedAt).toLocaleString()}</p>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-          <div class="p-4 space-y-3 text-left">
-            ${details.repository ? `
-            <div class="flex items-start gap-3">
-              <svg class="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-              </svg>
-              <div class="min-w-0 flex-1 text-left">
-                <span class="text-xs text-gray-500 uppercase tracking-wide block text-left">Repository</span>
-                <p class="text-sm text-white mt-0.5 truncate text-left">${escapeHtml(extractRepoName(details.repository))}</p>
-              </div>
-            </div>
-            ` : ''}
-            ${details.branch ? `
-            <div class="flex items-start gap-3">
-              <svg class="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-              </svg>
-              <div class="text-left">
-                <span class="text-xs text-gray-500 uppercase tracking-wide block text-left">Branch</span>
-                <p class="text-sm text-white mt-0.5 font-mono text-left">${escapeHtml(details.branch)}</p>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-        </div>
       </div>
+      <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-[9px] technical-font text-[#C2B280] mb-2">Repo</div>
+          ${details.repository ? `
+          <div class="flex items-center gap-2 mb-3">
+            <span class="material-symbols-outlined text-sm text-slate-500">folder</span>
+            <span class="text-xs font-mono text-slate-300">${escapeHtml(extractRepoName(details.repository))}</span>
+          </div>
+          ` : ''}
+          ${details.branch ? `
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm text-slate-500">fork_right</span>
+            <span class="text-xs font-mono text-slate-300">${escapeHtml(details.branch)}</span>
+          </div>
+          ` : ''}
+        </div>
+        ${details.prUrl ? `
+        <div class="mt-4 flex justify-end">
+          <button onclick="openExternal('${details.prUrl}')" class="bg-[#C2B280] text-black px-4 py-1.5 text-[10px] technical-font font-bold hover:brightness-110 flex items-center gap-2">
+            <span class="material-symbols-outlined text-xs">open_in_new</span>
+            View PR
+          </button>
+        </div>
+        ` : ''}
+      </div>
+    </div>
   `;
 
-  // Task/Prompt Section
+  // Task Description Section
   if (details.prompt) {
     content += `
-      <!-- Task Description Section -->
-      <div>
-        <div class="flex items-center gap-2 mb-3">
-          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-          </svg>
-          <h4 class="text-sm font-semibold text-white uppercase tracking-wide">Task Description</h4>
+      <section>
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-[#C2B280] pl-3">
+          <span class="material-symbols-outlined text-sm text-[#C2B280]">edit_note</span>
+          <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Task Description</h3>
         </div>
-        <div class="p-4 bg-gray-700/30 rounded-lg border border-gray-700/50">
-          <p class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">${escapeHtml(details.prompt)}</p>
+        <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-6">
+          <p class="text-sm text-slate-300 font-light leading-relaxed whitespace-pre-wrap">${escapeHtml(details.prompt)}</p>
         </div>
-      </div>
+      </section>
     `;
   }
 
   // Summary Section
   if (details.summary) {
     content += `
-      <!-- Summary Section -->
-      <div class="text-left">
-        <div class="flex items-center gap-2 mb-3">
-          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          <h4 class="text-sm font-semibold text-white uppercase tracking-wide">Summary</h4>
+      <section>
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-[#C2B280] pl-3">
+          <span class="material-symbols-outlined text-sm text-[#C2B280]">description</span>
+          <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Summary</h3>
         </div>
-        <div class="p-4 bg-gray-700/30 rounded-lg border border-gray-700/50">
-          <p class="text-sm text-gray-300 leading-relaxed text-left">${escapeHtml(details.summary)}</p>
+        <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-6">
+          <p class="text-sm text-slate-300 font-light leading-relaxed">${escapeHtml(details.summary)}</p>
         </div>
-      </div>
+      </section>
     `;
   }
 
   // Conversation/Messages Section
   if (details.conversation && details.conversation.length > 0) {
     content += `
-      <!-- Conversation Section -->
-      <div>
-        <div class="flex items-center justify-between mb-3">
+      <section>
+        <div class="flex items-center justify-between mb-3 border-l-2 border-[#C2B280] pl-3">
           <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-            </svg>
-            <h4 class="text-sm font-semibold text-white uppercase tracking-wide">Conversation</h4>
+            <span class="material-symbols-outlined text-sm text-[#C2B280]">chat</span>
+            <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Conversation</h3>
           </div>
-          <span class="text-xs text-gray-500">${details.conversation.length} message${details.conversation.length !== 1 ? 's' : ''}</span>
+          <span class="text-[9px] technical-font text-slate-500">${details.conversation.length} entries</span>
         </div>
         <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
           ${details.conversation.map(msg => `
             <div class="flex ${msg.isUser ? 'justify-end' : 'justify-start'}">
-              <div class="max-w-[85%] ${msg.isUser ? 'bg-blue-600/20 border-blue-500/30' : 'bg-gray-700/50 border-gray-600/50'} border rounded-lg p-3">
+              <div class="max-w-[85%] ${msg.isUser ? 'bg-[#C2B280]/10 border-[#C2B280]/30' : 'bg-[#1A1A1A] border-[#2A2A2A]'} border p-3">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs font-medium ${msg.isUser ? 'text-blue-400' : 'text-gray-400'}">${msg.isUser ? 'You' : 'Agent'}</span>
+                  <span class="text-[9px] technical-font ${msg.isUser ? 'text-[#C2B280]' : 'text-slate-400'}">${msg.isUser ? 'You' : 'Agent'}</span>
                 </div>
                 <p class="text-sm text-white leading-relaxed">${escapeHtml(msg.text || '')}</p>
               </div>
             </div>
           `).join('')}
         </div>
-      </div>
+      </section>
     `;
   }
 
   // Activities Section (Jules)
   if (details.activities && details.activities.length > 0) {
     content += `
-      <!-- Activity Timeline Section -->
-      <div class="text-left">
-        <div class="flex items-center justify-between mb-3">
+      <section>
+        <div class="flex items-center justify-between mb-4 border-l-2 border-[#C2B280] pl-3">
           <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-            </svg>
-            <h4 class="text-sm font-semibold text-white uppercase tracking-wide">Activity Timeline</h4>
+            <span class="material-symbols-outlined text-sm text-[#C2B280]">history</span>
+            <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Activity</h3>
           </div>
-          <span class="text-xs text-gray-500">${details.activities.length} event${details.activities.length !== 1 ? 's' : ''}</span>
+          <span class="text-[9px] technical-font text-slate-500">${details.activities.length} events</span>
         </div>
-        <div class="relative max-h-72 overflow-y-auto pr-2">
-          <div class="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gray-700"></div>
-          <div class="space-y-3">
-            ${details.activities.map((activity, index) => `
-              <div class="relative pl-6 text-left">
-                <div class="absolute left-0 top-1.5 w-4 h-4 rounded-full ${index === 0 ? 'bg-blue-500' : 'bg-gray-600'} border-2 border-gray-800 flex items-center justify-center">
-                  ${index === 0 ? '<span class="w-1.5 h-1.5 bg-white rounded-full"></span>' : ''}
+        <div class="relative pl-8 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[#C2B280]/30">
+          ${details.activities.map((activity, index) => `
+            <div class="relative">
+              <div class="absolute -left-[26px] top-1.5 w-4 h-4 ${index === 0 ? 'bg-[#C2B280]' : 'bg-[#C2B280]/40'} border-4 border-[#0D0D0D]"></div>
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-sm text-white font-medium">${escapeHtml(activity.title || activity.type)}</p>
                 </div>
-                <div class="bg-gray-700/30 border border-gray-700/50 rounded-lg p-3">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-sm font-medium text-white text-left">${activity.title || activity.type}</span>
-                    <span class="text-xs text-gray-500">${activity.timestamp ? formatTimeAgo(activity.timestamp) : ''}</span>
-                  </div>
-                  ${activity.description ? `<p class="text-xs text-gray-400 leading-relaxed text-left">${escapeHtml(activity.description)}</p>` : ''}
-                </div>
+                <span class="text-[10px] technical-font text-slate-500">${activity.timestamp ? formatTimeAgo(activity.timestamp) : ''}</span>
               </div>
-            `).join('')}
-          </div>
+            </div>
+          `).join('')}
         </div>
-      </div>
+      </section>
     `;
   }
 
   // Messages Section (Gemini)
   if (details.messages && details.messages.length > 0) {
     content += `
-      <!-- Messages Section -->
-      <div>
-        <div class="flex items-center justify-between mb-3">
+      <section>
+        <div class="flex items-center justify-between mb-3 border-l-2 border-[#C2B280] pl-3">
           <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-            </svg>
-            <h4 class="text-sm font-semibold text-white uppercase tracking-wide">Messages</h4>
+            <span class="material-symbols-outlined text-sm text-[#C2B280]">chat</span>
+            <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Messages</h3>
           </div>
-          <span class="text-xs text-gray-500">${details.messages.length} message${details.messages.length !== 1 ? 's' : ''}</span>
+          <span class="text-[9px] technical-font text-slate-500">${details.messages.length} entries</span>
         </div>
         <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
           ${details.messages.map(msg => `
             <div class="flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-              <div class="max-w-[85%] ${msg.role === 'user' ? 'bg-emerald-600/20 border-emerald-500/30' : 'bg-gray-700/50 border-gray-600/50'} border rounded-lg p-3">
+              <div class="max-w-[85%] ${msg.role === 'user' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-[#1A1A1A] border-[#2A2A2A]'} border p-3">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs font-medium ${msg.role === 'user' ? 'text-emerald-400' : 'text-gray-400'}">${capitalizeFirst(msg.role)}</span>
+                  <span class="text-[9px] technical-font ${msg.role === 'user' ? 'text-emerald-400' : 'text-slate-400'}">${capitalizeFirst(msg.role)}</span>
                 </div>
                 <p class="text-sm text-white leading-relaxed whitespace-pre-wrap">${escapeHtml(msg.content || '')}</p>
               </div>
             </div>
           `).join('')}
         </div>
-      </div>
+      </section>
     `;
   }
 
@@ -996,12 +1063,12 @@ window.closeNewTaskModal = function() {
 function resetNewTaskForm() {
   // Reset service selection
   document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-emerald-500', 'border-blue-500', 'border-purple-500', 'border-cyan-500', 'border-orange-500', 'bg-emerald-500/10', 'bg-blue-500/10', 'bg-purple-500/10', 'bg-cyan-500/10', 'bg-orange-500/10');
-    btn.classList.add('border-gray-600');
+    btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
+    btn.classList.add('border-[#2A2A2A]');
   });
 
   // Reset form fields
-  elements.taskRepo.innerHTML = '<option value="">Select a service first...</option>';
+  elements.taskRepo.innerHTML = '<option value="">Select service first...</option>';
   elements.taskRepo.disabled = true;
   elements.taskBranch.value = 'main';
   elements.taskPrompt.value = '';
@@ -1019,23 +1086,14 @@ window.selectService = async function(service) {
   state.newTask.selectedService = service;
 
   // Update UI for selected service
-  const serviceColors = {
-    gemini: 'emerald',
-    jules: 'blue',
-    cursor: 'purple',
-    codex: 'cyan',
-    claude: 'orange'
-  };
-
   document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-emerald-500', 'border-blue-500', 'border-purple-500', 'border-cyan-500', 'border-orange-500', 'bg-emerald-500/10', 'bg-blue-500/10', 'bg-purple-500/10', 'bg-cyan-500/10', 'bg-orange-500/10');
-    btn.classList.add('border-gray-600');
+    btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
+    btn.classList.add('border-[#2A2A2A]');
   });
 
   const selectedBtn = document.getElementById(`service-${service}`);
-  const color = serviceColors[service];
-  selectedBtn.classList.remove('border-gray-600');
-  selectedBtn.classList.add(`border-${color}-500`, `bg-${color}-500/10`);
+  selectedBtn.classList.remove('border-[#2A2A2A]');
+  selectedBtn.classList.add('border-[#C2B280]', 'bg-[#C2B280]/5');
 
   // Show/hide branch input for Gemini, Codex, and Claude (local projects don't need branch)
   if (service === 'gemini' || service === 'codex' || service === 'claude') {
@@ -1067,7 +1125,7 @@ async function loadRepositoriesForService(service) {
       elements.repoError.classList.remove('hidden');
       elements.taskRepo.innerHTML = '<option value="">No repositories available</option>';
       elements.serviceStatus.textContent = result.error;
-      elements.serviceStatus.className = 'mt-2 text-xs text-red-400';
+      elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
       return;
     }
 
@@ -1076,24 +1134,24 @@ async function loadRepositoriesForService(service) {
     if (state.newTask.repositories.length === 0) {
       elements.taskRepo.innerHTML = '<option value="">No repositories found</option>';
       elements.serviceStatus.textContent = 'No repositories available for this service';
-      elements.serviceStatus.className = 'mt-2 text-xs text-yellow-400';
+      elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
       return;
     }
 
     // Populate dropdown
-    elements.taskRepo.innerHTML = '<option value="">Select a repository...</option>';
+    elements.taskRepo.innerHTML = '<option value="">Select repository...</option>';
     
     for (const repo of state.newTask.repositories) {
       const option = document.createElement('option');
       option.value = service === 'jules' ? repo.id : (repo.url || repo.path || repo.id);
-      option.textContent = repo.displayName || repo.name;
+      option.textContent = (repo.displayName || repo.name).toUpperCase();
       option.dataset.repoData = JSON.stringify(repo);
       elements.taskRepo.appendChild(option);
     }
 
     elements.taskRepo.disabled = false;
     elements.serviceStatus.textContent = `${state.newTask.repositories.length} repositories available`;
-    elements.serviceStatus.className = 'mt-2 text-xs text-green-400';
+    elements.serviceStatus.className = 'mt-3 text-xs technical-font text-emerald-400';
 
   } catch (err) {
     console.error('Error loading repositories:', err);
@@ -1101,7 +1159,7 @@ async function loadRepositoriesForService(service) {
     elements.repoError.classList.remove('hidden');
     elements.taskRepo.innerHTML = '<option value="">Error loading repositories</option>';
     elements.serviceStatus.textContent = err.message;
-    elements.serviceStatus.className = 'mt-2 text-xs text-red-400';
+    elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
   } finally {
     state.newTask.loadingRepos = false;
     elements.repoLoading.classList.add('hidden');
@@ -1174,7 +1232,7 @@ window.submitNewTask = async function() {
     const result = await window.electronAPI.createTask(service, options);
 
     if (result.success) {
-      showToast(`Task created successfully!`, 'success');
+      showToast('Task created successfully', 'success');
       closeNewTaskModal();
       // Refresh the agents list to show the new task
       await loadAgents();
@@ -1183,7 +1241,7 @@ window.submitNewTask = async function() {
     }
   } catch (err) {
     console.error('Error creating task:', err);
-    showToast(`Error creating task: ${err.message}`, 'error');
+    showToast(`Error: ${err.message}`, 'error');
   } finally {
     state.newTask.creating = false;
     elements.createTaskBtn.disabled = false;
@@ -1214,21 +1272,6 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function formatTimeAgo(date) {
-  if (!date) return '';
-  
-  const now = new Date();
-  const then = new Date(date);
-  const seconds = Math.floor((now - then) / 1000);
-
-  if (seconds < 60) return 'Just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  
-  return then.toLocaleDateString();
-}
-
 function extractRepoName(url) {
   if (!url) return '';
   const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
@@ -1244,12 +1287,12 @@ function debounce(fn, delay) {
 }
 
 function showToast(message, type = 'info') {
-  // Simple toast implementation
+  // Simple toast implementation with tactical styling
   const toast = document.createElement('div');
-  toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg text-sm font-medium z-50 transition-all transform translate-y-0 opacity-100 ${
-    type === 'success' ? 'bg-green-600 text-white' :
-    type === 'error' ? 'bg-red-600 text-white' :
-    'bg-gray-700 text-white'
+  toast.className = `fixed bottom-4 right-4 px-4 py-2 text-xs technical-font font-bold z-50 transition-all transform translate-y-0 opacity-100 border ${
+    type === 'success' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' :
+    type === 'error' ? 'bg-red-500/20 border-red-500 text-red-400' :
+    'bg-[#1A1A1A] border-[#2A2A2A] text-white'
   }`;
   toast.textContent = message;
   document.body.appendChild(toast);

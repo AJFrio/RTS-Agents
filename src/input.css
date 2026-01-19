@@ -3,142 +3,188 @@
 @tailwind utilities;
 
 @layer base {
-  /* Custom scrollbar for dark theme */
+  /* Tactical Sandstorm Theme - Custom scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 4px;
+    height: 4px;
   }
 
   ::-webkit-scrollbar-track {
-    background: theme('colors.gray.800');
+    background: #0D0D0D;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: theme('colors.gray.600');
-    border-radius: 4px;
+    background: #C2B280;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: theme('colors.gray.500');
+    background: #D4C896;
   }
 
   /* Prevent text selection on UI elements */
-  button, .nav-btn, .provider-badge, .status-badge {
+  button, .nav-btn, .provider-badge, .status-badge, .technical-font {
     user-select: none;
+  }
+
+  /* Sharp corners override */
+  * {
+    border-radius: 0 !important;
   }
 }
 
 @layer components {
-  /* Navigation button styles */
+  /* Technical font utility */
+  .technical-font {
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* Navigation button styles - Tactical theme */
   .nav-btn {
-    @apply text-gray-400 hover:text-white hover:bg-gray-700/50;
+    @apply text-slate-400 transition-all;
+  }
+
+  .nav-btn:hover {
+    @apply bg-[#1A1A1A] text-white;
   }
 
   .nav-btn.active {
-    @apply text-white bg-blue-600/20 text-blue-400;
+    @apply bg-[#C2B280] text-black font-medium;
   }
 
-  /* Provider badges */
+  /* Provider badges - Tactical theme */
   .provider-badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 text-xs font-medium border;
   }
 
   .provider-badge.gemini {
-    @apply bg-emerald-500/20 text-emerald-400;
+    @apply border-emerald-500 text-emerald-500;
   }
 
   .provider-badge.jules {
-    @apply bg-blue-500/20 text-blue-400;
+    @apply border-[#C2B280] text-[#C2B280];
   }
 
   .provider-badge.cursor {
-    @apply bg-purple-500/20 text-purple-400;
+    @apply border-blue-500 text-blue-500;
   }
 
-  /* Status badges */
+  .provider-badge.codex {
+    @apply border-cyan-500 text-cyan-500;
+  }
+
+  .provider-badge.claude {
+    @apply border-orange-500 text-orange-500;
+  }
+
+  /* Status badges - Tactical theme */
   .status-badge {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
+    @apply inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium;
   }
 
   .status-badge.running {
-    @apply bg-blue-500/20 text-blue-400;
+    @apply bg-yellow-500/20 border border-yellow-500 text-yellow-500;
   }
 
   .status-badge.completed {
-    @apply bg-green-500/20 text-green-400;
+    @apply bg-[#C2B280] text-black;
   }
 
   .status-badge.pending {
-    @apply bg-yellow-500/20 text-yellow-400;
+    @apply bg-slate-700 text-slate-400;
   }
 
   .status-badge.failed, .status-badge.stopped {
-    @apply bg-red-500/20 text-red-400;
+    @apply bg-red-500/20 border border-red-500 text-red-500;
   }
 
-  /* Agent card */
+  /* Agent card - Tactical theme */
   .agent-card {
-    @apply bg-gray-800 rounded-xl border border-gray-700 transition-all duration-200;
+    @apply bg-[#1A1A1A] border border-[#2A2A2A] transition-all duration-200;
   }
 
   .agent-card:hover {
-    @apply border-gray-600 shadow-lg shadow-black/20 transform -translate-y-0.5;
+    @apply border-[#C2B280];
   }
 
-  /* Status indicator in sidebar */
+  /* Status indicator in sidebar - Tactical theme */
   .status-indicator {
-    @apply text-xs font-medium;
+    @apply text-[10px] font-bold;
   }
 
   .status-indicator.connected {
-    @apply text-green-400;
+    @apply text-emerald-500;
+  }
+
+  .status-indicator.standby {
+    @apply text-[#C2B280];
   }
 
   .status-indicator.error {
-    @apply text-red-400;
+    @apply text-red-500;
   }
 
-  .status-indicator.not-configured {
-    @apply text-gray-500;
-  }
-
-  /* Form inputs */
+  /* Form inputs - Tactical theme */
   input[type="text"],
-  input[type="password"] {
-    @apply bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-400;
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  input[type="password"],
+  textarea {
+    @apply bg-black/40 border border-[#2A2A2A] px-4 py-2.5 text-sm text-white font-display placeholder-slate-500;
+    @apply focus:outline-none focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280];
   }
 
-  /* Range slider */
+  select {
+    @apply bg-black border border-[#2A2A2A] px-4 py-2.5 text-sm text-white font-display;
+    @apply focus:outline-none focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280];
+  }
+
+  /* Range slider - Tactical theme */
   input[type="range"] {
-    @apply w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer;
+    @apply w-full h-1 bg-[#2A2A2A] appearance-none cursor-pointer;
   }
 
   input[type="range"]::-webkit-slider-thumb {
-    @apply appearance-none w-4 h-4 bg-blue-500 rounded-full cursor-pointer;
-    @apply hover:bg-blue-400 transition-colors;
+    @apply appearance-none w-2 h-4 bg-[#C2B280] cursor-pointer;
   }
 
-  /* Checkbox */
+  input[type="range"]::-webkit-slider-thumb:hover {
+    @apply brightness-110;
+  }
+
+  /* Checkbox - Tactical theme */
   input[type="checkbox"] {
-    @apply w-4 h-4 rounded bg-gray-700 border-gray-600;
-    @apply focus:ring-2 focus:ring-offset-gray-800;
+    @apply w-3 h-3 bg-transparent border-[#C2B280] text-[#C2B280];
+    @apply focus:ring-0;
   }
 
-  /* Button variants */
+  /* Button variants - Tactical theme */
   .btn-primary {
-    @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors;
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900;
+    @apply px-6 py-2.5 bg-[#C2B280] text-black text-xs font-bold transition-all;
+    @apply hover:brightness-110;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm font-medium transition-colors;
-    @apply focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-900;
+    @apply px-6 py-2.5 border border-[#2A2A2A] text-slate-400 text-xs font-bold transition-all;
+    @apply hover:bg-white/5;
   }
 
   .btn-danger {
-    @apply px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors;
-    @apply focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900;
+    @apply px-6 py-2.5 bg-red-500/20 border border-red-500 text-red-400 text-xs font-bold transition-all;
+    @apply hover:bg-red-500/30;
+  }
+
+  /* Service button - Tactical theme */
+  .service-btn {
+    @apply border border-[#2A2A2A] p-4 text-left transition-all;
+  }
+
+  .service-btn:hover {
+    @apply border-[#C2B280]/50;
+  }
+
+  .service-btn.selected {
+    @apply border-[#C2B280] bg-[#C2B280]/5;
   }
 
   /* Line clamp utilities */
@@ -162,6 +208,11 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Inner glow effect */
+  .inner-glow:focus-within {
+    box-shadow: inset 0 0 10px rgba(194, 178, 128, 0.1);
+  }
 }
 
 @layer utilities {
@@ -182,5 +233,13 @@
   /* Backdrop blur for modal */
   .backdrop-blur {
     backdrop-filter: blur(4px);
+  }
+
+  .backdrop-blur-sm {
+    backdrop-filter: blur(8px);
+  }
+
+  .backdrop-blur-md {
+    backdrop-filter: blur(12px);
   }
 }

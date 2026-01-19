@@ -55,6 +55,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('settings:test-api-key', { provider }),
   
   /**
+   * Remove an API key for a provider (disconnect)
+   * @param {string} provider - 'jules', 'cursor', 'codex', or 'claude'
+   */
+  removeApiKey: (provider) => 
+    ipcRenderer.invoke('settings:remove-api-key', { provider }),
+  
+  /**
    * Update polling settings
    * @param {boolean} [enabled] - Whether auto-polling is enabled
    * @param {number} [interval] - Polling interval in milliseconds

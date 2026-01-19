@@ -1108,16 +1108,7 @@ function renderGithubPaths() {
 // Modal
 // ============================================
 
-// Store reference to current terminal instance
-let currentTerminalInstance = null;
-
 window.openAgentDetails = async function(provider, rawId, filePath) {
-  // Clean up any existing terminal
-  if (currentTerminalInstance) {
-    currentTerminalInstance.dispose();
-    currentTerminalInstance = null;
-  }
-
   elements.agentModal.classList.remove('hidden');
   elements.modalContent.innerHTML = `
     <div class="flex items-center justify-center h-32">
@@ -1131,27 +1122,7 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
 
   try {
     const details = await window.electronAPI.getAgentDetails(provider, rawId, filePath);
-    
-    // Check if this is an active CLI session with embedded terminal
-    let isActiveCliSession = false;
-    let cliSessionId = null;
-    
-    if ((provider === 'gemini' || provider === 'claude-cli') && details.cliSessionId) {
-      const statusResult = await window.electronAPI.isCliSessionActive(details.cliSessionId);
-      isActiveCliSession = statusResult.isActive;
-      cliSessionId = details.cliSessionId;
-    }
-    
-    // Also check by rawId pattern for sessions started with embedded terminal
-    if (!isActiveCliSession && rawId && (rawId.startsWith('gemini-') || rawId.startsWith('claude-cli-'))) {
-      const statusResult = await window.electronAPI.isCliSessionActive(rawId);
-      if (statusResult.isActive) {
-        isActiveCliSession = true;
-        cliSessionId = rawId;
-      }
-    }
-    
-    renderAgentDetails(provider, details, isActiveCliSession, cliSessionId);
+    renderAgentDetails(provider, details);
   } catch (err) {
     elements.modalContent.innerHTML = `
       <div class="text-center py-8">
@@ -1162,7 +1133,7 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
   }
 };
 
-function renderAgentDetails(provider, details, isActiveCliSession = false, cliSessionId = null) {
+function renderAgentDetails(provider, details) {
   elements.modalTitle.textContent = details.name || 'Task Details';
   
   // Update status badge
@@ -1170,14 +1141,10 @@ function renderAgentDetails(provider, details, isActiveCliSession = false, cliSe
   elements.modalStatusBadge.className = `px-2 py-0.5 text-[10px] technical-font ${statusStyle.bg} ${statusStyle.text} font-bold`;
   elements.modalStatusBadge.textContent = getTacticalStatus(details.status);
   
-  // Update subtitle with LIVE indicator for active sessions
+  // Update subtitle
   const modalSubtitle = document.getElementById('modal-subtitle');
   if (modalSubtitle) {
-    if (isActiveCliSession) {
-      modalSubtitle.innerHTML = `<span class="inline-flex items-center gap-1"><span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> LIVE TERMINAL</span>`;
-    } else {
-      modalSubtitle.textContent = `STATUS: ${getTacticalStatus(details.status)}`;
-    }
+    modalSubtitle.textContent = `STATUS: ${getTacticalStatus(details.status)}`;
   }
 
   // Update task ID
@@ -1186,26 +1153,6 @@ function renderAgentDetails(provider, details, isActiveCliSession = false, cliSe
   }
 
   let content = '<div class="space-y-8">';
-  
-  // If this is an active CLI session, show embedded terminal
-  if (isActiveCliSession && cliSessionId) {
-    content += `
-      <section>
-        <div class="flex items-center justify-between mb-3 border-l-2 border-green-500 pl-3">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm text-green-500">terminal</span>
-            <h3 class="text-[11px] technical-font text-green-500 font-bold">Live Terminal</h3>
-            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-          </div>
-          <button onclick="terminateCliSession('${cliSessionId}')" class="px-3 py-1 text-[10px] technical-font border border-red-500/50 text-red-400 hover:bg-red-500/10 transition-colors">
-            <span class="material-symbols-outlined text-xs align-middle mr-1">stop_circle</span>
-            Terminate
-          </button>
-        </div>
-        <div id="embedded-terminal-container" class="bg-[#0a0a0a] border border-[#2A2A2A] h-80 overflow-hidden"></div>
-      </section>
-    `;
-  }
 
   // Metadata Grid
   content += `
@@ -1367,72 +1314,9 @@ function renderAgentDetails(provider, details, isActiveCliSession = false, cliSe
 
   content += '</div>';
   elements.modalContent.innerHTML = content;
-  
-  // Initialize embedded terminal if active CLI session
-  if (isActiveCliSession && cliSessionId) {
-    initializeEmbeddedTerminal(cliSessionId);
-  }
 }
-
-/**
- * Initialize the embedded terminal for an active CLI session
- */
-async function initializeEmbeddedTerminal(sessionId) {
-  const container = document.getElementById('embedded-terminal-container');
-  if (!container) return;
-  
-  try {
-    // Create terminal instance using the terminal component
-    currentTerminalInstance = await window.createTerminal('embedded-terminal-container', sessionId, {
-      onExit: (data) => {
-        // Update UI when session exits
-        const modalSubtitle = document.getElementById('modal-subtitle');
-        if (modalSubtitle) {
-          modalSubtitle.innerHTML = `<span class="text-slate-500">Session ended (exit code: ${data.exitCode})</span>`;
-        }
-      },
-      onStatusChange: (data) => {
-        console.log('Session status changed:', data);
-      }
-    });
-    
-    // Focus the terminal
-    currentTerminalInstance.focus();
-  } catch (err) {
-    console.error('Failed to initialize terminal:', err);
-    container.innerHTML = `
-      <div class="flex items-center justify-center h-full text-red-400">
-        <span class="material-symbols-outlined mr-2">error</span>
-        <span class="technical-font text-sm">Failed to connect to terminal: ${err.message}</span>
-      </div>
-    `;
-  }
-}
-
-/**
- * Terminate a CLI session
- */
-window.terminateCliSession = async function(sessionId) {
-  if (!confirm('Are you sure you want to terminate this session?')) return;
-  
-  try {
-    await window.electronAPI.terminateSession(sessionId);
-    showToast('Session terminated', 'success');
-    
-    // Refresh the modal content
-    window.closeModal();
-  } catch (err) {
-    showToast(`Failed to terminate session: ${err.message}`, 'error');
-  }
-};
 
 window.closeModal = function() {
-  // Clean up terminal instance when closing modal
-  if (currentTerminalInstance) {
-    currentTerminalInstance.dispose();
-    currentTerminalInstance = null;
-  }
-  
   elements.agentModal.classList.add('hidden');
 };
 
@@ -1645,17 +1529,8 @@ window.submitNewTask = async function() {
     if (result.success) {
       showToast('Task created successfully', 'success');
       closeNewTaskModal();
-      
-      // If this is a CLI task with embedded terminal, open the details modal immediately
-      if (result.task && result.task.hasEmbeddedTerminal && result.task.id) {
-        // Small delay to let the modal close animation complete
-        setTimeout(() => {
-          window.openAgentDetails(service, result.task.id, null);
-        }, 300);
-      } else {
-        // Refresh the agents list to show the new task
-        await loadAgents();
-      }
+      // Refresh the agents list to show the new task
+      await loadAgents();
     } else {
       showToast(`Failed to create task: ${result.error}`, 'error');
     }

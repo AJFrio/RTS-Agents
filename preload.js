@@ -162,83 +162,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('tasks:create', { provider, options }),
 
   // ============================================
-  // CLI Terminal API
-  // ============================================
-
-  /**
-   * Create a new CLI session with embedded terminal
-   * @param {string} provider - 'gemini' or 'claude'
-   * @param {string} projectPath - Working directory for the CLI
-   * @param {string} prompt - The task prompt to send
-   * @returns {Promise<{success: boolean, session?: object, error?: string}>}
-   */
-  createCliSession: (provider, projectPath, prompt) =>
-    ipcRenderer.invoke('cli:create-session', { provider, projectPath, prompt }),
-
-  /**
-   * Write data to a CLI session's terminal
-   * @param {string} sessionId - The session ID
-   * @param {string} data - Data to write (user input)
-   */
-  writeToTerminal: (sessionId, data) =>
-    ipcRenderer.invoke('cli:write', { sessionId, data }),
-
-  /**
-   * Resize a CLI session's terminal
-   * @param {string} sessionId - The session ID
-   * @param {number} cols - Number of columns
-   * @param {number} rows - Number of rows
-   */
-  resizeTerminal: (sessionId, cols, rows) =>
-    ipcRenderer.invoke('cli:resize', { sessionId, cols, rows }),
-
-  /**
-   * Terminate a CLI session
-   * @param {string} sessionId - The session ID
-   * @returns {Promise<{success: boolean, output?: string}>}
-   */
-  terminateSession: (sessionId) =>
-    ipcRenderer.invoke('cli:terminate', { sessionId }),
-
-  /**
-   * Get the output buffer for a CLI session
-   * @param {string} sessionId - The session ID
-   * @returns {Promise<{success: boolean, output: string}>}
-   */
-  getTerminalOutput: (sessionId) =>
-    ipcRenderer.invoke('cli:get-output', { sessionId }),
-
-  /**
-   * Get the status of a CLI session
-   * @param {string} sessionId - The session ID
-   * @returns {Promise<{success: boolean, status?: object}>}
-   */
-  getCliSessionStatus: (sessionId) =>
-    ipcRenderer.invoke('cli:get-status', { sessionId }),
-
-  /**
-   * Get all active CLI sessions
-   * @returns {Promise<{success: boolean, sessions: Array}>}
-   */
-  getAllCliSessions: () =>
-    ipcRenderer.invoke('cli:get-all-sessions'),
-
-  /**
-   * Check if a CLI session is active (has live terminal)
-   * @param {string} sessionId - The session ID
-   * @returns {Promise<{success: boolean, isActive: boolean}>}
-   */
-  isCliSessionActive: (sessionId) =>
-    ipcRenderer.invoke('cli:is-active', { sessionId }),
-
-  /**
-   * Record user activity for a session (resets idle timer)
-   * @param {string} sessionId - The session ID
-   */
-  recordCliActivity: (sessionId) =>
-    ipcRenderer.invoke('cli:record-activity', { sessionId }),
-
-  // ============================================
   // Events API
   // ============================================
   
@@ -252,45 +175,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('agents:refresh-tick', subscription);
     return () => {
       ipcRenderer.removeListener('agents:refresh-tick', subscription);
-    };
-  },
-
-  /**
-   * Listen for CLI terminal output
-   * @param {Function} callback - Called with { sessionId, data }
-   * @returns {Function} Unsubscribe function
-   */
-  onTerminalOutput: (callback) => {
-    const subscription = (event, data) => callback(data);
-    ipcRenderer.on('cli:output', subscription);
-    return () => {
-      ipcRenderer.removeListener('cli:output', subscription);
-    };
-  },
-
-  /**
-   * Listen for CLI terminal exit events
-   * @param {Function} callback - Called with { sessionId, exitCode, signal }
-   * @returns {Function} Unsubscribe function
-   */
-  onTerminalExit: (callback) => {
-    const subscription = (event, data) => callback(data);
-    ipcRenderer.on('cli:exit', subscription);
-    return () => {
-      ipcRenderer.removeListener('cli:exit', subscription);
-    };
-  },
-
-  /**
-   * Listen for CLI session status changes
-   * @param {Function} callback - Called with { sessionId, status }
-   * @returns {Function} Unsubscribe function
-   */
-  onSessionStatusChange: (callback) => {
-    const subscription = (event, data) => callback(data);
-    ipcRenderer.on('cli:status-change', subscription);
-    return () => {
-      ipcRenderer.removeListener('cli:status-change', subscription);
     };
   }
 });

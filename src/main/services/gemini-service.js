@@ -402,16 +402,16 @@ class GeminiService {
   }
 
   /**
-   * Start a new Gemini CLI session
-   * Uses CLI Process Manager for embedded terminal support
+   * Start a new Gemini CLI session using headless mode
+   * Uses --output-format json for structured output
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
-   * @param {boolean} [options.sandbox] - Whether to run in sandbox mode (not used with PTY)
-   * @param {boolean} [options.useEmbeddedTerminal] - Whether to use embedded terminal (default: true)
+   * @param {boolean} [options.yolo] - Whether to auto-approve all actions (default: false)
    */
   async startSession(options) {
-    const { prompt, projectPath, useEmbeddedTerminal = true } = options;
+    const { spawn } = require('child_process');
+    const { prompt, projectPath, yolo = false } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -427,42 +427,31 @@ class GeminiService {
     // Generate session ID
     const sessionId = `gemini-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // If using embedded terminal, delegate to CLI Process Manager
-    if (useEmbeddedTerminal) {
-      const cliProcessManager = require('./cli-process-manager');
-      
-      try {
-        const session = cliProcessManager.createSession(sessionId, 'gemini', projectPath, prompt);
-        
-        return {
-          id: sessionId,
-          provider: 'gemini',
-          name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
-          status: 'running',
-          prompt: prompt,
-          repository: projectPath,
-          createdAt: new Date(),
-          hasEmbeddedTerminal: true,
-          cliSessionId: session.id,
-          message: 'Gemini CLI session started with embedded terminal.'
-        };
-      } catch (err) {
-        throw new Error(`Failed to start Gemini CLI session: ${err.message}`);
-      }
+    // Build command args for headless mode
+    // Using --output-format json for structured output
+    const args = ['-p', prompt, '--output-format', 'json'];
+    
+    if (yolo) {
+      args.push('--yolo');
     }
-
-    // Fallback to detached process (legacy behavior)
-    const { spawn } = require('child_process');
-    const args = ['-p', prompt];
 
     return new Promise((resolve, reject) => {
       const geminiCmd = process.platform === 'win32' ? 'gemini.cmd' : 'gemini';
       
+      let stdout = '';
+      let stderr = '';
+      
       const child = spawn(geminiCmd, args, {
         cwd: projectPath,
-        shell: true,
-        detached: true,
-        stdio: 'ignore'
+        shell: true
+      });
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
       });
 
       child.on('error', (err) => {
@@ -473,21 +462,33 @@ class GeminiService {
         }
       });
 
-      child.unref();
+      child.on('close', (code) => {
+        let response = null;
+        let stats = null;
+        
+        try {
+          const result = JSON.parse(stdout);
+          response = result.response;
+          stats = result.stats;
+        } catch (e) {
+          // If JSON parsing fails, use raw output
+          response = stdout || stderr;
+        }
 
-      setTimeout(() => {
         resolve({
           id: sessionId,
           provider: 'gemini',
           name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
-          status: 'running',
+          status: code === 0 ? 'completed' : 'failed',
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
-          hasEmbeddedTerminal: false,
-          message: 'Gemini CLI session started. Check your terminal for the interactive session.'
+          response: response,
+          stats: stats,
+          exitCode: code,
+          message: code === 0 ? 'Gemini CLI task completed.' : `Gemini CLI task failed with exit code ${code}`
         });
-      }, 500);
+      });
     });
   }
 }

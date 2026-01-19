@@ -8,7 +8,6 @@ const julesService = require('./src/main/services/jules-service');
 const cursorService = require('./src/main/services/cursor-service');
 const codexService = require('./src/main/services/codex-service');
 const claudeService = require('./src/main/services/claude-service');
-const cliProcessManager = require('./src/main/services/cli-process-manager');
 
 let mainWindow;
 let pollingInterval = null;
@@ -35,9 +34,6 @@ function createWindow() {
     mainWindow.show();
     initializeServices();
     startPollingIfEnabled();
-    
-    // Set main window reference for CLI process manager
-    cliProcessManager.setMainWindow(mainWindow);
   });
 
   // Open DevTools in development
@@ -650,141 +646,6 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
 });
 
 // ============================================
-// IPC Handlers - CLI Terminal Management
-// ============================================
-
-/**
- * Create a new CLI session with embedded terminal
- */
-ipcMain.handle('cli:create-session', async (event, { provider, projectPath, prompt }) => {
-  try {
-    // Generate a unique session ID
-    const sessionId = `cli-${provider}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    const session = cliProcessManager.createSession(sessionId, provider, projectPath, prompt);
-    return { success: true, session };
-  } catch (err) {
-    console.error(`Error creating CLI session:`, err);
-    return { success: false, error: err.message };
-  }
-});
-
-/**
- * Write data to a CLI session's terminal
- */
-ipcMain.handle('cli:write', async (event, { sessionId, data }) => {
-  try {
-    cliProcessManager.writeToSession(sessionId, data);
-    return { success: true };
-  } catch (err) {
-    console.error(`Error writing to CLI session ${sessionId}:`, err);
-    return { success: false, error: err.message };
-  }
-});
-
-/**
- * Resize a CLI session's terminal
- */
-ipcMain.handle('cli:resize', async (event, { sessionId, cols, rows }) => {
-  try {
-    cliProcessManager.resizeTerminal(sessionId, cols, rows);
-    return { success: true };
-  } catch (err) {
-    console.error(`Error resizing CLI session ${sessionId}:`, err);
-    return { success: false, error: err.message };
-  }
-});
-
-/**
- * Terminate a CLI session
- */
-ipcMain.handle('cli:terminate', async (event, { sessionId }) => {
-  try {
-    const output = cliProcessManager.terminateSession(sessionId, true);
-    
-    // Save output to config store for persistence
-    if (output) {
-      configStore.saveSessionOutput(sessionId, output);
-    }
-    
-    return { success: true, output };
-  } catch (err) {
-    console.error(`Error terminating CLI session ${sessionId}:`, err);
-    return { success: false, error: err.message };
-  }
-});
-
-/**
- * Get output buffer for a CLI session
- */
-ipcMain.handle('cli:get-output', async (event, { sessionId }) => {
-  try {
-    // First try to get from active session
-    let output = cliProcessManager.getOutputBuffer(sessionId);
-    
-    // If not found, try to get from persisted storage
-    if (output === null) {
-      output = configStore.getSessionOutput(sessionId);
-    }
-    
-    return { success: true, output: output || '' };
-  } catch (err) {
-    console.error(`Error getting CLI session output ${sessionId}:`, err);
-    return { success: false, error: err.message, output: '' };
-  }
-});
-
-/**
- * Get status of a specific CLI session
- */
-ipcMain.handle('cli:get-status', async (event, { sessionId }) => {
-  try {
-    const status = cliProcessManager.getSessionStatus(sessionId);
-    return { success: true, status };
-  } catch (err) {
-    console.error(`Error getting CLI session status ${sessionId}:`, err);
-    return { success: false, error: err.message };
-  }
-});
-
-/**
- * Get all active CLI sessions
- */
-ipcMain.handle('cli:get-all-sessions', async () => {
-  try {
-    const sessions = cliProcessManager.getAllSessions();
-    return { success: true, sessions };
-  } catch (err) {
-    console.error(`Error getting all CLI sessions:`, err);
-    return { success: false, error: err.message, sessions: [] };
-  }
-});
-
-/**
- * Check if a session is active (has live terminal)
- */
-ipcMain.handle('cli:is-active', async (event, { sessionId }) => {
-  try {
-    const isActive = cliProcessManager.isSessionActive(sessionId);
-    return { success: true, isActive };
-  } catch (err) {
-    return { success: false, isActive: false };
-  }
-});
-
-/**
- * Record user activity for a session (resets idle timer)
- */
-ipcMain.handle('cli:record-activity', async (event, { sessionId }) => {
-  try {
-    cliProcessManager.recordActivity(sessionId);
-    return { success: true };
-  } catch (err) {
-    return { success: false };
-  }
-});
-
-// ============================================
 // App Lifecycle
 // ============================================
 
@@ -807,7 +668,4 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopPolling();
-  
-  // Clean up all CLI sessions
-  cliProcessManager.cleanup();
 });

@@ -587,15 +587,16 @@ class ClaudeService {
   }
 
   /**
-   * Start a new local Claude Code CLI session
-   * Uses CLI Process Manager for embedded terminal support
+   * Start a new local Claude Code CLI session using headless mode
+   * Uses -p flag with --output-format json for structured output
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
-   * @param {boolean} [options.useEmbeddedTerminal] - Whether to use embedded terminal (default: true)
+   * @param {string} [options.allowedTools] - Tools to auto-approve (e.g., "Read,Edit,Bash")
    */
   async startLocalSession(options) {
-    const { prompt, projectPath, useEmbeddedTerminal = true } = options;
+    const { spawn } = require('child_process');
+    const { prompt, projectPath, allowedTools } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -611,43 +612,31 @@ class ClaudeService {
     // Generate session ID
     const sessionId = `claude-cli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // If using embedded terminal, delegate to CLI Process Manager
-    if (useEmbeddedTerminal) {
-      const cliProcessManager = require('./cli-process-manager');
-      
-      try {
-        const session = cliProcessManager.createSession(sessionId, 'claude', projectPath, prompt);
-        
-        return {
-          id: sessionId,
-          provider: 'claude',
-          source: 'local',
-          name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
-          status: 'running',
-          prompt: prompt,
-          repository: projectPath,
-          createdAt: new Date(),
-          hasEmbeddedTerminal: true,
-          cliSessionId: session.id,
-          message: 'Claude Code CLI session started with embedded terminal.'
-        };
-      } catch (err) {
-        throw new Error(`Failed to start Claude Code CLI session: ${err.message}`);
-      }
+    // Build command args for headless mode
+    // Using -p for prompt and --output-format json for structured output
+    const args = ['-p', prompt, '--output-format', 'json'];
+    
+    if (allowedTools) {
+      args.push('--allowedTools', allowedTools);
     }
-
-    // Fallback to detached process (legacy behavior)
-    const { spawn } = require('child_process');
-    const args = ['-p', prompt, '--print'];
 
     return new Promise((resolve, reject) => {
       const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 
+      let stdout = '';
+      let stderr = '';
+
       const child = spawn(claudeCmd, args, {
         cwd: projectPath,
-        shell: true,
-        detached: true,
-        stdio: 'ignore'
+        shell: true
+      });
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
       });
 
       child.on('error', (err) => {
@@ -658,22 +647,34 @@ class ClaudeService {
         }
       });
 
-      child.unref();
+      child.on('close', (code) => {
+        let response = null;
+        let sessionData = null;
+        
+        try {
+          const result = JSON.parse(stdout);
+          response = result.result || result.response;
+          sessionData = result;
+        } catch (e) {
+          // If JSON parsing fails, use raw output
+          response = stdout || stderr;
+        }
 
-      setTimeout(() => {
         resolve({
           id: sessionId,
           provider: 'claude',
           source: 'local',
           name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
-          status: 'running',
+          status: code === 0 ? 'completed' : 'failed',
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
-          hasEmbeddedTerminal: false,
-          message: 'Claude Code CLI session started. Check your terminal for the interactive session.'
+          response: response,
+          sessionData: sessionData,
+          exitCode: code,
+          message: code === 0 ? 'Claude Code CLI task completed.' : `Claude Code CLI task failed with exit code ${code}`
         });
-      }, 500);
+      });
     });
   }
 

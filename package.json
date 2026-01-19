@@ -1,0 +1,31 @@
+{
+  "name": "rts-agents",
+  "version": "1.0.0",
+  "description": "RTS Agents Dashboard - Monitor Gemini CLI, Jules, and Cursor Cloud Agents",
+  "main": "main.js",
+  "scripts": {
+    "start": "npm run build:css:prod && electron .",
+    "dev": "concurrently \"npm run build:css\" \"electron .\"",
+    "build:css": "tailwindcss -i ./src/input.css -o ./styles/output.css --watch",
+    "build:css:prod": "tailwindcss -i ./src/input.css -o ./styles/output.css --minify"
+  },
+  "keywords": [
+    "electron",
+    "rts",
+    "agents",
+    "gemini",
+    "jules",
+    "cursor",
+    "dashboard"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^28.0.0",
+    "tailwindcss": "^3.4.0"
+  }
+}

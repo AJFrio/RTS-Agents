@@ -587,16 +587,15 @@ class ClaudeService {
   }
 
   /**
-   * Start a new local Claude Code CLI session using headless mode
-   * Uses -p flag with --output-format json for structured output
+   * Start a new local Claude Code CLI session
+   * Spawns a detached process running: claude -p "prompt" --allowedTools "Read,Edit,Bash"
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
-   * @param {string} [options.allowedTools] - Tools to auto-approve (default: "Read,Edit,Bash" for full access)
+   * @param {string} [options.allowedTools] - Tools to auto-approve (default: "Read,Edit,Bash")
    */
   async startLocalSession(options) {
     const { spawn } = require('child_process');
-    // Default to allowing Read, Edit, Bash tools since headless can't prompt for approval
     const { prompt, projectPath, allowedTools = 'Read,Edit,Bash' } = options;
 
     if (!prompt) {
@@ -613,32 +612,22 @@ class ClaudeService {
     // Generate session ID
     const sessionId = `claude-cli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Build command args for headless mode
-    // Using -p for prompt and --output-format json for structured output
-    // Default to allowing common tools since headless can't interactively approve
-    const args = ['-p', prompt, '--output-format', 'json'];
-    
-    if (allowedTools) {
-      args.push('--allowedTools', allowedTools);
-    }
+    // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
+    // -p: prompt/headless mode
+    // --allowedTools: auto-approve these tools
+    const args = ['-p', prompt, '--allowedTools', allowedTools];
 
     return new Promise((resolve, reject) => {
       const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 
-      let stdout = '';
-      let stderr = '';
+      console.log(`Starting Claude CLI in ${projectPath}`);
+      console.log(`Command: ${claudeCmd} ${args.join(' ')}`);
 
       const child = spawn(claudeCmd, args, {
         cwd: projectPath,
-        shell: true
-      });
-
-      child.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on('data', (data) => {
-        stderr += data.toString();
+        shell: true,
+        detached: true,
+        stdio: 'ignore'
       });
 
       child.on('error', (err) => {
@@ -649,34 +638,25 @@ class ClaudeService {
         }
       });
 
-      child.on('close', (code) => {
-        let response = null;
-        let sessionData = null;
-        
-        try {
-          const result = JSON.parse(stdout);
-          response = result.result || result.response;
-          sessionData = result;
-        } catch (e) {
-          // If JSON parsing fails, use raw output
-          response = stdout || stderr;
-        }
+      // Detach the child process so it runs independently
+      child.unref();
 
+      // Return immediately after spawning
+      // The process will run in the background and create session files
+      // that we can discover later through the normal scanning
+      setTimeout(() => {
         resolve({
           id: sessionId,
           provider: 'claude',
           source: 'local',
           name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
-          status: code === 0 ? 'completed' : 'failed',
+          status: 'running',
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
-          response: response,
-          sessionData: sessionData,
-          exitCode: code,
-          message: code === 0 ? 'Claude Code CLI task completed.' : `Claude Code CLI task failed with exit code ${code}`
+          message: 'Claude Code CLI session started. The task is running in the background.'
         });
-      });
+      }, 500);
     });
   }
 

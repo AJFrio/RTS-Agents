@@ -402,17 +402,15 @@ class GeminiService {
   }
 
   /**
-   * Start a new Gemini CLI session using headless mode
-   * Uses --output-format json for structured output
+   * Start a new Gemini CLI session
+   * Spawns a detached process running: gemini -p "prompt" -y
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
-   * @param {boolean} [options.yolo] - Whether to auto-approve all actions (default: true for headless)
-   * @param {string} [options.approvalMode] - Approval mode: 'auto_edit', 'full_auto', etc.
    */
   async startSession(options) {
     const { spawn } = require('child_process');
-    const { prompt, projectPath, yolo = true, approvalMode } = options;
+    const { prompt, projectPath } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -428,36 +426,22 @@ class GeminiService {
     // Generate session ID
     const sessionId = `gemini-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Build command args for headless mode
-    // Using --output-format json for structured output
-    // Default to yolo mode since headless can't prompt for approval
-    const args = ['-p', prompt, '--output-format', 'json'];
-    
-    if (approvalMode) {
-      // Use specific approval mode if provided
-      args.push('--approval-mode', approvalMode);
-    } else if (yolo) {
-      // Default to yolo for headless since we can't interactively approve
-      args.push('--yolo');
-    }
+    // Build command: gemini -p "prompt" -y
+    // -p: prompt/headless mode
+    // -y: yolo mode (auto-approve all actions)
+    const args = ['-p', prompt, '-y'];
 
     return new Promise((resolve, reject) => {
       const geminiCmd = process.platform === 'win32' ? 'gemini.cmd' : 'gemini';
       
-      let stdout = '';
-      let stderr = '';
+      console.log(`Starting Gemini CLI in ${projectPath}`);
+      console.log(`Command: ${geminiCmd} ${args.join(' ')}`);
       
       const child = spawn(geminiCmd, args, {
         cwd: projectPath,
-        shell: true
-      });
-
-      child.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on('data', (data) => {
-        stderr += data.toString();
+        shell: true,
+        detached: true,
+        stdio: 'ignore'
       });
 
       child.on('error', (err) => {
@@ -468,33 +452,24 @@ class GeminiService {
         }
       });
 
-      child.on('close', (code) => {
-        let response = null;
-        let stats = null;
-        
-        try {
-          const result = JSON.parse(stdout);
-          response = result.response;
-          stats = result.stats;
-        } catch (e) {
-          // If JSON parsing fails, use raw output
-          response = stdout || stderr;
-        }
+      // Detach the child process so it runs independently
+      child.unref();
 
+      // Return immediately after spawning
+      // The process will run in the background and create session files
+      // that we can discover later through the normal scanning
+      setTimeout(() => {
         resolve({
           id: sessionId,
           provider: 'gemini',
           name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
-          status: code === 0 ? 'completed' : 'failed',
+          status: 'running',
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
-          response: response,
-          stats: stats,
-          exitCode: code,
-          message: code === 0 ? 'Gemini CLI task completed.' : `Gemini CLI task failed with exit code ${code}`
+          message: 'Gemini CLI session started. The task is running in the background.'
         });
-      });
+      }, 500);
     });
   }
 }

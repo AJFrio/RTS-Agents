@@ -265,6 +265,7 @@ class CodexService {
       updatedAt: latestRun?.created_at ? new Date(latestRun.created_at * 1000) : null,
       summary: latestRun?.status || null,
       rawId: thread.id,
+      webUrl: `https://platform.openai.com/playground/assistants?thread=${thread.id}`,
       runId: latestRun?.id || null
     };
   }

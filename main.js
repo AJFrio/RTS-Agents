@@ -1107,7 +1107,7 @@ ipcMain.handle('repos:get', async (event, { provider }) => {
         if (!configStore.hasApiKey('codex') && configStore.getCodexPaths().length === 0) {
           return { success: false, error: 'OpenAI API key not configured and no local paths set', repositories: [] };
         }
-        const codexPaths = configStore.getCodexPaths();
+        const codexPaths = configStore.getAllProjectPaths();
         const codexProjects = await codexService.getAvailableProjects(codexPaths);
         return { success: true, repositories: codexProjects };
 
@@ -1160,7 +1160,7 @@ ipcMain.handle('repos:get-all', async () => {
     configStore.hasApiKey('jules') ? julesService.getAllSources() : Promise.resolve([]),
     (configStore.hasApiKey('cursor') || cursorPaths.length > 0) ? cursorService.getAllRepositories(cursorPaths) : Promise.resolve([]),
     geminiService.isGeminiInstalled() ? geminiService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
-    (configStore.hasApiKey('codex') || codexPaths.length > 0) ? codexService.getAvailableProjects(codexPaths) : Promise.resolve([]),
+    (configStore.hasApiKey('codex') || codexPaths.length > 0) ? codexService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAvailableProjects(allProjectPaths) : Promise.resolve([])
   ]);
 

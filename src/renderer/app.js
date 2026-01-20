@@ -2180,7 +2180,10 @@ function populateTargetDeviceDropdown() {
     const lastHeartbeat = device.lastHeartbeat || device.heartbeatAt || device.updatedAt;
     const isOnline = device.status === 'on' || (lastHeartbeat && (Date.now() - new Date(lastHeartbeat).getTime() < 1000 * 60 * 6)); // 6 mins
 
-    if (isOnline) {
+    // Only show devices that have local CLI tools (Gemini/Claude)
+    const hasTools = device.tools && Object.values(device.tools).some(t => t);
+
+    if (isOnline && hasTools) {
        const option = document.createElement('option');
        option.value = device.id;
        option.textContent = `REMOTE: ${(device.name || device.id).toUpperCase()}`;

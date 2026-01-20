@@ -578,18 +578,39 @@ function setupEventListeners() {
 
   // Settings - Claude Paths
   document.getElementById('add-claude-path').addEventListener('click', addClaudePath);
+  document.getElementById('browse-claude-path').addEventListener('click', async () => {
+    const electronAPI = getElectronAPI();
+    const path = await electronAPI.openDirectory();
+    if (path) {
+      elements.newClaudePath.value = path;
+    }
+  });
   elements.newClaudePath.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addClaudePath();
   });
 
   // Settings - Cursor Paths
   document.getElementById('add-cursor-path').addEventListener('click', addCursorPath);
+  document.getElementById('browse-cursor-path').addEventListener('click', async () => {
+    const electronAPI = getElectronAPI();
+    const path = await electronAPI.openDirectory();
+    if (path) {
+      elements.newCursorPath.value = path;
+    }
+  });
   elements.newCursorPath.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addCursorPath();
   });
 
   // Settings - Codex Paths
   document.getElementById('add-codex-path').addEventListener('click', addCodexPath);
+  document.getElementById('browse-codex-path').addEventListener('click', async () => {
+    const electronAPI = getElectronAPI();
+    const path = await electronAPI.openDirectory();
+    if (path) {
+      elements.newCodexPath.value = path;
+    }
+  });
   elements.newCodexPath.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addCodexPath();
   });

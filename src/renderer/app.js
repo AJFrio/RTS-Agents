@@ -80,7 +80,8 @@ const state = {
     prs: [],
     loadingRepos: false,
     loadingPrs: false,
-    currentPr: null
+    currentPr: null,
+    prFilter: 'open'
   },
   // Computers state (Cloudflare KV)
   computers: {
@@ -213,6 +214,9 @@ const elements = {
   selectedRepoName: document.getElementById('selected-repo-name'),
   selectedRepoLink: document.getElementById('selected-repo-link'),
   prCount: document.getElementById('pr-count'),
+  prStatusText: document.getElementById('pr-status-text'),
+  prFilterOpen: document.getElementById('pr-filter-open'),
+  prFilterClosed: document.getElementById('pr-filter-closed'),
   prList: document.getElementById('pr-list'),
   refreshBranchesBtn: document.getElementById('refresh-branches-btn'),
   repoCount: document.getElementById('repo-count'),
@@ -550,6 +554,9 @@ function setupEventListeners() {
     filterRepos(e.target.value);
   }, 200));
   elements.refreshBranchesBtn.addEventListener('click', loadBranches);
+
+  elements.prFilterOpen.addEventListener('click', () => setPrFilter('open'));
+  elements.prFilterClosed.addEventListener('click', () => setPrFilter('closed'));
 
   // Listen for system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -2736,13 +2743,48 @@ function renderRepos() {
    `).join('');
 }
 
+function setPrFilter(filter) {
+  if (state.github.prFilter === filter) return;
+
+  state.github.prFilter = filter;
+  updatePrFilterUI();
+
+  if (state.github.selectedRepo) {
+    window.selectRepo(state.github.selectedRepo.owner.login, state.github.selectedRepo.name, state.github.selectedRepo.id);
+  }
+}
+
+function updatePrFilterUI() {
+  const isOpen = state.github.prFilter === 'open';
+
+  // Update buttons
+  if (isOpen) {
+    elements.prFilterOpen.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all bg-[#C2B280] text-black';
+    elements.prFilterClosed.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all text-slate-400 hover:text-slate-200';
+    elements.prStatusText.textContent = 'OPEN PRS';
+  } else {
+    elements.prFilterOpen.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all text-slate-400 hover:text-slate-200';
+    elements.prFilterClosed.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all bg-[#C2B280] text-black';
+    elements.prStatusText.textContent = 'CLOSED PRS';
+  }
+}
+
 window.selectRepo = async function(owner, repoName, repoId) {
    const electronAPI = getElectronAPI();
    // Update state
    const repo = state.github.repos.find(r => r.id === repoId);
 
    // Check if we are refreshing the current repo
-   const isRefresh = state.github.selectedRepo?.id === repoId;
+   const isSameRepo = state.github.selectedRepo?.id === repoId;
+
+   // If switching to a new repo, always default to 'open'
+   if (!isSameRepo) {
+     state.github.prFilter = 'open';
+     updatePrFilterUI();
+   } else {
+     // If same repo, ensure UI matches state
+     updatePrFilterUI();
+   }
 
    state.github.selectedRepo = repo;
    
@@ -2762,7 +2804,7 @@ window.selectRepo = async function(owner, repoName, repoId) {
    };
    
    // Loading state for PRs
-   if (!isRefresh) {
+   if (!isSameRepo) {
      elements.prList.innerHTML = `
         <div class="flex flex-col items-center justify-center h-32">
            <span class="material-symbols-outlined text-[#C2B280] text-3xl animate-spin">sync</span>
@@ -2776,7 +2818,7 @@ window.selectRepo = async function(owner, repoName, repoId) {
    }
    
    try {
-      const result = await electronAPI.github.getPrs(owner, repoName);
+      const result = await electronAPI.github.getPrs(owner, repoName, state.github.prFilter);
       if (result.success) {
          state.github.prs = result.prs || [];
          elements.prCount.textContent = state.github.prs.length;
@@ -2787,7 +2829,7 @@ window.selectRepo = async function(owner, repoName, repoId) {
    } catch (err) {
       console.error('Error fetching PRs:', err);
 
-      if (!isRefresh) {
+      if (!isSameRepo) {
         elements.prList.innerHTML = `
            <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 text-xs technical-font text-center">
               FAILED TO LOAD PRs: ${escapeHtml(err.message)}
@@ -2812,7 +2854,17 @@ function renderPrs() {
       return;
    }
    
-   elements.prList.innerHTML = state.github.prs.map(pr => `
+   elements.prList.innerHTML = state.github.prs.map(pr => {
+      let statusBadge = '';
+      if (pr.state === 'open') {
+          statusBadge = '<span class="px-2 py-0.5 text-[9px] technical-font bg-emerald-900/30 text-emerald-500 border border-emerald-900/50">OPEN</span>';
+      } else if (pr.merged_at) {
+          statusBadge = '<span class="px-2 py-0.5 text-[9px] technical-font bg-purple-900/30 text-purple-500 border border-purple-900/50">MERGED</span>';
+      } else {
+          statusBadge = '<span class="px-2 py-0.5 text-[9px] technical-font bg-red-900/30 text-red-500 border border-red-900/50">CLOSED</span>';
+      }
+
+      return `
       <div class="pr-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group" 
            onclick="openPrDetails('${pr.base.repo.owner.login}', '${pr.base.repo.name}', ${pr.number})">
          <div class="flex justify-between items-start mb-2">
@@ -2820,7 +2872,7 @@ function renderPrs() {
                <span class="text-[#C2B280] technical-font text-xs">#${pr.number}</span>
                <h3 class="font-bold text-slate-200 text-sm group-hover:text-[#C2B280] transition-colors">${escapeHtml(pr.title)}</h3>
             </div>
-            <span class="px-2 py-0.5 text-[9px] technical-font bg-emerald-900/30 text-emerald-500 border border-emerald-900/50">OPEN</span>
+            ${statusBadge}
          </div>
          
          <div class="flex items-center gap-4 text-[10px] technical-font text-slate-500 mb-3">
@@ -2844,7 +2896,8 @@ function renderPrs() {
             </span>
          </div>
       </div>
-   `).join('');
+      `;
+   }).join('');
 }
 
 window.openPrDetails = async function(owner, repo, number) {

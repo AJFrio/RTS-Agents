@@ -857,10 +857,20 @@
                     <div id="merge-subtitle" class="text-xs text-slate-500">Merging can be performed automatically.</div>
                  </div>
               </div>
-              <button id="merge-btn" class="bg-emerald-600 text-white px-6 py-2 text-xs technical-font font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
-                 <span class="material-symbols-outlined text-sm">merge</span>
-                 MERGE PULL REQUEST
-              </button>
+              <div class="flex items-center gap-2">
+                <button id="merge-github-btn" class="hidden border border-slate-600 text-slate-200 px-4 py-2 text-xs technical-font font-bold hover:bg-white/5 transition-all flex items-center gap-2">
+                   <span class="material-symbols-outlined text-sm">open_in_new</span>
+                   GITHUB
+                </button>
+                <button id="merge-fix-btn" class="hidden bg-[#C2B280] text-black px-4 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all flex items-center gap-2">
+                   <span class="material-symbols-outlined text-sm">build</span>
+                   FIX
+                </button>
+                <button id="merge-btn" class="bg-emerald-600 text-white px-6 py-2 text-xs technical-font font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                   <span class="material-symbols-outlined text-sm">merge</span>
+                   MERGE PULL REQUEST
+                </button>
+              </div>
            </div>
         </div>
         

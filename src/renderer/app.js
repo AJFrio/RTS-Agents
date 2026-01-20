@@ -207,6 +207,8 @@ const elements = {
   prModalLink: document.getElementById('pr-modal-link'),
   prModalMeta: document.getElementById('pr-modal-meta'),
   mergeBtn: document.getElementById('merge-btn'),
+  mergeGithubBtn: document.getElementById('merge-github-btn'),
+  mergeFixBtn: document.getElementById('merge-fix-btn'),
   mergeStatusContainer: document.getElementById('merge-status-container'),
   mergeIcon: document.getElementById('merge-icon'),
   mergeTitle: document.getElementById('merge-title'),
@@ -2360,6 +2362,7 @@ window.openPrDetails = async function(owner, repo, number) {
    // Show loading state
    elements.prModalBody.innerHTML = '<div class="text-center py-8 text-slate-500">Loading details...</div>';
    elements.mergeStatusContainer.classList.add('opacity-50', 'pointer-events-none');
+   hideMergeConflictActions();
    
    try {
       const result = await electronAPI.github.getPrDetails(owner, repo, number);
@@ -2384,6 +2387,7 @@ window.openPrDetails = async function(owner, repo, number) {
          elements.mergeStatusContainer.classList.remove('opacity-50', 'pointer-events-none');
 
          if (pr.draft) {
+             hideMergeConflictActions();
              elements.mergeIcon.textContent = 'edit_note';
              elements.mergeIcon.className = 'material-symbols-outlined text-blue-500';
              elements.mergeTitle.textContent = 'This is a draft pull request';
@@ -2392,6 +2396,7 @@ window.openPrDetails = async function(owner, repo, number) {
              elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">rate_review</span> REVIEW & PUBLISH';
              elements.mergeBtn.onclick = () => markPrReadyForReview(owner, repo, number, pr.node_id);
          } else if (pr.mergeable) {
+            hideMergeConflictActions();
             elements.mergeIcon.textContent = 'check_circle';
             elements.mergeIcon.className = 'material-symbols-outlined text-emerald-500';
             elements.mergeTitle.textContent = 'This branch has no conflicts with the base branch';
@@ -2403,10 +2408,12 @@ window.openPrDetails = async function(owner, repo, number) {
             elements.mergeIcon.textContent = 'error';
             elements.mergeIcon.className = 'material-symbols-outlined text-red-500';
             elements.mergeTitle.textContent = 'This branch has conflicts that must be resolved';
-            elements.mergeSubtitle.textContent = 'Resolve conflicts on GitHub to merge.';
+            elements.mergeSubtitle.textContent = 'Use GitHub to resolve, or create an agent task to fix the merge conflicts.';
             elements.mergeBtn.disabled = true;
             elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">merge</span> MERGE PULL REQUEST';
+            showMergeConflictActions(pr);
          } else {
+            hideMergeConflictActions();
             elements.mergeIcon.textContent = 'pending';
             elements.mergeIcon.className = 'material-symbols-outlined text-yellow-500 animate-pulse';
             elements.mergeTitle.textContent = 'Checking mergeability...';
@@ -2420,6 +2427,137 @@ window.openPrDetails = async function(owner, repo, number) {
       elements.prModalBody.innerHTML = `<div class="text-red-400">Error: ${err.message}</div>`;
    }
 };
+
+function hideMergeConflictActions() {
+  if (elements.mergeGithubBtn) {
+    elements.mergeGithubBtn.classList.add('hidden');
+    elements.mergeGithubBtn.onclick = null;
+  }
+  if (elements.mergeFixBtn) {
+    elements.mergeFixBtn.classList.add('hidden');
+    elements.mergeFixBtn.onclick = null;
+  }
+}
+
+function showMergeConflictActions(pr) {
+  if (!pr) return;
+
+  if (elements.mergeGithubBtn) {
+    elements.mergeGithubBtn.classList.remove('hidden');
+    elements.mergeGithubBtn.onclick = () => {
+      if (pr.html_url) window.openExternal(pr.html_url);
+    };
+  }
+
+  if (elements.mergeFixBtn) {
+    elements.mergeFixBtn.classList.remove('hidden');
+    elements.mergeFixBtn.onclick = () => {
+      void prefillFixMergeConflictTask(pr);
+    };
+  }
+}
+
+function choosePreferredMergeFixService() {
+  // Prefer cloud agents that can target a repo + branch.
+  const preferred = ['cursor', 'jules'];
+  return preferred.find(p => state.configuredServices[p]) || null;
+}
+
+function buildMergeConflictFixPrompt(pr) {
+  const owner = pr?.base?.repo?.owner?.login || pr?.head?.repo?.owner?.login || '';
+  const repo = pr?.base?.repo?.name || pr?.head?.repo?.name || '';
+  const head = pr?.head?.ref || '';
+  const base = pr?.base?.ref || '';
+  const prUrl = pr?.html_url || '';
+
+  return [
+    'This pull request cannot be merged due to merge conflicts.',
+    '',
+    `Repo: ${owner}/${repo}`,
+    `PR: ${prUrl}`,
+    `Head branch (has conflicts): ${head}`,
+    `Base branch (target): ${base}`,
+    '',
+    'Goal: resolve the merge conflicts on the head branch so the PR becomes mergeable.',
+    '',
+    'Instructions:',
+    `- Work in the head branch: ${head}`,
+    `- Bring the head branch up to date with ${base} (merge or rebase), resolve all conflicts, and keep intended behavior`,
+    '- Run the project tests/lint as appropriate and ensure they pass',
+    '- Commit the conflict resolutions and push the branch so the PR updates',
+    '',
+    'If you need context, check the PR diff and conflict markers. Prefer minimal, safe changes.'
+  ].join('\n');
+}
+
+async function prefillFixMergeConflictTask(pr) {
+  // Open the New Task modal and prefill it so the user only needs to click "Create Task".
+  const fixPrompt = buildMergeConflictFixPrompt(pr);
+  openNewTaskModal();
+
+  // Always prefill the prompt (even if repo selection fails).
+  elements.taskPrompt.value = fixPrompt;
+
+  const service = choosePreferredMergeFixService();
+  if (!service) {
+    showToast('No cloud service available for FIX. Configure Cursor or Jules in Settings.', 'error');
+    validateNewTaskForm();
+    return;
+  }
+
+  // Select service + load repos.
+  await window.selectService(service);
+  // Defensive: ensure prompt is still set after service selection.
+  elements.taskPrompt.value = fixPrompt;
+
+  const owner = pr?.base?.repo?.owner?.login || pr?.head?.repo?.owner?.login;
+  const repoName = pr?.base?.repo?.name || pr?.head?.repo?.name;
+  const headBranch = pr?.head?.ref || 'main';
+
+  // Try to match the repo in the service's repositories list.
+  const match = (state.newTask.repositories || []).find(r => {
+    const gh = tryParseGithubOwnerRepo(r);
+    if (gh && owner && repoName) return gh.owner === owner && gh.repo === repoName;
+    const url = (r?.url || r?.repository || '').toString();
+    return owner && repoName && url.includes(`github.com/${owner}/${repoName}`);
+  });
+
+  if (match) {
+    const value = service === 'jules' ? match.id : (match.url || match.path || match.id);
+    const displayName = (match.displayName || match.name || repoName || 'REPO').toUpperCase();
+    elements.taskRepo.value = value;
+    elements.taskRepo.dataset.repoData = JSON.stringify(match);
+    elements.taskRepoSearch.value = displayName;
+
+    // Populate branches best-effort, then set the head branch.
+    await refreshNewTaskBranchesFromSelectedRepo();
+
+    const current = Array.from(elements.taskBranch.options).map(o => o.value);
+    setNewTaskBranchOptions([...current, headBranch], headBranch);
+    // Force-select the head branch (ignore previous default selection like "main").
+    if (!Array.from(elements.taskBranch.options).some(o => o.value === headBranch)) {
+      const opt = document.createElement('option');
+      opt.value = headBranch;
+      opt.textContent = headBranch;
+      elements.taskBranch.appendChild(opt);
+    }
+    elements.taskBranch.value = headBranch;
+  } else {
+    // Still set the branch and let the user pick repo if we couldn't match.
+    const current = Array.from(elements.taskBranch.options).map(o => o.value);
+    setNewTaskBranchOptions([...current, headBranch], headBranch);
+    if (!Array.from(elements.taskBranch.options).some(o => o.value === headBranch)) {
+      const opt = document.createElement('option');
+      opt.value = headBranch;
+      opt.textContent = headBranch;
+      elements.taskBranch.appendChild(opt);
+    }
+    elements.taskBranch.value = headBranch;
+    showToast('Could not auto-select repository for FIX. Please pick the repo, then click Create Task.', 'info');
+  }
+
+  validateNewTaskForm();
+}
 
 window.mergePr = async function(owner, repo, number) {
    const electronAPI = getElectronAPI();

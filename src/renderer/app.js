@@ -1238,6 +1238,8 @@ function updateServiceButtonVisibility() {
           visible = true;
         } else if (provider === 'claude-cli' && cliTools.includes('claude CLI')) {
           visible = true;
+        } else if (provider === 'codex' && cliTools.includes('Codex CLI')) {
+          visible = true;
         }
       } else {
         // Fallback: Show everything configured
@@ -2539,8 +2541,8 @@ function populateTargetDeviceDropdown() {
     let hasTools = false;
     if (Array.isArray(device.tools) && device.tools.length > 0 && Array.isArray(device.tools[0]['CLI tools'])) {
       const cliTools = device.tools[0]['CLI tools'];
-      // Check for Gemini CLI or claude CLI as these are the only remote-capable tools currently
-      hasTools = cliTools.includes('Gemini CLI') || cliTools.includes('claude CLI');
+      // Check for Gemini CLI, Codex CLI, or claude CLI as these are the remote-capable tools
+      hasTools = cliTools.includes('Gemini CLI') || cliTools.includes('claude CLI') || cliTools.includes('Codex CLI');
     } else {
       // Fallback for old structure (object with boolean values)
       hasTools = device.tools && !Array.isArray(device.tools) && Object.values(device.tools).some(t => t);

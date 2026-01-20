@@ -316,6 +316,20 @@ async function processCloudflareQueue(namespaceId) {
     } else if (tool === 'claude-cli') {
       if (!claudeService.isClaudeInstalled()) throw new Error('Claude CLI not installed on target device');
       started = await claudeService.startLocalSession({ prompt, projectPath: repoPath });
+    } else if (tool === 'codex') {
+      // Codex uses API, but we verify we have configuration.
+      // Note: checkConnection() would verify API key validity, but here we just attempt creation.
+      if (!configStore.hasApiKey('codex')) throw new Error('Codex API key not configured on target device');
+
+      // Codex service createTask takes { prompt, repository, title, ... }
+      // We map repoPath to 'repository' which is how local projects are identified in CodexService
+      started = await codexService.createTask({
+        prompt,
+        repository: repoPath,
+        title: prompt.substring(0, 50)
+      });
+      // Persist threads
+      configStore.setCodexThreads(codexService.getTrackedThreads());
     } else {
       throw new Error(`Unsupported queued tool: ${tool}`);
     }
@@ -1208,8 +1222,8 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
       if (!namespaceId) throw new Error('Cloudflare KV not configured');
 
       // Validate supported remote tools
-      if (provider !== 'gemini' && provider !== 'claude-cli') {
-        throw new Error(`Remote execution is not supported for ${provider}. Only local CLI tools (Gemini, Claude CLI) can be run remotely.`);
+      if (provider !== 'gemini' && provider !== 'claude-cli' && provider !== 'codex') {
+        throw new Error(`Remote execution is not supported for ${provider}. Only local CLI tools (Gemini, Claude CLI, Codex) can be run remotely.`);
       }
 
       const identity = configStore.getOrCreateDeviceIdentity();

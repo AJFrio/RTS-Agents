@@ -62,8 +62,8 @@ const getUserRepos = async () => {
   return makeRequest('/user/repos?sort=updated&per_page=100&type=all');
 };
 
-const getPullRequests = async (owner, repo) => {
-  return makeRequest(`/repos/${owner}/${repo}/pulls?state=open`);
+const getPullRequests = async (owner, repo, state = 'open') => {
+  return makeRequest(`/repos/${owner}/${repo}/pulls?state=${state}`);
 };
 
 const getBranches = async (owner, repo) => {

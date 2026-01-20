@@ -1094,9 +1094,9 @@ ipcMain.handle('github:get-repos', async () => {
   }
 });
 
-ipcMain.handle('github:get-prs', async (event, { owner, repo }) => {
+ipcMain.handle('github:get-prs', async (event, { owner, repo, state }) => {
   try {
-    const prs = await githubService.getPullRequests(owner, repo);
+    const prs = await githubService.getPullRequests(owner, repo, state);
     return { success: true, prs };
   } catch (err) {
     return { success: false, error: err.message };

@@ -367,8 +367,12 @@
                               <span class="material-symbols-outlined text-sm">open_in_new</span>
                               VISIT REPO
                            </a>
+                           <div class="flex bg-slate-800 border border-slate-700 p-0.5 h-full gap-0.5">
+                              <button id="pr-filter-open" class="px-3 py-1 text-[10px] technical-font font-bold transition-all bg-[#C2B280] text-black">OPEN</button>
+                              <button id="pr-filter-closed" class="px-3 py-1 text-[10px] technical-font font-bold transition-all text-slate-400 hover:text-slate-200">CLOSED</button>
+                           </div>
                            <span class="px-2 py-1.5 text-[10px] technical-font bg-slate-800 text-slate-300 border border-slate-700 h-full flex items-center">
-                              <span id="pr-count" class="mr-1">0</span> OPEN PRS
+                              <span id="pr-count" class="mr-1">0</span> <span id="pr-status-text">PRS</span>
                            </span>
                         </div>
                      </div>

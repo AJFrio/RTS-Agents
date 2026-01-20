@@ -3,7 +3,7 @@
 
 ## RTS Agents
 
-RTS Agnets is 1 dashboard to access all your coding agents and Github repos across all your service providers and devices
+RTS Agents is 1 dashboard to access all your coding agents and Github repos across all your service providers and devices
 
 It supports:
 - **Local CLI-backed agents**: Gemini CLI, Claude Code CLI, Codex CLI, and Cursor CLI (reads local session files and can start new sessions).

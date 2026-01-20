@@ -123,6 +123,10 @@ export interface Computer {
   tools?: {
     gemini?: boolean;
     'claude-cli'?: boolean;
+    codex?: boolean;
+    cursor?: boolean;
+    jules?: boolean;
+    'claude-cloud'?: boolean;
   };
   repos?: {
     name: string;

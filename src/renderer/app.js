@@ -2492,10 +2492,11 @@ function buildMergeConflictFixPrompt(pr) {
 
 async function prefillFixMergeConflictTask(pr) {
   // Open the New Task modal and prefill it so the user only needs to click "Create Task".
+  const fixPrompt = buildMergeConflictFixPrompt(pr);
   openNewTaskModal();
 
   // Always prefill the prompt (even if repo selection fails).
-  elements.taskPrompt.value = buildMergeConflictFixPrompt(pr);
+  elements.taskPrompt.value = fixPrompt;
 
   const service = choosePreferredMergeFixService();
   if (!service) {
@@ -2506,6 +2507,8 @@ async function prefillFixMergeConflictTask(pr) {
 
   // Select service + load repos.
   await window.selectService(service);
+  // Defensive: ensure prompt is still set after service selection.
+  elements.taskPrompt.value = fixPrompt;
 
   const owner = pr?.base?.repo?.owner?.login || pr?.head?.repo?.owner?.login;
   const repoName = pr?.base?.repo?.name || pr?.head?.repo?.name;

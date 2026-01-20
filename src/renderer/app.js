@@ -556,12 +556,26 @@ function setupEventListeners() {
 
   // Settings - Gemini Paths
   document.getElementById('add-gemini-path').addEventListener('click', addGeminiPath);
+  document.getElementById('browse-gemini-path').addEventListener('click', async () => {
+    const electronAPI = getElectronAPI();
+    const path = await electronAPI.openDirectory();
+    if (path) {
+      elements.newGeminiPath.value = path;
+    }
+  });
   elements.newGeminiPath.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addGeminiPath();
   });
 
   // Settings - GitHub Paths
   document.getElementById('add-github-path').addEventListener('click', addGithubPath);
+  document.getElementById('browse-github-path').addEventListener('click', async () => {
+    const electronAPI = getElectronAPI();
+    const path = await electronAPI.openDirectory();
+    if (path) {
+      elements.newGithubPath.value = path;
+    }
+  });
   elements.newGithubPath.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') addGithubPath();
   });

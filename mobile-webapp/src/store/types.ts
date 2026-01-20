@@ -120,6 +120,15 @@ export interface Computer {
   status: 'on' | 'off';
   lastHeartbeat?: string;
   lastStatusAt?: string;
+  /**
+   * Normalized list of services available on this computer.
+   * Example: services: ['claude', 'gemini', 'cursor', 'codex']
+   */
+  services?: string[];
+  /**
+   * Legacy (deprecated) shape kept for backward compatibility with older KV records.
+   * Prefer `services`.
+   */
   tools?: {
     gemini?: boolean;
     'claude-cli'?: boolean;

@@ -107,11 +107,18 @@ export default function NewTaskModal() {
           throw new Error('Selected device not found');
         }
 
-        // Find tool to use based on device capabilities
+        // Find tool to use based on device capabilities (services list preferred).
+        const services = Array.isArray(device.services)
+          ? device.services
+          : [
+              ...(device.tools?.gemini ? ['gemini'] : []),
+              ...(device.tools?.['claude-cli'] ? ['claude'] : []),
+            ];
+
+        // Remote queue currently supports Gemini + Claude CLI.
         let tool = 'gemini'; // Default to gemini for remote devices
-        if (device.tools?.['claude-cli']) {
-          tool = 'claude-cli';
-        }
+        if (services.includes('claude')) tool = 'claude-cli';
+        else if (services.includes('gemini')) tool = 'gemini';
 
         await dispatchRemoteTask(targetDevice, {
           tool,

@@ -207,6 +207,22 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     repos = [];
   }
 
+  // Store a normalized list of services this computer can run.
+  // This replaces the legacy `tools: { gemini: boolean, 'claude-cli': boolean }` shape.
+  const services = [];
+  try {
+    if (geminiService.isGeminiInstalled()) services.push('gemini');
+  } catch (_) {}
+  try {
+    if (claudeService.isClaudeInstalled()) services.push('claude');
+  } catch (_) {}
+  try {
+    if (configStore.getApiKey('cursor')) services.push('cursor');
+  } catch (_) {}
+  try {
+    if (configStore.getApiKey('codex')) services.push('codex');
+  } catch (_) {}
+
   const device = {
     id: identity.id,
     name: identity.name,
@@ -215,10 +231,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     ...(nextStatus === 'on' ? { lastHeartbeat: nowIso } : {}),
     status: nextStatus,
     lastStatusAt: nowIso,
-    tools: {
-      gemini: geminiService.isGeminiInstalled(),
-      'claude-cli': claudeService.isClaudeInstalled()
-    },
+    services,
     repos,
     reposUpdatedAt: nowIso
   };

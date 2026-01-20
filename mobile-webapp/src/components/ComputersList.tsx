@@ -8,6 +8,21 @@ import { useEffect } from 'react';
 import { useApp } from '../store/AppContext';
 import type { Computer } from '../store/types';
 
+function getComputerServices(computer: Computer): string[] {
+  if (Array.isArray(computer.services)) return computer.services.filter(Boolean);
+
+  // Backward-compat: map legacy tools booleans to a services list.
+  const services: string[] = [];
+  if (computer.tools?.gemini) services.push('gemini');
+  if (computer.tools?.['claude-cli']) services.push('claude');
+  return services;
+}
+
+function isRemoteTaskCapable(services: string[]): boolean {
+  // Remote queue currently supports Gemini + Claude CLI.
+  return services.includes('gemini') || services.includes('claude');
+}
+
 function formatTimeAgo(dateStr: string | undefined): string {
   if (!dateStr) return 'Unknown';
   
@@ -59,6 +74,7 @@ interface ComputerCardProps {
 function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
   const isOnline = computer.status === 'on';
   const isHeadless = String(computer.deviceType || '').toLowerCase() === 'headless';
+  const services = getComputerServices(computer);
 
   return (
     <div className={`bg-card-dark border ${isOnline ? 'border-emerald-500/50' : 'border-border-dark'} p-4`}>
@@ -89,27 +105,37 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
         </div>
       )}
 
-      {/* Tools */}
-      {computer.tools && (
+      {/* Services */}
+      <div className="mb-3">
         <div className="mb-3">
-          <p className="font-display text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
+          <p className="font-display text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Available Services</p>
           <div className="flex flex-wrap gap-1.5">
-            {computer.tools.gemini && (
+            {services.includes('gemini') && (
               <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 font-display text-[9px] uppercase">
                 Gemini CLI
               </span>
             )}
-            {computer.tools['claude-cli'] && (
+            {services.includes('claude') && (
               <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-500 font-display text-[9px] uppercase">
                 Claude CLI
               </span>
             )}
-            {!computer.tools.gemini && !computer.tools['claude-cli'] && (
+            {services.includes('cursor') && (
+              <span className="px-2 py-0.5 bg-sky-500/10 border border-sky-500/30 text-sky-400 font-display text-[9px] uppercase">
+                Cursor
+              </span>
+            )}
+            {services.includes('codex') && (
+              <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 font-display text-[9px] uppercase">
+                Codex
+              </span>
+            )}
+            {services.length === 0 && (
               <span className="text-[10px] text-slate-600">No CLI tools detected</span>
             )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Repositories */}
       {computer.repos && computer.repos.length > 0 && (
@@ -138,7 +164,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           Last seen: {formatTimeAgo(computer.lastHeartbeat)}
         </span>
 
-        {isOnline && (computer.tools?.gemini || computer.tools?.['claude-cli']) && (
+        {isOnline && isRemoteTaskCapable(services) && (
           <button
             onClick={onDispatchTask}
             className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"

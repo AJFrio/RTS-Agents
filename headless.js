@@ -231,6 +231,22 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const geminiCmd = typeof cliCommands?.gemini === 'string' ? cliCommands.gemini : '';
   const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
 
+  // Store a normalized list of services this computer can run.
+  // This replaces the legacy `tools: { gemini: boolean, 'claude-cli': boolean }` shape.
+  const services = [];
+  try {
+    if (geminiService.isGeminiInstalled() || isCommandRunnable(geminiCmd || 'gemini')) services.push('gemini');
+  } catch (_) {}
+  try {
+    if (claudeService.isClaudeInstalled() || isCommandRunnable(claudeCmd || 'claude')) services.push('claude');
+  } catch (_) {}
+  try {
+    if (configStore.getApiKey('cursor')) services.push('cursor');
+  } catch (_) {}
+  try {
+    if (configStore.getApiKey('codex')) services.push('codex');
+  } catch (_) {}
+
   const device = {
     id: identity.id,
     name: identity.name,
@@ -239,10 +255,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     ...(nextStatus === 'on' ? { lastHeartbeat: nowIso } : {}),
     status: nextStatus,
     lastStatusAt: nowIso,
-    tools: {
-      gemini: geminiService.isGeminiInstalled() || isCommandRunnable(geminiCmd || 'gemini'),
-      'claude-cli': claudeService.isClaudeInstalled() || isCommandRunnable(claudeCmd || 'claude')
-    },
+    services,
     repos,
     reposUpdatedAt: nowIso
   };

@@ -1202,6 +1202,16 @@ function updateServiceButtonVisibility() {
   let availableCount = 0;
   const targetDevice = state.newTask.targetDevice;
 
+  const getDeviceServices = (device) => {
+    if (!device || typeof device !== 'object') return [];
+    if (Array.isArray(device.services)) return device.services.filter(Boolean);
+    const tools = device.tools && typeof device.tools === 'object' ? device.tools : {};
+    const services = [];
+    if (tools.gemini) services.push('gemini');
+    if (tools['claude-cli']) services.push('claude');
+    return services;
+  };
+
   providers.forEach(provider => {
     const serviceBtn = document.getElementById(`service-${provider}`);
     if (serviceBtn) {
@@ -1228,9 +1238,10 @@ function updateServiceButtonVisibility() {
       } else if (targetDevice && typeof targetDevice === 'object') {
         // Remote mode: Only show tools installed on remote device
         // Only gemini and claude-cli are supported remotely
-        if (provider === 'gemini' && targetDevice.tools?.gemini) {
+        const services = getDeviceServices(targetDevice);
+        if (provider === 'gemini' && services.includes('gemini')) {
           visible = true;
-        } else if (provider === 'claude-cli' && targetDevice.tools?.['claude-cli']) {
+        } else if (provider === 'claude-cli' && services.includes('claude')) {
           visible = true;
         }
       } else {
@@ -2528,10 +2539,19 @@ function populateTargetDeviceDropdown() {
     const lastHeartbeat = device.lastHeartbeat || device.heartbeatAt || device.updatedAt;
     const isOnline = device.status === 'on' || (lastHeartbeat && (Date.now() - new Date(lastHeartbeat).getTime() < 1000 * 60 * 6)); // 6 mins
 
-    // Only show devices that have local CLI tools (Gemini/Claude)
-    const hasTools = device.tools && Object.values(device.tools).some(t => t);
+    const services = Array.isArray(device.services)
+      ? device.services.filter(Boolean)
+      : (() => {
+          const tools = device.tools && typeof device.tools === 'object' ? device.tools : {};
+          const s = [];
+          if (tools.gemini) s.push('gemini');
+          if (tools['claude-cli']) s.push('claude');
+          return s;
+        })();
 
-    if (isOnline && hasTools) {
+    // Only show devices that can run remote CLI tasks (Gemini/Claude).
+    const hasRemoteCli = services.includes('gemini') || services.includes('claude');
+    if (isOnline && hasRemoteCli) {
        const option = document.createElement('option');
        option.value = device.id;
        option.textContent = `REMOTE: ${(device.name || device.id).toUpperCase()}`;
@@ -3406,10 +3426,21 @@ function renderComputerCard(device) {
 
   const isHeadless = String(device?.deviceType || '').toLowerCase() === 'headless';
 
-  const tools = device?.tools && typeof device.tools === 'object' ? device.tools : {};
-  const toolBadges = [
-    tools.gemini ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI_CLI</span>' : '',
-    tools['claude-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-orange-500 text-orange-500">CLAUDE_CLI</span>' : ''
+  const services = Array.isArray(device?.services)
+    ? device.services.filter(Boolean)
+    : (() => {
+        const tools = device?.tools && typeof device.tools === 'object' ? device.tools : {};
+        const s = [];
+        if (tools.gemini) s.push('gemini');
+        if (tools['claude-cli']) s.push('claude');
+        return s;
+      })();
+
+  const serviceBadges = [
+    services.includes('gemini') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI</span>' : '',
+    services.includes('claude') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-orange-500 text-orange-500">CLAUDE</span>' : '',
+    services.includes('cursor') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-sky-500 text-sky-400">CURSOR</span>' : '',
+    services.includes('codex') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-purple-500 text-purple-400">CODEX</span>' : ''
   ].filter(Boolean).join(' ');
 
   let iso = '';
@@ -3443,9 +3474,9 @@ function renderComputerCard(device) {
         </div>
 
         <div>
-          <div class="text-[9px] technical-font text-slate-500 mb-2">LOCAL_CLI_TOOLS</div>
+          <div class="text-[9px] technical-font text-slate-500 mb-2">SERVICES</div>
           <div class="flex flex-wrap gap-2">
-            ${toolBadges || '<span class="text-[10px] technical-font text-slate-500">NONE_DETECTED</span>'}
+            ${serviceBadges || '<span class="text-[10px] technical-font text-slate-500">NONE_DETECTED</span>'}
           </div>
         </div>
       </div>

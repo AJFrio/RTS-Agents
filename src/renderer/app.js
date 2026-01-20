@@ -33,7 +33,8 @@ const state = {
     pollingInterval: 30000,
     autoPolling: true,
     geminiPaths: [],
-    theme: 'system'
+    theme: 'system',
+    displayMode: 'fullscreen'
   },
   counts: {
     gemini: 0,
@@ -438,6 +439,10 @@ function setupEventListeners() {
     document.getElementById(`theme-${theme}`).addEventListener('click', () => setTheme(theme));
   });
 
+  // Settings - Display Mode
+  document.getElementById('display-windowed').addEventListener('click', () => setDisplayMode('windowed'));
+  document.getElementById('display-fullscreen').addEventListener('click', () => setDisplayMode('fullscreen'));
+
   // Settings - Polling
   elements.autoPolling.addEventListener('change', (e) => {
     updatePollingSettings(e.target.checked, state.settings.pollingInterval);
@@ -771,11 +776,15 @@ async function loadSettings() {
       autoPolling: result.settings?.autoPolling !== false,
       geminiPaths: result.settings?.geminiPaths || [],
       githubPaths: result.githubPaths || result.settings?.githubPaths || [],
-      theme: result.settings?.theme || 'system'
+      theme: result.settings?.theme || 'system',
+      displayMode: result.settings?.displayMode || 'fullscreen'
     };
 
     // Apply theme
     applyTheme(state.settings.theme);
+
+    // Apply display mode
+    applyDisplayMode(state.settings.displayMode);
 
     // Update UI
     elements.autoPolling.checked = state.settings.autoPolling;
@@ -1433,6 +1442,41 @@ function applyTheme(theme) {
   } else {
     document.documentElement.classList.remove('dark');
   }
+}
+
+async function setDisplayMode(mode) {
+  const electronAPI = getElectronAPI();
+  try {
+    await electronAPI.setDisplayMode(mode);
+    state.settings.displayMode = mode;
+    applyDisplayMode(mode);
+    showToast(`Display mode set to ${mode === 'fullscreen' ? 'FULL SCREEN' : 'WINDOWED'}`, 'success');
+  } catch (err) {
+    showToast(`Failed to set display mode: ${err.message}`, 'error');
+  }
+}
+
+function applyDisplayMode(mode) {
+  ['windowed', 'fullscreen'].forEach(m => {
+    const btn = document.getElementById(`display-${m}`);
+    if (m === mode) {
+      // Active styles
+      btn.classList.add('border-[#C2B280]', 'bg-[#C2B280]/5');
+      btn.classList.remove('border-slate-200', 'dark:border-[#2A2A2A]');
+      btn.querySelector('.technical-font').classList.add('text-[#C2B280]');
+      btn.querySelector('.technical-font').classList.remove('text-slate-600', 'dark:text-slate-400');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-slate-500');
+    } else {
+      // Inactive styles
+      btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
+      btn.classList.add('border-slate-200', 'dark:border-[#2A2A2A]');
+      btn.querySelector('.technical-font').classList.remove('text-[#C2B280]');
+      btn.querySelector('.technical-font').classList.add('text-slate-600', 'dark:text-slate-400');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-slate-500');
+    }
+  });
 }
 
 async function updatePollingSettings(enabled, interval) {

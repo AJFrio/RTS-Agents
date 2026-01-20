@@ -86,6 +86,11 @@ const schema = {
         enum: ['light', 'dark', 'system'],
         default: 'system'
       },
+      displayMode: {
+        type: 'string',
+        enum: ['fullscreen', 'windowed'],
+        default: 'fullscreen'
+      },
       filters: {
         type: 'object',
         properties: {
@@ -159,6 +164,14 @@ class ConfigStore {
 
   setFilters(filters) {
     this.store.set('settings.filters', filters);
+  }
+
+  getDisplayMode() {
+    return this.store.get('settings.displayMode', 'fullscreen');
+  }
+
+  setDisplayMode(mode) {
+    this.store.set('settings.displayMode', mode);
   }
 
   // Gemini project paths

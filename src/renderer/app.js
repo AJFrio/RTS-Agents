@@ -736,6 +736,11 @@ async function loadAgents(silent = false) {
   try {
     const result = await electronAPI.getAgents();
     
+    // Check for completions before updating state
+    if (result.agents) {
+      checkForCompletions(result.agents);
+    }
+
     state.agents = result.agents || [];
     state.counts = result.counts || { gemini: 0, jules: 0, cursor: 0, total: 0 };
     state.errors = result.errors || [];
@@ -2308,8 +2313,7 @@ window.mergePr = async function(owner, repo, number) {
 };
 
 window.markPrReadyForReview = async function(owner, repo, number, nodeId) {
-    const electronAPI = getElectronAPI();
-    if (!confirm('Are you sure you want to mark this PR as ready for review? This will notify reviewers.')) return;
+    if (!await showConfirmModal('Are you sure you want to mark this PR as ready for review? This will notify reviewers.', 'REVIEW & PUBLISH')) return;
 
     elements.mergeBtn.disabled = true;
     elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> UPDATING...';
@@ -2433,6 +2437,50 @@ function showToast(message, type = 'info') {
     toast.classList.add('opacity-0', 'translate-y-2');
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+function playNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    const ctx = new AudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime); // A5
+    oscillator.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5); // Drop pitch
+
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.5);
+  } catch (e) {
+    console.error('Error playing sound:', e);
+  }
+}
+
+function checkForCompletions(newAgents) {
+  if (state.agents.length === 0) return; // Don't notify on initial load
+
+  // Create a map of current (old) agents for quick lookup
+  const oldAgentsMap = new Map(state.agents.map(a => [`${a.provider}-${a.rawId}`, a]));
+
+  newAgents.forEach(newAgent => {
+    const key = `${newAgent.provider}-${newAgent.rawId}`;
+    const oldAgent = oldAgentsMap.get(key);
+
+    // If agent existed before and wasn't completed, but is now completed
+    if (oldAgent && oldAgent.status !== 'completed' && newAgent.status === 'completed') {
+      showToast(`Task completed: ${newAgent.name}`, 'success');
+      playNotificationSound();
+    }
+  });
 }
 
 // ============================================ 

@@ -435,6 +435,42 @@ ipcMain.handle('computers:list', async () => {
   }
 });
 
+ipcMain.handle('cloudflare:push-keys', async () => {
+  try {
+    if (!configStore.hasCloudflareConfig()) {
+      return { success: false, error: 'Cloudflare not configured' };
+    }
+    const namespaceId = await ensureCloudflareNamespaceId();
+    const keys = configStore.getAllApiKeys();
+    await cloudflareKvService.pushKeys(namespaceId, keys);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err?.message || 'Unknown error' };
+  }
+});
+
+ipcMain.handle('cloudflare:pull-keys', async () => {
+  try {
+    if (!configStore.hasCloudflareConfig()) {
+      return { success: false, error: 'Cloudflare not configured' };
+    }
+    const namespaceId = await ensureCloudflareNamespaceId();
+    const keys = await cloudflareKvService.pullKeys(namespaceId);
+
+    // Update local configStore with pulled keys
+    for (const [provider, key] of Object.entries(keys)) {
+      configStore.setApiKey(provider, key);
+    }
+
+    // Re-initialize services to use new keys
+    initializeServices();
+
+    return { success: true, keys };
+  } catch (err) {
+    return { success: false, error: err?.message || 'Unknown error' };
+  }
+});
+
 /**
  * Test API key connection
  */

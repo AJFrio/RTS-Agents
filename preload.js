@@ -90,6 +90,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('computers:list'),
   
   /**
+   * Push all local keys to Cloudflare KV
+   */
+  pushKeysToCloudflare: () =>
+    ipcRenderer.invoke('cloudflare:push-keys'),
+
+  /**
+   * Pull all keys from Cloudflare KV to local storage
+   */
+  pullKeysFromCloudflare: () =>
+    ipcRenderer.invoke('cloudflare:pull-keys'),
+
+  /**
    * Update polling settings
    * @param {boolean} [enabled] - Whether auto-polling is enabled
    * @param {number} [interval] - Polling interval in milliseconds

@@ -459,9 +459,14 @@ function setupEventListeners() {
   const saveCfBtn = document.getElementById('save-cloudflare-config');
   const testCfBtn = document.getElementById('test-cloudflare-config');
   const disconnectCfBtn = document.getElementById('disconnect-cloudflare-config');
+  const pushKeysCfBtn = document.getElementById('push-keys-cf');
+  const pullKeysCfBtn = document.getElementById('pull-keys-cf');
+
   if (saveCfBtn) saveCfBtn.addEventListener('click', saveCloudflareConfig);
   if (testCfBtn) testCfBtn.addEventListener('click', testCloudflareConfig);
   if (disconnectCfBtn) disconnectCfBtn.addEventListener('click', disconnectCloudflareConfig);
+  if (pushKeysCfBtn) pushKeysCfBtn.addEventListener('click', pushKeysToCloudflare);
+  if (pullKeysCfBtn) pullKeysCfBtn.addEventListener('click', pullKeysFromCloudflare);
 
   // Settings - Theme
   ['system', 'light', 'dark'].forEach(theme => {
@@ -905,8 +910,10 @@ async function loadSettings() {
     }
     if (cfConfigured) {
       document.getElementById('disconnect-cloudflare-config')?.classList.remove('hidden');
+      document.getElementById('cloudflare-key-sync-controls')?.classList.remove('hidden');
     } else {
       document.getElementById('disconnect-cloudflare-config')?.classList.add('hidden');
+      document.getElementById('cloudflare-key-sync-controls')?.classList.add('hidden');
     }
   } catch (err) {
     console.error('Error loading settings:', err);
@@ -1527,6 +1534,65 @@ async function disconnectCloudflareConfig() {
     await loadSettings();
   } catch (err) {
     showToast(`Disconnect failed: ${err.message}`, 'error');
+  }
+}
+
+async function pushKeysToCloudflare() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.pushKeysToCloudflare) {
+    showToast('Push keys feature not available', 'error');
+    return;
+  }
+
+  if (!await showConfirmModal('Push local API keys to Cloudflare KV? This will overwrite existing keys in KV.', 'PUSH KEYS')) return;
+
+  const btn = document.getElementById('push-keys-cf');
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> PUSHING...';
+
+  try {
+    const result = await electronAPI.pushKeysToCloudflare();
+    if (result.success) {
+       showToast('Keys pushed to Cloudflare successfully', 'success');
+    } else {
+       throw new Error(result.error);
+    }
+  } catch (err) {
+    showToast(`Push failed: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+
+async function pullKeysFromCloudflare() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.pullKeysFromCloudflare) {
+    showToast('Pull keys feature not available', 'error');
+    return;
+  }
+
+  if (!await showConfirmModal('Pull API keys from Cloudflare KV? This will overwrite local keys.', 'PULL KEYS')) return;
+
+  const btn = document.getElementById('pull-keys-cf');
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> PULLING...';
+
+  try {
+    const result = await electronAPI.pullKeysFromCloudflare();
+    if (result.success) {
+       showToast('Keys pulled from Cloudflare successfully', 'success');
+       await loadSettings(); // Reload settings to show new keys
+    } else {
+       throw new Error(result.error);
+    }
+  } catch (err) {
+    showToast(`Pull failed: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
   }
 }
 

@@ -175,6 +175,14 @@ class CloudflareKvService {
     await this.putValue(namespaceId, 'devices', next);
     return next;
   }
+
+  async pushKeys(namespaceId, keys) {
+    return this.putValue(namespaceId, 'keys', keys);
+  }
+
+  async pullKeys(namespaceId) {
+    return this.getValueJson(namespaceId, 'keys', {});
+  }
 }
 
 module.exports = new CloudflareKvService();

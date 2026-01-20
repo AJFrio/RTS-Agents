@@ -80,6 +80,26 @@ const mergePullRequest = async (owner, repo, pullNumber, method = 'merge') => {
   });
 };
 
+const markPullRequestReadyForReview = async (nodeId) => {
+  const query = `
+    mutation($id: ID!) {
+      markPullRequestReadyForReview(input: {pullRequestId: $id}) {
+        pullRequest {
+          id
+          isDraft
+        }
+      }
+    }
+  `;
+
+  const payload = {
+    query,
+    variables: { id: nodeId }
+  };
+
+  return makeRequest('/graphql', 'POST', payload);
+};
+
 const testConnection = async () => {
   try {
     await makeRequest('/user');
@@ -96,5 +116,6 @@ module.exports = {
   getBranches,
   getPullRequestDetails,
   mergePullRequest,
+  markPullRequestReadyForReview,
   testConnection
 };

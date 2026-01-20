@@ -2019,12 +2019,22 @@ window.openPrDetails = async function(owner, repo, number) {
          
          // Merge status
          elements.mergeStatusContainer.classList.remove('opacity-50', 'pointer-events-none');
-         if (pr.mergeable) {
+
+         if (pr.draft) {
+             elements.mergeIcon.textContent = 'edit_note';
+             elements.mergeIcon.className = 'material-symbols-outlined text-blue-500';
+             elements.mergeTitle.textContent = 'This is a draft pull request';
+             elements.mergeSubtitle.textContent = 'Review and publish to enable merging.';
+             elements.mergeBtn.disabled = false;
+             elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">rate_review</span> REVIEW & PUBLISH';
+             elements.mergeBtn.onclick = () => markPrReadyForReview(owner, repo, number, pr.node_id);
+         } else if (pr.mergeable) {
             elements.mergeIcon.textContent = 'check_circle';
             elements.mergeIcon.className = 'material-symbols-outlined text-emerald-500';
             elements.mergeTitle.textContent = 'This branch has no conflicts with the base branch';
             elements.mergeSubtitle.textContent = 'Merging can be performed automatically.';
             elements.mergeBtn.disabled = false;
+            elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">merge</span> MERGE PULL REQUEST';
             elements.mergeBtn.onclick = () => mergePr(owner, repo, number);
          } else if (pr.mergeable === false) {
             elements.mergeIcon.textContent = 'error';
@@ -2032,12 +2042,14 @@ window.openPrDetails = async function(owner, repo, number) {
             elements.mergeTitle.textContent = 'This branch has conflicts that must be resolved';
             elements.mergeSubtitle.textContent = 'Resolve conflicts on GitHub to merge.';
             elements.mergeBtn.disabled = true;
+            elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">merge</span> MERGE PULL REQUEST';
          } else {
             elements.mergeIcon.textContent = 'pending';
             elements.mergeIcon.className = 'material-symbols-outlined text-yellow-500 animate-pulse';
             elements.mergeTitle.textContent = 'Checking mergeability...';
             elements.mergeSubtitle.textContent = 'Please wait.';
             elements.mergeBtn.disabled = true;
+            elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">merge</span> MERGE PULL REQUEST';
          }
       }
    } catch (err) {
@@ -2067,6 +2079,28 @@ window.mergePr = async function(owner, repo, number) {
       elements.mergeBtn.disabled = false;
       elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">merge</span> MERGE PULL REQUEST';
    }
+};
+
+window.markPrReadyForReview = async function(owner, repo, number, nodeId) {
+    if (!confirm('Are you sure you want to mark this PR as ready for review? This will notify reviewers.')) return;
+
+    elements.mergeBtn.disabled = true;
+    elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> UPDATING...';
+
+    try {
+        const result = await window.electronAPI.github.markPrReadyForReview(nodeId);
+        if (result.success) {
+            showToast('Pull request marked as ready for review', 'success');
+            // Reload PR details to update UI state
+            openPrDetails(owner, repo, number);
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (err) {
+        showToast(`Failed to update PR: ${err.message}`, 'error');
+        elements.mergeBtn.disabled = false;
+        elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">rate_review</span> REVIEW & PUBLISH';
+    }
 };
 
 window.closePrModal = function() {

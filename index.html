@@ -607,30 +607,73 @@
               </div>
             </section>
 
-            <!-- Gemini CLI Paths -->
+            <!-- CLI Tools Paths -->
             <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
               <div class="flex items-center gap-3 mb-8">
-                <span class="material-symbols-outlined text-[#C2B280]">folder</span>
-                <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">Gemini CLI Paths</h3>
+                <span class="material-symbols-outlined text-[#C2B280]">terminal</span>
+                <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">CLI Tools Paths</h3>
               </div>
               
-              <p class="text-sm text-slate-400 mb-4 technical-font">
-                Default path auto-detected. Add custom paths for additional locations.
+              <p class="text-sm text-slate-400 mb-6 technical-font">
+                Configure paths for locally installed CLI tools.
               </p>
-              
-              <div class="mb-4 p-3 bg-slate-700/20 border border-[#2A2A2A]">
-                <span class="text-[9px] technical-font text-slate-400">Default path:</span>
-                <p id="default-gemini-path" class="text-sm text-slate-300 font-mono">--</p>
+
+              <!-- Gemini Paths -->
+              <div class="mb-8 border-b border-[#2A2A2A] pb-8">
+                <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Gemini CLI</h4>
+                <div class="mb-4 p-3 bg-slate-700/20 border border-[#2A2A2A]">
+                  <span class="text-[9px] technical-font text-slate-400">Default path:</span>
+                  <p id="default-gemini-path" class="text-sm text-slate-300 font-mono">--</p>
+                </div>
+
+                <div class="flex gap-2 mb-4">
+                  <input type="text" id="new-gemini-path" placeholder="Add custom path..."
+                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="add-gemini-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
+                </div>
+
+                <div id="gemini-paths-list" class="space-y-2">
+                  <!-- Custom paths will be listed here -->
+                </div>
               </div>
-              
-              <div class="flex gap-2 mb-4">
-                <input type="text" id="new-gemini-path" placeholder="Add custom path..."
-                  class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
-                <button id="add-gemini-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
+
+              <!-- Claude Paths -->
+              <div class="mb-8 border-b border-[#2A2A2A] pb-8">
+                <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Claude CLI</h4>
+                <div class="flex gap-2 mb-4">
+                  <input type="text" id="new-claude-path" placeholder="Add custom path..."
+                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="add-claude-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
+                </div>
+                <div id="claude-paths-list" class="space-y-2">
+                  <!-- Custom paths will be listed here -->
+                </div>
               </div>
-              
-              <div id="gemini-paths-list" class="space-y-2">
-                <!-- Custom paths will be listed here -->
+
+              <!-- Cursor Paths -->
+              <div class="mb-8 border-b border-[#2A2A2A] pb-8">
+                <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Cursor CLI</h4>
+                <div class="flex gap-2 mb-4">
+                  <input type="text" id="new-cursor-path" placeholder="Add custom path..."
+                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="add-cursor-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
+                </div>
+                <div id="cursor-paths-list" class="space-y-2">
+                  <!-- Custom paths will be listed here -->
+                </div>
+              </div>
+
+              <!-- Codex Paths -->
+              <div>
+                <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Codex CLI</h4>
+                <div class="flex gap-2 mb-4">
+                  <input type="text" id="new-codex-path" placeholder="Add custom path..."
+                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="add-codex-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
+                </div>
+                <div id="codex-paths-list" class="space-y-2">
+                  <!-- Custom paths will be listed here -->
+                </div>
               </div>
             </section>
 

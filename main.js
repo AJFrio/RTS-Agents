@@ -579,6 +579,9 @@ ipcMain.handle('settings:get', async () => {
     claudeCliInstalled: claudeService.isClaudeInstalled(),
     claudeCloudConfigured: configStore.hasApiKey('claude'),
     claudeDefaultPath: claudeService.getDefaultPath(),
+    claudePaths: configStore.getClaudePaths(),
+    cursorPaths: configStore.getCursorPaths(),
+    codexPaths: configStore.getCodexPaths(),
     githubPaths: configStore.getGithubPaths(),
     filters: configStore.getFilters(),
     localDeviceId: configStore.getOrCreateDeviceIdentity().id
@@ -832,6 +835,83 @@ ipcMain.handle('settings:get-gemini-paths', async () => {
 });
 
 /**
+ * Add Claude project path
+ */
+ipcMain.handle('settings:add-claude-path', async (event, { path: claudePath }) => {
+  const paths = configStore.addClaudePath(claudePath);
+  return { success: true, paths };
+});
+
+/**
+ * Remove Claude project path
+ */
+ipcMain.handle('settings:remove-claude-path', async (event, { path: claudePath }) => {
+  const paths = configStore.removeClaudePath(claudePath);
+  return { success: true, paths };
+});
+
+/**
+ * Get Claude project paths
+ */
+ipcMain.handle('settings:get-claude-paths', async () => {
+  return {
+    paths: configStore.getClaudePaths(),
+    defaultPath: claudeService.getDefaultPath(),
+    installed: claudeService.isClaudeInstalled()
+  };
+});
+
+/**
+ * Add Cursor project path
+ */
+ipcMain.handle('settings:add-cursor-path', async (event, { path: cursorPath }) => {
+  const paths = configStore.addCursorPath(cursorPath);
+  return { success: true, paths };
+});
+
+/**
+ * Remove Cursor project path
+ */
+ipcMain.handle('settings:remove-cursor-path', async (event, { path: cursorPath }) => {
+  const paths = configStore.removeCursorPath(cursorPath);
+  return { success: true, paths };
+});
+
+/**
+ * Get Cursor project paths
+ */
+ipcMain.handle('settings:get-cursor-paths', async () => {
+  return {
+    paths: configStore.getCursorPaths()
+  };
+});
+
+/**
+ * Add Codex project path
+ */
+ipcMain.handle('settings:add-codex-path', async (event, { path: codexPath }) => {
+  const paths = configStore.addCodexPath(codexPath);
+  return { success: true, paths };
+});
+
+/**
+ * Remove Codex project path
+ */
+ipcMain.handle('settings:remove-codex-path', async (event, { path: codexPath }) => {
+  const paths = configStore.removeCodexPath(codexPath);
+  return { success: true, paths };
+});
+
+/**
+ * Get Codex project paths
+ */
+ipcMain.handle('settings:get-codex-paths', async () => {
+  return {
+    paths: configStore.getCodexPaths()
+  };
+});
+
+/**
  * Add GitHub repository path
  */
 ipcMain.handle('settings:add-github-path', async (event, { path: githubPath }) => {
@@ -857,12 +937,15 @@ ipcMain.handle('settings:get-github-paths', async () => {
 });
 
 /**
- * Get all project paths (combined Gemini + GitHub paths)
+ * Get all project paths (combined all configured paths)
  */
 ipcMain.handle('settings:get-all-project-paths', async () => {
   return {
     paths: configStore.getAllProjectPaths(),
     geminiPaths: configStore.getGeminiPaths(),
+    claudePaths: configStore.getClaudePaths(),
+    cursorPaths: configStore.getCursorPaths(),
+    codexPaths: configStore.getCodexPaths(),
     githubPaths: configStore.getGithubPaths()
   };
 });
@@ -972,10 +1055,12 @@ ipcMain.handle('repos:get', async (event, { provider }) => {
         return { success: true, repositories: julesSources };
 
       case 'cursor':
-        if (!configStore.hasApiKey('cursor')) {
-          return { success: false, error: 'Cursor API key not configured', repositories: [] };
+        // Allow if API key configured OR if we have local paths
+        if (!configStore.hasApiKey('cursor') && configStore.getCursorPaths().length === 0) {
+          return { success: false, error: 'Cursor API key not configured and no local paths set', repositories: [] };
         }
-        const cursorRepos = await cursorService.getAllRepositories();
+        const cursorPaths = configStore.getCursorPaths();
+        const cursorRepos = await cursorService.getAllRepositories(cursorPaths);
         return { success: true, repositories: cursorRepos };
 
       case 'gemini':
@@ -987,10 +1072,12 @@ ipcMain.handle('repos:get', async (event, { provider }) => {
         return { success: true, repositories: geminiProjects };
 
       case 'codex':
-        if (!configStore.hasApiKey('codex')) {
-          return { success: false, error: 'OpenAI API key not configured', repositories: [] };
+        // Allow if API key configured OR if we have local paths
+        if (!configStore.hasApiKey('codex') && configStore.getCodexPaths().length === 0) {
+          return { success: false, error: 'OpenAI API key not configured and no local paths set', repositories: [] };
         }
-        const codexProjects = await codexService.getAvailableProjects();
+        const codexPaths = configStore.getCodexPaths();
+        const codexProjects = await codexService.getAvailableProjects(codexPaths);
         return { success: true, repositories: codexProjects };
 
       case 'claude-cli':
@@ -1035,11 +1122,14 @@ ipcMain.handle('repos:get-all', async () => {
   const allProjectPaths = configStore.getAllProjectPaths();
   const claudeCliAvailable = claudeService.isClaudeInstalled();
 
+  const cursorPaths = configStore.getCursorPaths();
+  const codexPaths = configStore.getCodexPaths();
+
   const [julesResult, cursorResult, geminiResult, codexResult, claudeCliResult] = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.getAllSources() : Promise.resolve([]),
-    configStore.hasApiKey('cursor') ? cursorService.getAllRepositories() : Promise.resolve([]),
+    (configStore.hasApiKey('cursor') || cursorPaths.length > 0) ? cursorService.getAllRepositories(cursorPaths) : Promise.resolve([]),
     geminiService.isGeminiInstalled() ? geminiService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
-    configStore.hasApiKey('codex') ? codexService.getAvailableProjects() : Promise.resolve([]),
+    (configStore.hasApiKey('codex') || codexPaths.length > 0) ? codexService.getAvailableProjects(codexPaths) : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAvailableProjects(allProjectPaths) : Promise.resolve([])
   ]);
 

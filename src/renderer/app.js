@@ -33,6 +33,9 @@ const state = {
     pollingInterval: 30000,
     autoPolling: true,
     geminiPaths: [],
+    claudePaths: [],
+    cursorPaths: [],
+    codexPaths: [],
     theme: 'system',
     displayMode: 'fullscreen'
   },
@@ -175,6 +178,12 @@ const elements = {
   defaultGeminiPath: document.getElementById('default-gemini-path'),
   newGeminiPath: document.getElementById('new-gemini-path'),
   geminiPathsList: document.getElementById('gemini-paths-list'),
+  newClaudePath: document.getElementById('new-claude-path'),
+  claudePathsList: document.getElementById('claude-paths-list'),
+  newCursorPath: document.getElementById('new-cursor-path'),
+  cursorPathsList: document.getElementById('cursor-paths-list'),
+  newCodexPath: document.getElementById('new-codex-path'),
+  codexPathsList: document.getElementById('codex-paths-list'),
   newGithubPath: document.getElementById('new-github-path'),
   githubPathsList: document.getElementById('github-paths-list'),
   githubPathsEmpty: document.getElementById('github-paths-empty'),
@@ -560,6 +569,24 @@ function setupEventListeners() {
     if (e.key === 'Enter') addGeminiPath();
   });
 
+  // Settings - Claude Paths
+  document.getElementById('add-claude-path').addEventListener('click', addClaudePath);
+  elements.newClaudePath.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addClaudePath();
+  });
+
+  // Settings - Cursor Paths
+  document.getElementById('add-cursor-path').addEventListener('click', addCursorPath);
+  elements.newCursorPath.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addCursorPath();
+  });
+
+  // Settings - Codex Paths
+  document.getElementById('add-codex-path').addEventListener('click', addCodexPath);
+  elements.newCodexPath.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addCodexPath();
+  });
+
   // Settings - GitHub Paths
   document.getElementById('add-github-path').addEventListener('click', addGithubPath);
   elements.newGithubPath.addEventListener('keypress', (e) => {
@@ -928,6 +955,9 @@ async function loadSettings() {
       pollingInterval: result.settings?.pollingInterval || 30000,
       autoPolling: result.settings?.autoPolling !== false,
       geminiPaths: result.settings?.geminiPaths || [],
+      claudePaths: result.settings?.claudePaths || [],
+      cursorPaths: result.settings?.cursorPaths || [],
+      codexPaths: result.settings?.codexPaths || [],
       githubPaths: result.githubPaths || result.settings?.githubPaths || [],
       theme: result.settings?.theme || 'system',
       displayMode: result.settings?.displayMode || 'fullscreen'
@@ -949,15 +979,20 @@ async function loadSettings() {
     elements.defaultGeminiPath.textContent = result.geminiDefaultPath || 'Not detected';
     renderGeminiPaths();
 
+    // Update other CLI paths
+    renderClaudePaths();
+    renderCursorPaths();
+    renderCodexPaths();
+
     // Update GitHub paths
     renderGithubPaths();
 
     // Track configured services
-    state.configuredServices.gemini = result.geminiInstalled || false;
+    state.configuredServices.gemini = result.geminiInstalled || (result.geminiPaths && result.geminiPaths.length > 0) || false;
     state.configuredServices.jules = result.apiKeys?.jules || false;
-    state.configuredServices.cursor = result.apiKeys?.cursor || false;
-    state.configuredServices.codex = result.apiKeys?.codex || false;
-    state.configuredServices['claude-cli'] = result.claudeCliInstalled || false;
+    state.configuredServices.cursor = result.apiKeys?.cursor || (result.cursorPaths && result.cursorPaths.length > 0) || false;
+    state.configuredServices.codex = result.apiKeys?.codex || (result.codexPaths && result.codexPaths.length > 0) || false;
+    state.configuredServices['claude-cli'] = result.claudeCliInstalled || (result.claudePaths && result.claudePaths.length > 0) || false;
     state.configuredServices['claude-cloud'] = result.claudeCloudConfigured || result.apiKeys?.claude || false;
     state.configuredServices.github = result.apiKeys?.github || false;
 
@@ -1111,7 +1146,9 @@ function updateServiceButtonVisibility() {
         }
       } else if (targetDevice === 'local') {
         // Local mode: Show only local CLI tools
-        if (['gemini', 'claude-cli'].includes(provider)) {
+        // We include cursor and codex here if the user configured them (via paths), even if they are primarily cloud-based,
+        // to satisfy the requirement of making them available as "local services".
+        if (['gemini', 'claude-cli', 'cursor', 'codex'].includes(provider)) {
            if (state.configuredServices[provider]) {
              visible = true;
            }
@@ -1394,18 +1431,38 @@ function createAgentCard(agent) {
 
 function renderGeminiPaths() {
   const paths = state.settings.geminiPaths;
-  
+  renderPathList(paths, elements.geminiPathsList, 'removeGeminiPath');
+}
+
+function renderClaudePaths() {
+  const paths = state.settings.claudePaths;
+  renderPathList(paths, elements.claudePathsList, 'removeClaudePath');
+}
+
+function renderCursorPaths() {
+  const paths = state.settings.cursorPaths;
+  renderPathList(paths, elements.cursorPathsList, 'removeCursorPath');
+}
+
+function renderCodexPaths() {
+  const paths = state.settings.codexPaths;
+  renderPathList(paths, elements.codexPathsList, 'removeCodexPath');
+}
+
+function renderPathList(paths, containerElement, removeFunction) {
+  if (!containerElement) return;
+
   if (paths.length === 0) {
-    elements.geminiPathsList.innerHTML = `
+    containerElement.innerHTML = `
       <p class="text-sm technical-font text-slate-500 italic">No custom paths configured</p>
     `;
     return;
   }
 
-  elements.geminiPathsList.innerHTML = paths.map(path => `
+  containerElement.innerHTML = paths.map(path => `
     <div class="flex items-center justify-between p-3 bg-slate-700/20 border border-[#2A2A2A]">
       <span class="text-sm text-slate-300 font-mono truncate">${escapeHtml(path)}</span>
-      <button onclick="removeGeminiPath('${escapeHtml(path)}')" 
+      <button onclick="${removeFunction}('${escapeHtml(path)}')"
               class="text-slate-400 hover:text-red-400 transition-colors">
         <span class="material-symbols-outlined text-sm">close</span>
       </button>
@@ -1867,13 +1924,103 @@ async function addGeminiPath() {
   }
 }
 
-// Make removeGeminiPath available globally
+async function addClaudePath() {
+  const electronAPI = getElectronAPI();
+  const path = elements.newClaudePath.value.trim();
+  if (!path) return;
+
+  try {
+    const result = await electronAPI.addClaudePath(path);
+    state.settings.claudePaths = result.paths;
+    elements.newClaudePath.value = '';
+    renderClaudePaths();
+    await loadAgents();
+    showToast('Path added successfully', 'success');
+  } catch (err) {
+    showToast(`Failed to add path: ${err.message}`, 'error');
+  }
+}
+
+async function addCursorPath() {
+  const electronAPI = getElectronAPI();
+  const path = elements.newCursorPath.value.trim();
+  if (!path) return;
+
+  try {
+    const result = await electronAPI.addCursorPath(path);
+    state.settings.cursorPaths = result.paths;
+    elements.newCursorPath.value = '';
+    renderCursorPaths();
+    await loadAgents();
+    showToast('Path added successfully', 'success');
+  } catch (err) {
+    showToast(`Failed to add path: ${err.message}`, 'error');
+  }
+}
+
+async function addCodexPath() {
+  const electronAPI = getElectronAPI();
+  const path = elements.newCodexPath.value.trim();
+  if (!path) return;
+
+  try {
+    const result = await electronAPI.addCodexPath(path);
+    state.settings.codexPaths = result.paths;
+    elements.newCodexPath.value = '';
+    renderCodexPaths();
+    await loadAgents();
+    showToast('Path added successfully', 'success');
+  } catch (err) {
+    showToast(`Failed to add path: ${err.message}`, 'error');
+  }
+}
+
+// Make remove functions available globally
 window.removeGeminiPath = async function(path) {
   const electronAPI = getElectronAPI();
   try {
     const result = await electronAPI.removeGeminiPath(path);
     state.settings.geminiPaths = result.paths;
     renderGeminiPaths();
+    await loadAgents();
+    showToast('Path removed', 'success');
+  } catch (err) {
+    showToast(`Failed to remove path: ${err.message}`, 'error');
+  }
+};
+
+window.removeClaudePath = async function(path) {
+  const electronAPI = getElectronAPI();
+  try {
+    const result = await electronAPI.removeClaudePath(path);
+    state.settings.claudePaths = result.paths;
+    renderClaudePaths();
+    await loadAgents();
+    showToast('Path removed', 'success');
+  } catch (err) {
+    showToast(`Failed to remove path: ${err.message}`, 'error');
+  }
+};
+
+window.removeCursorPath = async function(path) {
+  const electronAPI = getElectronAPI();
+  try {
+    const result = await electronAPI.removeCursorPath(path);
+    state.settings.cursorPaths = result.paths;
+    renderCursorPaths();
+    await loadAgents();
+    showToast('Path removed', 'success');
+  } catch (err) {
+    showToast(`Failed to remove path: ${err.message}`, 'error');
+  }
+};
+
+window.removeCodexPath = async function(path) {
+  const electronAPI = getElectronAPI();
+  try {
+    const result = await electronAPI.removeCodexPath(path);
+    state.settings.codexPaths = result.paths;
+    renderCodexPaths();
     await loadAgents();
     showToast('Path removed', 'success');
   } catch (err) {

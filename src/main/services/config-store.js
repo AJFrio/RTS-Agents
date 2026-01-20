@@ -100,6 +100,21 @@ const schema = {
         items: { type: 'string' },
         default: []
       },
+      claudePaths: {
+        type: 'array',
+        items: { type: 'string' },
+        default: []
+      },
+      cursorPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        default: []
+      },
+      codexPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        default: []
+      },
       githubPaths: {
         type: 'array',
         items: { type: 'string' },
@@ -263,6 +278,66 @@ class ConfigStore {
     return paths;
   }
 
+  // Claude project paths
+  getClaudePaths() {
+    return this.store.get('settings.claudePaths', []);
+  }
+
+  addClaudePath(path) {
+    const paths = this.getClaudePaths();
+    if (!paths.includes(path)) {
+      paths.push(path);
+      this.store.set('settings.claudePaths', paths);
+    }
+    return paths;
+  }
+
+  removeClaudePath(path) {
+    const paths = this.getClaudePaths().filter(p => p !== path);
+    this.store.set('settings.claudePaths', paths);
+    return paths;
+  }
+
+  // Cursor project paths
+  getCursorPaths() {
+    return this.store.get('settings.cursorPaths', []);
+  }
+
+  addCursorPath(path) {
+    const paths = this.getCursorPaths();
+    if (!paths.includes(path)) {
+      paths.push(path);
+      this.store.set('settings.cursorPaths', paths);
+    }
+    return paths;
+  }
+
+  removeCursorPath(path) {
+    const paths = this.getCursorPaths().filter(p => p !== path);
+    this.store.set('settings.cursorPaths', paths);
+    return paths;
+  }
+
+  // Codex project paths
+  getCodexPaths() {
+    return this.store.get('settings.codexPaths', []);
+  }
+
+  addCodexPath(path) {
+    const paths = this.getCodexPaths();
+    if (!paths.includes(path)) {
+      paths.push(path);
+      this.store.set('settings.codexPaths', paths);
+    }
+    return paths;
+  }
+
+  removeCodexPath(path) {
+    const paths = this.getCodexPaths().filter(p => p !== path);
+    this.store.set('settings.codexPaths', paths);
+    return paths;
+  }
+
   // Polling settings
   getPollingInterval() {
     return this.store.get('settings.pollingInterval', 30000);
@@ -376,12 +451,15 @@ class ConfigStore {
     return paths;
   }
 
-  // Get all project paths (combines Gemini paths and GitHub paths)
+  // Get all project paths (combines all configured paths)
   getAllProjectPaths() {
     const geminiPaths = this.getGeminiPaths();
+    const claudePaths = this.getClaudePaths();
+    const cursorPaths = this.getCursorPaths();
+    const codexPaths = this.getCodexPaths();
     const githubPaths = this.getGithubPaths();
     // Combine and deduplicate
-    return [...new Set([...geminiPaths, ...githubPaths])];
+    return [...new Set([...geminiPaths, ...claudePaths, ...cursorPaths, ...codexPaths, ...githubPaths])];
   }
 
   // Session output persistence (for terminated CLI sessions)

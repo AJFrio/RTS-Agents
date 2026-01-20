@@ -20,9 +20,12 @@ test.describe('Repository Dropdown Navigation', () => {
 
     // Mock electronAPI
     await window.addInitScript(() => {
-      window.electronAPI = {
+      window.__electronAPI = {
         getAgents: async () => ({ agents: [], counts: {} }),
-        getSettings: async () => ({ settings: { theme: 'system' } }),
+        getSettings: async () => ({
+          settings: { theme: 'system' },
+          apiKeys: { jules: true }
+        }),
         getConnectionStatus: async () => ({}),
         getRepositories: async (service) => {
           return {

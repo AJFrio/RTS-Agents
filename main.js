@@ -779,12 +779,13 @@ ipcMain.handle('app:update', async () => {
 });
 
 function performUpdate() {
-  console.log('Update requested. Executing git pull, npm install, and build...');
+  console.log('Update requested. Executing git stash, git pull, npm install, and build...');
 
   return new Promise((resolve) => {
-    // Execute git pull, npm install, and build css
+    // Execute git stash (to save local changes), git pull, npm install, and build css
+    // Using stash --include-untracked ensures we stash user changes but NOT ignored files (like node_modules)
     // Using cwd: __dirname to ensure we run in the project root
-    const command = 'git pull && npm install && npm run build:css:prod';
+    const command = 'git stash --include-untracked && git pull && npm install && npm run build:css:prod';
 
     exec(command, { cwd: __dirname }, (error, stdout, stderr) => {
       if (error) {

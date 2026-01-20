@@ -62,7 +62,9 @@ const state = {
     selectedService: null,
     repositories: [],
     loadingRepos: false,
-    creating: false
+    creating: false,
+    promptMode: 'write', // 'write' | 'preview'
+    pastedImages: [] // [{ id, name, mimeType, size, dataUrl }]
   },
   // Pagination state
   pagination: {
@@ -181,6 +183,12 @@ const elements = {
   repoSearchContainer: document.getElementById('repo-search-container'),
   taskBranch: document.getElementById('task-branch'),
   taskPrompt: document.getElementById('task-prompt'),
+  taskPromptPreview: document.getElementById('task-prompt-preview'),
+  taskPromptTabWrite: document.getElementById('task-prompt-tab-write'),
+  taskPromptTabPreview: document.getElementById('task-prompt-tab-preview'),
+  taskPromptImagesContainer: document.getElementById('task-prompt-images-container'),
+  taskPromptImagesCount: document.getElementById('task-prompt-images-count'),
+  taskPromptImages: document.getElementById('task-prompt-images'),
   taskSpeechBtn: document.getElementById('task-speech-btn'),
   taskAutoPr: document.getElementById('task-auto-pr'),
   createTaskBtn: document.getElementById('create-task-btn'),
@@ -189,6 +197,10 @@ const elements = {
   repoError: document.getElementById('repo-error'),
   createTaskLoading: document.getElementById('create-task-loading'),
   branchInputContainer: document.getElementById('branch-input-container'),
+
+  // Pasted image viewer modal
+  pastedImageModal: document.getElementById('pasted-image-modal'),
+  pastedImageModalImg: document.getElementById('pasted-image-modal-img'),
 
   // Branches View
   branchesLoading: document.getElementById('branches-loading'),
@@ -512,7 +524,13 @@ function setupEventListeners() {
 
   // New Task Modal
   elements.newTaskBtn.addEventListener('click', openNewTaskModal);
-  elements.taskPrompt.addEventListener('input', validateNewTaskForm);
+  elements.taskPrompt.addEventListener('input', () => {
+    validateNewTaskForm();
+    if (state.newTask.promptMode === 'preview') {
+      renderTaskPromptPreview();
+    }
+  });
+  elements.taskPrompt.addEventListener('paste', handleTaskPromptPaste);
   elements.taskPrompt.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault(); // Prevent newline insertion if any
@@ -1898,6 +1916,8 @@ function renderAgentDetails(provider, details) {
     </div>
   `;
 
+  const promptHtml = details.prompt ? sanitizeMarkdownToHtml(details.prompt) : '';
+
   // Task Description Section
   if (details.prompt) {
     content += `
@@ -1907,7 +1927,7 @@ function renderAgentDetails(provider, details) {
           <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Task Description</h3>
         </div>
         <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-6">
-          <p class="text-sm text-slate-300 font-light leading-relaxed whitespace-pre-wrap">${escapeHtml(details.prompt)}</p>
+          <div class="markdown-content text-sm text-slate-300 font-light leading-relaxed">${promptHtml}</div>
         </div>
       </section>
     `;
@@ -2111,7 +2131,9 @@ function openNewTaskModal() {
     selectedService: null,
     repositories: [],
     loadingRepos: false,
-    creating: false
+    creating: false,
+    promptMode: 'write',
+    pastedImages: []
   };
 
   // Reset form
@@ -2131,6 +2153,131 @@ window.closeNewTaskModal = function() {
   resetNewTaskForm();
 };
 
+function sanitizeMarkdownToHtml(markdown) {
+  try {
+    if (typeof marked?.parse !== 'function' || typeof DOMPurify?.sanitize !== 'function') {
+      return `<pre class="whitespace-pre-wrap">${escapeHtml(markdown || '')}</pre>`;
+    }
+    const html = marked.parse(markdown || '');
+    return DOMPurify.sanitize(html);
+  } catch (err) {
+    console.warn('Markdown render failed:', err);
+    return `<pre class="whitespace-pre-wrap">${escapeHtml(markdown || '')}</pre>`;
+  }
+}
+
+function setTaskPromptMode(mode) {
+  state.newTask.promptMode = mode === 'preview' ? 'preview' : 'write';
+
+  const isPreview = state.newTask.promptMode === 'preview';
+  elements.taskPrompt.classList.toggle('hidden', isPreview);
+  elements.taskPromptPreview.classList.toggle('hidden', !isPreview);
+  elements.taskSpeechBtn?.classList.toggle('hidden', isPreview);
+
+  // Simple active styling
+  if (elements.taskPromptTabWrite && elements.taskPromptTabPreview) {
+    const activeClasses = ['bg-[#C2B280]', 'text-black'];
+    const inactiveClasses = ['text-slate-400'];
+
+    elements.taskPromptTabWrite.classList.toggle(activeClasses[0], !isPreview);
+    elements.taskPromptTabWrite.classList.toggle(activeClasses[1], !isPreview);
+    elements.taskPromptTabWrite.classList.toggle(inactiveClasses[0], isPreview);
+
+    elements.taskPromptTabPreview.classList.toggle(activeClasses[0], isPreview);
+    elements.taskPromptTabPreview.classList.toggle(activeClasses[1], isPreview);
+    elements.taskPromptTabPreview.classList.toggle(inactiveClasses[0], !isPreview);
+  }
+
+  if (isPreview) {
+    renderTaskPromptPreview();
+  }
+}
+
+window.setTaskPromptMode = setTaskPromptMode;
+
+function renderTaskPromptPreview() {
+  if (!elements.taskPromptPreview) return;
+  const prompt = elements.taskPrompt?.value || '';
+  elements.taskPromptPreview.innerHTML = sanitizeMarkdownToHtml(prompt);
+}
+
+function renderNewTaskPastedImages() {
+  if (!elements.taskPromptImages || !elements.taskPromptImagesContainer) return;
+
+  const imgs = state.newTask.pastedImages || [];
+  elements.taskPromptImagesContainer.classList.toggle('hidden', imgs.length === 0);
+  if (elements.taskPromptImagesCount) {
+    elements.taskPromptImagesCount.textContent = `${imgs.length}`;
+  }
+
+  elements.taskPromptImages.innerHTML = imgs.map(img => `
+    <div class="relative w-20 h-20 border border-[#2A2A2A] bg-black overflow-hidden group cursor-pointer"
+         onclick="openPastedImageModal('${escapeJsString(img.id)}')"
+         title="${escapeHtml(img.name || 'pasted image')}">
+      <img src="${escapeHtml(img.dataUrl)}" alt="${escapeHtml(img.name || 'pasted image')}"
+           class="w-full h-full object-cover" />
+      <button type="button"
+              onclick="event.stopPropagation(); removePastedImage('${escapeJsString(img.id)}')"
+              class="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-black/70 text-slate-200 hover:text-red-300 border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Remove">
+        <span class="material-symbols-outlined text-sm">close</span>
+      </button>
+    </div>
+  `).join('');
+}
+
+function openPastedImageModal(imageId) {
+  const img = (state.newTask.pastedImages || []).find(i => i.id === imageId);
+  if (!img || !elements.pastedImageModal || !elements.pastedImageModalImg) return;
+  elements.pastedImageModalImg.src = img.dataUrl;
+  elements.pastedImageModal.classList.remove('hidden');
+}
+
+function closePastedImageModal() {
+  if (!elements.pastedImageModal || !elements.pastedImageModalImg) return;
+  elements.pastedImageModal.classList.add('hidden');
+  elements.pastedImageModalImg.src = '';
+}
+
+function removePastedImage(imageId) {
+  state.newTask.pastedImages = (state.newTask.pastedImages || []).filter(i => i.id !== imageId);
+  renderNewTaskPastedImages();
+}
+
+window.openPastedImageModal = openPastedImageModal;
+window.closePastedImageModal = closePastedImageModal;
+window.removePastedImage = removePastedImage;
+
+async function handleTaskPromptPaste(event) {
+  const items = event.clipboardData?.items ? Array.from(event.clipboardData.items) : [];
+  const imageItems = items.filter(i => i.kind === 'file' && typeof i.type === 'string' && i.type.startsWith('image/'));
+  if (imageItems.length === 0) return;
+
+  // Avoid inserting the image as text (some browsers paste a filename/placeholder).
+  event.preventDefault();
+
+  const files = imageItems.map(i => i.getAsFile()).filter(Boolean);
+  for (const file of files) {
+    const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read pasted image'));
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+
+    state.newTask.pastedImages.push({
+      id,
+      name: file.name || `pasted-${id}.png`,
+      mimeType: file.type || 'image/png',
+      size: file.size || 0,
+      dataUrl: typeof dataUrl === 'string' ? dataUrl : ''
+    });
+  }
+
+  renderNewTaskPastedImages();
+}
+
 function resetNewTaskForm() {
   // Reset service selection
   document.querySelectorAll('.service-btn').forEach(btn => {
@@ -2149,6 +2296,10 @@ function resetNewTaskForm() {
   
   resetNewTaskBranchDropdown();
   elements.taskPrompt.value = '';
+  state.newTask.promptMode = 'write';
+  state.newTask.pastedImages = [];
+  setTaskPromptMode('write');
+  renderNewTaskPastedImages();
   elements.taskAutoPr.checked = true;
   elements.createTaskBtn.disabled = true;
   elements.serviceStatus.textContent = '';
@@ -2275,6 +2426,13 @@ window.submitNewTask = async function() {
   const branch = elements.taskBranch.value.trim() || 'main';
   const prompt = elements.taskPrompt.value.trim();
   const autoCreatePr = elements.taskAutoPr.checked;
+  const attachments = (state.newTask.pastedImages || []).map(img => ({
+    id: img.id,
+    name: img.name,
+    mimeType: img.mimeType,
+    size: img.size,
+    dataUrl: img.dataUrl
+  }));
 
   // Codex and Claude Cloud don't require a repository
   const repoRequired = service !== 'codex' && service !== 'claude-cloud';
@@ -2292,7 +2450,8 @@ window.submitNewTask = async function() {
     // Build options based on service
     let options = {
       prompt: prompt,
-      autoCreatePr: autoCreatePr
+      autoCreatePr: autoCreatePr,
+      attachments
     };
 
     if (service === 'jules') {

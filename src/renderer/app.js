@@ -2280,7 +2280,7 @@ window.mergePr = async function(owner, repo, number) {
 };
 
 window.markPrReadyForReview = async function(owner, repo, number, nodeId) {
-    if (!confirm('Are you sure you want to mark this PR as ready for review? This will notify reviewers.')) return;
+    if (!await showConfirmModal('Are you sure you want to mark this PR as ready for review? This will notify reviewers.', 'REVIEW & PUBLISH')) return;
 
     elements.mergeBtn.disabled = true;
     elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> UPDATING...';

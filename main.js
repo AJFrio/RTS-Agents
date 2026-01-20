@@ -137,7 +137,7 @@ function startCloudflareHeartbeatIfEnabled() {
     void sendCloudflareHeartbeat().catch(err => {
       console.warn('Cloudflare heartbeat failed:', err?.message || err);
     });
-  }, 30000);
+  }, 300000); // 5 minutes
 }
 
 function stopCloudflareHeartbeat() {

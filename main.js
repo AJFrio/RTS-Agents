@@ -755,6 +755,15 @@ ipcMain.handle('github:get-prs', async (event, { owner, repo }) => {
   }
 });
 
+ipcMain.handle('github:get-branches', async (event, { owner, repo }) => {
+  try {
+    const branches = await githubService.getBranches(owner, repo);
+    return { success: true, branches };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('github:get-pr-details', async (event, { owner, repo, prNumber }) => {
   try {
     const pr = await githubService.getPullRequestDetails(owner, repo, prNumber);

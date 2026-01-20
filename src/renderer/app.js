@@ -679,6 +679,10 @@ function selectRepoOption(optionElement) {
   
   hideRepoDropdown();
   validateNewTaskForm();
+
+  // Refresh branch dropdown based on selected repository (best-effort).
+  // Intentionally not awaited to keep UI responsive.
+  void refreshNewTaskBranchesFromSelectedRepo();
 }
 
 /**
@@ -1827,6 +1831,89 @@ window.closeModal = function() {
 // New Task Modal
 // ============================================ 
 
+function setNewTaskBranchOptions(branchNames, preferred = 'main') {
+  const unique = Array.from(new Set((branchNames || []).filter(Boolean)));
+
+  // Always include main as the preferred default.
+  if (!unique.includes('main')) unique.unshift('main');
+
+  // Put main/master first (common), then the rest alphabetically.
+  const rest = unique.filter(b => b !== 'main' && b !== 'master').sort((a, b) => a.localeCompare(b));
+  const ordered = [
+    ...(unique.includes('main') ? ['main'] : []),
+    ...(unique.includes('master') ? ['master'] : []),
+    ...rest
+  ];
+
+  const previous = elements.taskBranch.value;
+  elements.taskBranch.innerHTML = ordered.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+
+  if (previous && ordered.includes(previous)) {
+    elements.taskBranch.value = previous;
+  } else if (preferred && ordered.includes(preferred)) {
+    elements.taskBranch.value = preferred;
+  } else if (ordered.includes('main')) {
+    elements.taskBranch.value = 'main';
+  } else {
+    elements.taskBranch.value = ordered[0] || 'main';
+  }
+}
+
+function resetNewTaskBranchDropdown() {
+  // Provide a sane default even when we can't fetch branches.
+  setNewTaskBranchOptions(['main', 'master'], 'main');
+}
+
+function tryParseGithubOwnerRepo(repoData) {
+  if (!repoData) return null;
+
+  // Jules sources include explicit owner/repo.
+  if (repoData.owner && repoData.repo) {
+    return { owner: repoData.owner, repo: repoData.repo };
+  }
+
+  // Cursor repos usually provide a GitHub URL.
+  const url = repoData.url || repoData.repository || '';
+  const match = typeof url === 'string' ? url.match(/github\.com\/([^\/]+)\/([^\/]+)/) : null;
+  if (match) {
+    return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
+  }
+
+  return null;
+}
+
+async function refreshNewTaskBranchesFromSelectedRepo() {
+  // Only relevant when branch input is visible (Jules/Cursor).
+  if (elements.branchInputContainer.classList.contains('hidden')) return;
+
+  const repoDataStr = elements.taskRepo.dataset.repoData;
+  const repoData = repoDataStr ? JSON.parse(repoDataStr) : null;
+
+  // Always fall back to main (+ default branch if known).
+  const fallback = ['main', 'master'];
+  if (repoData?.defaultBranch) fallback.unshift(repoData.defaultBranch);
+
+  const electronAPI = getElectronAPI();
+  const canFetch = !!(electronAPI?.github?.getBranches && state.configuredServices.github);
+  const gh = canFetch ? tryParseGithubOwnerRepo(repoData) : null;
+
+  if (!canFetch || !gh) {
+    setNewTaskBranchOptions(fallback, 'main');
+    return;
+  }
+
+  try {
+    const result = await electronAPI.github.getBranches(gh.owner, gh.repo);
+    const branches = (result?.success ? result.branches : null) || [];
+    const names = branches.map(b => b?.name).filter(Boolean);
+
+    setNewTaskBranchOptions([...fallback, ...names], 'main');
+  } catch (err) {
+    console.warn('Failed to load branches for new task:', err);
+    setNewTaskBranchOptions(fallback, 'main');
+  }
+}
+
 function openNewTaskModal() {
   // Reset state
   state.newTask = {
@@ -1869,7 +1956,7 @@ function resetNewTaskForm() {
   elements.repoDropdown.innerHTML = '';
   hideRepoDropdown();
   
-  elements.taskBranch.value = 'main';
+  resetNewTaskBranchDropdown();
   elements.taskPrompt.value = '';
   elements.taskAutoPr.checked = true;
   elements.createTaskBtn.disabled = true;
@@ -1899,6 +1986,8 @@ window.selectService = async function(service) {
     elements.branchInputContainer.classList.add('hidden');
   } else {
     elements.branchInputContainer.classList.remove('hidden');
+    // If a repo is already selected (e.g., user switches services), refresh branches.
+    void refreshNewTaskBranchesFromSelectedRepo();
   }
 
   // Load repositories for this service

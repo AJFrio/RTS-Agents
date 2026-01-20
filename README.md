@@ -220,6 +220,7 @@ If Claude CLI shows as “not installed”:
 
 - `npm run start`: build minified Tailwind CSS and launch Electron
 - `npm run dev`: Tailwind CSS watch + launch Electron
+- `npm run dev:headless`: run a lightweight headless device (no Electron UI) that registers to Cloudflare KV, pulls keys, and executes queued remote tasks
 - `npm run test`: Jest unit + integration tests
 - `npm run test:e2e`: Playwright E2E tests (optimized for headless Linux with `xvfb-maybe`)
 

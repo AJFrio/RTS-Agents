@@ -6,6 +6,9 @@
  * - Values:     /client/v4/accounts/:accountId/storage/kv/namespaces/:namespaceId/values/:key
  */
 
+const https = require('https');
+const { URL } = require('url');
+
 const DEFAULT_NAMESPACE_TITLE = 'rtsa';
 
 class CloudflareKvService {
@@ -35,30 +38,57 @@ class CloudflareKvService {
     };
   }
 
-  async _request(path, { method = 'GET', headers = {}, body } = {}) {
-    const res = await fetch(`${this.baseUrl}${path}`, {
+  async _request(relativePath, { method = 'GET', headers = {}, body } = {}) {
+    if (!this.accountId) throw new Error('Cloudflare accountId not configured');
+
+    const fullUrl = `${this.baseUrl}${relativePath}`;
+    const urlObj = new URL(fullUrl);
+
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
       method,
       headers: {
         ...this.headers,
         ...headers
-      },
-      body
+      }
+    };
+
+    return new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            const contentType = res.headers['content-type'] || '';
+            if (contentType.includes('application/json')) {
+              try {
+                resolve(JSON.parse(data));
+              } catch (err) {
+                // Should not happen if content-type is json, but safe fallback
+                resolve(data);
+              }
+            } else {
+              // Emulate fetch response for .text()
+              resolve({
+                text: async () => data,
+                json: async () => JSON.parse(data)
+              });
+            }
+          } else {
+             reject(new Error(`Cloudflare KV request failed (${res.statusCode}): ${data || res.statusMessage}`));
+          }
+        });
+      });
+
+      req.on('error', (err) => reject(new Error(`Cloudflare KV request error: ${err.message}`)));
+
+      if (body) {
+        req.write(body);
+      }
+      req.end();
     });
-
-    // KV values endpoints can return raw bodies; namespaces endpoints return JSON.
-    const contentType = res.headers.get('content-type') || '';
-    if (!res.ok) {
-      let errText = '';
-      try {
-        errText = await res.text();
-      } catch (_) {}
-      throw new Error(`Cloudflare KV request failed (${res.status}): ${errText || res.statusText}`);
-    }
-
-    if (contentType.includes('application/json')) {
-      return await res.json();
-    }
-    return res;
   }
 
   async listNamespaces({ page = 1, perPage = 100 } = {}) {
@@ -264,4 +294,3 @@ class CloudflareKvService {
 }
 
 module.exports = new CloudflareKvService();
-

@@ -3410,10 +3410,8 @@ function renderComputerCard(device) {
   const toolBadges = [
     tools.gemini ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI_CLI</span>' : '',
     tools['claude-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-orange-500 text-orange-500">CLAUDE_CLI</span>' : '',
-    tools.codex ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-cyan-500 text-cyan-500">CODEX</span>' : '',
-    tools.cursor ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-blue-500 text-blue-500">CURSOR</span>' : '',
-    tools.jules ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-[#C2B280] text-[#C2B280]">JULES</span>' : '',
-    tools['claude-cloud'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-amber-500 text-amber-500">CLAUDE_CLOUD</span>' : ''
+    tools['codex-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-cyan-500 text-cyan-500">CODEX_CLI</span>' : '',
+    tools['cursor-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-blue-500 text-blue-500">CURSOR_CLI</span>' : ''
   ].filter(Boolean).join(' ');
 
   let iso = '';

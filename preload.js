@@ -151,6 +151,66 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('settings:get-gemini-paths'),
 
   /**
+   * Add a Claude project path
+   * @param {string} path
+   */
+  addClaudePath: (path) =>
+    ipcRenderer.invoke('settings:add-claude-path', { path }),
+
+  /**
+   * Remove a Claude project path
+   * @param {string} path
+   */
+  removeClaudePath: (path) =>
+    ipcRenderer.invoke('settings:remove-claude-path', { path }),
+
+  /**
+   * Get Claude paths configuration
+   */
+  getClaudePaths: () =>
+    ipcRenderer.invoke('settings:get-claude-paths'),
+
+  /**
+   * Add a Cursor project path
+   * @param {string} path
+   */
+  addCursorPath: (path) =>
+    ipcRenderer.invoke('settings:add-cursor-path', { path }),
+
+  /**
+   * Remove a Cursor project path
+   * @param {string} path
+   */
+  removeCursorPath: (path) =>
+    ipcRenderer.invoke('settings:remove-cursor-path', { path }),
+
+  /**
+   * Get Cursor paths configuration
+   */
+  getCursorPaths: () =>
+    ipcRenderer.invoke('settings:get-cursor-paths'),
+
+  /**
+   * Add a Codex project path
+   * @param {string} path
+   */
+  addCodexPath: (path) =>
+    ipcRenderer.invoke('settings:add-codex-path', { path }),
+
+  /**
+   * Remove a Codex project path
+   * @param {string} path
+   */
+  removeCodexPath: (path) =>
+    ipcRenderer.invoke('settings:remove-codex-path', { path }),
+
+  /**
+   * Get Codex paths configuration
+   */
+  getCodexPaths: () =>
+    ipcRenderer.invoke('settings:get-codex-paths'),
+
+  /**
    * Add a GitHub repository path
    * @param {string} path 
    */

@@ -1,4 +1,6 @@
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 const BASE_URL = 'https://api.cursor.com/v0';
 
@@ -227,24 +229,74 @@ class CursorService {
   }
 
   /**
+   * Get available local projects from configured paths
+   * @param {string[]} paths - Paths to scan
+   */
+  async getAvailableLocalRepositories(paths = []) {
+    const projects = [];
+    const scannedPaths = new Set();
+
+    for (const basePath of paths) {
+      if (!fs.existsSync(basePath)) continue;
+
+      try {
+        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+
+            const dirPath = path.join(basePath, entry.name);
+            const gitPath = path.join(dirPath, '.git');
+
+            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
+              scannedPaths.add(dirPath);
+              projects.push({
+                id: dirPath, // Use path as ID for local
+                name: entry.name,
+                url: dirPath, // Use path as URL
+                path: dirPath,
+                defaultBranch: 'main',
+                displayName: entry.name
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Error scanning ${basePath}:`, err);
+      }
+    }
+    return projects;
+  }
+
+  /**
    * Get all available repositories for task creation
    * Note: This endpoint has strict rate limits (1/user/minute, 30/user/hour)
+   * @param {string[]} localPaths - Paths to scan for local repositories
    */
-  async getAllRepositories() {
+  async getAllRepositories(localPaths = []) {
+    let cloudRepos = [];
     try {
-      const response = await this.listRepositories();
-      const repos = response.repositories || response || [];
-      
-      return repos.map(repo => ({
-        id: repo.url || repo.repository,
-        name: repo.name || this.extractRepoName(repo.url || repo.repository),
-        url: repo.url || repo.repository,
-        defaultBranch: repo.defaultBranch || 'main',
-        displayName: this.extractRepoName(repo.url || repo.repository)
-      }));
+      if (this.apiKey) {
+        const response = await this.listRepositories();
+        const repos = response.repositories || response || [];
+
+        cloudRepos = repos.map(repo => ({
+          id: repo.url || repo.repository,
+          name: repo.name || this.extractRepoName(repo.url || repo.repository),
+          url: repo.url || repo.repository,
+          defaultBranch: repo.defaultBranch || 'main',
+          displayName: this.extractRepoName(repo.url || repo.repository)
+        }));
+      }
     } catch (err) {
+      console.warn('Error fetching Cursor cloud repositories:', err.message);
       throw err;
     }
+
+    const localRepos = await this.getAvailableLocalRepositories(localPaths);
+
+    return [...cloudRepos, ...localRepos];
   }
 
   /**

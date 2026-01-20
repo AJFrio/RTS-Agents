@@ -15,9 +15,11 @@ const cloudflareKvService = require('./src/main/services/cloudflare-kv-service')
 let mainWindow;
 let pollingInterval = null;
 let cloudflareHeartbeatInterval = null;
+let updateInterval = null;
 let isQuitting = false;
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
+const UPDATE_INTERVAL_MS = 21600000; // 6 hours
 const DEVICE_STALE_OFFLINE_MS = 6 * 60 * 1000; // 6 minutes
 
 function createWindow() {
@@ -193,6 +195,21 @@ function stopPolling() {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+  }
+}
+
+function startAutoUpdateTimer() {
+  stopAutoUpdateTimer();
+  console.log(`Starting auto-update timer (interval: ${UPDATE_INTERVAL_MS}ms)`);
+  updateInterval = setInterval(() => {
+    performUpdate();
+  }, UPDATE_INTERVAL_MS);
+}
+
+function stopAutoUpdateTimer() {
+  if (updateInterval) {
+    clearInterval(updateInterval);
+    updateInterval = null;
   }
 }
 
@@ -656,6 +673,10 @@ ipcMain.handle('settings:get-all-project-paths', async () => {
  * Update the application (git pull + dependencies + build + restart)
  */
 ipcMain.handle('app:update', async () => {
+  return performUpdate();
+});
+
+function performUpdate() {
   console.log('Update requested. Executing git pull, npm install, and build...');
 
   return new Promise((resolve) => {
@@ -681,7 +702,7 @@ ipcMain.handle('app:update', async () => {
       app.quit();
     });
   });
-});
+}
 
 /**
  * Open external URL in browser
@@ -980,11 +1001,14 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+
+  startAutoUpdateTimer();
 });
 
 app.on('window-all-closed', () => {
   stopPolling();
   stopCloudflareHeartbeat();
+  stopAutoUpdateTimer();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -993,6 +1017,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', (event) => {
   stopPolling();
   stopCloudflareHeartbeat();
+  stopAutoUpdateTimer();
 
   if (isQuitting) return;
   isQuitting = true;

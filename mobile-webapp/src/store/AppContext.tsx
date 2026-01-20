@@ -225,6 +225,7 @@ interface AppContextType {
   initializeServices: () => void;
   applyFilters: () => void;
   getRepositories: (provider: Provider) => Promise<Repository[]>;
+  enableNotifications: () => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -236,6 +237,17 @@ const AppContext = createContext<AppContextType | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const pollingRef = useRef<number | null>(null);
+  const lastReadyTaskIds = useRef<Set<string>>(new Set());
+  const isFirstLoad = useRef(true);
+
+  // Request notification permission (user triggered)
+  const enableNotifications = useCallback(async (): Promise<string> => {
+    if (!('Notification' in window)) {
+      return 'unsupported';
+    }
+    const permission = await Notification.requestPermission();
+    return permission;
+  }, []);
 
   // Initialize services with stored API keys
   const initializeServices = useCallback(() => {
@@ -459,6 +471,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     counts.total = allAgents.length;
+
+    // Check for notifications
+    const readyAgents = allAgents.filter(a => a.status === 'completed' && a.prUrl);
+    const readyIds = new Set(readyAgents.map(a => a.id));
+
+    if (isFirstLoad.current) {
+      lastReadyTaskIds.current = readyIds;
+      isFirstLoad.current = false;
+    } else {
+      const newIds = readyAgents.filter(a => !lastReadyTaskIds.current.has(a.id));
+      if (newIds.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          // eslint-disable-next-line no-new
+          new Notification('RTS Agents', {
+            body: `${readyAgents.length} tasks ready for review`,
+            icon: '/icons/icon-192x192.png'
+          });
+        } catch (e) {
+          console.error('Failed to send notification', e);
+        }
+      }
+      lastReadyTaskIds.current = readyIds;
+    }
 
     dispatch({ type: 'SET_AGENTS', payload: allAgents });
     dispatch({ type: 'SET_COUNTS', payload: counts });
@@ -690,6 +725,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     initializeServices,
     applyFilters,
     getRepositories,
+    enableNotifications,
   };
 
   return (

@@ -2479,7 +2479,9 @@ function renderComputerCard(device) {
   const id = escapeHtml(device?.id || '--');
   const lastHeartbeat = device?.lastHeartbeat || device?.heartbeatAt || device?.updatedAt || null;
   const then = lastHeartbeat ? new Date(lastHeartbeat) : null;
-  const online = then ? (Date.now() - then.getTime()) < 120000 : false;
+  const status = typeof device?.status === 'string' ? device.status.toLowerCase() : '';
+  // Prefer explicit status from KV; fallback to heartbeat timestamp for older records.
+  const online = status ? status === 'on' : (then ? (Date.now() - then.getTime()) < 6 * 60 * 1000 : false);
 
   const statusLabel = online ? 'ONLINE' : 'OFFLINE';
   const statusClass = online

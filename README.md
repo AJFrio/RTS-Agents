@@ -1,11 +1,14 @@
-## RTS Agents Dashboard
+<img width="1916" height="997" alt="image" src="https://github.com/user-attachments/assets/ac16d7c3-f19b-4fca-8cf2-3a8571655820" />
 
-RTS Agents Dashboard is an Electron desktop app for **monitoring and launching AI “agent” tasks** across multiple providers from a single UI.
+
+## RTS Agents
+
+RTS Agnets is 1 dashboard to access all your coding agents and Github repos across all your service providers and devices
 
 It supports:
-- **Local CLI-backed agents**: Gemini CLI and Claude Code CLI (reads local session files and can start new sessions).
+- **Local CLI-backed agents**: Gemini CLI, Claude Code CLI, Codex CLI, and Cursor CLI (reads local session files and can start new sessions).
 - **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI (Codex via Assistants/Threads), and Claude (Anthropic Messages API).
-- **GitHub utilities**: browse your repositories, view open PRs, open PR details, and merge / mark PRs ready for review.
+- **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
 
 ---
 

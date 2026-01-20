@@ -24,7 +24,7 @@ test.describe('Modal Tests', () => {
 
     // Inject mock API before the page loads/reloads
     await page.addInitScript(() => {
-      window.electronAPI = {
+      window.__electronAPI = {
         getAgents: async () => ({
           agents: [{
             provider: 'gemini',

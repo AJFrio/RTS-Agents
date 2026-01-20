@@ -81,6 +81,12 @@ const state = {
   }
 };
 
+// In production, `window.electronAPI` is provided by `preload.js` via contextBridge and is not writable.
+// For automated tests, we allow providing a mock via `window.__electronAPI`.
+function getElectronAPI() {
+  return window.__electronAPI || window.electronAPI;
+}
+
 // ============================================ 
 // DOM Elements
 // ============================================ 
@@ -497,8 +503,9 @@ function setupEventListeners() {
 }
 
 function setupPollingListener() {
-  if (window.electronAPI && window.electronAPI.onRefreshTick) {
-    window.electronAPI.onRefreshTick(() => {
+  const electronAPI = getElectronAPI();
+  if (electronAPI && electronAPI.onRefreshTick) {
+    electronAPI.onRefreshTick(() => {
       loadAgents(true); // Silent refresh
     });
   }
@@ -715,7 +722,8 @@ function populateRepoDropdown(repositories, service) {
 // ============================================ 
 
 async function loadAgents(silent = false) {
-  if (!window.electronAPI) return;
+  const electronAPI = getElectronAPI();
+  if (!electronAPI) return;
 
   // Only show full loading state if we have no agents and it's not a silent refresh
   if (!silent && state.agents.length === 0) {
@@ -726,7 +734,7 @@ async function loadAgents(silent = false) {
   setRefreshing(true);
 
   try {
-    const result = await window.electronAPI.getAgents();
+    const result = await electronAPI.getAgents();
     
     state.agents = result.agents || [];
     state.counts = result.counts || { gemini: 0, jules: 0, cursor: 0, total: 0 };
@@ -747,10 +755,11 @@ async function loadAgents(silent = false) {
 }
 
 async function loadSettings() {
-  if (!window.electronAPI) return;
+  const electronAPI = getElectronAPI();
+  if (!electronAPI) return;
 
   try {
-    const result = await window.electronAPI.getSettings();
+    const result = await electronAPI.getSettings();
     
     state.settings = {
       pollingInterval: result.settings?.pollingInterval || 30000,
@@ -842,10 +851,11 @@ async function loadSettings() {
 }
 
 async function checkConnectionStatus() {
-  if (!window.electronAPI) return;
+  const electronAPI = getElectronAPI();
+  if (!electronAPI) return;
 
   try {
-    const status = await window.electronAPI.getConnectionStatus();
+    const status = await electronAPI.getConnectionStatus();
     
     updateStatusIndicator('gemini', status.gemini);
     updateStatusIndicator('jules', status.jules);
@@ -920,9 +930,10 @@ function updateServiceButtonVisibility() {
 // ============================================ 
 
 async function saveFilters() {
-  if (window.electronAPI) {
+  const electronAPI = getElectronAPI();
+  if (electronAPI) {
     try {
-      await window.electronAPI.saveFilters(state.filters);
+      await electronAPI.saveFilters(state.filters);
     } catch (err) {
       console.error('Failed to save filters:', err);
     }
@@ -1283,6 +1294,7 @@ function showErrors() {
 // ============================================ 
 
 async function saveApiKey(provider) {
+  const electronAPI = getElectronAPI();
   const inputMap = {
     jules: elements.julesApiKey,
     cursor: elements.cursorApiKey,
@@ -1299,7 +1311,7 @@ async function saveApiKey(provider) {
   }
 
   try {
-    await window.electronAPI.setApiKey(provider, key);
+    await electronAPI.setApiKey(provider, key);
     input.value = '';
     input.placeholder = '••••••••••••••••';
     showToast(`${capitalizeFirst(provider)} API key saved`, 'success');
@@ -1322,8 +1334,9 @@ async function saveApiKey(provider) {
 }
 
 async function testApiKey(provider) {
+  const electronAPI = getElectronAPI();
   try {
-    const result = await window.electronAPI.testApiKey(provider);
+    const result = await electronAPI.testApiKey(provider);
     if (result.success) {
       showToast(`${capitalizeFirst(provider)} connection verified`, 'success');
     } else {
@@ -1335,12 +1348,13 @@ async function testApiKey(provider) {
 }
 
 async function disconnectApiKey(provider) {
+  const electronAPI = getElectronAPI();
   if (!await showConfirmModal(`Are you sure you want to disconnect from ${capitalizeFirst(provider)}? This will remove the saved API key.`, 'DISCONNECT PROVIDER')) {
     return;
   }
 
   try {
-    await window.electronAPI.removeApiKey(provider);
+    await electronAPI.removeApiKey(provider);
     
     // Reset the input and placeholder
     const inputMap = {
@@ -1374,8 +1388,9 @@ async function disconnectApiKey(provider) {
 }
 
 async function setTheme(theme) {
+  const electronAPI = getElectronAPI();
   try {
-    await window.electronAPI.setTheme(theme);
+    await electronAPI.setTheme(theme);
     state.settings.theme = theme;
     applyTheme(theme);
     showToast(`Theme set to ${theme}`, 'success');
@@ -1416,8 +1431,9 @@ function applyTheme(theme) {
 }
 
 async function updatePollingSettings(enabled, interval) {
+  const electronAPI = getElectronAPI();
   try {
-    await window.electronAPI.setPolling(enabled, interval);
+    await electronAPI.setPolling(enabled, interval);
     state.settings.autoPolling = enabled;
     state.settings.pollingInterval = interval;
   } catch (err) {
@@ -1426,11 +1442,12 @@ async function updatePollingSettings(enabled, interval) {
 }
 
 async function addGeminiPath() {
+  const electronAPI = getElectronAPI();
   const path = elements.newGeminiPath.value.trim();
   if (!path) return;
 
   try {
-    const result = await window.electronAPI.addGeminiPath(path);
+    const result = await electronAPI.addGeminiPath(path);
     state.settings.geminiPaths = result.paths;
     elements.newGeminiPath.value = '';
     renderGeminiPaths();
@@ -1443,8 +1460,9 @@ async function addGeminiPath() {
 
 // Make removeGeminiPath available globally
 window.removeGeminiPath = async function(path) {
+  const electronAPI = getElectronAPI();
   try {
-    const result = await window.electronAPI.removeGeminiPath(path);
+    const result = await electronAPI.removeGeminiPath(path);
     state.settings.geminiPaths = result.paths;
     renderGeminiPaths();
     await loadAgents();
@@ -1455,11 +1473,12 @@ window.removeGeminiPath = async function(path) {
 };
 
 async function addGithubPath() {
+  const electronAPI = getElectronAPI();
   const path = elements.newGithubPath.value.trim();
   if (!path) return;
 
   try {
-    const result = await window.electronAPI.addGithubPath(path);
+    const result = await electronAPI.addGithubPath(path);
     state.settings.githubPaths = result.paths;
     elements.newGithubPath.value = '';
     renderGithubPaths();
@@ -1472,8 +1491,9 @@ async function addGithubPath() {
 
 // Make removeGithubPath available globally
 window.removeGithubPath = async function(path) {
+  const electronAPI = getElectronAPI();
   try {
-    const result = await window.electronAPI.removeGithubPath(path);
+    const result = await electronAPI.removeGithubPath(path);
     state.settings.githubPaths = result.paths;
     renderGithubPaths();
     await loadAgents();
@@ -1484,6 +1504,7 @@ window.removeGithubPath = async function(path) {
 };
 
 async function updateApplication() {
+  const electronAPI = getElectronAPI();
   if (!await showConfirmModal('Are you sure you want to update and restart the application? This will stop all running tasks.', 'UPDATE APPLICATION')) {
     return;
   }
@@ -1494,12 +1515,12 @@ async function updateApplication() {
 
   try {
     // Check connection status before attempting update
-    const status = await window.electronAPI.getConnectionStatus();
+    const status = await electronAPI.getConnectionStatus();
     // We don't strictly need a provider status to be true to run git pull,
     // but we can at least show a toast starting the process.
 
     showToast('Initiating update sequence...', 'info');
-    await window.electronAPI.updateApp();
+    await electronAPI.updateApp();
     // The app will restart if successful, so we might not reach here,
     // or we might want to handle failure case.
   } catch (err) {
@@ -1535,6 +1556,7 @@ function renderGithubPaths() {
 // ============================================ 
 
 window.openAgentDetails = async function(provider, rawId, filePath) {
+  const electronAPI = getElectronAPI();
   elements.agentModal.classList.remove('hidden');
   elements.modalContent.innerHTML = `
     <div class="flex items-center justify-center h-32">
@@ -1547,7 +1569,7 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
   elements.modalProviderBadge.textContent = provider.toUpperCase();
 
   try {
-    const details = await window.electronAPI.getAgentDetails(provider, rawId, filePath);
+    const details = await electronAPI.getAgentDetails(provider, rawId, filePath);
     renderAgentDetails(provider, details);
   } catch (err) {
     elements.modalContent.innerHTML = `
@@ -1835,7 +1857,8 @@ window.selectService = async function(service) {
 };
 
 async function loadRepositoriesForService(service) {
-  if (!window.electronAPI) return;
+  const electronAPI = getElectronAPI();
+  if (!electronAPI) return;
 
   state.newTask.loadingRepos = true;
   elements.taskRepoSearch.disabled = true;
@@ -1849,7 +1872,7 @@ async function loadRepositoriesForService(service) {
   elements.serviceStatus.textContent = '';
 
   try {
-    const result = await window.electronAPI.getRepositories(service);
+    const result = await electronAPI.getRepositories(service);
 
     if (!result.success) {
       elements.repoError.textContent = result.error;
@@ -1913,7 +1936,8 @@ function validateNewTaskForm() {
 }
 
 window.submitNewTask = async function() {
-  if (!window.electronAPI || state.newTask.creating) return;
+  const electronAPI = getElectronAPI();
+  if (!electronAPI || state.newTask.creating) return;
 
   const service = state.newTask.selectedService;
   const repoValue = elements.taskRepo.value;
@@ -1965,7 +1989,7 @@ window.submitNewTask = async function() {
       options.title = prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '');
     }
 
-    const result = await window.electronAPI.createTask(service, options);
+    const result = await electronAPI.createTask(service, options);
 
     if (result.success) {
       showToast('Task created successfully', 'success');
@@ -1991,7 +2015,8 @@ window.submitNewTask = async function() {
 // ============================================ 
 
 async function loadBranches() {
-  if (!window.electronAPI || !state.configuredServices.github) {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI || !state.configuredServices.github) {
      elements.branchesContent.classList.add('hidden');
      elements.branchesEmpty.classList.remove('hidden');
      return;
@@ -2011,7 +2036,7 @@ async function loadBranches() {
   }
 
   try {
-     const result = await window.electronAPI.github.getRepos();
+     const result = await electronAPI.github.getRepos();
      
      if (result.success) {
         state.github.repos = result.repos || [];
@@ -2081,6 +2106,7 @@ function renderRepos() {
 }
 
 window.selectRepo = async function(owner, repoName, repoId) {
+   const electronAPI = getElectronAPI();
    // Update state
    const repo = state.github.repos.find(r => r.id === repoId);
 
@@ -2119,7 +2145,7 @@ window.selectRepo = async function(owner, repoName, repoId) {
    }
    
    try {
-      const result = await window.electronAPI.github.getPrs(owner, repoName);
+      const result = await electronAPI.github.getPrs(owner, repoName);
       if (result.success) {
          state.github.prs = result.prs || [];
          elements.prCount.textContent = state.github.prs.length;
@@ -2191,13 +2217,14 @@ function renderPrs() {
 }
 
 window.openPrDetails = async function(owner, repo, number) {
+   const electronAPI = getElectronAPI();
    elements.prModal.classList.remove('hidden');
    // Show loading state
    elements.prModalBody.innerHTML = '<div class="text-center py-8 text-slate-500">Loading details...</div>';
    elements.mergeStatusContainer.classList.add('opacity-50', 'pointer-events-none');
    
    try {
-      const result = await window.electronAPI.github.getPrDetails(owner, repo, number);
+      const result = await electronAPI.github.getPrDetails(owner, repo, number);
       if (result.success) {
          const pr = result.pr;
          state.github.currentPr = pr;
@@ -2257,13 +2284,14 @@ window.openPrDetails = async function(owner, repo, number) {
 };
 
 window.mergePr = async function(owner, repo, number) {
+   const electronAPI = getElectronAPI();
    if (!await showConfirmModal('Are you sure you want to merge this pull request?', 'MERGE PULL REQUEST')) return;
    
    elements.mergeBtn.disabled = true;
    elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> MERGING...';
    
    try {
-      const result = await window.electronAPI.github.mergePr(owner, repo, number);
+      const result = await electronAPI.github.mergePr(owner, repo, number);
       if (result.success) {
          showToast('Pull request merged successfully', 'success');
          closePrModal();
@@ -2280,13 +2308,14 @@ window.mergePr = async function(owner, repo, number) {
 };
 
 window.markPrReadyForReview = async function(owner, repo, number, nodeId) {
+    const electronAPI = getElectronAPI();
     if (!confirm('Are you sure you want to mark this PR as ready for review? This will notify reviewers.')) return;
 
     elements.mergeBtn.disabled = true;
     elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> UPDATING...';
 
     try {
-        const result = await window.electronAPI.github.markPrReadyForReview(nodeId);
+        const result = await electronAPI.github.markPrReadyForReview(nodeId);
         if (result.success) {
             showToast('Pull request marked as ready for review', 'success');
             // Reload PR details to update UI state
@@ -2303,6 +2332,8 @@ window.markPrReadyForReview = async function(owner, repo, number, nodeId) {
 
 window.closePrModal = function() {
    elements.prModal.classList.add('hidden');
+   // Defensive: ensure confirm modal/backdrop isn't left behind.
+   elements.confirmModal.classList.add('hidden');
 };
 
 window.showConfirmModal = function(message, title = 'Confirm Action') {
@@ -2311,11 +2342,13 @@ window.showConfirmModal = function(message, title = 'Confirm Action') {
     elements.confirmTitle.textContent = title;
     elements.confirmModal.classList.remove('hidden');
 
+    const backdrop = elements.confirmModal.querySelector('.fixed.inset-0');
+
     const cleanup = () => {
       elements.confirmModal.classList.add('hidden');
       elements.confirmOkBtn.removeEventListener('click', onConfirm);
       elements.confirmCancelBtn.removeEventListener('click', onCancel);
-      backdrop.removeEventListener('click', onCancel);
+      backdrop?.removeEventListener('click', onCancel);
       document.removeEventListener('keydown', onKeydown);
     };
 
@@ -2335,11 +2368,9 @@ window.showConfirmModal = function(message, title = 'Confirm Action') {
       }
     };
 
-    const backdrop = elements.confirmModal.querySelector('.fixed.inset-0');
-
     elements.confirmOkBtn.addEventListener('click', onConfirm);
     elements.confirmCancelBtn.addEventListener('click', onCancel);
-    backdrop.addEventListener('click', onCancel);
+    backdrop?.addEventListener('click', onCancel);
     document.addEventListener('keydown', onKeydown);
   });
 };
@@ -2350,8 +2381,9 @@ window.showConfirmModal = function(message, title = 'Confirm Action') {
 // ============================================ 
 
 window.openExternal = function(url) {
-  if (window.electronAPI) {
-    window.electronAPI.openExternal(url);
+  const electronAPI = getElectronAPI();
+  if (electronAPI) {
+    electronAPI.openExternal(url);
   }
 };
 

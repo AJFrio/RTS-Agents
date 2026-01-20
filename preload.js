@@ -77,6 +77,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('settings:set-theme', { theme }),
 
   /**
+   * Save filter settings
+   * @param {object} filters
+   */
+  saveFilters: (filters) =>
+    ipcRenderer.invoke('settings:save-filters', { filters }),
+
+  /**
    * Add a Gemini project path to scan
    * @param {string} path 
    */

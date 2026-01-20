@@ -19,6 +19,10 @@ const schema = {
       claude: {
         type: 'string',
         default: ''
+      },
+      github: {
+        type: 'string',
+        default: ''
       }
     },
     default: {}

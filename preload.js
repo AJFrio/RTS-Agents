@@ -183,5 +183,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeListener('agents:refresh-tick', subscription);
     };
+  },
+
+  // ============================================
+  // GitHub API
+  // ============================================
+  
+  github: {
+    getRepos: () => ipcRenderer.invoke('github:get-repos'),
+    getPrs: (owner, repo) => ipcRenderer.invoke('github:get-prs', { owner, repo }),
+    getPrDetails: (owner, repo, prNumber) => ipcRenderer.invoke('github:get-pr-details', { owner, repo, prNumber }),
+    mergePr: (owner, repo, prNumber, method) => ipcRenderer.invoke('github:merge-pr', { owner, repo, prNumber, method })
   }
 });

@@ -84,6 +84,12 @@
               </button>
             </li>
             <li>
+              <button data-view="branches" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
+                <span class="material-symbols-outlined text-sm">fork_right</span>
+                <span class="text-sm uppercase tracking-wider">Branches</span>
+              </button>
+            </li>
+            <li>
               <button data-view="settings" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
                 <span class="material-symbols-outlined text-sm">settings</span>
                 <span class="text-sm uppercase tracking-wider">Settings</span>
@@ -199,6 +205,10 @@
             <span class="text-slate-500 uppercase">Claude Cloud</span>
             <span id="status-claude-cloud" class="font-bold text-slate-500">STBY</span>
           </div>
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-slate-500 uppercase">GitHub</span>
+            <span id="status-github" class="font-bold text-slate-500">STBY</span>
+          </div>
         </div>
       </div>
     </aside>
@@ -289,6 +299,83 @@
           </div>
         </div>
 
+        <!-- Branches View -->
+        <div id="view-branches" class="view-content hidden">
+          <!-- Loading State -->
+          <div id="branches-loading" class="hidden flex flex-col items-center justify-center h-64">
+            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+            <p class="mt-4 technical-font text-slate-400">Fetching Repositories...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div id="branches-empty" class="hidden flex flex-col items-center justify-center h-64">
+            <span class="material-symbols-outlined text-slate-600 text-6xl">fork_right</span>
+            <h3 class="mt-4 text-lg font-bold dark:text-white uppercase tracking-tight">No Repositories Found</h3>
+            <p class="mt-2 text-slate-500 text-center max-w-md text-sm">
+              Connect your GitHub account in Settings to view branches and PRs.
+            </p>
+            <button onclick="showView('settings')" class="mt-4 bg-[#C2B280] text-black px-6 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all">
+              Open Settings
+            </button>
+          </div>
+
+          <!-- Content -->
+          <div id="branches-content" class="hidden flex flex-col h-full">
+            <div class="flex items-center justify-between mb-6">
+               <div class="flex items-center gap-4">
+                  <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">Repositories</h3>
+                  <span id="repo-count" class="technical-font text-slate-500 text-xs">0 REPOS</span>
+               </div>
+               <button id="refresh-branches-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400">
+                  <span class="material-symbols-outlined text-sm">refresh</span>
+                  REFRESH
+               </button>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
+               <!-- Repo List -->
+               <div class="lg:col-span-1 border border-[#2A2A2A] bg-[#1A1A1A] flex flex-col h-[calc(100vh-200px)]">
+                  <div class="p-4 border-b border-[#2A2A2A]">
+                     <input type="text" id="repo-filter" placeholder="FILTER REPOS..." 
+                        class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-2 px-3 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all">
+                  </div>
+                  <div id="repo-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                     <!-- Repo items injected here -->
+                  </div>
+               </div>
+               
+               <!-- PR List / Details -->
+               <div class="lg:col-span-2 border border-[#2A2A2A] bg-[#1A1A1A] flex flex-col h-[calc(100vh-200px)]">
+                  <div id="repo-details-placeholder" class="flex flex-col items-center justify-center h-full text-slate-500">
+                     <span class="material-symbols-outlined text-4xl mb-2">arrow_back</span>
+                     <span class="technical-font text-xs">SELECT A REPOSITORY</span>
+                  </div>
+                  
+                  <div id="repo-details-content" class="hidden flex flex-col h-full">
+                     <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-start bg-black/20">
+                        <div>
+                           <h2 id="selected-repo-name" class="text-xl font-display font-bold text-white tracking-tight uppercase">Repo Name</h2>
+                           <a id="selected-repo-link" href="#" class="text-xs technical-font text-[#C2B280] hover:underline flex items-center gap-1 mt-1">
+                              <span class="material-symbols-outlined text-xs">open_in_new</span>
+                              View on GitHub
+                           </a>
+                        </div>
+                        <div class="flex gap-2">
+                           <span class="px-2 py-1 text-[10px] technical-font bg-slate-800 text-slate-300 border border-slate-700">
+                              <span id="pr-count">0</span> OPEN PRS
+                           </span>
+                        </div>
+                     </div>
+                     
+                     <div id="pr-list" class="flex-1 overflow-y-auto p-6 space-y-4">
+                        <!-- PR items injected here -->
+                     </div>
+                  </div>
+               </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Settings View -->
         <div id="view-settings" class="view-content hidden">
           <div class="max-w-4xl mx-auto w-full space-y-8">
@@ -358,6 +445,21 @@
                     </button>
                   </div>
                   <p class="text-[10px] technical-font text-slate-500 opacity-60">Get from console.anthropic.com</p>
+                </div>
+
+                <!-- GitHub API Key -->
+                <div class="space-y-2">
+                  <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">GitHub Personal Access Token</label>
+                  <div class="flex gap-2 inner-glow">
+                    <input type="password" id="github-api-key" placeholder="Enter GitHub Personal Access Token (repo scope)"
+                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
+                    <button id="save-github-key" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
+                    <button id="test-github-key" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                    <button id="disconnect-github-key" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
+                      <span class="material-symbols-outlined text-sm">link_off</span>
+                    </button>
+                  </div>
+                  <p class="text-[10px] technical-font text-slate-500 opacity-60">Get from github.com/settings/tokens (classic)</p>
                 </div>
               </div>
             </section>
@@ -658,6 +760,74 @@
         </div>
       </div>
     </div>
+    <!-- PR Details Modal -->
+    <div id="pr-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closePrModal()"></div>
+      
+      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-start bg-black/40">
+          <div class="flex-1 mr-8">
+            <div class="flex items-center gap-3 mb-2">
+               <span id="pr-modal-number" class="text-slate-500 technical-font text-sm">#0</span>
+               <span id="pr-modal-state" class="px-2 py-0.5 text-[10px] technical-font font-bold">OPEN</span>
+            </div>
+            <h2 id="pr-modal-title" class="text-xl font-display font-bold text-white tracking-tight leading-tight">PR Title</h2>
+          </div>
+          <button onclick="closePrModal()" class="text-slate-500 hover:text-[#C2B280] transition-colors">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <!-- Modal Content -->
+        <div class="flex-1 overflow-y-auto p-8 bg-[#121212]">
+           <!-- Info Grid -->
+           <div class="grid grid-cols-2 gap-4 mb-8">
+              <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
+                 <div class="text-[9px] technical-font text-slate-500 mb-1">SOURCE</div>
+                 <div id="pr-modal-head" class="text-xs font-mono text-[#C2B280]">feature-branch</div>
+              </div>
+              <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
+                 <div class="text-[9px] technical-font text-slate-500 mb-1">TARGET</div>
+                 <div id="pr-modal-base" class="text-xs font-mono text-slate-300">main</div>
+              </div>
+           </div>
+           
+           <!-- Body -->
+           <div class="mb-8">
+              <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">DESCRIPTION</h3>
+              <div id="pr-modal-body" class="prose prose-invert prose-sm max-w-none text-slate-300 font-light leading-relaxed">
+                 <!-- PR body content -->
+              </div>
+           </div>
+           
+           <!-- Merge Status -->
+           <div id="merge-status-container" class="bg-[#1A1A1A] border border-[#2A2A2A] p-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                 <span id="merge-icon" class="material-symbols-outlined text-emerald-500">check_circle</span>
+                 <div>
+                    <div id="merge-title" class="text-sm font-bold text-white">This branch has no conflicts with the base branch</div>
+                    <div id="merge-subtitle" class="text-xs text-slate-500">Merging can be performed automatically.</div>
+                 </div>
+              </div>
+              <button id="merge-btn" class="bg-emerald-600 text-white px-6 py-2 text-xs technical-font font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                 <span class="material-symbols-outlined text-sm">merge</span>
+                 MERGE PULL REQUEST
+              </button>
+           </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="p-4 bg-black border-t border-[#2A2A2A] flex justify-between items-center text-[10px] technical-font">
+          <a id="pr-modal-link" href="#" class="text-slate-500 hover:text-[#C2B280] flex items-center gap-1 transition-colors">
+             <span class="material-symbols-outlined text-xs">open_in_new</span>
+             OPEN IN BROWSER
+          </a>
+          <span id="pr-modal-meta" class="text-slate-600">Updated just now</span>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Main app -->

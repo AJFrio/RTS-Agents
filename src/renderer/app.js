@@ -3,9 +3,9 @@
  * Tactical Sandstorm Theme v1.0
  */
 
-// ============================================
+// ============================================ 
 // State Management
-// ============================================
+// ============================================ 
 
 const state = {
   agents: [],
@@ -51,7 +51,8 @@ const state = {
     cursor: false,
     codex: false,
     'claude-cli': false,
-    'claude-cloud': false
+    'claude-cloud': false,
+    github: false
   },
   loading: false,
   errors: [],
@@ -67,17 +68,28 @@ const state = {
     currentPage: 1,
     pageSize: 50,
     totalPages: 1
+  },
+  // GitHub state
+  github: {
+    repos: [],
+    filteredRepos: [],
+    selectedRepo: null,
+    prs: [],
+    loadingRepos: false,
+    loadingPrs: false,
+    currentPr: null
   }
 };
 
-// ============================================
+// ============================================ 
 // DOM Elements
-// ============================================
+// ============================================ 
 
 const elements = {
   // Views
   viewDashboard: document.getElementById('view-dashboard'),
   viewSettings: document.getElementById('view-settings'),
+  viewBranches: document.getElementById('view-branches'),
   viewTitle: document.getElementById('view-title'),
   
   // Dashboard
@@ -115,12 +127,14 @@ const elements = {
   statusCodex: document.getElementById('status-codex'),
   statusClaudeCli: document.getElementById('status-claude-cli'),
   statusClaudeCloud: document.getElementById('status-claude-cloud'),
+  statusGithub: document.getElementById('status-github'),
   
   // Settings
   julesApiKey: document.getElementById('jules-api-key'),
   cursorApiKey: document.getElementById('cursor-api-key'),
   codexApiKey: document.getElementById('codex-api-key'),
   claudeApiKey: document.getElementById('claude-api-key'),
+  githubApiKey: document.getElementById('github-api-key'),
   autoPolling: document.getElementById('auto-polling'),
   pollingInterval: document.getElementById('polling-interval'),
   intervalValue: document.getElementById('interval-value'),
@@ -155,12 +169,43 @@ const elements = {
   repoChevron: document.getElementById('repo-chevron'),
   repoError: document.getElementById('repo-error'),
   createTaskLoading: document.getElementById('create-task-loading'),
-  branchInputContainer: document.getElementById('branch-input-container')
+  branchInputContainer: document.getElementById('branch-input-container'),
+
+  // Branches View
+  branchesLoading: document.getElementById('branches-loading'),
+  branchesEmpty: document.getElementById('branches-empty'),
+  branchesContent: document.getElementById('branches-content'),
+  repoList: document.getElementById('repo-list'),
+  repoFilter: document.getElementById('repo-filter'),
+  repoDetailsPlaceholder: document.getElementById('repo-details-placeholder'),
+  repoDetailsContent: document.getElementById('repo-details-content'),
+  selectedRepoName: document.getElementById('selected-repo-name'),
+  selectedRepoLink: document.getElementById('selected-repo-link'),
+  prCount: document.getElementById('pr-count'),
+  prList: document.getElementById('pr-list'),
+  refreshBranchesBtn: document.getElementById('refresh-branches-btn'),
+  repoCount: document.getElementById('repo-count'),
+
+  // PR Modal
+  prModal: document.getElementById('pr-modal'),
+  prModalTitle: document.getElementById('pr-modal-title'),
+  prModalNumber: document.getElementById('pr-modal-number'),
+  prModalState: document.getElementById('pr-modal-state'),
+  prModalHead: document.getElementById('pr-modal-head'),
+  prModalBase: document.getElementById('pr-modal-base'),
+  prModalBody: document.getElementById('pr-modal-body'),
+  prModalLink: document.getElementById('pr-modal-link'),
+  prModalMeta: document.getElementById('pr-modal-meta'),
+  mergeBtn: document.getElementById('merge-btn'),
+  mergeStatusContainer: document.getElementById('merge-status-container'),
+  mergeIcon: document.getElementById('merge-icon'),
+  mergeTitle: document.getElementById('merge-title'),
+  mergeSubtitle: document.getElementById('merge-subtitle')
 };
 
-// ============================================
+// ============================================ 
 // Tactical Theme Helpers
-// ============================================
+// ============================================ 
 
 /**
  * Format count with leading zeros (tactical style)
@@ -232,9 +277,9 @@ function formatTimeAgo(date) {
   return then.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }).replace(/\//g, '/');
 }
 
-// ============================================
+// ============================================ 
 // Initialization
-// ============================================
+// ============================================ 
 
 async function init() {
   setupEventListeners();
@@ -293,6 +338,9 @@ function setupEventListeners() {
   document.getElementById('save-claude-key').addEventListener('click', () => saveApiKey('claude'));
   document.getElementById('test-claude-key').addEventListener('click', () => testApiKey('claude'));
   document.getElementById('disconnect-claude-key').addEventListener('click', () => disconnectApiKey('claude'));
+  document.getElementById('save-github-key').addEventListener('click', () => saveApiKey('github'));
+  document.getElementById('test-github-key').addEventListener('click', () => testApiKey('github'));
+  document.getElementById('disconnect-github-key').addEventListener('click', () => disconnectApiKey('github'));
 
   // Settings - Theme
   ['system', 'light', 'dark'].forEach(theme => {
@@ -342,6 +390,12 @@ function setupEventListeners() {
   // Pagination
   elements.prevPageBtn.addEventListener('click', goToPrevPage);
   elements.nextPageBtn.addEventListener('click', goToNextPage);
+
+  // Branches
+  elements.repoFilter.addEventListener('input', debounce((e) => {
+    filterRepos(e.target.value);
+  }, 200));
+  elements.refreshBranchesBtn.addEventListener('click', loadBranches);
 
   // Listen for system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -406,7 +460,7 @@ function setupRepoSearchDropdown() {
   // Keyboard navigation
   searchInput.addEventListener('keydown', (e) => {
     const items = dropdown.querySelectorAll('.repo-option:not(.hidden)');
-    const activeItem = dropdown.querySelector('.repo-option.bg-\\[\\#C2B280\\]\\/20');
+    const activeItem = dropdown.querySelector('.repo-option.bg-\[\#C2B280\]\/20');
     let activeIndex = Array.from(items).indexOf(activeItem);
 
     switch (e.key) {
@@ -561,9 +615,9 @@ function populateRepoDropdown(repositories, service) {
   });
 }
 
-// ============================================
+// ============================================ 
 // Data Loading
-// ============================================
+// ============================================ 
 
 async function loadAgents(silent = false) {
   if (!window.electronAPI) return;
@@ -633,6 +687,7 @@ async function loadSettings() {
     state.configuredServices.codex = result.apiKeys?.codex || false;
     state.configuredServices['claude-cli'] = result.claudeCliInstalled || false;
     state.configuredServices['claude-cloud'] = result.claudeCloudConfigured || result.apiKeys?.claude || false;
+    state.configuredServices.github = result.apiKeys?.github || false;
 
     // Update provider filter visibility based on configured services
     updateProviderFilterVisibility();
@@ -662,6 +717,12 @@ async function loadSettings() {
     } else {
       document.getElementById('disconnect-claude-key')?.classList.add('hidden');
     }
+    if (result.apiKeys?.github) {
+      elements.githubApiKey.placeholder = '••••••••••••••••';
+      document.getElementById('disconnect-github-key')?.classList.remove('hidden');
+    } else {
+      document.getElementById('disconnect-github-key')?.classList.add('hidden');
+    }
   } catch (err) {
     console.error('Error loading settings:', err);
   }
@@ -679,6 +740,7 @@ async function checkConnectionStatus() {
     updateStatusIndicator('codex', status.codex);
     updateStatusIndicator('claude-cli', status['claude-cli']);
     updateStatusIndicator('claude-cloud', status['claude-cloud']);
+    updateStatusIndicator('github', status.github);
   } catch (err) {
     console.error('Error checking connection status:', err);
   }
@@ -740,9 +802,9 @@ function updateServiceButtonVisibility() {
   }
 }
 
-// ============================================
+// ============================================ 
 // Filtering
-// ============================================
+// ============================================ 
 
 function applyFilters() {
   const { providers, statuses, search } = state.filters;
@@ -776,9 +838,9 @@ function applyFilters() {
   renderAgents();
 }
 
-// ============================================
+// ============================================ 
 // Rendering
-// ============================================
+// ============================================ 
 
 function renderAgents() {
   if (state.filteredAgents.length === 0) {
@@ -955,9 +1017,9 @@ function renderGeminiPaths() {
   `).join('');
 }
 
-// ============================================
+// ============================================ 
 // UI State Updates
-// ============================================
+// ============================================ 
 
 function showView(view) {
   state.currentView = view;
@@ -974,11 +1036,24 @@ function showView(view) {
   });
 
   // Update title
-  elements.viewTitle.textContent = view === 'dashboard' ? 'Agent Dashboard' : 'Settings';
+  const titles = {
+    dashboard: 'Agent Dashboard',
+    settings: 'Settings',
+    branches: 'Repository Branches'
+  };
+  elements.viewTitle.textContent = titles[view] || 'Dashboard';
 
   // Show/hide views
   elements.viewDashboard.classList.toggle('hidden', view !== 'dashboard');
   elements.viewSettings.classList.toggle('hidden', view !== 'settings');
+  elements.viewBranches.classList.toggle('hidden', view !== 'branches');
+
+  // Load branches if view selected
+  if (view === 'branches') {
+    if (state.github.repos.length === 0) {
+      loadBranches();
+    }
+  }
 }
 
 // Make showView available globally for onclick handlers
@@ -1045,16 +1120,17 @@ function showErrors() {
   ).join('');
 }
 
-// ============================================
+// ============================================ 
 // Settings Actions
-// ============================================
+// ============================================ 
 
 async function saveApiKey(provider) {
   const inputMap = {
     jules: elements.julesApiKey,
     cursor: elements.cursorApiKey,
     codex: elements.codexApiKey,
-    claude: elements.claudeApiKey
+    claude: elements.claudeApiKey,
+    github: elements.githubApiKey
   };
   const input = inputMap[provider];
   const key = input.value.trim();
@@ -1113,7 +1189,8 @@ async function disconnectApiKey(provider) {
       jules: elements.julesApiKey,
       cursor: elements.cursorApiKey,
       codex: elements.codexApiKey,
-      claude: elements.claudeApiKey
+      claude: elements.claudeApiKey,
+      github: elements.githubApiKey
     };
     const input = inputMap[provider];
     input.value = '';
@@ -1269,9 +1346,9 @@ function renderGithubPaths() {
   `).join('');
 }
 
-// ============================================
+// ============================================ 
 // Modal
-// ============================================
+// ============================================ 
 
 window.openAgentDetails = async function(provider, rawId, filePath) {
   elements.agentModal.classList.remove('hidden');
@@ -1485,9 +1562,9 @@ window.closeModal = function() {
   elements.agentModal.classList.add('hidden');
 };
 
-// ============================================
+// ============================================ 
 // New Task Modal
-// ============================================
+// ============================================ 
 
 function openNewTaskModal() {
   // Reset state
@@ -1710,9 +1787,264 @@ window.submitNewTask = async function() {
   }
 };
 
-// ============================================
+// ============================================ 
+// GitHub / Branches Logic
+// ============================================ 
+
+async function loadBranches() {
+  if (!window.electronAPI || !state.configuredServices.github) {
+     elements.branchesContent.classList.add('hidden');
+     elements.branchesEmpty.classList.remove('hidden');
+     return;
+  }
+
+  state.github.loadingRepos = true;
+  elements.branchesEmpty.classList.add('hidden');
+  elements.branchesContent.classList.add('hidden');
+  elements.branchesLoading.classList.remove('hidden');
+
+  try {
+     const result = await window.electronAPI.github.getRepos();
+     
+     if (result.success) {
+        state.github.repos = result.repos || [];
+        state.github.filteredRepos = [...state.github.repos];
+        elements.repoCount.textContent = `${state.github.repos.length} REPOS`;
+        
+        renderRepos();
+        
+        elements.branchesLoading.classList.add('hidden');
+        elements.branchesContent.classList.remove('hidden');
+     } else {
+        throw new Error(result.error);
+     }
+  } catch (err) {
+     console.error('Error loading branches:', err);
+     elements.branchesLoading.classList.add('hidden');
+     elements.branchesEmpty.classList.remove('hidden');
+     elements.branchesEmpty.querySelector('h3').textContent = 'Error Loading Repositories';
+     elements.branchesEmpty.querySelector('p').textContent = err.message;
+  } finally {
+     state.github.loadingRepos = false;
+  }
+}
+
+function filterRepos(query) {
+   query = query.toLowerCase();
+   state.github.filteredRepos = state.github.repos.filter(repo => 
+      repo.name.toLowerCase().includes(query) || 
+      (repo.description && repo.description.toLowerCase().includes(query))
+   );
+   renderRepos();
+}
+
+function renderRepos() {
+   if (state.github.filteredRepos.length === 0) {
+      elements.repoList.innerHTML = `
+         <div class="px-4 py-6 text-center text-slate-500 technical-font text-xs">
+            NO REPOSITORIES FOUND
+         </div>
+      `;
+      return;
+   }
+   
+   elements.repoList.innerHTML = state.github.filteredRepos.map(repo => `
+      <div class="repo-item p-4 border border-transparent hover:border-[#C2B280]/50 hover:bg-[#C2B280]/5 cursor-pointer transition-all mb-1 ${state.github.selectedRepo?.id === repo.id ? 'bg-[#C2B280]/10 border-[#C2B280]' : ''}"
+           onclick="selectRepo('${repo.owner.login}', '${repo.name}', ${repo.id})">
+         <div class="flex justify-between items-start mb-1">
+            <span class="font-bold text-slate-300 text-sm truncate pr-2">${escapeHtml(repo.name)}</span>
+            ${repo.private ? '<span class="material-symbols-outlined text-xs text-slate-500">lock</span>' : ''}
+         </div>
+         <div class="flex justify-between items-center text-[10px] technical-font text-slate-500">
+            <span>${formatTimeAgo(repo.updated_at)}</span>
+            <div class="flex items-center gap-2">
+               ${repo.open_issues_count > 0 ? `<span class="text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">bug_report</span> ${repo.open_issues_count}</span>` : ''}
+               <span class="text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">star</span> ${repo.stargazers_count}</span>
+            </div>
+         </div>
+      </div>
+   `).join('');
+}
+
+window.selectRepo = async function(owner, repoName, repoId) {
+   // Update state
+   const repo = state.github.repos.find(r => r.id === repoId);
+   state.github.selectedRepo = repo;
+   
+   // Update UI highlights
+   renderRepos(); // Re-render to update active class
+   
+   // Show details view
+   elements.repoDetailsPlaceholder.classList.add('hidden');
+   elements.repoDetailsContent.classList.remove('hidden');
+   
+   // Update header
+   elements.selectedRepoName.textContent = repoName;
+   elements.selectedRepoLink.href = repo.html_url;
+   elements.selectedRepoLink.onclick = (e) => {
+      e.preventDefault();
+      window.openExternal(repo.html_url);
+   };
+   
+   // Loading state for PRs
+   elements.prList.innerHTML = `
+      <div class="flex flex-col items-center justify-center h-32">
+         <span class="material-symbols-outlined text-[#C2B280] text-3xl animate-spin">sync</span>
+         <span class="text-xs technical-font text-slate-500 mt-2">LOADING PRs...</span>
+      </div>
+   `;
+   elements.prCount.textContent = '-';
+   
+   try {
+      const result = await window.electronAPI.github.getPrs(owner, repoName);
+      if (result.success) {
+         state.github.prs = result.prs || [];
+         elements.prCount.textContent = state.github.prs.length;
+         renderPrs();
+      } else {
+         throw new Error(result.error);
+      }
+   } catch (err) {
+      console.error('Error fetching PRs:', err);
+      elements.prList.innerHTML = `
+         <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 text-xs technical-font text-center">
+            FAILED TO LOAD PRs: ${escapeHtml(err.message)}
+         </div>
+      `;
+   }
+};
+
+function renderPrs() {
+   if (state.github.prs.length === 0) {
+      elements.prList.innerHTML = `
+         <div class="flex flex-col items-center justify-center h-64 text-slate-500">
+            <span class="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
+            <span class="technical-font text-xs">NO OPEN PULL REQUESTS</span>
+         </div>
+      `;
+      return;
+   }
+   
+   elements.prList.innerHTML = state.github.prs.map(pr => `
+      <div class="pr-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group" 
+           onclick="openPrDetails('${pr.base.repo.owner.login}', '${pr.base.repo.name}', ${pr.number})">
+         <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-2">
+               <span class="text-[#C2B280] technical-font text-xs">#${pr.number}</span>
+               <h3 class="font-bold text-slate-200 text-sm group-hover:text-[#C2B280] transition-colors">${escapeHtml(pr.title)}</h3>
+            </div>
+            <span class="px-2 py-0.5 text-[9px] technical-font bg-emerald-900/30 text-emerald-500 border border-emerald-900/50">OPEN</span>
+         </div>
+         
+         <div class="flex items-center gap-4 text-[10px] technical-font text-slate-500 mb-3">
+            <span class="flex items-center gap-1">
+               <span class="material-symbols-outlined text-xs">account_circle</span>
+               ${escapeHtml(pr.user.login)}
+            </span>
+            <span class="flex items-center gap-1">
+               <span class="material-symbols-outlined text-xs">schedule</span>
+               ${formatTimeAgo(pr.created_at)}
+            </span>
+         </div>
+         
+         <div class="flex items-center gap-2 mt-2">
+            <div class="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+               <div class="h-full bg-[#C2B280]" style="width: 100%"></div>
+            </div>
+            <span class="text-[9px] technical-font text-slate-400 flex items-center gap-1">
+               <span class="material-symbols-outlined text-[10px]">call_merge</span>
+               ${escapeHtml(pr.head.ref)}
+            </span>
+         </div>
+      </div>
+   `).join('');
+}
+
+window.openPrDetails = async function(owner, repo, number) {
+   elements.prModal.classList.remove('hidden');
+   // Show loading state
+   elements.prModalBody.innerHTML = '<div class="text-center py-8 text-slate-500">Loading details...</div>';
+   elements.mergeStatusContainer.classList.add('opacity-50', 'pointer-events-none');
+   
+   try {
+      const result = await window.electronAPI.github.getPrDetails(owner, repo, number);
+      if (result.success) {
+         const pr = result.pr;
+         state.github.currentPr = pr;
+         
+         elements.prModalTitle.textContent = pr.title;
+         elements.prModalNumber.textContent = `#${pr.number}`;
+         elements.prModalHead.textContent = pr.head.ref;
+         elements.prModalBase.textContent = pr.base.ref;
+         elements.prModalLink.href = pr.html_url;
+         elements.prModalLink.onclick = (e) => { e.preventDefault(); window.openExternal(pr.html_url); };
+         elements.prModalMeta.textContent = `Updated ${formatTimeAgo(pr.updated_at)}`;
+         
+         // Markdown body (simple text rendering for now, could use marked.js if added)
+         elements.prModalBody.innerHTML = pr.body ? 
+            pr.body.replace(/\n/g, '<br>').replace(/`([^`]+)`/g, '<code class="bg-slate-800 px-1 text-xs">$1</code>') : 
+            '<em class="text-slate-500">No description provided.</em>';
+         
+         // Merge status
+         elements.mergeStatusContainer.classList.remove('opacity-50', 'pointer-events-none');
+         if (pr.mergeable) {
+            elements.mergeIcon.textContent = 'check_circle';
+            elements.mergeIcon.className = 'material-symbols-outlined text-emerald-500';
+            elements.mergeTitle.textContent = 'This branch has no conflicts with the base branch';
+            elements.mergeSubtitle.textContent = 'Merging can be performed automatically.';
+            elements.mergeBtn.disabled = false;
+            elements.mergeBtn.onclick = () => mergePr(owner, repo, number);
+         } else if (pr.mergeable === false) {
+            elements.mergeIcon.textContent = 'error';
+            elements.mergeIcon.className = 'material-symbols-outlined text-red-500';
+            elements.mergeTitle.textContent = 'This branch has conflicts that must be resolved';
+            elements.mergeSubtitle.textContent = 'Resolve conflicts on GitHub to merge.';
+            elements.mergeBtn.disabled = true;
+         } else {
+            elements.mergeIcon.textContent = 'pending';
+            elements.mergeIcon.className = 'material-symbols-outlined text-yellow-500 animate-pulse';
+            elements.mergeTitle.textContent = 'Checking mergeability...';
+            elements.mergeSubtitle.textContent = 'Please wait.';
+            elements.mergeBtn.disabled = true;
+         }
+      }
+   } catch (err) {
+      console.error('Error loading PR details:', err);
+      elements.prModalBody.innerHTML = `<div class="text-red-400">Error: ${err.message}</div>`;
+   }
+};
+
+window.mergePr = async function(owner, repo, number) {
+   if (!confirm('Are you sure you want to merge this pull request?')) return;
+   
+   elements.mergeBtn.disabled = true;
+   elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> MERGING...';
+   
+   try {
+      const result = await window.electronAPI.github.mergePr(owner, repo, number);
+      if (result.success) {
+         showToast('Pull request merged successfully', 'success');
+         closePrModal();
+         // Refresh PR list
+         selectRepo(owner, repo, state.github.selectedRepo.id);
+      } else {
+         throw new Error(result.error);
+      }
+   } catch (err) {
+      showToast(`Merge failed: ${err.message}`, 'error');
+      elements.mergeBtn.disabled = false;
+      elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">merge</span> MERGE PULL REQUEST';
+   }
+};
+
+window.closePrModal = function() {
+   elements.prModal.classList.add('hidden');
+};
+
+
+// ============================================ 
 // Utilities
-// ============================================
+// ============================================ 
 
 window.openExternal = function(url) {
   if (window.electronAPI) {
@@ -1734,7 +2066,7 @@ function escapeHtml(text) {
 
 function escapeJsString(str) {
   if (!str) return '';
-  return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return str.replace(/\\/g, '\\\\').replace(/'/g, "\'");
 }
 
 function extractRepoName(url) {
@@ -1754,9 +2086,9 @@ function debounce(fn, delay) {
 function showToast(message, type = 'info') {
   // Simple toast implementation with tactical styling
   const toast = document.createElement('div');
-  toast.className = `fixed bottom-4 right-4 px-4 py-2 text-xs technical-font font-bold z-50 transition-all transform translate-y-0 opacity-100 border ${
-    type === 'success' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' :
-    type === 'error' ? 'bg-red-500/20 border-red-500 text-red-400' :
+  toast.className = `fixed bottom-4 right-4 px-4 py-2 text-xs technical-font font-bold z-50 transition-all transform translate-y-0 opacity-100 border ${ 
+    type === 'success' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 
+    type === 'error' ? 'bg-red-500/20 border-red-500 text-red-400' : 
     'bg-[#1A1A1A] border-[#2A2A2A] text-white'
   }`;
   toast.textContent = message;
@@ -1768,8 +2100,8 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
-// ============================================
+// ============================================ 
 // Start Application
-// ============================================
+// ============================================ 
 
 document.addEventListener('DOMContentLoaded', init);

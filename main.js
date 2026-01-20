@@ -8,6 +8,7 @@ const julesService = require('./src/main/services/jules-service');
 const cursorService = require('./src/main/services/cursor-service');
 const codexService = require('./src/main/services/codex-service');
 const claudeService = require('./src/main/services/claude-service');
+const githubService = require('./src/main/services/github-service');
 
 let mainWindow;
 let pollingInterval = null;
@@ -68,6 +69,11 @@ function initializeServices() {
     // Restore tracked conversations from config
     const trackedConversations = configStore.getClaudeConversations();
     claudeService.setTrackedConversations(trackedConversations);
+  }
+
+  const githubKey = configStore.getApiKey('github');
+  if (githubKey) {
+    githubService.setApiKey(githubKey);
   }
 }
 
@@ -240,7 +246,8 @@ ipcMain.handle('settings:get', async () => {
       jules: configStore.hasApiKey('jules'),
       cursor: configStore.hasApiKey('cursor'),
       codex: configStore.hasApiKey('codex'),
-      claude: configStore.hasApiKey('claude')  // Keep for backward compatibility
+      claude: configStore.hasApiKey('claude'),
+      github: configStore.hasApiKey('github')
     },
     geminiInstalled: geminiService.isGeminiInstalled(),
     geminiDefaultPath: geminiService.getDefaultPath(),
@@ -272,6 +279,8 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     // Restore tracked conversations from config
     const trackedConversations = configStore.getClaudeConversations();
     claudeService.setTrackedConversations(trackedConversations);
+  } else if (provider === 'github') {
+    githubService.setApiKey(key);
   }
   
   return { success: true };
@@ -290,6 +299,8 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
       return await codexService.testConnection();
     } else if (provider === 'claude') {
       return await claudeService.testConnection();
+    } else if (provider === 'github') {
+      return await githubService.testConnection();
     }
     return { success: false, error: 'Unknown provider' };
   } catch (err) {
@@ -318,6 +329,8 @@ ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
     // Clear tracked conversations
     configStore.setClaudeConversations([]);
     claudeService.setTrackedConversations([]);
+  } else if (provider === 'github') {
+    githubService.setApiKey(null);
   }
   
   return { success: true };
@@ -431,11 +444,12 @@ ipcMain.handle('utils:open-external', async (event, { url }) => {
  * Get provider connection status
  */
 ipcMain.handle('utils:get-status', async () => {
-  const [julesStatus, cursorStatus, codexStatus, claudeCloudStatus] = await Promise.allSettled([
+  const [julesStatus, cursorStatus, codexStatus, claudeCloudStatus, githubStatus] = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
     configStore.hasApiKey('cursor') ? cursorService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
     configStore.hasApiKey('codex') ? codexService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
-    configStore.hasApiKey('claude') ? claudeService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
+    configStore.hasApiKey('claude') ? claudeService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
+    configStore.hasApiKey('github') ? githubService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
   ]);
 
   // Claude CLI status: connected if CLI is installed
@@ -460,7 +474,8 @@ ipcMain.handle('utils:get-status', async () => {
       success: claudeCloudValid,
       connected: claudeCloudValid,
       error: claudeCloudValid ? null : (configStore.hasApiKey('claude') ? 'API key invalid' : 'Not configured')
-    }
+    },
+    github: githubStatus.status === 'fulfilled' ? githubStatus.value : { success: false, error: githubStatus.reason?.message }
   };
 });
 
@@ -649,6 +664,46 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
     }
   } catch (err) {
     console.error(`Error creating task for ${provider}:`, err);
+    return { success: false, error: err.message };
+  }
+});
+
+// ============================================
+// IPC Handlers - GitHub
+// ============================================
+
+ipcMain.handle('github:get-repos', async () => {
+  try {
+    const repos = await githubService.getUserRepos();
+    return { success: true, repos };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('github:get-prs', async (event, { owner, repo }) => {
+  try {
+    const prs = await githubService.getPullRequests(owner, repo);
+    return { success: true, prs };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('github:get-pr-details', async (event, { owner, repo, prNumber }) => {
+  try {
+    const pr = await githubService.getPullRequestDetails(owner, repo, prNumber);
+    return { success: true, pr };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('github:merge-pr', async (event, { owner, repo, prNumber, method }) => {
+  try {
+    const result = await githubService.mergePullRequest(owner, repo, prNumber, method);
+    return { success: true, result };
+  } catch (err) {
     return { success: false, error: err.message };
   }
 });

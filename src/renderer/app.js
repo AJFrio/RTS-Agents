@@ -341,7 +341,9 @@ function setupSpeechRecognition() {
   recognition.onerror = (event) => {
     console.error('Speech recognition error', event.error);
     // Don't show toast for 'no-speech' or 'aborted' as they can be common/benign
-    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+    if (event.error === 'network') {
+      showToast('Speech recognition network error. Please check your internet connection and API keys.', 'error');
+    } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
       showToast(`Speech error: ${event.error}`, 'error');
     }
     isRecording = false;

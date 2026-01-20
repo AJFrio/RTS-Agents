@@ -51,6 +51,42 @@ When configured with a GitHub token, you can:
 
 ---
 
+## Mobile Companion App (PWA)
+
+The repository includes a mobile-optimized Progressive Web App (PWA) in the `mobile-webapp/` directory.
+
+### Capabilities
+- **Remote Control**: View connected desktop instances and dispatch tasks to them via Cloudflare KV.
+- **Unified Dashboard**: View and filter tasks across all providers, similar to the desktop app.
+- **Cloud Agents**: Create and monitor tasks for cloud providers (Jules, Cursor, Codex, Claude Cloud) directly from your phone.
+- **GitHub**: View repositories and branches (read-only).
+
+### Limitations
+- **No Local Execution**: It cannot run local CLI tools (Gemini/Claude CLI) directly. Instead, it dispatches these tasks to your running desktop instances.
+- **Requires Cloudflare KV**: Syncing between desktop and mobile requires Cloudflare KV configuration.
+- **Read-Only Device Status**: It views other devices but does not register itself as a compute node.
+
+### Running the Mobile App
+
+1. Navigate to the directory:
+   ```bash
+   cd mobile-webapp
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start development server:
+   ```bash
+   npm run dev
+   ```
+   Or build for production:
+   ```bash
+   npm run build
+   ```
+
+---
+
 ## Installation
 
 ### Prerequisites

@@ -220,6 +220,8 @@ async function sendCloudflareHeartbeat({ status } = {}) {
       'claude-cli': claudeService.isClaudeInstalled(),
       codex: configStore.hasApiKey('codex'),
       cursor: configStore.hasApiKey('cursor'),
+      'codex-cli': configStore.getCodexPaths().length > 0,
+      'cursor-cli': configStore.getCursorPaths().length > 0,
       jules: configStore.hasApiKey('jules'),
       'claude-cloud': configStore.hasApiKey('claude')
     },
@@ -817,6 +819,7 @@ ipcMain.handle('settings:save-filters', async (event, { filters }) => {
  */
 ipcMain.handle('settings:add-gemini-path', async (event, { path: geminiPath }) => {
   const paths = configStore.addGeminiPath(geminiPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -825,6 +828,7 @@ ipcMain.handle('settings:add-gemini-path', async (event, { path: geminiPath }) =
  */
 ipcMain.handle('settings:remove-gemini-path', async (event, { path: geminiPath }) => {
   const paths = configStore.removeGeminiPath(geminiPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -844,6 +848,7 @@ ipcMain.handle('settings:get-gemini-paths', async () => {
  */
 ipcMain.handle('settings:add-claude-path', async (event, { path: claudePath }) => {
   const paths = configStore.addClaudePath(claudePath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -852,6 +857,7 @@ ipcMain.handle('settings:add-claude-path', async (event, { path: claudePath }) =
  */
 ipcMain.handle('settings:remove-claude-path', async (event, { path: claudePath }) => {
   const paths = configStore.removeClaudePath(claudePath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -871,6 +877,7 @@ ipcMain.handle('settings:get-claude-paths', async () => {
  */
 ipcMain.handle('settings:add-cursor-path', async (event, { path: cursorPath }) => {
   const paths = configStore.addCursorPath(cursorPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -879,6 +886,7 @@ ipcMain.handle('settings:add-cursor-path', async (event, { path: cursorPath }) =
  */
 ipcMain.handle('settings:remove-cursor-path', async (event, { path: cursorPath }) => {
   const paths = configStore.removeCursorPath(cursorPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -896,6 +904,7 @@ ipcMain.handle('settings:get-cursor-paths', async () => {
  */
 ipcMain.handle('settings:add-codex-path', async (event, { path: codexPath }) => {
   const paths = configStore.addCodexPath(codexPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -904,6 +913,7 @@ ipcMain.handle('settings:add-codex-path', async (event, { path: codexPath }) => 
  */
 ipcMain.handle('settings:remove-codex-path', async (event, { path: codexPath }) => {
   const paths = configStore.removeCodexPath(codexPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -921,6 +931,7 @@ ipcMain.handle('settings:get-codex-paths', async () => {
  */
 ipcMain.handle('settings:add-github-path', async (event, { path: githubPath }) => {
   const paths = configStore.addGithubPath(githubPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 
@@ -929,6 +940,7 @@ ipcMain.handle('settings:add-github-path', async (event, { path: githubPath }) =
  */
 ipcMain.handle('settings:remove-github-path', async (event, { path: githubPath }) => {
   const paths = configStore.removeGithubPath(githubPath);
+  void sendCloudflareHeartbeat().catch(console.error);
   return { success: true, paths };
 });
 

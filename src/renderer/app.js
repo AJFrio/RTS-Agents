@@ -384,6 +384,7 @@ function setupEventListeners() {
   elements.searchInput.addEventListener('input', debounce((e) => {
     state.filters.search = e.target.value.toLowerCase();
     applyFilters();
+    saveFilters();
   }, 300));
 
   // Refresh button
@@ -395,6 +396,7 @@ function setupEventListeners() {
       const provider = e.target.id.replace('filter-', '');
       state.filters.providers[provider] = e.target.checked;
       applyFilters();
+      saveFilters();
     });
   });
 
@@ -404,6 +406,7 @@ function setupEventListeners() {
       const status = e.target.id.replace('filter-', '');
       state.filters.statuses[status] = e.target.checked;
       applyFilters();
+      saveFilters();
     });
   });
 
@@ -782,6 +785,23 @@ async function loadSettings() {
     state.configuredServices['claude-cloud'] = result.claudeCloudConfigured || result.apiKeys?.claude || false;
     state.configuredServices.github = result.apiKeys?.github || false;
 
+    // Load saved filters if they exist
+    if (result.filters && (result.filters.providers || result.filters.statuses)) {
+      if (result.filters.providers) {
+        state.filters.providers = { ...state.filters.providers, ...result.filters.providers };
+      }
+      if (result.filters.statuses) {
+        state.filters.statuses = { ...state.filters.statuses, ...result.filters.statuses };
+      }
+      if (typeof result.filters.search === 'string') {
+        state.filters.search = result.filters.search;
+        elements.searchInput.value = result.filters.search;
+      }
+
+      // Update filter UI
+      updateFilterUI();
+    }
+
     // Update provider filter visibility based on configured services
     updateProviderFilterVisibility();
 
@@ -898,6 +918,34 @@ function updateServiceButtonVisibility() {
 // ============================================ 
 // Filtering
 // ============================================ 
+
+async function saveFilters() {
+  if (window.electronAPI) {
+    try {
+      await window.electronAPI.saveFilters(state.filters);
+    } catch (err) {
+      console.error('Failed to save filters:', err);
+    }
+  }
+}
+
+function updateFilterUI() {
+  // Update provider checkboxes
+  Object.keys(state.filters.providers).forEach(provider => {
+    const checkbox = document.getElementById(`filter-${provider}`);
+    if (checkbox) {
+      checkbox.checked = state.filters.providers[provider];
+    }
+  });
+
+  // Update status checkboxes
+  Object.keys(state.filters.statuses).forEach(status => {
+    const checkbox = document.getElementById(`filter-${status}`);
+    if (checkbox) {
+      checkbox.checked = state.filters.statuses[status];
+    }
+  });
+}
 
 function applyFilters() {
   const { providers, statuses, search } = state.filters;

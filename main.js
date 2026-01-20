@@ -267,7 +267,8 @@ ipcMain.handle('settings:get', async () => {
     claudeCliInstalled: claudeService.isClaudeInstalled(),
     claudeCloudConfigured: configStore.hasApiKey('claude'),
     claudeDefaultPath: claudeService.getDefaultPath(),
-    githubPaths: configStore.getGithubPaths()
+    githubPaths: configStore.getGithubPaths(),
+    filters: configStore.getFilters()
   };
 });
 
@@ -375,6 +376,14 @@ ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
  */
 ipcMain.handle('settings:set-theme', async (event, { theme }) => {
   configStore.setSetting('theme', theme);
+  return { success: true };
+});
+
+/**
+ * Save filters
+ */
+ipcMain.handle('settings:save-filters', async (event, { filters }) => {
+  configStore.setFilters(filters);
   return { success: true };
 });
 

@@ -85,6 +85,24 @@ const schema = {
         type: 'string',
         enum: ['light', 'dark', 'system'],
         default: 'system'
+      },
+      filters: {
+        type: 'object',
+        properties: {
+          providers: {
+            type: 'object',
+            default: {}
+          },
+          statuses: {
+            type: 'object',
+            default: {}
+          },
+          search: {
+            type: 'string',
+            default: ''
+          }
+        },
+        default: {}
       }
     },
     default: {}
@@ -133,6 +151,14 @@ class ConfigStore {
 
   getAllSettings() {
     return this.store.get('settings', {});
+  }
+
+  getFilters() {
+    return this.store.get('settings.filters', {});
+  }
+
+  setFilters(filters) {
+    this.store.set('settings.filters', filters);
   }
 
   // Gemini project paths

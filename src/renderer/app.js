@@ -2531,10 +2531,25 @@ async function prefillFixMergeConflictTask(pr) {
 
     const current = Array.from(elements.taskBranch.options).map(o => o.value);
     setNewTaskBranchOptions([...current, headBranch], headBranch);
+    // Force-select the head branch (ignore previous default selection like "main").
+    if (!Array.from(elements.taskBranch.options).some(o => o.value === headBranch)) {
+      const opt = document.createElement('option');
+      opt.value = headBranch;
+      opt.textContent = headBranch;
+      elements.taskBranch.appendChild(opt);
+    }
+    elements.taskBranch.value = headBranch;
   } else {
     // Still set the branch and let the user pick repo if we couldn't match.
     const current = Array.from(elements.taskBranch.options).map(o => o.value);
     setNewTaskBranchOptions([...current, headBranch], headBranch);
+    if (!Array.from(elements.taskBranch.options).some(o => o.value === headBranch)) {
+      const opt = document.createElement('option');
+      opt.value = headBranch;
+      opt.textContent = headBranch;
+      elements.taskBranch.appendChild(opt);
+    }
+    elements.taskBranch.value = headBranch;
     showToast('Could not auto-select repository for FIX. Please pick the repo, then click Create Task.', 'info');
   }
 

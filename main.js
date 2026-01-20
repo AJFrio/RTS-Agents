@@ -210,6 +210,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const device = {
     id: identity.id,
     name: identity.name,
+    deviceType: 'desktop',
     platform: process.platform,
     ...(nextStatus === 'on' ? { lastHeartbeat: nowIso } : {}),
     status: nextStatus,

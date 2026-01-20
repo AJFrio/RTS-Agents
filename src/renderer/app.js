@@ -3188,6 +3188,8 @@ function renderComputerCard(device) {
     ? 'border-emerald-500 text-emerald-500 bg-emerald-500/10'
     : 'border-slate-600 text-slate-400 bg-slate-800/30';
 
+  const isHeadless = String(device?.deviceType || '').toLowerCase() === 'headless';
+
   const tools = device?.tools && typeof device.tools === 'object' ? device.tools : {};
   const toolBadges = [
     tools.gemini ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI_CLI</span>' : '',
@@ -3211,6 +3213,12 @@ function renderComputerCard(device) {
         </div>
         <span class="px-2 py-1 text-[10px] technical-font border ${statusClass} font-bold">${statusLabel}</span>
       </div>
+
+      ${isHeadless ? `
+        <div class="mt-3 p-2 border border-yellow-500/30 bg-yellow-500/10 text-yellow-200 text-[10px] technical-font">
+          HEADLESS_DEVICE: no local UI, compute-only
+        </div>
+      ` : ''}
 
       <div class="mt-4 space-y-3">
         <div>

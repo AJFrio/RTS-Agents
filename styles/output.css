@@ -1071,6 +1071,10 @@ input[type="checkbox"]:focus {
   margin-top: 1rem;
 }
 
+.mt-8 {
+  margin-top: 2rem;
+}
+
 .mt-auto {
   margin-top: auto;
 }
@@ -1782,6 +1786,10 @@ input[type="checkbox"]:focus {
   padding-right: 1rem;
 }
 
+.pt-6 {
+  padding-top: 1.5rem;
+}
+
 .text-left {
   text-align: left;
 }
@@ -2215,8 +2223,16 @@ input[type="checkbox"]:focus {
   cursor: not-allowed;
 }
 
+.disabled\:opacity-40:disabled {
+  opacity: 0.4;
+}
+
 .disabled\:opacity-50:disabled {
   opacity: 0.5;
+}
+
+.disabled\:hover\:bg-transparent:hover:disabled {
+  background-color: transparent;
 }
 
 .group:hover .group-hover\:text-\[\#C2B280\] {
@@ -2289,6 +2305,10 @@ input[type="checkbox"]:focus {
 .dark\:hover\:bg-\[\#2A2A2A\]:hover:is(.dark *) {
   --tw-bg-opacity: 1;
   background-color: rgb(42 42 42 / var(--tw-bg-opacity, 1));
+}
+
+.dark\:disabled\:hover\:bg-transparent:hover:disabled:is(.dark *) {
+  background-color: transparent;
 }
 
 @media (min-width: 768px) {

@@ -217,7 +217,7 @@
             <span class="absolute inset-y-0 left-3 flex items-center text-slate-400">
               <span class="material-symbols-outlined text-sm">search</span>
             </span>
-            <input type="text" id="search-input" placeholder="SCAN AGENT ID..." 
+            <input type="text" id="search-input" placeholder="SEARCH TASKS" 
               class="bg-slate-100 dark:bg-[#1A1A1A] border-none focus:ring-1 focus:ring-[#C2B280] text-xs technical-font py-2 pl-10 pr-4 w-64 text-slate-800 dark:text-white placeholder:text-slate-500" style="padding-left: 2.5rem !important; text-align: right;">
           </div>
           <!-- New Task Button -->
@@ -270,6 +270,22 @@
           <!-- Agents Grid -->
           <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Agent cards will be inserted here -->
+          </div>
+
+          <!-- Pagination Controls -->
+          <div id="pagination-controls" class="hidden flex items-center justify-between mt-8 pt-6 border-t border-slate-200 dark:border-[#2A2A2A]">
+            <span id="pagination-info" class="technical-font text-xs text-slate-500">SHOWING 1-50 OF 100 TASKS</span>
+            <div class="flex items-center gap-4">
+              <button id="prev-page-btn" class="flex items-center gap-2 px-4 py-2 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent">
+                <span class="material-symbols-outlined text-sm">chevron_left</span>
+                PREV
+              </button>
+              <span id="page-indicator" class="technical-font text-xs text-[#C2B280] font-bold">PAGE 01 / 01</span>
+              <button id="next-page-btn" class="flex items-center gap-2 px-4 py-2 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent">
+                NEXT
+                <span class="material-symbols-outlined text-sm">chevron_right</span>
+              </button>
+            </div>
           </div>
         </div>
 

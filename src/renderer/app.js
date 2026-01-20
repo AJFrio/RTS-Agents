@@ -61,6 +61,12 @@ const state = {
     repositories: [],
     loadingRepos: false,
     creating: false
+  },
+  // Pagination state
+  pagination: {
+    currentPage: 1,
+    pageSize: 50,
+    totalPages: 1
   }
 };
 
@@ -81,6 +87,13 @@ const elements = {
   errorBanner: document.getElementById('error-banner'),
   errorList: document.getElementById('error-list'),
   totalCount: document.getElementById('total-count'),
+  
+  // Pagination
+  paginationControls: document.getElementById('pagination-controls'),
+  paginationInfo: document.getElementById('pagination-info'),
+  pageIndicator: document.getElementById('page-indicator'),
+  prevPageBtn: document.getElementById('prev-page-btn'),
+  nextPageBtn: document.getElementById('next-page-btn'),
   
   // Filters
   searchInput: document.getElementById('search-input'),
@@ -325,6 +338,10 @@ function setupEventListeners() {
   
   // Searchable repo dropdown
   setupRepoSearchDropdown();
+
+  // Pagination
+  elements.prevPageBtn.addEventListener('click', goToPrevPage);
+  elements.nextPageBtn.addEventListener('click', goToNextPage);
 
   // Listen for system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -753,6 +770,9 @@ function applyFilters() {
     return true;
   });
 
+  // Reset to page 1 when filters change
+  state.pagination.currentPage = 1;
+  
   renderAgents();
 }
 
@@ -763,6 +783,7 @@ function applyFilters() {
 function renderAgents() {
   if (state.filteredAgents.length === 0) {
     elements.agentsGrid.innerHTML = '';
+    elements.paginationControls.classList.add('hidden');
     if (state.agents.length === 0) {
       elements.emptyState.classList.remove('hidden');
     } else {
@@ -778,8 +799,87 @@ function renderAgents() {
   }
 
   elements.emptyState.classList.add('hidden');
-  elements.agentsGrid.innerHTML = state.filteredAgents.map(agent => createAgentCard(agent)).join('');
+  
+  // Calculate pagination
+  const totalItems = state.filteredAgents.length;
+  const { pageSize, currentPage } = state.pagination;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  
+  // Ensure currentPage is within bounds
+  state.pagination.totalPages = totalPages;
+  if (state.pagination.currentPage > totalPages) {
+    state.pagination.currentPage = totalPages;
+  }
+  if (state.pagination.currentPage < 1) {
+    state.pagination.currentPage = 1;
+  }
+  
+  // Calculate slice indices
+  const startIndex = (state.pagination.currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  
+  // Get current page items
+  const pageItems = state.filteredAgents.slice(startIndex, endIndex);
+  
+  // Render agent cards
+  elements.agentsGrid.innerHTML = pageItems.map(agent => createAgentCard(agent)).join('');
+  
+  // Update pagination controls
+  updatePaginationControls(startIndex + 1, endIndex, totalItems, state.pagination.currentPage, totalPages);
 }
+
+/**
+ * Update pagination controls visibility and content
+ */
+function updatePaginationControls(start, end, total, currentPage, totalPages) {
+  // Show/hide pagination controls based on whether there are multiple pages
+  if (totalPages <= 1) {
+    elements.paginationControls.classList.add('hidden');
+    return;
+  }
+  
+  elements.paginationControls.classList.remove('hidden');
+  
+  // Update info text
+  elements.paginationInfo.textContent = `SHOWING ${start}-${end} OF ${total} TASKS`;
+  
+  // Update page indicator with leading zeros
+  const currentPageStr = String(currentPage).padStart(2, '0');
+  const totalPagesStr = String(totalPages).padStart(2, '0');
+  elements.pageIndicator.textContent = `PAGE ${currentPageStr} / ${totalPagesStr}`;
+  
+  // Update button states
+  elements.prevPageBtn.disabled = currentPage <= 1;
+  elements.nextPageBtn.disabled = currentPage >= totalPages;
+}
+
+/**
+ * Navigate to previous page
+ */
+function goToPrevPage() {
+  if (state.pagination.currentPage > 1) {
+    state.pagination.currentPage--;
+    renderAgents();
+    // Scroll to top of grid
+    elements.agentsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+/**
+ * Navigate to next page
+ */
+function goToNextPage() {
+  if (state.pagination.currentPage < state.pagination.totalPages) {
+    state.pagination.currentPage++;
+    renderAgents();
+    // Scroll to top of grid
+    elements.agentsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+// Make pagination functions available globally
+window.goToPrevPage = goToPrevPage;
+window.goToNextPage = goToNextPage;
 
 function createAgentCard(agent) {
   const providerStyle = getProviderStyle(agent.provider);

@@ -2159,28 +2159,19 @@ function populateTargetDeviceDropdown() {
 
   select.innerHTML = '';
 
-  // Group 1: Cloud Providers
-  const cloudGroup = document.createElement('optgroup');
-  cloudGroup.label = 'Cloud Providers';
+  // Option 1: Cloud Provider
   const cloudOption = document.createElement('option');
   cloudOption.value = 'cloud';
-  cloudOption.textContent = 'CLOUD SERVICES (JULES, CURSOR, CLAUDE)';
-  cloudGroup.appendChild(cloudOption);
-  select.appendChild(cloudGroup);
+  cloudOption.textContent = 'CLOUD PROVIDER (JULES, CURSOR, CLAUDE)';
+  select.appendChild(cloudOption);
 
-  // Group 2: Local Device
-  const localGroup = document.createElement('optgroup');
-  localGroup.label = 'Local Device';
+  // Option 2: Local Device
   const localOption = document.createElement('option');
   localOption.value = 'local';
-  localOption.textContent = 'THIS COMPUTER (LOCAL CLI)';
-  localGroup.appendChild(localOption);
-  select.appendChild(localGroup);
+  localOption.textContent = 'THIS COMPUTER (LOCAL)';
+  select.appendChild(localOption);
 
-  // Group 3: Remote Computers
-  const remoteGroup = document.createElement('optgroup');
-  remoteGroup.label = 'Remote Computers';
-
+  // Option 3: Remote Computers
   // Filter out the local computer from remote list
   state.computers.list.forEach(device => {
     if (device.id === state.localDeviceId) return;
@@ -2193,13 +2184,9 @@ function populateTargetDeviceDropdown() {
        const option = document.createElement('option');
        option.value = device.id;
        option.textContent = `REMOTE: ${(device.name || device.id).toUpperCase()}`;
-       remoteGroup.appendChild(option);
+       select.appendChild(option);
     }
   });
-
-  if (remoteGroup.children.length > 0) {
-    select.appendChild(remoteGroup);
-  }
 }
 
 function handleTargetDeviceChange(e) {

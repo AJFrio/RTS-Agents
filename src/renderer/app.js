@@ -510,17 +510,21 @@ function setupRepoSearchDropdown() {
 
   // Show dropdown on focus
   searchInput.addEventListener('focus', () => {
-    if (!searchInput.disabled && state.newTask.repositories.length > 0) {
-      filterRepoDropdown(searchInput.value.toLowerCase());
+    if (!searchInput.disabled) {
+      if (state.newTask.repositories.length > 0) {
+        filterRepoDropdown(searchInput.value.toLowerCase());
+      }
       showRepoDropdown();
     }
   });
 
   // Toggle dropdown on chevron click
   chevron.addEventListener('click', () => {
-    if (!searchInput.disabled && state.newTask.repositories.length > 0) {
+    if (!searchInput.disabled) {
       if (dropdown.classList.contains('hidden')) {
-        filterRepoDropdown(searchInput.value.toLowerCase());
+        if (state.newTask.repositories.length > 0) {
+          filterRepoDropdown(searchInput.value.toLowerCase());
+        }
         showRepoDropdown();
         searchInput.focus();
       } else {
@@ -1793,28 +1797,30 @@ async function loadRepositoriesForService(service) {
     if (!result.success) {
       elements.repoError.textContent = result.error;
       elements.repoError.classList.remove('hidden');
-      elements.taskRepoSearch.placeholder = 'No repositories available';
+      elements.taskRepoSearch.placeholder = 'Error loading repositories';
       elements.serviceStatus.textContent = result.error;
       elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
+
+      // Ensure empty repo list and dropdown cleared
+      state.newTask.repositories = [];
+      populateRepoDropdown([], service);
       return;
     }
 
     state.newTask.repositories = result.repositories || [];
 
+    // Always populate dropdown (will show "NO REPOSITORIES FOUND" if empty)
+    populateRepoDropdown(state.newTask.repositories, service);
+
     if (state.newTask.repositories.length === 0) {
       elements.taskRepoSearch.placeholder = 'No repositories found';
       elements.serviceStatus.textContent = 'No repositories available for this service';
       elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
-      return;
+    } else {
+      elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
+      elements.serviceStatus.textContent = `${state.newTask.repositories.length} repositories available`;
+      elements.serviceStatus.className = 'mt-3 text-xs technical-font text-emerald-400';
     }
-
-    // Populate searchable dropdown
-    populateRepoDropdown(state.newTask.repositories, service);
-
-    elements.taskRepoSearch.disabled = false;
-    elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
-    elements.serviceStatus.textContent = `${state.newTask.repositories.length} repositories available`;
-    elements.serviceStatus.className = 'mt-3 text-xs technical-font text-emerald-400';
 
   } catch (err) {
     console.error('Error loading repositories:', err);
@@ -1823,10 +1829,17 @@ async function loadRepositoriesForService(service) {
     elements.taskRepoSearch.placeholder = 'Error loading repositories';
     elements.serviceStatus.textContent = err.message;
     elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
+
+    state.newTask.repositories = [];
+    populateRepoDropdown([], service);
   } finally {
     state.newTask.loadingRepos = false;
     elements.repoLoading.classList.add('hidden');
     elements.repoChevron.classList.remove('hidden');
+
+    // Always enable the input so user can see empty/error state feedback
+    elements.taskRepoSearch.disabled = false;
+
     validateNewTaskForm();
   }
 }

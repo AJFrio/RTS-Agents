@@ -2509,14 +2509,16 @@ async function loadRepositoriesForService(service) {
   try {
     let repositories = [];
 
-    if (state.newTask.targetDevice) {
+    const isRemoteDevice = state.newTask.targetDevice && typeof state.newTask.targetDevice === 'object';
+
+    if (isRemoteDevice) {
       // Remote mode: get repos from device state
       // The heartbeat sends `repos` array
       repositories = state.newTask.targetDevice.repos || [];
       // Simulate API delay for better UX consistency
       await new Promise(resolve => setTimeout(resolve, 300));
     } else {
-      // Local mode
+      // Local/Cloud mode - fetch repositories from local API
       const result = await electronAPI.getRepositories(service);
       if (!result.success) {
         throw new Error(result.error);

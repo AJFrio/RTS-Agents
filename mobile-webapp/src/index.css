@@ -1,0 +1,239 @@
+/* Import fonts - must come first */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+ * RTS Agents Mobile PWA
+ * Tactical Sandstorm Theme
+ * ============================================ */
+
+/* Base styles */
+:root {
+  --color-primary: #C2B280;
+  --color-background-light: #F5F5F0;
+  --color-background-dark: #121212;
+  --color-sidebar-dark: #0D0D0D;
+  --color-card-dark: #1A1A1A;
+  --color-border-dark: #2A2A2A;
+
+  /* Safe area insets */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+html {
+  /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent text selection on double-tap */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Prevent zooming */
+  touch-action: manipulation;
+}
+
+/* Allow text selection in inputs and textareas */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Technical font class */
+.technical-font {
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+/* Material icons */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* Sharp corners override */
+.rounded,
+.rounded-lg,
+.rounded-xl,
+.rounded-full {
+  border-radius: 0 !important;
+}
+
+/* Form checkbox styling */
+input[type='checkbox'] {
+  border-radius: 0 !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-sidebar-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+}
+
+/* Input range styling */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-border-dark);
+  height: 4px;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  width: 8px;
+  background: var(--color-primary);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+input[type='range']::-moz-range-thumb {
+  height: 16px;
+  width: 8px;
+  background: var(--color-primary);
+  cursor: pointer;
+  border-radius: 0;
+  border: none;
+}
+
+/* Safe area utilities */
+.safe-top {
+  padding-top: var(--safe-top);
+}
+
+.safe-bottom {
+  padding-bottom: var(--safe-bottom);
+}
+
+.safe-left {
+  padding-left: var(--safe-left);
+}
+
+.safe-right {
+  padding-right: var(--safe-right);
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Spin animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Active state for touch */
+button:active,
+a:active {
+  opacity: 0.8;
+}
+
+/* Focus styles */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Prose overrides for markdown content */
+.prose {
+  color: inherit;
+}
+
+.prose code {
+  background: var(--color-card-dark);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0;
+  font-size: 0.875em;
+}
+
+.prose pre {
+  background: var(--color-sidebar-dark);
+  border-radius: 0;
+  border: 1px solid var(--color-border-dark);
+}
+
+.prose a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.prose strong {
+  color: inherit;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  color: inherit;
+  font-weight: 700;
+}
+
+/* Dark mode is default */
+.dark body {
+  background-color: var(--color-background-dark);
+  color: #e2e8f0;
+}
+
+/* Light mode */
+html:not(.dark) body {
+  background-color: var(--color-background-light);
+  color: #1e293b;
+}
+
+/* PWA install prompt */
+.pwa-install-prompt {
+  position: fixed;
+  bottom: 80px;
+  left: 16px;
+  right: 16px;
+  background: var(--color-card-dark);
+  border: 1px solid var(--color-border-dark);
+  padding: 16px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Disable body scroll when modal is open */
+body.modal-open {
+  overflow: hidden;
+}

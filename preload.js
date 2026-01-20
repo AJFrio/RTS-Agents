@@ -228,6 +228,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createTask: (provider, options) =>
     ipcRenderer.invoke('tasks:create', { provider, options }),
 
+  /**
+   * Send a follow-up message to a task
+   * @param {string} provider - 'jules' or 'cursor'
+   * @param {string} rawId - The provider's native ID
+   * @param {string} message - The message content
+   */
+  sendMessage: (provider, rawId, message) =>
+    ipcRenderer.invoke('tasks:send-message', { provider, rawId, message }),
+
   // ============================================
   // Events API
   // ============================================

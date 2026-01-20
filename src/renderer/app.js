@@ -1910,6 +1910,8 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
 
   try {
     const details = await electronAPI.getAgentDetails(provider, rawId, filePath);
+    // Persist current task info for refresh
+    state.currentTask = { provider, rawId, filePath };
     renderAgentDetails(provider, details);
   } catch (err) {
     elements.modalContent.innerHTML = `
@@ -1918,6 +1920,13 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
         <p class="technical-font text-red-400">Failed to load: ${escapeHtml(err.message)}</p>
       </div>
     `;
+  }
+};
+
+window.refreshAgentDetails = async function() {
+  if (state.currentTask) {
+    const { provider, rawId, filePath } = state.currentTask;
+    await window.openAgentDetails(provider, rawId, filePath);
   }
 };
 
@@ -2037,7 +2046,7 @@ function renderAgentDetails(provider, details) {
           </div>
           <span class="text-[9px] technical-font text-slate-500">${details.conversation.length} entries</span>
         </div>
-        <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
+        <div class="space-y-3 max-h-72 overflow-y-auto pr-2 mb-4">
           ${details.conversation.map(msg => `
             <div class="flex ${msg.isUser ? 'justify-end' : 'justify-start'}">
               <div class="max-w-[85%] ${msg.isUser ? 'bg-[#C2B280]/10 border-[#C2B280]/30' : 'bg-[#1A1A1A] border-[#2A2A2A]'} border p-3">
@@ -2108,9 +2117,63 @@ function renderAgentDetails(provider, details) {
     `;
   }
 
+  // Follow-up Input Section (Jules/Cursor)
+  if ((provider === 'jules' || provider === 'cursor') && details.rawId) {
+    content += `
+      <section class="mt-6 pt-4 border-t border-[#2A2A2A]">
+        <div class="flex flex-col gap-2">
+           <label class="text-[10px] technical-font text-slate-500 uppercase">Send Follow-up Message</label>
+           <textarea id="follow-up-input"
+                     class="w-full bg-[#0D0D0D] border border-[#2A2A2A] text-slate-300 text-sm p-3 focus:border-[#C2B280] focus:outline-none transition-colors h-24 resize-none"
+                     placeholder="Type instructions to continue task..."></textarea>
+           <div class="flex justify-end mt-2">
+              <button onclick="sendFollowUp('${provider}', '${escapeJsString(details.rawId)}')"
+                      id="send-follow-up-btn"
+                      class="bg-[#C2B280] text-black px-4 py-2 text-xs technical-font font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                 <span class="material-symbols-outlined text-sm">send</span>
+                 SEND
+              </button>
+           </div>
+        </div>
+      </section>
+    `;
+  }
+
   content += '</div>';
   elements.modalContent.innerHTML = content;
 }
+
+window.sendFollowUp = async function(provider, rawId) {
+  const input = document.getElementById('follow-up-input');
+  const btn = document.getElementById('send-follow-up-btn');
+  const message = input.value.trim();
+
+  if (!message) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> SENDING...';
+
+  try {
+    const electronAPI = getElectronAPI();
+    await electronAPI.sendMessage(provider, rawId, message);
+
+    // Clear input
+    input.value = '';
+
+    // Refresh details to show new message (might take a moment for backend to process)
+    // Wait briefly then refresh
+    setTimeout(() => window.refreshAgentDetails(), 1000);
+
+    showToast('Message sent successfully', 'success');
+  } catch (err) {
+    showToast(`Failed to send message: ${err.message}`, 'error');
+  } finally {
+    if (btn) { // Check if element still exists (modal might have closed)
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-sm">send</span> SEND';
+    }
+  }
+};
 
 window.closeModal = function() {
   elements.agentModal.classList.add('hidden');

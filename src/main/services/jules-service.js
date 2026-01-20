@@ -351,6 +351,25 @@ class JulesService {
     const response = await this.request('/sessions', 'POST', body);
     return this.normalizeSession(response);
   }
+
+  /**
+   * Send a follow-up message to a session
+   * @param {string} sessionId
+   * @param {string} message
+   */
+  async sendMessage(sessionId, message) {
+    if (!message) {
+      throw new Error('Message is required');
+    }
+
+    const body = {
+      prompt: message
+    };
+
+    // The API uses the custom verb :sendMessage
+    await this.request(`/sessions/${sessionId}:sendMessage`, 'POST', body);
+    return { success: true };
+  }
 }
 
 module.exports = new JulesService();

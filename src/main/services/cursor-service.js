@@ -304,6 +304,26 @@ class CursorService {
     const response = await this.request('/agents', 'POST', body);
     return this.normalizeAgent(response);
   }
+
+  /**
+   * Add a follow-up instruction to an existing agent
+   * @param {string} agentId
+   * @param {string} message
+   */
+  async addFollowUp(agentId, message) {
+    if (!message) {
+      throw new Error('Message is required');
+    }
+
+    const body = {
+      prompt: {
+        text: message
+      }
+    };
+
+    const response = await this.request(`/agents/${agentId}/followup`, 'POST', body);
+    return response; // Returns { id: agentId }
+  }
 }
 
 module.exports = new CursorService();

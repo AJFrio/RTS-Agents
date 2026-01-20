@@ -985,13 +985,22 @@ function createAgentCard(agent) {
             ${extractRepoName(agent.repository)}
           </div>
         ` : '<div></div>'}
-        ${agent.prUrl ? `
-          <a href="#" onclick="event.stopPropagation(); openExternal('${agent.prUrl}')" 
-             class="text-[10px] technical-font text-[#C2B280] hover:underline flex items-center gap-1">
-            <span class="material-symbols-outlined text-xs">open_in_new</span>
-            View PR
-          </a>
-        ` : ''}
+        <div class="flex gap-3">
+          ${agent.webUrl ? `
+            <a href="#" onclick="event.stopPropagation(); openExternal('${agent.webUrl}')"
+               class="text-[10px] technical-font text-slate-400 hover:text-[#C2B280] hover:underline flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs">terminal</span>
+              Console
+            </a>
+          ` : ''}
+          ${agent.prUrl ? `
+            <a href="#" onclick="event.stopPropagation(); openExternal('${agent.prUrl}')"
+               class="text-[10px] technical-font text-[#C2B280] hover:underline flex items-center gap-1">
+              <span class="material-symbols-outlined text-xs">open_in_new</span>
+              View PR
+            </a>
+          ` : ''}
+        </div>
       </div>
 
       <!-- Running indicator -->
@@ -1462,14 +1471,20 @@ function renderAgentDetails(provider, details) {
           </div>
           ` : ''}
         </div>
-        ${details.prUrl ? `
-        <div class="mt-4 flex justify-end">
+        <div class="mt-4 flex justify-end gap-2">
+          ${details.webUrl ? `
+          <button onclick="openExternal('${details.webUrl}')" class="bg-[#1A1A1A] text-slate-300 border border-slate-600 px-4 py-1.5 text-[10px] technical-font font-bold hover:bg-slate-800 flex items-center gap-2">
+            <span class="material-symbols-outlined text-xs">terminal</span>
+            View Console
+          </button>
+          ` : ''}
+          ${details.prUrl ? `
           <button onclick="openExternal('${details.prUrl}')" class="bg-[#C2B280] text-black px-4 py-1.5 text-[10px] technical-font font-bold hover:brightness-110 flex items-center gap-2">
             <span class="material-symbols-outlined text-xs">open_in_new</span>
             View PR
           </button>
+          ` : ''}
         </div>
-        ` : ''}
       </div>
     </div>
   `;

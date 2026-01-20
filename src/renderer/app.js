@@ -628,7 +628,8 @@ function populateRepoDropdown(repositories, service) {
 async function loadAgents(silent = false) {
   if (!window.electronAPI) return;
 
-  if (!silent) {
+  // Only show full loading state if we have no agents and it's not a silent refresh
+  if (!silent && state.agents.length === 0) {
     state.loading = true;
     showLoading();
   }
@@ -1847,8 +1848,16 @@ async function loadBranches() {
 
   state.github.loadingRepos = true;
   elements.branchesEmpty.classList.add('hidden');
-  elements.branchesContent.classList.add('hidden');
-  elements.branchesLoading.classList.remove('hidden');
+
+  // Only show full loading state if we have no repos
+  if (state.github.repos.length === 0) {
+    elements.branchesContent.classList.add('hidden');
+    elements.branchesLoading.classList.remove('hidden');
+  } else {
+    // Otherwise show loading on refresh button
+    elements.refreshBranchesBtn.disabled = true;
+    elements.refreshBranchesBtn.querySelector('.material-symbols-outlined').classList.add('animate-spin');
+  }
 
   try {
      const result = await window.electronAPI.github.getRepos();
@@ -1867,12 +1876,19 @@ async function loadBranches() {
      }
   } catch (err) {
      console.error('Error loading branches:', err);
-     elements.branchesLoading.classList.add('hidden');
-     elements.branchesEmpty.classList.remove('hidden');
-     elements.branchesEmpty.querySelector('h3').textContent = 'Error Loading Repositories';
-     elements.branchesEmpty.querySelector('p').textContent = err.message;
+
+     if (state.github.repos.length === 0) {
+        elements.branchesLoading.classList.add('hidden');
+        elements.branchesEmpty.classList.remove('hidden');
+        elements.branchesEmpty.querySelector('h3').textContent = 'Error Loading Repositories';
+        elements.branchesEmpty.querySelector('p').textContent = err.message;
+     } else {
+        showToast(`Failed to refresh repos: ${err.message}`, 'error');
+     }
   } finally {
      state.github.loadingRepos = false;
+     elements.refreshBranchesBtn.disabled = false;
+     elements.refreshBranchesBtn.querySelector('.material-symbols-outlined').classList.remove('animate-spin');
   }
 }
 
@@ -1916,6 +1932,10 @@ function renderRepos() {
 window.selectRepo = async function(owner, repoName, repoId) {
    // Update state
    const repo = state.github.repos.find(r => r.id === repoId);
+
+   // Check if we are refreshing the current repo
+   const isRefresh = state.github.selectedRepo?.id === repoId;
+
    state.github.selectedRepo = repo;
    
    // Update UI highlights
@@ -1934,13 +1954,18 @@ window.selectRepo = async function(owner, repoName, repoId) {
    };
    
    // Loading state for PRs
-   elements.prList.innerHTML = `
-      <div class="flex flex-col items-center justify-center h-32">
-         <span class="material-symbols-outlined text-[#C2B280] text-3xl animate-spin">sync</span>
-         <span class="text-xs technical-font text-slate-500 mt-2">LOADING PRs...</span>
-      </div>
-   `;
-   elements.prCount.textContent = '-';
+   if (!isRefresh) {
+     elements.prList.innerHTML = `
+        <div class="flex flex-col items-center justify-center h-32">
+           <span class="material-symbols-outlined text-[#C2B280] text-3xl animate-spin">sync</span>
+           <span class="text-xs technical-font text-slate-500 mt-2">LOADING PRs...</span>
+        </div>
+     `;
+     elements.prCount.textContent = '-';
+   } else {
+     // Show spinner in count for refresh
+     elements.prCount.innerHTML = '<span class="material-symbols-outlined text-xs animate-spin">sync</span>';
+   }
    
    try {
       const result = await window.electronAPI.github.getPrs(owner, repoName);
@@ -1953,11 +1978,18 @@ window.selectRepo = async function(owner, repoName, repoId) {
       }
    } catch (err) {
       console.error('Error fetching PRs:', err);
-      elements.prList.innerHTML = `
-         <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 text-xs technical-font text-center">
-            FAILED TO LOAD PRs: ${escapeHtml(err.message)}
-         </div>
-      `;
+
+      if (!isRefresh) {
+        elements.prList.innerHTML = `
+           <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 text-xs technical-font text-center">
+              FAILED TO LOAD PRs: ${escapeHtml(err.message)}
+           </div>
+        `;
+      } else {
+        showToast(`Failed to refresh PRs: ${err.message}`, 'error');
+        // Restore count if failed
+        elements.prCount.textContent = state.github.prs.length;
+      }
    }
 };
 

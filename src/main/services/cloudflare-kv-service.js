@@ -219,6 +219,48 @@ class CloudflareKvService {
   async pullKeys(namespaceId) {
     return this.getValueJson(namespaceId, 'keys', {});
   }
+
+  // ============================================
+  // Remote task queue helpers
+  // ============================================
+
+  _queueKey(deviceId) {
+    if (!deviceId) throw new Error('Missing deviceId for queue key');
+    return `queue:${deviceId}`;
+  }
+
+  async getDeviceQueue(namespaceId, deviceId) {
+    return this.getValueJson(namespaceId, this._queueKey(deviceId), []);
+  }
+
+  async putDeviceQueue(namespaceId, deviceId, queue) {
+    if (!Array.isArray(queue)) throw new Error('Queue must be an array');
+    return this.putValue(namespaceId, this._queueKey(deviceId), queue);
+  }
+
+  async enqueueDeviceTask(namespaceId, deviceId, task) {
+    const queue = await this.getDeviceQueue(namespaceId, deviceId);
+    const next = Array.isArray(queue) ? [...queue, task] : [task];
+    await this.putDeviceQueue(namespaceId, deviceId, next);
+    return next;
+  }
+
+  // ============================================
+  // Remote running task status helpers
+  // ============================================
+
+  async getTasksMap(namespaceId) {
+    const tasks = await this.getValueJson(namespaceId, 'tasks', {});
+    return tasks && typeof tasks === 'object' && !Array.isArray(tasks) ? tasks : {};
+  }
+
+  async setDeviceTaskStatus(namespaceId, deviceId, status) {
+    if (!deviceId) throw new Error('Missing deviceId for task status');
+    const tasks = await this.getTasksMap(namespaceId);
+    const next = { ...tasks, [deviceId]: status };
+    await this.putValue(namespaceId, 'tasks', next);
+    return next;
+  }
 }
 
 module.exports = new CloudflareKvService();

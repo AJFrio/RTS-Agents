@@ -17,6 +17,7 @@ let pollingInterval = null;
 let cloudflareHeartbeatInterval = null;
 let updateInterval = null;
 let isQuitting = false;
+let isProcessingCloudflareQueue = false;
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
 const UPDATE_INTERVAL_MS = 21600000; // 6 hours
@@ -118,6 +119,26 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const identity = configStore.getOrCreateDeviceIdentity();
   const nowIso = new Date().toISOString();
   const nextStatus = status || 'on';
+
+  // If GitHub paths are configured, publish local repo inventory so other machines
+  // can target a repo that exists on this device.
+  let repos = [];
+  try {
+    const githubPaths = configStore.getGithubPaths();
+    if (Array.isArray(githubPaths) && githubPaths.length > 0) {
+      const scanned = await geminiService.getAvailableProjects(githubPaths);
+      repos = (scanned || [])
+        .map(p => ({
+          name: p?.name || p?.id || 'unknown',
+          path: p?.path || null
+        }))
+        .filter(r => !!r.path);
+    }
+  } catch (err) {
+    console.warn('Failed to scan local repos for heartbeat:', err?.message || err);
+    repos = [];
+  }
+
   const device = {
     id: identity.id,
     name: identity.name,
@@ -128,10 +149,91 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     tools: {
       gemini: geminiService.isGeminiInstalled(),
       'claude-cli': claudeService.isClaudeInstalled()
-    }
+    },
+    repos,
+    reposUpdatedAt: nowIso
   };
 
   await cloudflareKvService.heartbeat({ namespaceId, device, staleAfterMs: DEVICE_STALE_OFFLINE_MS });
+
+  // On each heartbeat, opportunistically pull and execute queued remote tasks for this device.
+  // Intentionally skipped while shutting down or when marking the device offline.
+  if (!isQuitting && nextStatus === 'on') {
+    void processCloudflareQueue(namespaceId).catch(err => {
+      console.warn('Cloudflare queue processing failed:', err?.message || err);
+    });
+  }
+}
+
+async function processCloudflareQueue(namespaceId) {
+  if (!namespaceId) return;
+  if (!configStore.hasCloudflareConfig()) return;
+  if (isProcessingCloudflareQueue) return;
+
+  isProcessingCloudflareQueue = true;
+  const identity = configStore.getOrCreateDeviceIdentity();
+  const nowIso = new Date().toISOString();
+
+  try {
+    const queue = await cloudflareKvService.getDeviceQueue(namespaceId, identity.id);
+    if (!Array.isArray(queue) || queue.length === 0) return;
+
+    // Process a single item per heartbeat to avoid long blocking work.
+    const item = queue[0];
+    const rest = queue.slice(1);
+
+    // Remove from queue first to avoid re-processing on crashes/retries.
+    await cloudflareKvService.putDeviceQueue(namespaceId, identity.id, rest);
+
+    const baseStatus = {
+      status: 'starting',
+      tool: item?.tool || null,
+      repo: item?.repo || null,
+      prompt: item?.prompt || null,
+      requestedBy: item?.requestedBy || null,
+      taskRequestId: item?.id || null,
+      device: { id: identity.id, name: identity.name },
+      updatedAt: nowIso
+    };
+
+    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, baseStatus);
+
+    const tool = item?.tool;
+    const repoPath = item?.repo?.path;
+    const prompt = item?.prompt;
+
+    if (!tool) throw new Error('Queued task missing tool');
+    if (!prompt) throw new Error('Queued task missing prompt');
+    if (!repoPath) throw new Error('Queued task missing repo.path');
+
+    let started;
+    if (tool === 'gemini') {
+      if (!geminiService.isGeminiInstalled()) throw new Error('Gemini CLI not installed on target device');
+      started = await geminiService.startSession({ prompt, projectPath: repoPath });
+    } else if (tool === 'claude-cli') {
+      if (!claudeService.isClaudeInstalled()) throw new Error('Claude CLI not installed on target device');
+      started = await claudeService.startLocalSession({ prompt, projectPath: repoPath });
+    } else {
+      throw new Error(`Unsupported queued tool: ${tool}`);
+    }
+
+    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
+      ...baseStatus,
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      startedTask: started || null,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
+      status: 'error',
+      error: err?.message || String(err),
+      device: { id: identity.id, name: identity.name },
+      updatedAt: new Date().toISOString()
+    });
+  } finally {
+    isProcessingCloudflareQueue = false;
+  }
 }
 
 function startCloudflareHeartbeatIfEnabled() {

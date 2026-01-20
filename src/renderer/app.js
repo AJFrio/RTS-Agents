@@ -2286,9 +2286,9 @@ window.openPrDetails = async function(owner, repo, number) {
          elements.prModalLink.onclick = (e) => { e.preventDefault(); window.openExternal(pr.html_url); };
          elements.prModalMeta.textContent = `Updated ${formatTimeAgo(pr.updated_at)}`;
          
-         // Markdown body (simple text rendering for now, could use marked.js if added)
+         // Markdown body
          elements.prModalBody.innerHTML = pr.body ? 
-            pr.body.replace(/\n/g, '<br>').replace(/`([^`]+)`/g, '<code class="bg-slate-800 px-1 text-xs">$1</code>') : 
+            DOMPurify.sanitize(marked.parse(pr.body)) :
             '<em class="text-slate-500">No description provided.</em>';
          
          // Merge status

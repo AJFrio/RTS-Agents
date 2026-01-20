@@ -705,6 +705,20 @@
               <span class="flex items-center justify-center w-6 h-6 border border-[#C2B280] text-[10px] technical-font text-[#C2B280]">01</span>
               <h3 class="technical-font font-bold text-slate-300">Choose Service</h3>
             </div>
+
+            <!-- Target Device Selector -->
+            <div class="mb-6">
+               <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Target Device</label>
+               <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">devices</span>
+                  <select id="new-task-target-device"
+                     class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                     <option value="">THIS COMPUTER (LOCAL)</option>
+                  </select>
+                  <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
+               </div>
+            </div>
+
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <!-- Gemini CLI -->
               <button type="button" id="service-gemini" onclick="selectService('gemini')" 

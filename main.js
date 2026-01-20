@@ -983,6 +983,45 @@ ipcMain.handle('repos:get-all', async () => {
  */
 ipcMain.handle('tasks:create', async (event, { provider, options }) => {
   try {
+    // Handle remote task execution
+    if (options && options.targetDeviceId) {
+      const namespaceId = await ensureCloudflareNamespaceId();
+      if (!namespaceId) throw new Error('Cloudflare KV not configured');
+
+      // Validate supported remote tools
+      if (provider !== 'gemini' && provider !== 'claude-cli') {
+        throw new Error(`Remote execution is not supported for ${provider}. Only local CLI tools (Gemini, Claude CLI) can be run remotely.`);
+      }
+
+      const identity = configStore.getOrCreateDeviceIdentity();
+      const nowIso = new Date().toISOString();
+      const repoPath = options.projectPath || options.repository; // Remotes expect path
+
+      if (!repoPath) throw new Error('Repository path is required for remote tasks');
+
+      const task = {
+        id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        tool: provider,
+        repo: { path: repoPath },
+        prompt: options.prompt,
+        requestedBy: identity.name,
+        createdAt: nowIso
+      };
+
+      await cloudflareKvService.enqueueDeviceTask(namespaceId, options.targetDeviceId, task);
+
+      return {
+        success: true,
+        task: {
+          ...task,
+          status: 'queued',
+          provider,
+          name: `Remote ${provider} task`,
+          summary: `Queued on remote device`
+        }
+      };
+    }
+
     switch (provider) {
       case 'jules':
         if (!configStore.hasApiKey('jules')) {

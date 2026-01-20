@@ -60,6 +60,7 @@ const state = {
   // New task modal state
   newTask: {
     selectedService: null,
+    targetDevice: null, // null = local, object = remote device
     repositories: [],
     loadingRepos: false,
     creating: false,
@@ -176,6 +177,7 @@ const elements = {
   // New Task Modal
   newTaskModal: document.getElementById('new-task-modal'),
   newTaskBtn: document.getElementById('new-task-btn'),
+  newTaskTargetDevice: document.getElementById('new-task-target-device'),
   serviceStatus: document.getElementById('service-status'),
   taskRepo: document.getElementById('task-repo'),
   taskRepoSearch: document.getElementById('task-repo-search'),
@@ -524,6 +526,9 @@ function setupEventListeners() {
 
   // New Task Modal
   elements.newTaskBtn.addEventListener('click', openNewTaskModal);
+  if (elements.newTaskTargetDevice) {
+    elements.newTaskTargetDevice.addEventListener('change', handleTargetDeviceChange);
+  }
   elements.taskPrompt.addEventListener('input', () => {
     validateNewTaskForm();
     if (state.newTask.promptMode === 'preview') {
@@ -993,11 +998,31 @@ function updateProviderFilterVisibility() {
 function updateServiceButtonVisibility() {
   const providers = ['gemini', 'jules', 'cursor', 'codex', 'claude-cli', 'claude-cloud'];
   let availableCount = 0;
-  
+  const targetDevice = state.newTask.targetDevice;
+
   providers.forEach(provider => {
     const serviceBtn = document.getElementById(`service-${provider}`);
     if (serviceBtn) {
-      if (state.configuredServices[provider]) {
+      let visible = false;
+
+      if (targetDevice) {
+        // Remote mode: Only show tools installed on remote device
+        // Only gemini and claude-cli are supported remotely
+        if (provider === 'gemini' || provider === 'claude-cli') {
+          // Check if tool is reported as installed in device.tools
+          // device.tools keys might be 'gemini', 'claude-cli'
+          if (targetDevice.tools && targetDevice.tools[provider]) {
+            visible = true;
+          }
+        }
+      } else {
+        // Local mode: Show locally configured services
+        if (state.configuredServices[provider]) {
+          visible = true;
+        }
+      }
+
+      if (visible) {
         serviceBtn.classList.remove('hidden');
         availableCount++;
       } else {
@@ -1008,8 +1033,14 @@ function updateServiceButtonVisibility() {
 
   // Update service status message if no services are available
   if (availableCount === 0) {
-    elements.serviceStatus.textContent = 'No services configured. Please add API keys or install CLI tools in Settings.';
+    if (targetDevice) {
+      elements.serviceStatus.textContent = 'No compatible CLI tools found on this remote device.';
+    } else {
+      elements.serviceStatus.textContent = 'No services configured. Please add API keys or install CLI tools in Settings.';
+    }
     elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
+  } else {
+    elements.serviceStatus.textContent = '';
   }
 }
 
@@ -2075,6 +2106,47 @@ function resetNewTaskBranchDropdown() {
   setNewTaskBranchOptions(['main', 'master'], 'main');
 }
 
+function populateTargetDeviceDropdown() {
+  const select = elements.newTaskTargetDevice;
+  if (!select) return;
+
+  // Clear existing options (except first "This Computer")
+  while (select.options.length > 1) {
+    select.remove(1);
+  }
+
+  // Populate from state.computers.list
+  // Filter for online devices if desired, or show all with status indication
+  state.computers.list.forEach(device => {
+    // Only show devices that are ON or have recent heartbeat
+    const lastHeartbeat = device.lastHeartbeat || device.heartbeatAt || device.updatedAt;
+    const isOnline = device.status === 'on' || (lastHeartbeat && (Date.now() - new Date(lastHeartbeat).getTime() < 1000 * 60 * 6)); // 6 mins
+
+    if (isOnline) {
+       const option = document.createElement('option');
+       option.value = device.id;
+       option.textContent = `REMOTE: ${(device.name || device.id).toUpperCase()}`;
+       select.appendChild(option);
+    }
+  });
+}
+
+function handleTargetDeviceChange(e) {
+  const deviceId = e.target.value;
+
+  if (!deviceId) {
+    state.newTask.targetDevice = null;
+  } else {
+    state.newTask.targetDevice = state.computers.list.find(d => d.id === deviceId) || null;
+  }
+
+  // Reset service selection as available services might change
+  state.newTask.selectedService = null;
+  resetNewTaskForm(false); // don't reset target device
+
+  updateServiceButtonVisibility();
+}
+
 function tryParseGithubOwnerRepo(repoData) {
   if (!repoData) return null;
 
@@ -2135,6 +2207,10 @@ function openNewTaskModal() {
     promptMode: 'write',
     pastedImages: []
   };
+
+  // Populate devices
+  populateTargetDeviceDropdown();
+  if (elements.newTaskTargetDevice) elements.newTaskTargetDevice.value = "";
 
   // Reset form
   resetNewTaskForm();
@@ -2352,22 +2428,24 @@ async function loadRepositoriesForService(service) {
   elements.serviceStatus.textContent = '';
 
   try {
-    const result = await electronAPI.getRepositories(service);
+    let repositories = [];
 
-    if (!result.success) {
-      elements.repoError.textContent = result.error;
-      elements.repoError.classList.remove('hidden');
-      elements.taskRepoSearch.placeholder = 'Error loading repositories';
-      elements.serviceStatus.textContent = result.error;
-      elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
-
-      // Ensure empty repo list and dropdown cleared
-      state.newTask.repositories = [];
-      populateRepoDropdown([], service);
-      return;
+    if (state.newTask.targetDevice) {
+      // Remote mode: get repos from device state
+      // The heartbeat sends `repos` array
+      repositories = state.newTask.targetDevice.repos || [];
+      // Simulate API delay for better UX consistency
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } else {
+      // Local mode
+      const result = await electronAPI.getRepositories(service);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      repositories = result.repositories || [];
     }
 
-    state.newTask.repositories = result.repositories || [];
+    state.newTask.repositories = repositories;
 
     // Always populate dropdown (will show "NO REPOSITORIES FOUND" if empty)
     populateRepoDropdown(state.newTask.repositories, service);
@@ -2453,6 +2531,11 @@ window.submitNewTask = async function() {
       autoCreatePr: autoCreatePr,
       attachments
     };
+
+    // Handle remote target
+    if (state.newTask.targetDevice) {
+      options.targetDeviceId = state.newTask.targetDevice.id;
+    }
 
     if (service === 'jules') {
       options.source = repoValue;

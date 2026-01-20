@@ -79,6 +79,12 @@ const state = {
     loadingRepos: false,
     loadingPrs: false,
     currentPr: null
+  },
+  // Computers state (Cloudflare KV)
+  computers: {
+    list: [],
+    loading: false,
+    configured: false
   }
 };
 
@@ -97,6 +103,7 @@ const elements = {
   viewDashboard: document.getElementById('view-dashboard'),
   viewSettings: document.getElementById('view-settings'),
   viewBranches: document.getElementById('view-branches'),
+  viewComputers: document.getElementById('view-computers'),
   viewTitle: document.getElementById('view-title'),
   sidenavProviders: document.getElementById('sidenav-providers'),
   sidenavStatus: document.getElementById('sidenav-status'),
@@ -144,6 +151,8 @@ const elements = {
   codexApiKey: document.getElementById('codex-api-key'),
   claudeApiKey: document.getElementById('claude-api-key'),
   githubApiKey: document.getElementById('github-api-key'),
+  cloudflareAccountId: document.getElementById('cloudflare-account-id'),
+  cloudflareApiToken: document.getElementById('cloudflare-api-token'),
   autoPolling: document.getElementById('auto-polling'),
   pollingInterval: document.getElementById('polling-interval'),
   intervalValue: document.getElementById('interval-value'),
@@ -195,6 +204,12 @@ const elements = {
   prList: document.getElementById('pr-list'),
   refreshBranchesBtn: document.getElementById('refresh-branches-btn'),
   repoCount: document.getElementById('repo-count'),
+
+  // Computers View
+  computersLoading: document.getElementById('computers-loading'),
+  computersEmpty: document.getElementById('computers-empty'),
+  computersEmptySubtitle: document.getElementById('computers-empty-subtitle'),
+  computersGrid: document.getElementById('computers-grid'),
 
   // PR Modal
   prModal: document.getElementById('pr-modal'),
@@ -397,7 +412,11 @@ function setupEventListeners() {
   }, 300));
 
   // Refresh button
-  elements.refreshBtn.addEventListener('click', () => loadAgents());
+  elements.refreshBtn.addEventListener('click', () => {
+    if (state.currentView === 'branches') return loadBranches();
+    if (state.currentView === 'computers') return loadComputers();
+    return loadAgents();
+  });
 
   // Provider filters
   document.querySelectorAll('.provider-filter').forEach(checkbox => {
@@ -435,6 +454,14 @@ function setupEventListeners() {
   document.getElementById('save-github-key').addEventListener('click', () => saveApiKey('github'));
   document.getElementById('test-github-key').addEventListener('click', () => testApiKey('github'));
   document.getElementById('disconnect-github-key').addEventListener('click', () => disconnectApiKey('github'));
+
+  // Settings - Cloudflare KV
+  const saveCfBtn = document.getElementById('save-cloudflare-config');
+  const testCfBtn = document.getElementById('test-cloudflare-config');
+  const disconnectCfBtn = document.getElementById('disconnect-cloudflare-config');
+  if (saveCfBtn) saveCfBtn.addEventListener('click', saveCloudflareConfig);
+  if (testCfBtn) testCfBtn.addEventListener('click', testCloudflareConfig);
+  if (disconnectCfBtn) disconnectCfBtn.addEventListener('click', disconnectCloudflareConfig);
 
   // Settings - Theme
   ['system', 'light', 'dark'].forEach(theme => {
@@ -865,6 +892,22 @@ async function loadSettings() {
     } else {
       document.getElementById('disconnect-github-key')?.classList.add('hidden');
     }
+
+    // Cloudflare KV settings
+    const cfConfigured = !!(result.cloudflare?.configured || result.apiKeys?.cloudflare);
+    state.computers.configured = cfConfigured;
+    if (elements.cloudflareAccountId) {
+      elements.cloudflareAccountId.value = result.cloudflare?.accountId || '';
+    }
+    if (elements.cloudflareApiToken) {
+      elements.cloudflareApiToken.value = '';
+      elements.cloudflareApiToken.placeholder = cfConfigured ? '••••••••••••••••' : 'Enter Cloudflare API token';
+    }
+    if (cfConfigured) {
+      document.getElementById('disconnect-cloudflare-config')?.classList.remove('hidden');
+    } else {
+      document.getElementById('disconnect-cloudflare-config')?.classList.add('hidden');
+    }
   } catch (err) {
     console.error('Error loading settings:', err);
   }
@@ -1220,7 +1263,8 @@ function showView(view) {
   const titles = {
     dashboard: 'Agent Dashboard',
     settings: 'Settings',
-    branches: 'Repository Branches'
+    branches: 'Repository Branches',
+    computers: 'Computers'
   };
   elements.viewTitle.textContent = titles[view] || 'Dashboard';
 
@@ -1228,6 +1272,9 @@ function showView(view) {
   elements.viewDashboard.classList.toggle('hidden', view !== 'dashboard');
   elements.viewSettings.classList.toggle('hidden', view !== 'settings');
   elements.viewBranches.classList.toggle('hidden', view !== 'branches');
+  if (elements.viewComputers) {
+    elements.viewComputers.classList.toggle('hidden', view !== 'computers');
+  }
 
   // Show/hide sidenav sections
   if (elements.sidenavProviders) {
@@ -1242,6 +1289,14 @@ function showView(view) {
     if (state.github.repos.length === 0) {
       loadBranches();
     }
+  }
+
+  // Load computers if view selected
+  if (view === 'computers') {
+    loadComputers();
+    elements.totalCount.textContent = `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`;
+  } else {
+    updateCounts();
   }
 }
 
@@ -1402,6 +1457,74 @@ async function disconnectApiKey(provider) {
     
     await checkConnectionStatus();
     await loadAgents();
+  } catch (err) {
+    showToast(`Disconnect failed: ${err.message}`, 'error');
+  }
+}
+
+async function saveCloudflareConfig() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.setCloudflareConfig) {
+    showToast('Cloudflare settings are not available in this build', 'error');
+    return;
+  }
+
+  const accountId = elements.cloudflareAccountId?.value?.trim() || '';
+  const apiToken = elements.cloudflareApiToken?.value?.trim() || '';
+
+  if (!accountId || !apiToken) {
+    showToast('Please enter Cloudflare Account ID and API Token', 'error');
+    return;
+  }
+
+  try {
+    await electronAPI.setCloudflareConfig(accountId, apiToken);
+    elements.cloudflareApiToken.value = '';
+    showToast('Cloudflare KV configured', 'success');
+    await loadSettings();
+  } catch (err) {
+    showToast(`Save failed: ${err.message}`, 'error');
+  }
+}
+
+async function testCloudflareConfig() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.testCloudflare) {
+    showToast('Cloudflare test is not available in this build', 'error');
+    return;
+  }
+
+  try {
+    const result = await electronAPI.testCloudflare();
+    if (result.success) {
+      showToast('Cloudflare KV connection verified', 'success');
+    } else {
+      showToast(`Cloudflare KV failed: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Test failed: ${err.message}`, 'error');
+  }
+}
+
+async function disconnectCloudflareConfig() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.clearCloudflareConfig) {
+    showToast('Cloudflare disconnect is not available in this build', 'error');
+    return;
+  }
+
+  if (!await showConfirmModal('Are you sure you want to disconnect Cloudflare KV? This will remove the saved Cloudflare credentials.', 'DISCONNECT CLOUDFLARE')) {
+    return;
+  }
+
+  try {
+    await electronAPI.clearCloudflareConfig();
+    if (elements.cloudflareApiToken) {
+      elements.cloudflareApiToken.value = '';
+      elements.cloudflareApiToken.placeholder = 'Enter Cloudflare API token';
+    }
+    showToast('Cloudflare KV disconnected', 'success');
+    await loadSettings();
   } catch (err) {
     showToast(`Disconnect failed: ${err.message}`, 'error');
   }
@@ -2206,6 +2329,136 @@ async function loadBranches() {
      elements.refreshBranchesBtn.disabled = false;
      elements.refreshBranchesBtn.querySelector('.material-symbols-outlined').classList.remove('animate-spin');
   }
+}
+
+// ============================================ 
+// Computers Logic (Cloudflare KV)
+// ============================================ 
+
+async function loadComputers() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.listComputers) {
+    if (elements.computersEmptySubtitle) {
+      elements.computersEmptySubtitle.textContent = 'This build does not support listing computers.';
+    }
+    elements.computersLoading?.classList.add('hidden');
+    elements.computersGrid?.classList.add('hidden');
+    elements.computersEmpty?.classList.remove('hidden');
+    state.computers.list = [];
+    elements.totalCount.textContent = '0 Computers';
+    return;
+  }
+
+  state.computers.loading = true;
+  elements.computersGrid?.classList.add('hidden');
+  elements.computersEmpty?.classList.add('hidden');
+  elements.computersLoading?.classList.remove('hidden');
+
+  try {
+    const result = await electronAPI.listComputers();
+    if (result && result.success === false) {
+      throw new Error(result.error || 'Failed to load computers');
+    }
+    state.computers.configured = !!result?.configured;
+    state.computers.list = Array.isArray(result?.computers) ? result.computers : [];
+
+    renderComputers();
+  } catch (err) {
+    console.error('Error loading computers:', err);
+    state.computers.list = [];
+    state.computers.configured = false;
+    if (elements.computersEmptySubtitle) {
+      elements.computersEmptySubtitle.textContent = err.message || 'Failed to load computers.';
+    }
+    elements.computersEmpty?.classList.remove('hidden');
+    elements.computersGrid?.classList.add('hidden');
+  } finally {
+    state.computers.loading = false;
+    elements.computersLoading?.classList.add('hidden');
+    elements.totalCount.textContent = `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`;
+  }
+}
+
+function renderComputers() {
+  if (!elements.computersGrid || !elements.computersEmpty) return;
+
+  if (!state.computers.configured) {
+    if (elements.computersEmptySubtitle) {
+      elements.computersEmptySubtitle.textContent = 'Configure Cloudflare KV in Settings to see available computers.';
+    }
+    elements.computersGrid.classList.add('hidden');
+    elements.computersEmpty.classList.remove('hidden');
+    return;
+  }
+
+  if (state.computers.list.length === 0) {
+    if (elements.computersEmptySubtitle) {
+      elements.computersEmptySubtitle.textContent = 'No devices have reported a heartbeat yet.';
+    }
+    elements.computersGrid.classList.add('hidden');
+    elements.computersEmpty.classList.remove('hidden');
+    return;
+  }
+
+  elements.computersEmpty.classList.add('hidden');
+  elements.computersGrid.classList.remove('hidden');
+
+  elements.computersGrid.innerHTML = state.computers.list
+    .map(device => renderComputerCard(device))
+    .join('');
+}
+
+function renderComputerCard(device) {
+  const name = escapeHtml(device?.name || device?.id || 'UNKNOWN');
+  const id = escapeHtml(device?.id || '--');
+  const lastHeartbeat = device?.lastHeartbeat || device?.heartbeatAt || device?.updatedAt || null;
+  const then = lastHeartbeat ? new Date(lastHeartbeat) : null;
+  const online = then ? (Date.now() - then.getTime()) < 120000 : false;
+
+  const statusLabel = online ? 'ONLINE' : 'OFFLINE';
+  const statusClass = online
+    ? 'border-emerald-500 text-emerald-500 bg-emerald-500/10'
+    : 'border-slate-600 text-slate-400 bg-slate-800/30';
+
+  const tools = device?.tools && typeof device.tools === 'object' ? device.tools : {};
+  const toolBadges = [
+    tools.gemini ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI_CLI</span>' : '',
+    tools['claude-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-orange-500 text-orange-500">CLAUDE_CLI</span>' : ''
+  ].filter(Boolean).join(' ');
+
+  let iso = '';
+  try {
+    iso = lastHeartbeat ? new Date(lastHeartbeat).toISOString() : '';
+  } catch (_) {
+    iso = '';
+  }
+
+  return `
+    <div class="agent-card p-6">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-[10px] technical-font text-slate-500">COMPUTER</div>
+          <div class="mt-1 text-lg font-display font-bold text-white uppercase tracking-tight line-clamp-1">${name}</div>
+          <div class="mt-1 text-[10px] technical-font text-slate-500">ID: ${id}</div>
+        </div>
+        <span class="px-2 py-1 text-[10px] technical-font border ${statusClass} font-bold">${statusLabel}</span>
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <div>
+          <div class="text-[9px] technical-font text-slate-500 mb-1">LAST_HEARTBEAT</div>
+          <div class="text-xs font-mono text-slate-300">${lastHeartbeat ? `${formatTimeAgo(lastHeartbeat)}${iso ? ` (${escapeHtml(iso)})` : ''}` : '—'}</div>
+        </div>
+
+        <div>
+          <div class="text-[9px] technical-font text-slate-500 mb-2">LOCAL_CLI_TOOLS</div>
+          <div class="flex flex-wrap gap-2">
+            ${toolBadges || '<span class="text-[10px] technical-font text-slate-500">NONE_DETECTED</span>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function filterRepos(query) {

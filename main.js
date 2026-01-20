@@ -15,12 +15,15 @@ let mainWindow;
 let pollingInterval = null;
 
 function createWindow() {
+  const displayMode = configStore.getDisplayMode();
+  const isFullscreen = displayMode === 'fullscreen';
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1000,
     minHeight: 700,
-    fullscreen: true,
+    fullscreen: isFullscreen,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -377,6 +380,17 @@ ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
  */
 ipcMain.handle('settings:set-theme', async (event, { theme }) => {
   configStore.setSetting('theme', theme);
+  return { success: true };
+});
+
+/**
+ * Set display mode
+ */
+ipcMain.handle('settings:set-display-mode', async (event, { mode }) => {
+  configStore.setDisplayMode(mode);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.setFullScreen(mode === 'fullscreen');
+  }
   return { success: true };
 });
 

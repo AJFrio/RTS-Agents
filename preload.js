@@ -77,6 +77,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('settings:set-theme', { theme }),
 
   /**
+   * Set display mode
+   * @param {string} mode - 'fullscreen' or 'windowed'
+   */
+  setDisplayMode: (mode) =>
+    ipcRenderer.invoke('settings:set-display-mode', { mode }),
+
+  /**
    * Save filter settings
    * @param {object} filters
    */

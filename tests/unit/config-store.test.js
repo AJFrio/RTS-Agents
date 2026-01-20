@@ -39,6 +39,19 @@ describe('ConfigStore Unit Tests', () => {
       expect(configStore.getSetting('theme')).toBe('dark');
     });
 
+    test('should manage display mode', () => {
+      // Default
+      expect(configStore.getDisplayMode()).toBe('fullscreen');
+
+      // Set windowed
+      configStore.setDisplayMode('windowed');
+      expect(configStore.getDisplayMode()).toBe('windowed');
+
+      // Set fullscreen
+      configStore.setDisplayMode('fullscreen');
+      expect(configStore.getDisplayMode()).toBe('fullscreen');
+    });
+
     test('should manage Gemini paths', () => {
       const path1 = '/path/to/project1';
       const path2 = '/path/to/project2';

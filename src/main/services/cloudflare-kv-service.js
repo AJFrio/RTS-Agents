@@ -44,7 +44,6 @@ class CloudflareKvService {
     } catch (err) {
       // If request failed due to SSL self-signed certificate, retry insecurely
       if (err.message && /self signed certificate|unable to get local issuer certificate/i.test(err.message)) {
-        console.warn('Cloudflare KV SSL error, retrying insecurely:', err.message);
         return await this._makeRequest(relativePath, options, true);
       }
       throw err;

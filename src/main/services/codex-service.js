@@ -231,7 +231,6 @@ class CodexService {
         .filter((result, index) => {
           if (result.status === 'rejected') {
             // Thread might have been deleted, skip it
-            console.warn(`Could not fetch thread ${trackedThreads[index].id}:`, result.reason?.message);
             return false;
           }
           return true;
@@ -240,7 +239,6 @@ class CodexService {
 
       return agents;
     } catch (err) {
-      console.error('Error fetching Codex threads:', err);
       throw err;
     }
   }

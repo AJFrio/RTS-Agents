@@ -6,9 +6,6 @@ class GeminiService {
   constructor() {
     this.baseDir = path.join(os.homedir(), '.gemini', 'tmp');
     this.historyDir = path.join(os.homedir(), '.gemini', 'history');
-    // Debug: log the paths being used
-    console.log('[GeminiService] Base dir:', this.baseDir);
-    console.log('[GeminiService] History dir:', this.historyDir);
   }
 
   /**
@@ -33,17 +30,13 @@ class GeminiService {
     const projects = [];
     const pathsToScan = [this.baseDir, ...additionalPaths];
 
-    console.log(`[GeminiService] Scanning paths:`, pathsToScan);
-
     for (const basePath of pathsToScan) {
       if (!fs.existsSync(basePath)) {
-        console.log(`[GeminiService] Path does not exist: ${basePath}`);
         continue;
       }
 
       try {
         const entries = fs.readdirSync(basePath, { withFileTypes: true });
-        console.log(`[GeminiService] Found ${entries.length} entries in ${basePath}`);
         
         for (const entry of entries) {
           if (entry.isDirectory()) {
@@ -56,7 +49,6 @@ class GeminiService {
             const chatsPath = path.join(projectPath, 'chats');
             
             if (fs.existsSync(chatsPath)) {
-              console.log(`[GeminiService] Found project: ${entry.name}`);
               projects.push({
                 hash: entry.name,
                 path: projectPath,
@@ -66,11 +58,10 @@ class GeminiService {
           }
         }
       } catch (err) {
-        console.error(`[GeminiService] Error scanning ${basePath}:`, err);
+        // Ignore error
       }
     }
 
-    console.log(`[GeminiService] Total projects discovered: ${projects.length}`);
     return projects;
   }
 
@@ -83,13 +74,11 @@ class GeminiService {
     const sessions = [];
 
     if (!fs.existsSync(chatsPath)) {
-      console.log(`[GeminiService] No chats directory at: ${chatsPath}`);
       return sessions;
     }
 
     try {
       const files = fs.readdirSync(chatsPath).filter(f => f.endsWith('.json'));
-      console.log(`[GeminiService] Found ${files.length} session files in ${chatsPath}`);
 
       for (const file of files) {
         try {
@@ -118,14 +107,13 @@ class GeminiService {
             rawId: session.sessionId || file.replace('.json', '')
           });
         } catch (err) {
-          console.error(`[GeminiService] Error parsing session file ${file}:`, err);
+          // Ignore error
         }
       }
     } catch (err) {
-      console.error(`[GeminiService] Error reading chats directory:`, err);
+      // Ignore error
     }
 
-    console.log(`[GeminiService] Returning ${sessions.length} sessions from ${projectPath}`);
     return sessions;
   }
 
@@ -134,7 +122,6 @@ class GeminiService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async getAllAgents(additionalPaths = []) {
-    console.log('[GeminiService] getAllAgents called with paths:', additionalPaths);
     const projects = await this.discoverProjects(additionalPaths);
     const allSessions = [];
 
@@ -143,8 +130,6 @@ class GeminiService {
       allSessions.push(...sessions);
     }
 
-    console.log(`[GeminiService] Total sessions found: ${allSessions.length}`);
-    
     // Sort by most recent first
     return allSessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   }
@@ -187,7 +172,6 @@ class GeminiService {
         fileSize: stats.size
       };
     } catch (err) {
-      console.error(`Error reading session details:`, err);
       return null;
     }
   }
@@ -395,7 +379,7 @@ class GeminiService {
           }
         }
       } catch (err) {
-        console.error(`Error scanning ${basePath}:`, err);
+        // Ignore error
       }
     }
 
@@ -437,9 +421,6 @@ class GeminiService {
       const geminiCmd = (command && String(command).trim())
         ? String(command).trim()
         : (process.platform === 'win32' ? 'gemini.cmd' : 'gemini');
-      
-      console.log(`Starting Gemini CLI in ${projectPath}`);
-      console.log(`Command: ${geminiCmd} ${args.join(' ')}`);
       
       const child = spawn(geminiCmd, args, {
         cwd: projectPath,

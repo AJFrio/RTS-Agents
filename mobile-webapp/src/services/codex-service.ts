@@ -166,7 +166,7 @@ class CodexService {
         trackedThreads = JSON.parse(stored);
       }
     } catch (err) {
-      console.error('Failed to load tracked threads:', err);
+      // Ignore error
     }
   }
 
@@ -174,7 +174,7 @@ class CodexService {
     try {
       localStorage.setItem('codex_tracked_threads', JSON.stringify(trackedThreads));
     } catch (err) {
-      console.error('Failed to save tracked threads:', err);
+      // Ignore error
     }
   }
 

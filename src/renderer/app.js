@@ -466,7 +466,7 @@ function setupRepoSearchDropdown() {
   // Keyboard navigation
   searchInput.addEventListener('keydown', (e) => {
     const items = dropdown.querySelectorAll('.repo-option:not(.hidden)');
-    const activeItem = dropdown.querySelector('.repo-option.bg-\[\#C2B280\]\/20');
+    const activeItem = dropdown.querySelector('.active-repo-option');
     let activeIndex = Array.from(items).indexOf(activeItem);
 
     switch (e.key) {
@@ -556,10 +556,10 @@ function hideRepoDropdown() {
 function highlightRepoOption(items, index) {
   items.forEach((item, i) => {
     if (i === index) {
-      item.classList.add('bg-[#C2B280]/20');
+      item.classList.add('bg-[#C2B280]/20', 'active-repo-option');
       item.scrollIntoView({ block: 'nearest' });
     } else {
-      item.classList.remove('bg-[#C2B280]/20');
+      item.classList.remove('bg-[#C2B280]/20', 'active-repo-option');
     }
   });
 }
@@ -612,9 +612,9 @@ function populateRepoDropdown(repositories, service) {
     option.addEventListener('click', () => selectRepoOption(option));
     option.addEventListener('mouseenter', () => {
       elements.repoDropdown.querySelectorAll('.repo-option').forEach(item => {
-        item.classList.remove('bg-[#C2B280]/20');
+        item.classList.remove('bg-[#C2B280]/20', 'active-repo-option');
       });
-      option.classList.add('bg-[#C2B280]/20');
+      option.classList.add('bg-[#C2B280]/20', 'active-repo-option');
     });
     
     elements.repoDropdown.appendChild(option);

@@ -164,6 +164,38 @@ function initializeServices() {
   if (cf?.accountId && cf?.apiToken) {
     cloudflareKvService.setConfig({ accountId: cf.accountId, apiToken: cf.apiToken });
   }
+
+  // Configure default paths for local tools
+  configureDefaultPaths();
+}
+
+/**
+ * Automatically configure default paths if they exist
+ */
+function configureDefaultPaths() {
+  const providers = [
+    { service: geminiService, getPaths: () => configStore.getGeminiPaths(), addPath: (p) => configStore.addGeminiPath(p) },
+    { service: claudeService, getPaths: () => configStore.getClaudePaths(), addPath: (p) => configStore.addClaudePath(p) },
+    { service: cursorService, getPaths: () => configStore.getCursorPaths(), addPath: (p) => configStore.addCursorPath(p) },
+    { service: codexService, getPaths: () => configStore.getCodexPaths(), addPath: (p) => configStore.addCodexPath(p) }
+  ];
+
+  for (const { service, getPaths, addPath } of providers) {
+    try {
+      if (typeof service.getDefaultPath === 'function') {
+        const defaultPath = service.getDefaultPath();
+        if (defaultPath && fs.existsSync(defaultPath)) {
+          const currentPaths = getPaths();
+          if (!currentPaths.includes(defaultPath)) {
+            console.log(`Adding default path for service: ${defaultPath}`);
+            addPath(defaultPath);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to configure default path:', err);
+    }
+  }
 }
 
 async function ensureCloudflareNamespaceId() {

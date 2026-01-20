@@ -1,12 +1,20 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const BASE_URL = 'https://api.cursor.com/v0';
 
 class CursorService {
   constructor() {
     this.apiKey = null;
+  }
+
+  /**
+   * Get the default Cursor directory
+   */
+  getDefaultPath() {
+    return path.join(os.homedir(), '.cursor');
   }
 
   /**

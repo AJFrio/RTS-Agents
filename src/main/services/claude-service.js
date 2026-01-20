@@ -39,15 +39,26 @@ class ClaudeService {
    */
   async discoverProjects(additionalPaths = []) {
     const projects = [];
-    const pathsToScan = [CLAUDE_PROJECTS_DIR, ...additionalPaths];
+    // Rely solely on configured paths (no hardcoded CLAUDE_PROJECTS_DIR in scan list)
+    // The default path will be added to configuration by the main process if it exists
+    const pathsToScan = [...additionalPaths];
 
     for (const basePath of pathsToScan) {
       if (!fs.existsSync(basePath)) {
         continue;
       }
 
+      // If the path ends with .claude, look into .claude/projects
+      let effectivePath = basePath;
+      if (basePath.endsWith('.claude') || basePath.endsWith('.claude' + path.sep)) {
+        const projectsPath = path.join(basePath, 'projects');
+        if (fs.existsSync(projectsPath)) {
+          effectivePath = projectsPath;
+        }
+      }
+
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        const entries = fs.readdirSync(effectivePath, { withFileTypes: true });
 
         for (const entry of entries) {
           if (entry.isDirectory()) {
@@ -56,7 +67,7 @@ class ClaudeService {
               continue;
             }
 
-            const projectPath = path.join(basePath, entry.name);
+            const projectPath = path.join(effectivePath, entry.name);
             
             // Check for sessions directory or session files
             const sessionsPath = path.join(projectPath, 'sessions');

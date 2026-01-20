@@ -12,14 +12,14 @@ class GeminiService {
    * Get the default Gemini CLI directory
    */
   getDefaultPath() {
-    return this.baseDir;
+    return path.join(os.homedir(), '.gemini');
   }
 
   /**
    * Check if Gemini CLI directory exists
    */
   isGeminiInstalled() {
-    return fs.existsSync(this.baseDir);
+    return fs.existsSync(this.getDefaultPath());
   }
 
   /**
@@ -28,15 +28,27 @@ class GeminiService {
    */
   async discoverProjects(additionalPaths = []) {
     const projects = [];
-    const pathsToScan = [this.baseDir, ...additionalPaths];
+    // Rely solely on configured paths (no hardcoded baseDir in scan list)
+    // The default path will be added to configuration by the main process if it exists
+    const pathsToScan = [...additionalPaths];
 
     for (const basePath of pathsToScan) {
       if (!fs.existsSync(basePath)) {
         continue;
       }
 
+      // If the path ends with .gemini, look into .gemini/tmp for projects
+      // This supports the user configuring the root .gemini folder
+      let effectivePath = basePath;
+      if (basePath.endsWith('.gemini') || basePath.endsWith('.gemini' + path.sep)) {
+        const tmpPath = path.join(basePath, 'tmp');
+        if (fs.existsSync(tmpPath)) {
+          effectivePath = tmpPath;
+        }
+      }
+
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        const entries = fs.readdirSync(effectivePath, { withFileTypes: true });
         
         for (const entry of entries) {
           if (entry.isDirectory()) {
@@ -45,7 +57,7 @@ class GeminiService {
               continue;
             }
             
-            const projectPath = path.join(basePath, entry.name);
+            const projectPath = path.join(effectivePath, entry.name);
             const chatsPath = path.join(projectPath, 'chats');
             
             if (fs.existsSync(chatsPath)) {

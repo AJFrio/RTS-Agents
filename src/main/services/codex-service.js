@@ -1,6 +1,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const BASE_URL = 'https://api.openai.com/v1';
 
@@ -10,6 +11,13 @@ let trackedThreads = [];
 class CodexService {
   constructor() {
     this.apiKey = null;
+  }
+
+  /**
+   * Get the default Codex directory
+   */
+  getDefaultPath() {
+    return path.join(os.homedir(), '.codex');
   }
 
   /**

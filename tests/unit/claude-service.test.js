@@ -96,10 +96,12 @@ describe('ClaudeService', () => {
 
   describe('Project Discovery', () => {
     test('discoverProjects finds projects with sessions', async () => {
-      const projectsDir = path.join(mockHomeDir, '.claude', 'projects');
+      const claudeDir = path.join(mockHomeDir, '.claude');
+      const projectsDir = path.join(claudeDir, 'projects');
 
       // Mock directory structure
       fs.existsSync.mockImplementation((p) => {
+        if (p === claudeDir) return true;
         if (p === projectsDir) return true;
         if (p.endsWith('my-project')) return true;
         if (p.endsWith('sessions')) return true;
@@ -116,7 +118,7 @@ describe('ClaudeService', () => {
         return [];
       });
 
-      const projects = await claudeService.discoverProjects();
+      const projects = await claudeService.discoverProjects([claudeDir]);
       expect(projects).toHaveLength(1);
       expect(projects[0].hash).toBe('my-project');
     });

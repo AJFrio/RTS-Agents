@@ -203,7 +203,14 @@ const elements = {
   mergeStatusContainer: document.getElementById('merge-status-container'),
   mergeIcon: document.getElementById('merge-icon'),
   mergeTitle: document.getElementById('merge-title'),
-  mergeSubtitle: document.getElementById('merge-subtitle')
+  mergeSubtitle: document.getElementById('merge-subtitle'),
+
+  // Confirm Modal
+  confirmModal: document.getElementById('confirm-modal'),
+  confirmTitle: document.getElementById('confirm-title'),
+  confirmMessage: document.getElementById('confirm-message'),
+  confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
+  confirmOkBtn: document.getElementById('confirm-ok-btn')
 };
 
 // ============================================ 
@@ -1278,7 +1285,7 @@ async function testApiKey(provider) {
 }
 
 async function disconnectApiKey(provider) {
-  if (!confirm(`Are you sure you want to disconnect from ${capitalizeFirst(provider)}? This will remove the saved API key.`)) {
+  if (!await showConfirmModal(`Are you sure you want to disconnect from ${capitalizeFirst(provider)}? This will remove the saved API key.`, 'DISCONNECT PROVIDER')) {
     return;
   }
 
@@ -1427,7 +1434,7 @@ window.removeGithubPath = async function(path) {
 };
 
 async function updateApplication() {
-  if (!confirm('Are you sure you want to update and restart the application? This will stop all running tasks.')) {
+  if (!await showConfirmModal('Are you sure you want to update and restart the application? This will stop all running tasks.', 'UPDATE APPLICATION')) {
     return;
   }
 
@@ -2200,7 +2207,7 @@ window.openPrDetails = async function(owner, repo, number) {
 };
 
 window.mergePr = async function(owner, repo, number) {
-   if (!confirm('Are you sure you want to merge this pull request?')) return;
+   if (!await showConfirmModal('Are you sure you want to merge this pull request?', 'MERGE PULL REQUEST')) return;
    
    elements.mergeBtn.disabled = true;
    elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> MERGING...';
@@ -2246,6 +2253,45 @@ window.markPrReadyForReview = async function(owner, repo, number, nodeId) {
 
 window.closePrModal = function() {
    elements.prModal.classList.add('hidden');
+};
+
+window.showConfirmModal = function(message, title = 'Confirm Action') {
+  return new Promise((resolve) => {
+    elements.confirmMessage.textContent = message;
+    elements.confirmTitle.textContent = title;
+    elements.confirmModal.classList.remove('hidden');
+
+    const cleanup = () => {
+      elements.confirmModal.classList.add('hidden');
+      elements.confirmOkBtn.removeEventListener('click', onConfirm);
+      elements.confirmCancelBtn.removeEventListener('click', onCancel);
+      backdrop.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKeydown);
+    };
+
+    const onConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+    };
+
+    const backdrop = elements.confirmModal.querySelector('.fixed.inset-0');
+
+    elements.confirmOkBtn.addEventListener('click', onConfirm);
+    elements.confirmCancelBtn.addEventListener('click', onCancel);
+    backdrop.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKeydown);
+  });
 };
 
 

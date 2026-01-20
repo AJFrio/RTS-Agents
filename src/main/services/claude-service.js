@@ -596,7 +596,7 @@ class ClaudeService {
    */
   async startLocalSession(options) {
     const { spawn } = require('child_process');
-    const { prompt, projectPath, allowedTools = 'Read,Edit,Bash' } = options;
+    const { prompt, projectPath, allowedTools = 'Read,Edit,Bash', command } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -619,7 +619,9 @@ class ClaudeService {
     const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '--allowedTools', allowedTools];
 
     return new Promise((resolve, reject) => {
-      const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';
+      const claudeCmd = (command && String(command).trim())
+        ? String(command).trim()
+        : (process.platform === 'win32' ? 'claude.cmd' : 'claude');
 
       console.log(`Starting Claude CLI in ${projectPath}`);
       console.log(`Command: ${claudeCmd} ${args.join(' ')}`);

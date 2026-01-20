@@ -411,7 +411,7 @@ class GeminiService {
    */
   async startSession(options) {
     const { spawn } = require('child_process');
-    const { prompt, projectPath } = options;
+    const { prompt, projectPath, command } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -434,7 +434,9 @@ class GeminiService {
     const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '-y'];
 
     return new Promise((resolve, reject) => {
-      const geminiCmd = process.platform === 'win32' ? 'gemini.cmd' : 'gemini';
+      const geminiCmd = (command && String(command).trim())
+        ? String(command).trim()
+        : (process.platform === 'win32' ? 'gemini.cmd' : 'gemini');
       
       console.log(`Starting Gemini CLI in ${projectPath}`);
       console.log(`Command: ${geminiCmd} ${args.join(' ')}`);

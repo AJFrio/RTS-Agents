@@ -105,6 +105,14 @@ const schema = {
         items: { type: 'string' },
         default: []
       },
+      cliCommands: {
+        type: 'object',
+        properties: {
+          gemini: { type: 'string', default: '' },
+          claude: { type: 'string', default: '' }
+        },
+        default: {}
+      },
       theme: {
         type: 'string',
         enum: ['light', 'dark', 'system'],

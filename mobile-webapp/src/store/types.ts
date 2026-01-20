@@ -115,6 +115,7 @@ export interface GithubRepo {
 export interface Computer {
   id: string;
   name: string;
+  deviceType?: 'desktop' | 'headless' | string;
   platform: string;
   status: 'on' | 'off';
   lastHeartbeat?: string;

@@ -1,68 +1,78 @@
-from playwright.sync_api import sync_playwright
 
-def verify_computer_badges():
+from playwright.sync_api import sync_playwright
+import os
+
+def run():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        context = browser.new_context()
+        page = context.new_page()
 
-        # Load the app
-        page.goto("file:///app/index.html")
-
-        # Mock electronAPI
-        page.evaluate("""
-            window.electronAPI = {
-                onRefreshTick: () => {},
-                getSettings: () => Promise.resolve({
-                    settings: { theme: 'dark', displayMode: 'windowed' },
-                    apiKeys: { cloudflare: true },
-                    cloudflare: { configured: true, accountId: 'acc1', namespaceTitle: 'rtsa' }
-                }),
-                getAgents: () => Promise.resolve({ agents: [], counts: {}, errors: [] }),
-                getConnectionStatus: () => Promise.resolve({}),
-                listComputers: () => Promise.resolve({
-                    success: true,
-                    configured: true,
-                    computers: [
-                        {
-                            id: 'device-1',
-                            name: 'Dev Machine',
-                            status: 'on',
-                            lastHeartbeat: new Date().toISOString(),
-                            tools: {
-                                gemini: true,
-                                'claude-cli': true,
-                                codex: true,
-                                cursor: true,
-                                jules: true,
-                                'claude-cloud': true
-                            }
-                        },
-                        {
-                            id: 'device-2',
-                            name: 'Minimal Machine',
-                            status: 'on',
-                            lastHeartbeat: new Date().toISOString(),
-                            tools: {}
-                        }
-                    ]
-                })
-            };
+        # Mock the window.electronAPI
+        page.add_init_script("""
+        window.electronAPI = {
+            onRefreshTick: () => {},
+            getSettings: async () => ({
+                settings: { theme: 'dark', displayMode: 'windowed' },
+                apiKeys: {},
+                geminiInstalled: true,
+                claudeCliInstalled: true
+            }),
+            getAgents: async () => ({ agents: [], counts: { total: 0 }, errors: [] }),
+            getConnectionStatus: async () => ({
+                gemini: { connected: true },
+                jules: { connected: false },
+                cursor: { connected: false },
+                codex: { connected: false },
+                'claude-cli': { connected: true },
+                'claude-cloud': { connected: false },
+                github: { connected: false }
+            }),
+            listComputers: async () => ({
+                success: true,
+                configured: true,
+                computers: [
+                    {
+                        id: 'local-device',
+                        name: 'Local Device',
+                        status: 'on',
+                        lastHeartbeat: new Date().toISOString(),
+                        tools: [{ 'CLI tools': ['Gemini CLI', 'claude CLI'] }]
+                    },
+                    {
+                        id: 'remote-device',
+                        name: 'Remote Device',
+                        status: 'on',
+                        lastHeartbeat: new Date().toISOString(),
+                        tools: [{ 'CLI tools': ['Codex CLI', 'cursor CLI'] }]
+                    },
+                     {
+                        id: 'legacy-device',
+                        name: 'Legacy Device',
+                        status: 'on',
+                        lastHeartbeat: new Date().toISOString(),
+                        tools: { gemini: true, 'claude-cli': true }
+                    }
+                ]
+            })
+        };
         """)
 
-        # Wait for app to initialize
-        page.wait_for_timeout(1000)
+        # Load the local index.html
+        cwd = os.getcwd()
+        page.goto(f"file://{cwd}/index.html")
 
-        # Navigate to Computers view
-        # We can trigger it by calling showView('computers')
-        page.evaluate("window.showView('computers')")
+        # Wait for the computers view to be ready (simulating a click if needed, or just calling loadComputers)
+        # We can trigger the view change by clicking the nav button
+        page.click("button[data-view='computers']")
 
-        # Wait for computers to render
-        page.wait_for_selector(".agent-card")
+        # Wait for the grid to populate
+        page.wait_for_selector("#computers-grid .agent-card")
 
-        # Take screenshot
+        # Take a screenshot
         page.screenshot(path="verification/computer_badges.png")
 
         browser.close()
 
 if __name__ == "__main__":
-    verify_computer_badges()
+    run()

@@ -1228,9 +1228,15 @@ function updateServiceButtonVisibility() {
       } else if (targetDevice && typeof targetDevice === 'object') {
         // Remote mode: Only show tools installed on remote device
         // Only gemini and claude-cli are supported remotely
-        if (provider === 'gemini' && targetDevice.tools?.gemini) {
+
+        // Extract CLI tools from new structure
+        const cliTools = (Array.isArray(targetDevice.tools) && targetDevice.tools.length > 0 && targetDevice.tools[0]['CLI tools'])
+          ? targetDevice.tools[0]['CLI tools']
+          : [];
+
+        if (provider === 'gemini' && cliTools.includes('Gemini CLI')) {
           visible = true;
-        } else if (provider === 'claude-cli' && targetDevice.tools?.['claude-cli']) {
+        } else if (provider === 'claude-cli' && cliTools.includes('claude CLI')) {
           visible = true;
         }
       } else {
@@ -2529,7 +2535,16 @@ function populateTargetDeviceDropdown() {
     const isOnline = device.status === 'on' || (lastHeartbeat && (Date.now() - new Date(lastHeartbeat).getTime() < 1000 * 60 * 6)); // 6 mins
 
     // Only show devices that have local CLI tools (Gemini/Claude)
-    const hasTools = device.tools && Object.values(device.tools).some(t => t);
+    // New structure: tools[0]['CLI tools'] is array of strings
+    let hasTools = false;
+    if (Array.isArray(device.tools) && device.tools.length > 0 && Array.isArray(device.tools[0]['CLI tools'])) {
+      const cliTools = device.tools[0]['CLI tools'];
+      // Check for Gemini CLI or claude CLI as these are the only remote-capable tools currently
+      hasTools = cliTools.includes('Gemini CLI') || cliTools.includes('claude CLI');
+    } else {
+      // Fallback for old structure (object with boolean values)
+      hasTools = device.tools && !Array.isArray(device.tools) && Object.values(device.tools).some(t => t);
+    }
 
     if (isOnline && hasTools) {
        const option = document.createElement('option');
@@ -3406,13 +3421,26 @@ function renderComputerCard(device) {
 
   const isHeadless = String(device?.deviceType || '').toLowerCase() === 'headless';
 
-  const tools = device?.tools && typeof device.tools === 'object' ? device.tools : {};
-  const toolBadges = [
-    tools.gemini ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI_CLI</span>' : '',
-    tools['claude-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-orange-500 text-orange-500">CLAUDE_CLI</span>' : '',
-    tools['codex-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-cyan-500 text-cyan-500">CODEX_CLI</span>' : '',
-    tools['cursor-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-blue-500 text-blue-500">CURSOR_CLI</span>' : ''
-  ].filter(Boolean).join(' ');
+  let toolBadges = '';
+  if (Array.isArray(device.tools) && device.tools.length > 0 && Array.isArray(device.tools[0]['CLI tools'])) {
+    // New structure
+    const cliTools = device.tools[0]['CLI tools'];
+    toolBadges = [
+      cliTools.includes('Gemini CLI') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI_CLI</span>' : '',
+      cliTools.includes('claude CLI') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-orange-500 text-orange-500">CLAUDE_CLI</span>' : '',
+      cliTools.includes('Codex CLI') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-cyan-500 text-cyan-500">CODEX_CLI</span>' : '',
+      cliTools.includes('cursor CLI') ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-blue-500 text-blue-500">CURSOR_CLI</span>' : ''
+    ].filter(Boolean).join(' ');
+  } else {
+    // Legacy structure fallback
+    const tools = device?.tools && typeof device.tools === 'object' ? device.tools : {};
+    toolBadges = [
+      tools.gemini ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">GEMINI_CLI</span>' : '',
+      tools['claude-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-orange-500 text-orange-500">CLAUDE_CLI</span>' : '',
+      tools['codex-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-cyan-500 text-cyan-500">CODEX_CLI</span>' : '',
+      tools['cursor-cli'] ? '<span class="px-2 py-0.5 text-[10px] technical-font border border-blue-500 text-blue-500">CURSOR_CLI</span>' : ''
+    ].filter(Boolean).join(' ');
+  }
 
   let iso = '';
   try {

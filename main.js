@@ -207,6 +207,12 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     repos = [];
   }
 
+  const availableCliTools = [];
+  if (configStore.getCodexPaths().length > 0) availableCliTools.push('Codex CLI');
+  if (claudeService.isClaudeInstalled()) availableCliTools.push('claude CLI');
+  if (geminiService.isGeminiInstalled()) availableCliTools.push('Gemini CLI');
+  if (configStore.getCursorPaths().length > 0) availableCliTools.push('cursor CLI');
+
   const device = {
     id: identity.id,
     name: identity.name,
@@ -215,16 +221,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     ...(nextStatus === 'on' ? { lastHeartbeat: nowIso } : {}),
     status: nextStatus,
     lastStatusAt: nowIso,
-    tools: {
-      gemini: geminiService.isGeminiInstalled(),
-      'claude-cli': claudeService.isClaudeInstalled(),
-      codex: configStore.hasApiKey('codex'),
-      cursor: configStore.hasApiKey('cursor'),
-      'codex-cli': configStore.getCodexPaths().length > 0,
-      'cursor-cli': configStore.getCursorPaths().length > 0,
-      jules: configStore.hasApiKey('jules'),
-      'claude-cloud': configStore.hasApiKey('claude')
-    },
+    tools: [{ 'CLI tools': availableCliTools }],
     repos,
     reposUpdatedAt: nowIso
   };

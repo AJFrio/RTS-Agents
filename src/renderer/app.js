@@ -316,6 +316,12 @@ function setupEventListeners() {
   // New Task Modal
   elements.newTaskBtn.addEventListener('click', openNewTaskModal);
   elements.taskPrompt.addEventListener('input', validateNewTaskForm);
+  elements.taskPrompt.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault(); // Prevent newline insertion if any
+      submitNewTask();
+    }
+  });
   
   // Searchable repo dropdown
   setupRepoSearchDropdown();

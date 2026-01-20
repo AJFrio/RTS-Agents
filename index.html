@@ -688,7 +688,9 @@
                     placeholder="Select service first..."
                     class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-4 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                   <input type="hidden" id="task-repo" value="">
-                  <span id="repo-loading" class="hidden material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#C2B280] text-sm animate-spin">sync</span>
+                  <div id="repo-loading" class="hidden absolute right-3 top-1/2 -translate-y-1/2">
+                    <span class="material-symbols-outlined text-[#C2B280] text-sm animate-spin">sync</span>
+                  </div>
                   <span id="repo-chevron" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none cursor-pointer">expand_more</span>
                   <!-- Dropdown list -->
                   <div id="repo-dropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-black border border-[#2A2A2A] shadow-lg">

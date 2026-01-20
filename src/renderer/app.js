@@ -163,6 +163,7 @@ const elements = {
   repoSearchContainer: document.getElementById('repo-search-container'),
   taskBranch: document.getElementById('task-branch'),
   taskPrompt: document.getElementById('task-prompt'),
+  taskSpeechBtn: document.getElementById('task-speech-btn'),
   taskAutoPr: document.getElementById('task-auto-pr'),
   createTaskBtn: document.getElementById('create-task-btn'),
   repoLoading: document.getElementById('repo-loading'),
@@ -283,10 +284,80 @@ function formatTimeAgo(date) {
 
 async function init() {
   setupEventListeners();
+  setupSpeechRecognition();
   setupPollingListener();
   await loadSettings();
   await loadAgents();
   await checkConnectionStatus();
+}
+
+function setupSpeechRecognition() {
+  const btn = elements.taskSpeechBtn;
+  if (!btn) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    btn.classList.add('hidden');
+    console.warn('Speech recognition not supported in this environment');
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  let isRecording = false;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    btn.classList.add('text-red-500', 'animate-pulse');
+    btn.classList.remove('text-slate-500', 'hover:text-[#C2B280]');
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
+    btn.classList.remove('text-red-500', 'animate-pulse');
+    btn.classList.add('text-slate-500', 'hover:text-[#C2B280]');
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const currentText = elements.taskPrompt.value;
+
+    // Append with space if needed
+    if (currentText && !currentText.endsWith(' ') && currentText.length > 0) {
+      elements.taskPrompt.value = currentText + ' ' + transcript;
+    } else {
+      elements.taskPrompt.value = currentText + transcript;
+    }
+
+    validateNewTaskForm();
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error', event.error);
+    // Don't show toast for 'no-speech' or 'aborted' as they can be common/benign
+    if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      showToast(`Speech error: ${event.error}`, 'error');
+    }
+    isRecording = false;
+    btn.classList.remove('text-red-500', 'animate-pulse');
+    btn.classList.add('text-slate-500', 'hover:text-[#C2B280]');
+  };
+
+  btn.addEventListener('click', () => {
+    if (isRecording) {
+      recognition.stop();
+    } else {
+      try {
+        recognition.start();
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+      }
+    }
+  });
 }
 
 function setupEventListeners() {

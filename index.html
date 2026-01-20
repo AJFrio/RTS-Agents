@@ -85,8 +85,8 @@
             </li>
             <li>
               <button data-view="branches" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
-                <span class="material-symbols-outlined text-sm">fork_right</span>
-                <span class="text-sm uppercase tracking-wider">Branches</span>
+                <span class="material-symbols-outlined text-sm">source</span>
+                <span class="text-sm uppercase tracking-wider">Repositories</span>
               </button>
             </li>
             <li>
@@ -332,10 +332,16 @@
                   <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">Repositories</h3>
                   <span id="repo-count" class="technical-font text-slate-500 text-xs">0 REPOS</span>
                </div>
-               <button id="refresh-branches-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400">
-                  <span class="material-symbols-outlined text-sm">refresh</span>
-                  REFRESH
-               </button>
+               <div class="flex items-center gap-3">
+                 <button id="create-repo-btn" class="bg-[#C2B280] text-black flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold hover:brightness-110 transition-all border border-[#C2B280]">
+                    <span class="material-symbols-outlined text-sm">add</span>
+                    NEW REPO
+                 </button>
+                 <button id="refresh-branches-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400">
+                    <span class="material-symbols-outlined text-sm">refresh</span>
+                    REFRESH
+                 </button>
+               </div>
             </div>
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
@@ -875,6 +881,141 @@
               <span id="create-task-loading" class="hidden material-symbols-outlined text-sm animate-spin">sync</span>
               <span class="material-symbols-outlined text-sm">bolt</span>
               Create Task
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Repo Modal -->
+    <div id="create-repo-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCreateRepoModal()"></div>
+
+      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-2xl flex flex-col shadow-2xl">
+        <!-- Modal Header -->
+        <div class="border-b border-[#2A2A2A] p-6 flex justify-between items-center bg-black/40">
+          <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-[#C2B280] text-2xl">source</span>
+            <div>
+              <h2 class="technical-font text-lg font-bold text-white tracking-widest">Create Repository</h2>
+              <p class="text-[10px] technical-font text-slate-500">GitHub, local, or remote computer</p>
+            </div>
+          </div>
+          <button onclick="closeCreateRepoModal()" class="text-slate-500 hover:text-[#C2B280] transition-colors">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          <section class="space-y-4">
+            <div>
+              <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Where to create</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">place</span>
+                <select id="create-repo-location"
+                  class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                  <option value="github">GITHUB</option>
+                  <option value="local">THIS COMPUTER (LOCAL)</option>
+                  <option value="remote">REMOTE COMPUTER</option>
+                </select>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Repository name</label>
+              <input id="create-repo-name" type="text" placeholder="my-new-repo"
+                class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 px-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all" />
+            </div>
+          </section>
+
+          <!-- GitHub Settings -->
+          <section id="create-repo-github-settings" class="space-y-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#C2B280] text-sm">cloud</span>
+              <h3 class="technical-font font-bold text-slate-300">GitHub Settings</h3>
+            </div>
+
+            <div>
+              <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Owner (org or personal)</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">person</span>
+                <select id="create-repo-github-owner"
+                  class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                  <option value="">LOADING...</option>
+                </select>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
+              </div>
+              <p class="mt-2 text-[10px] technical-font text-slate-600">Requires a GitHub token in Settings.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <button type="button" id="create-repo-visibility-public"
+                class="visibility-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all bg-black/20">
+                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">PUBLIC</div>
+                <div class="text-[9px] text-slate-500 uppercase leading-tight">Visible to everyone</div>
+              </button>
+              <button type="button" id="create-repo-visibility-private"
+                class="visibility-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">PRIVATE</div>
+                <div class="text-[9px] text-slate-500 uppercase leading-tight">Invite-only access</div>
+              </button>
+            </div>
+          </section>
+
+          <!-- Local Settings -->
+          <section id="create-repo-local-settings" class="hidden space-y-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#C2B280] text-sm">folder</span>
+              <h3 class="technical-font font-bold text-slate-300">Local Settings</h3>
+            </div>
+
+            <div>
+              <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Directory</label>
+              <input id="create-repo-local-dir" type="text" placeholder="e.g., ~/GitHub"
+                class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 px-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all" />
+              <p class="mt-2 text-[10px] technical-font text-slate-600">Defaults to your first GitHub path (Settings) when available.</p>
+            </div>
+          </section>
+
+          <!-- Remote Settings -->
+          <section id="create-repo-remote-settings" class="hidden space-y-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#C2B280] text-sm">computer</span>
+              <h3 class="technical-font font-bold text-slate-300">Remote Computer</h3>
+            </div>
+
+            <div>
+              <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Target device</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">devices</span>
+                <select id="create-repo-remote-device"
+                  class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                  <option value="">SELECT A COMPUTER...</option>
+                </select>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
+              </div>
+              <p class="mt-2 text-[10px] technical-font text-slate-600">Remote repos are created in the GitHub directory configured on that computer.</p>
+            </div>
+          </section>
+
+          <p id="create-repo-error" class="hidden text-xs text-red-400"></p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="border-t border-[#2A2A2A] p-6 flex justify-between items-center bg-black/20">
+          <div class="flex items-center gap-2 text-[10px] technical-font text-slate-600">
+            <span class="material-symbols-outlined text-xs">info</span>
+            Name required
+          </div>
+          <div class="flex gap-4">
+            <button onclick="closeCreateRepoModal()" class="px-6 py-2 technical-font text-xs font-bold text-slate-400 hover:text-white transition-colors">CANCEL</button>
+            <button id="create-repo-submit-btn" onclick="submitCreateRepo()"
+              class="bg-[#C2B280] text-black px-8 py-3 technical-font text-xs font-bold hover:brightness-110 flex items-center gap-2 transition-all">
+              <span id="create-repo-loading" class="hidden material-symbols-outlined text-sm animate-spin">sync</span>
+              <span class="material-symbols-outlined text-sm">bolt</span>
+              CREATE
             </button>
           </div>
         </div>

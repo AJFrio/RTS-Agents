@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, MenuItem } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
+const fs = require('fs');
+const fsp = require('fs/promises');
 
 // Services
 const configStore = require('./src/main/services/config-store');
@@ -22,6 +24,42 @@ let isProcessingCloudflareQueue = false;
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
 const UPDATE_INTERVAL_MS = 21600000; // 6 hours
 const DEVICE_STALE_OFFLINE_MS = 6 * 60 * 1000; // 6 minutes
+
+function execAsync(command, options = {}) {
+  return new Promise((resolve, reject) => {
+    exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr || stdout || error.message));
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+  });
+}
+
+async function createLocalGitRepo({ directory, name }) {
+  if (!name || typeof name !== 'string') throw new Error('Missing repository name');
+  if (!directory || typeof directory !== 'string') throw new Error('Missing base directory');
+
+  const baseDir = directory.trim();
+  const repoName = name.trim();
+  if (!baseDir) throw new Error('Missing base directory');
+  if (!repoName) throw new Error('Missing repository name');
+
+  if (!fs.existsSync(baseDir)) {
+    throw new Error(`Base directory does not exist: ${baseDir}`);
+  }
+
+  const repoPath = path.join(baseDir, repoName);
+  if (fs.existsSync(repoPath)) {
+    throw new Error(`Target path already exists: ${repoPath}`);
+  }
+
+  await fsp.mkdir(repoPath, { recursive: false });
+  await execAsync('git init', { cwd: repoPath });
+
+  return repoPath;
+}
 
 function createWindow() {
   const displayMode = configStore.getDisplayMode();
@@ -229,10 +267,41 @@ async function processCloudflareQueue(namespaceId) {
     await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, baseStatus);
 
     const tool = item?.tool;
+    if (!tool) throw new Error('Queued task missing tool');
+
+    // Project/repo creation tasks (no prompt/repo.path required)
+    if (tool === 'project:create') {
+      const repoName = item?.repo?.name || item?.repoName || item?.name;
+      if (!repoName) throw new Error('Queued task missing repo.name');
+
+      const githubPaths = configStore.getGithubPaths();
+      const baseDir = Array.isArray(githubPaths) && githubPaths.length > 0 ? githubPaths[0] : null;
+      if (!baseDir) {
+        throw new Error('No GitHub repository paths configured on target device (Settings → GitHub Repository Paths)');
+      }
+
+      await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
+        ...baseStatus,
+        status: 'running',
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      const createdPath = await createLocalGitRepo({ directory: baseDir, name: String(repoName) });
+
+      await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
+        ...baseStatus,
+        status: 'completed',
+        result: { path: createdPath, directory: baseDir, name: String(repoName) },
+        completedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      return;
+    }
+
     const repoPath = item?.repo?.path;
     const prompt = item?.prompt;
-
-    if (!tool) throw new Error('Queued task missing tool');
     if (!prompt) throw new Error('Queued task missing prompt');
     if (!repoPath) throw new Error('Queued task missing repo.path');
 
@@ -1126,6 +1195,30 @@ ipcMain.handle('github:get-repos', async () => {
   }
 });
 
+ipcMain.handle('github:get-owners', async () => {
+  try {
+    const user = await githubService.getCurrentUser();
+    const orgs = await githubService.getUserOrgs();
+    return { success: true, user, orgs };
+  } catch (err) {
+    return { success: false, error: err.message, user: null, orgs: [] };
+  }
+});
+
+ipcMain.handle('github:create-repo', async (event, { ownerType, owner, name, private: isPrivate } = {}) => {
+  try {
+    const repo = await githubService.createRepository({
+      ownerType,
+      owner,
+      name,
+      private: !!isPrivate
+    });
+    return { success: true, repo };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('github:get-prs', async (event, { owner, repo, state }) => {
   try {
     const prs = await githubService.getPullRequests(owner, repo, state);
@@ -1157,6 +1250,44 @@ ipcMain.handle('github:merge-pr', async (event, { owner, repo, prNumber, method 
   try {
     const result = await githubService.mergePullRequest(owner, repo, prNumber, method);
     return { success: true, result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// ============================================
+// IPC Handlers - Project/Repo Creation
+// ============================================
+
+ipcMain.handle('projects:create-local-repo', async (event, { name, directory } = {}) => {
+  try {
+    const repoPath = await createLocalGitRepo({ directory, name });
+    return { success: true, path: repoPath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('projects:enqueue-create-repo', async (event, { deviceId, name } = {}) => {
+  try {
+    if (!deviceId) throw new Error('Missing deviceId');
+    if (!name) throw new Error('Missing repository name');
+    const namespaceId = await ensureCloudflareNamespaceId();
+    if (!namespaceId) throw new Error('Cloudflare KV not configured');
+
+    const identity = configStore.getOrCreateDeviceIdentity();
+    const nowIso = new Date().toISOString();
+
+    const task = {
+      id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      tool: 'project:create',
+      repo: { name: String(name) },
+      requestedBy: identity.name,
+      createdAt: nowIso
+    };
+
+    await cloudflareKvService.enqueueDeviceTask(namespaceId, deviceId, task);
+    return { success: true, task };
   } catch (err) {
     return { success: false, error: err.message };
   }

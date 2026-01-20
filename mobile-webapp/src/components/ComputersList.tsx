@@ -104,8 +104,28 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
                 Claude CLI
               </span>
             )}
-            {!computer.tools.gemini && !computer.tools['claude-cli'] && (
-              <span className="text-[10px] text-slate-600">No CLI tools detected</span>
+            {computer.tools.codex && (
+              <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 font-display text-[9px] uppercase">
+                Codex
+              </span>
+            )}
+            {computer.tools.cursor && (
+              <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 text-blue-500 font-display text-[9px] uppercase">
+                Cursor
+              </span>
+            )}
+            {computer.tools.jules && (
+              <span className="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-display text-[9px] uppercase">
+                Jules
+              </span>
+            )}
+            {computer.tools['claude-cloud'] && (
+              <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-500 font-display text-[9px] uppercase">
+                Claude Cloud
+              </span>
+            )}
+            {!computer.tools.gemini && !computer.tools['claude-cli'] && !computer.tools.codex && !computer.tools.cursor && !computer.tools.jules && !computer.tools['claude-cloud'] && (
+              <span className="text-[10px] text-slate-600">No tools detected</span>
             )}
           </div>
         </div>

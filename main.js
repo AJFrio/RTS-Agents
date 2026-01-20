@@ -217,7 +217,11 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     lastStatusAt: nowIso,
     tools: {
       gemini: geminiService.isGeminiInstalled(),
-      'claude-cli': claudeService.isClaudeInstalled()
+      'claude-cli': claudeService.isClaudeInstalled(),
+      codex: configStore.hasApiKey('codex'),
+      cursor: configStore.hasApiKey('cursor'),
+      jules: configStore.hasApiKey('jules'),
+      'claude-cloud': configStore.hasApiKey('claude')
     },
     repos,
     reposUpdatedAt: nowIso

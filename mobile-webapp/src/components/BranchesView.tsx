@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useApp } from '../store/AppContext';
+import { githubService } from '../services/github-service';
 import type { GithubRepo, PullRequest } from '../store/types';
 
 function formatTimeAgo(dateStr: string): string {
@@ -125,13 +126,35 @@ function PRCard({ pr, onView }: PRCardProps) {
 interface PRDetailModalProps {
   pr: PullRequest | null;
   onClose: () => void;
+  onMerge: (pr: PullRequest) => Promise<void>;
+  onMarkReady: (pr: PullRequest) => Promise<void>;
 }
 
-function PRDetailModal({ pr, onClose }: PRDetailModalProps) {
+function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps) {
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
   if (!pr) return null;
 
   const handleOpenInGitHub = () => {
     window.open(pr.html_url, '_blank');
+  };
+
+  const handleMerge = async () => {
+    setIsActionLoading(true);
+    try {
+      await onMerge(pr);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleMarkReady = async () => {
+    setIsActionLoading(true);
+    try {
+      await onMarkReady(pr);
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   return (
@@ -140,14 +163,16 @@ function PRDetailModal({ pr, onClose }: PRDetailModalProps) {
       <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top">
         <button
           onClick={onClose}
-          className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors"
+          disabled={isActionLoading}
+          className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors disabled:opacity-50"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
 
         <button
           onClick={handleOpenInGitHub}
-          className="p-2 text-slate-400 hover:text-primary transition-colors"
+          disabled={isActionLoading}
+          className="p-2 text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
         >
           <span className="material-symbols-outlined">open_in_new</span>
         </button>
@@ -207,14 +232,18 @@ function PRDetailModal({ pr, onClose }: PRDetailModalProps) {
             </span>
             <div>
               <p className="text-sm font-bold text-white">
-                {pr.mergeable === false
+                {pr.draft
+                  ? 'This is a draft pull request'
+                  : pr.mergeable === false
                   ? 'This branch has conflicts'
                   : pr.mergeable === true
                   ? 'No conflicts with base branch'
                   : 'Checking mergeability...'}
               </p>
               <p className="text-xs text-slate-500">
-                {pr.mergeable === false
+                {pr.draft
+                  ? 'Review and publish to enable merging'
+                  : pr.mergeable === false
                   ? 'Resolve conflicts before merging'
                   : pr.mergeable === true
                   ? 'Merging can be performed automatically'
@@ -224,14 +253,46 @@ function PRDetailModal({ pr, onClose }: PRDetailModalProps) {
           </div>
         </div>
 
-        {/* Open in GitHub Button */}
-        <button
-          onClick={handleOpenInGitHub}
-          className="w-full flex items-center justify-center gap-2 bg-primary text-black py-3 font-display text-xs font-bold uppercase tracking-wider"
-        >
-          <span className="material-symbols-outlined text-sm">open_in_new</span>
-          Open in GitHub
-        </button>
+        {/* Actions */}
+        <div className="space-y-3">
+          {pr.draft ? (
+            <button
+              onClick={handleMarkReady}
+              disabled={isActionLoading}
+              className="w-full flex items-center justify-center gap-2 bg-[#C2B280] text-black py-3 font-display text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isActionLoading ? (
+                <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+              ) : (
+                <span className="material-symbols-outlined text-sm">rate_review</span>
+              )}
+              {isActionLoading ? 'Updating...' : 'Review & Publish'}
+            </button>
+          ) : pr.mergeable === true ? (
+            <button
+              onClick={handleMerge}
+              disabled={isActionLoading}
+              className="w-full flex items-center justify-center gap-2 bg-emerald-500 text-black py-3 font-display text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isActionLoading ? (
+                <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+              ) : (
+                <span className="material-symbols-outlined text-sm">merge</span>
+              )}
+              {isActionLoading ? 'Merging...' : 'Merge Pull Request'}
+            </button>
+          ) : null}
+
+          {/* Open in GitHub Button */}
+          <button
+            onClick={handleOpenInGitHub}
+            disabled={isActionLoading}
+            className="w-full flex items-center justify-center gap-2 border border-border-dark text-slate-300 py-3 font-display text-xs font-bold uppercase tracking-wider hover:bg-card-dark disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-sm">open_in_new</span>
+            Open in GitHub
+          </button>
+        </div>
 
         {/* Meta */}
         <div className="flex items-center justify-between text-[10px] text-slate-600 pt-2">
@@ -249,6 +310,45 @@ export default function BranchesView() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
+
+  const handleMergePr = async (pr: PullRequest) => {
+    if (!selectedRepo) return;
+    if (!window.confirm(`Are you sure you want to merge pull request #${pr.number}?`)) return;
+
+    try {
+      await githubService.mergePullRequest(selectedRepo.owner.login, selectedRepo.name, pr.number);
+      // Close modal
+      setSelectedPR(null);
+      // Refresh list
+      await loadPullRequests(selectedRepo.owner.login, selectedRepo.name);
+    } catch (err) {
+      console.error('Failed to merge PR:', err);
+      alert(`Failed to merge PR: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleMarkReady = async (pr: PullRequest) => {
+    if (!selectedRepo) return;
+    if (!pr.node_id) {
+        alert('Cannot update PR: Missing Node ID');
+        return;
+    }
+    if (!window.confirm(`Mark #${pr.number} as ready for review? This will notify reviewers.`)) return;
+
+    try {
+      await githubService.markPullRequestReadyForReview(pr.node_id);
+
+      // Refresh details for the current PR to update UI immediately
+      const updatedPr = await githubService.getPullRequestDetails(selectedRepo.owner.login, selectedRepo.name, pr.number);
+      setSelectedPR(updatedPr);
+
+      // Also refresh the background list
+      loadPullRequests(selectedRepo.owner.login, selectedRepo.name);
+    } catch (err) {
+      console.error('Failed to update PR:', err);
+      alert(`Failed to update PR: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
 
   useEffect(() => {
     if (configuredServices.github) {
@@ -423,6 +523,8 @@ export default function BranchesView() {
       <PRDetailModal
         pr={selectedPR}
         onClose={() => setSelectedPR(null)}
+        onMerge={handleMergePr}
+        onMarkReady={handleMarkReady}
       />
     </>
   );

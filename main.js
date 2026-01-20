@@ -10,9 +10,11 @@ const cursorService = require('./src/main/services/cursor-service');
 const codexService = require('./src/main/services/codex-service');
 const claudeService = require('./src/main/services/claude-service');
 const githubService = require('./src/main/services/github-service');
+const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
 
 let mainWindow;
 let pollingInterval = null;
+let cloudflareHeartbeatInterval = null;
 
 function createWindow() {
   const displayMode = configStore.getDisplayMode();
@@ -40,6 +42,7 @@ function createWindow() {
     mainWindow.show();
     initializeServices();
     startPollingIfEnabled();
+    startCloudflareHeartbeatIfEnabled();
   });
 
   // Open DevTools in development
@@ -79,6 +82,68 @@ function initializeServices() {
   const githubKey = configStore.getApiKey('github');
   if (githubKey) {
     githubService.setApiKey(githubKey);
+  }
+
+  // Cloudflare KV (for computers/heartbeats)
+  const cf = configStore.getCloudflareConfig();
+  if (cf?.accountId && cf?.apiToken) {
+    cloudflareKvService.setConfig({ accountId: cf.accountId, apiToken: cf.apiToken });
+  }
+}
+
+async function ensureCloudflareNamespaceId() {
+  if (!configStore.hasCloudflareConfig()) return null;
+  const cfg = configStore.getCloudflareConfig();
+  cloudflareKvService.setConfig({ accountId: cfg.accountId, apiToken: cfg.apiToken });
+
+  if (cfg?.namespaceId) return cfg.namespaceId;
+  const namespaceTitle = cfg?.namespaceTitle || 'rtsa';
+  const namespaceId = await cloudflareKvService.ensureNamespace(namespaceTitle);
+  configStore.setCloudflareConfig({ namespaceId, namespaceTitle });
+  return namespaceId;
+}
+
+async function sendCloudflareHeartbeat() {
+  if (!configStore.hasCloudflareConfig()) return;
+
+  const namespaceId = await ensureCloudflareNamespaceId();
+  if (!namespaceId) return;
+
+  const identity = configStore.getOrCreateDeviceIdentity();
+  const device = {
+    id: identity.id,
+    name: identity.name,
+    platform: process.platform,
+    lastHeartbeat: new Date().toISOString(),
+    tools: {
+      gemini: geminiService.isGeminiInstalled(),
+      'claude-cli': claudeService.isClaudeInstalled()
+    }
+  };
+
+  await cloudflareKvService.heartbeat({ namespaceId, device });
+}
+
+function startCloudflareHeartbeatIfEnabled() {
+  stopCloudflareHeartbeat();
+  if (!configStore.hasCloudflareConfig()) return;
+
+  // Fire once immediately, then periodically.
+  void sendCloudflareHeartbeat().catch(err => {
+    console.warn('Cloudflare heartbeat failed:', err?.message || err);
+  });
+
+  cloudflareHeartbeatInterval = setInterval(() => {
+    void sendCloudflareHeartbeat().catch(err => {
+      console.warn('Cloudflare heartbeat failed:', err?.message || err);
+    });
+  }, 30000);
+}
+
+function stopCloudflareHeartbeat() {
+  if (cloudflareHeartbeatInterval) {
+    clearInterval(cloudflareHeartbeatInterval);
+    cloudflareHeartbeatInterval = null;
   }
 }
 
@@ -264,8 +329,17 @@ ipcMain.handle('settings:get', async () => {
       cursor: configStore.hasApiKey('cursor'),
       codex: configStore.hasApiKey('codex'),
       claude: configStore.hasApiKey('claude'),
-      github: configStore.hasApiKey('github')
+      github: configStore.hasApiKey('github'),
+      cloudflare: configStore.hasCloudflareConfig()
     },
+    cloudflare: (() => {
+      const cfg = configStore.getCloudflareConfig();
+      return {
+        configured: configStore.hasCloudflareConfig(),
+        accountId: cfg?.accountId || '',
+        namespaceTitle: cfg?.namespaceTitle || 'rtsa'
+      };
+    })(),
     geminiInstalled: geminiService.isGeminiInstalled(),
     geminiDefaultPath: geminiService.getDefaultPath(),
     claudeCliInstalled: claudeService.isClaudeInstalled(),
@@ -302,6 +376,63 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
   }
   
   return { success: true };
+});
+
+// ============================================
+// IPC Handlers - Cloudflare KV (Computers)
+// ============================================
+
+ipcMain.handle('cloudflare:set-config', async (event, { accountId, apiToken, namespaceTitle } = {}) => {
+  const next = configStore.setCloudflareConfig({ accountId, apiToken, namespaceTitle });
+  if (next?.accountId && next?.apiToken) {
+    cloudflareKvService.setConfig({ accountId: next.accountId, apiToken: next.apiToken });
+    startCloudflareHeartbeatIfEnabled();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('cloudflare:clear-config', async () => {
+  configStore.clearCloudflareConfig();
+  stopCloudflareHeartbeat();
+  return { success: true };
+});
+
+ipcMain.handle('cloudflare:test', async () => {
+  try {
+    if (!configStore.hasCloudflareConfig()) {
+      return { success: false, error: 'Cloudflare not configured' };
+    }
+    const namespaceId = await ensureCloudflareNamespaceId();
+    return { success: true, namespaceId };
+  } catch (err) {
+    return { success: false, error: err?.message || 'Unknown error' };
+  }
+});
+
+ipcMain.handle('computers:list', async () => {
+  try {
+    if (!configStore.hasCloudflareConfig()) {
+      return { success: true, configured: false, computers: [] };
+    }
+
+    const cfg = configStore.getCloudflareConfig();
+    cloudflareKvService.setConfig({ accountId: cfg.accountId, apiToken: cfg.apiToken });
+    const namespaceId = await ensureCloudflareNamespaceId();
+    const computers = await cloudflareKvService.getValueJson(namespaceId, 'devices', []);
+
+    return {
+      success: true,
+      configured: true,
+      computers: Array.isArray(computers) ? computers : []
+    };
+  } catch (err) {
+    return {
+      success: false,
+      configured: configStore.hasCloudflareConfig(),
+      error: err?.message || 'Unknown error',
+      computers: []
+    };
+  }
 });
 
 /**
@@ -801,6 +932,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   stopPolling();
+  stopCloudflareHeartbeat();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -808,4 +940,5 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   stopPolling();
+  stopCloudflareHeartbeat();
 });

@@ -60,6 +60,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   removeApiKey: (provider) => 
     ipcRenderer.invoke('settings:remove-api-key', { provider }),
+
+  // ============================================
+  // Cloudflare KV / Computers API
+  // ============================================
+
+  /**
+   * Save Cloudflare KV config (Account ID + API token)
+   */
+  setCloudflareConfig: (accountId, apiToken, namespaceTitle) =>
+    ipcRenderer.invoke('cloudflare:set-config', { accountId, apiToken, namespaceTitle }),
+
+  /**
+   * Clear Cloudflare KV config
+   */
+  clearCloudflareConfig: () =>
+    ipcRenderer.invoke('cloudflare:clear-config'),
+
+  /**
+   * Test Cloudflare KV connectivity and ensure namespace
+   */
+  testCloudflare: () =>
+    ipcRenderer.invoke('cloudflare:test'),
+
+  /**
+   * List computers (devices) stored in Cloudflare KV
+   */
+  listComputers: () =>
+    ipcRenderer.invoke('computers:list'),
   
   /**
    * Update polling settings

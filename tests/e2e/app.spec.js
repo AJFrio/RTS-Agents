@@ -53,5 +53,21 @@ test.describe('E2E Tests', () => {
       // Check for API key inputs
       const julesKeyInput = await window.locator('#jules-api-key');
       await expect(julesKeyInput).toBeVisible();
+
+      // Check for Cloudflare KV inputs
+      const cloudflareAccountId = await window.locator('#cloudflare-account-id');
+      await expect(cloudflareAccountId).toBeVisible();
+      const cloudflareApiToken = await window.locator('#cloudflare-api-token');
+      await expect(cloudflareApiToken).toBeVisible();
+  });
+
+  test('Should navigate to Computers view', async () => {
+      const window = await electronApp.firstWindow();
+
+      const computersBtn = await window.locator('button[data-view="computers"]');
+      await computersBtn.click();
+
+      const computersView = await window.locator('#view-computers');
+      await expect(computersView).toBeVisible();
   });
 });

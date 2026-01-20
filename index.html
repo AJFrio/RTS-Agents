@@ -90,6 +90,12 @@
               </button>
             </li>
             <li>
+              <button data-view="computers" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
+                <span class="material-symbols-outlined text-sm">computer</span>
+                <span class="text-sm uppercase tracking-wider">Computers</span>
+              </button>
+            </li>
+            <li>
               <button data-view="settings" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
                 <span class="material-symbols-outlined text-sm">settings</span>
                 <span class="text-sm uppercase tracking-wider">Settings</span>
@@ -376,6 +382,32 @@
           </div>
         </div>
 
+        <!-- Computers View -->
+        <div id="view-computers" class="view-content hidden">
+          <!-- Loading State -->
+          <div id="computers-loading" class="hidden flex flex-col items-center justify-center h-64">
+            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+            <p class="mt-4 technical-font text-slate-400">Fetching Computers...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div id="computers-empty" class="hidden flex flex-col items-center justify-center h-64">
+            <span class="material-symbols-outlined text-slate-600 text-6xl">computer</span>
+            <h3 class="mt-4 text-lg font-bold dark:text-white uppercase tracking-tight">No Computers Found</h3>
+            <p id="computers-empty-subtitle" class="mt-2 text-slate-500 text-center max-w-md text-sm">
+              Configure Cloudflare KV in Settings to see available computers.
+            </p>
+            <button onclick="showView('settings')" class="mt-4 bg-[#C2B280] text-black px-6 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all">
+              Open Settings
+            </button>
+          </div>
+
+          <!-- Grid -->
+          <div id="computers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Computer cards will be inserted here -->
+          </div>
+        </div>
+
         <!-- Settings View -->
         <div id="view-settings" class="view-content hidden">
           <div class="max-w-4xl mx-auto w-full space-y-8">
@@ -460,6 +492,29 @@
                     </button>
                   </div>
                   <p class="text-[10px] technical-font text-slate-500 opacity-60">Get from github.com/settings/tokens (classic)</p>
+                </div>
+
+                <!-- Cloudflare KV -->
+                <div class="space-y-2">
+                  <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Cloudflare Account ID (Client ID)</label>
+                  <div class="flex gap-2 inner-glow">
+                    <input type="text" id="cloudflare-account-id" placeholder="Enter Cloudflare Account ID"
+                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
+                  </div>
+                  <p class="text-[10px] technical-font text-slate-500 opacity-60">Used for Cloudflare KV (computers registry)</p>
+                </div>
+                <div class="space-y-2">
+                  <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Cloudflare API Token</label>
+                  <div class="flex gap-2 inner-glow">
+                    <input type="password" id="cloudflare-api-token" placeholder="Enter Cloudflare API token"
+                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
+                    <button id="save-cloudflare-config" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
+                    <button id="test-cloudflare-config" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                    <button id="disconnect-cloudflare-config" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
+                      <span class="material-symbols-outlined text-sm">link_off</span>
+                    </button>
+                  </div>
+                  <p class="text-[10px] technical-font text-slate-500 opacity-60">Create an API token with KV permissions</p>
                 </div>
               </div>
             </section>

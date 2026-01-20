@@ -5,8 +5,9 @@
   "main": "main.js",
   "scripts": {
     "start": "npm run build:css:prod && electron .",
-    "dev": "concurrently \"npm run build:css\" \"electron .\"",
+    "dev": "npm run build:css:once && electron .",
     "build:css": "tailwindcss -i ./src/input.css -o ./styles/output.css --watch",
+    "build:css:once": "tailwindcss -i ./src/input.css -o ./styles/output.css",
     "build:css:prod": "tailwindcss -i ./src/input.css -o ./styles/output.css --minify",
     "test": "jest",
     "test:e2e": "npm run build:css:prod && env -u DISPLAY xvfb-maybe playwright test"

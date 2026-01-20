@@ -1,4 +1,6 @@
 const Store = require('electron-store');
+const os = require('os');
+const crypto = require('crypto');
 
 const schema = {
   apiKeys: {
@@ -23,7 +25,29 @@ const schema = {
       github: {
         type: 'string',
         default: ''
+      },
+      cloudflare: {
+        type: 'string',
+        default: ''
       }
+    },
+    default: {}
+  },
+  cloudflare: {
+    type: 'object',
+    properties: {
+      accountId: { type: 'string', default: '' },
+      apiToken: { type: 'string', default: '' },
+      namespaceId: { type: 'string', default: '' },
+      namespaceTitle: { type: 'string', default: 'rtsa' }
+    },
+    default: {}
+  },
+  device: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', default: '' },
+      name: { type: 'string', default: '' }
     },
     default: {}
   },
@@ -143,6 +167,51 @@ class ConfigStore {
 
   getAllApiKeys() {
     return this.store.get('apiKeys', {});
+  }
+
+  // Cloudflare KV config
+  getCloudflareConfig() {
+    return this.store.get('cloudflare', {});
+  }
+
+  setCloudflareConfig({ accountId, apiToken, namespaceId, namespaceTitle } = {}) {
+    const current = this.getCloudflareConfig();
+    const next = {
+      ...current,
+      ...(typeof accountId === 'string' ? { accountId } : {}),
+      ...(typeof apiToken === 'string' ? { apiToken } : {}),
+      ...(typeof namespaceId === 'string' ? { namespaceId } : {}),
+      ...(typeof namespaceTitle === 'string' ? { namespaceTitle } : {})
+    };
+    this.store.set('cloudflare', next);
+    return next;
+  }
+
+  clearCloudflareConfig() {
+    this.store.set('cloudflare', {});
+  }
+
+  hasCloudflareConfig() {
+    const cfg = this.getCloudflareConfig();
+    return !!(cfg?.accountId && cfg?.apiToken);
+  }
+
+  // Device identity (stable per machine)
+  getOrCreateDeviceIdentity() {
+    const current = this.store.get('device', {}) || {};
+    let id = current.id;
+    let name = current.name;
+
+    if (!id) {
+      id = crypto.randomUUID();
+    }
+    if (!name) {
+      name = os.hostname() || 'unknown-device';
+    }
+
+    const next = { id, name };
+    this.store.set('device', next);
+    return next;
   }
 
   // Settings

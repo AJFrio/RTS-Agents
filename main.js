@@ -233,6 +233,18 @@ ipcMain.handle('agents:get-details', async (event, { provider, rawId, filePath }
   }
 });
 
+ipcMain.handle('github:mark-pr-ready-for-review', async (event, { nodeId }) => {
+  try {
+    const result = await githubService.markPullRequestReadyForReview(nodeId);
+    if (result.errors) {
+       return { success: false, error: result.errors[0].message };
+    }
+    return { success: true, result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // ============================================
 // IPC Handlers - Settings
 // ============================================

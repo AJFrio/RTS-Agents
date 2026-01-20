@@ -1182,6 +1182,35 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
   }
 });
 
+/**
+ * Send a follow-up message to a task/session
+ */
+ipcMain.handle('tasks:send-message', async (event, { provider, rawId, message }) => {
+  try {
+    switch (provider) {
+      case 'jules':
+        if (!configStore.hasApiKey('jules')) {
+          throw new Error('Jules API key not configured');
+        }
+        await julesService.sendMessage(rawId, message);
+        return { success: true };
+
+      case 'cursor':
+        if (!configStore.hasApiKey('cursor')) {
+          throw new Error('Cursor API key not configured');
+        }
+        await cursorService.addFollowUp(rawId, message);
+        return { success: true };
+
+      default:
+        throw new Error(`Provider ${provider} does not support follow-up messages`);
+    }
+  } catch (err) {
+    console.error(`Error sending message for ${provider}:`, err);
+    return { success: false, error: err.message };
+  }
+});
+
 // ============================================
 // IPC Handlers - GitHub
 // ============================================

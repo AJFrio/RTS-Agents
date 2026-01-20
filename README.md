@@ -46,6 +46,9 @@ When configured with a GitHub token, you can:
 - **Merge a PR**
 - **Mark a draft PR ready for review**
 
+<img width="1908" height="991" alt="image" src="https://github.com/user-attachments/assets/cb1e9388-2f88-452b-a774-36781bddd934" />
+
+
 ---
 
 ## Installation

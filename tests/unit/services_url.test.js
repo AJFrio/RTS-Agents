@@ -19,6 +19,6 @@ describe('Service URL Generation', () => {
       status: 'FINISHED'
     };
     const normalized = cursorService.normalizeAgent(agent);
-    expect(normalized.webUrl).toBe('https://cursor.com/67890');
+    expect(normalized.webUrl).toBe('https://cursor.com/agents/67890');
   });
 });

@@ -122,6 +122,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllProjectPaths: () => 
     ipcRenderer.invoke('settings:get-all-project-paths'),
 
+  /**
+   * Update the application (git pull + restart)
+   */
+  updateApp: () =>
+    ipcRenderer.invoke('app:update'),
+
   // ============================================
   // Utilities API
   // ============================================

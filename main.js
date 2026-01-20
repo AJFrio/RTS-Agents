@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const { exec } = require('child_process');
 
 // Services
 const configStore = require('./src/main/services/config-store');
@@ -431,6 +432,34 @@ ipcMain.handle('settings:get-all-project-paths', async () => {
 // ============================================
 // IPC Handlers - Utilities
 // ============================================
+
+/**
+ * Update the application (git pull + restart)
+ */
+ipcMain.handle('app:update', async () => {
+  console.log('Update requested. Executing git pull...');
+
+  return new Promise((resolve) => {
+    // Execute git pull
+    exec('git pull', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Update failed: ${error.message}`);
+        resolve({ success: false, error: error.message });
+        return;
+      }
+
+      console.log(`Update stdout: ${stdout}`);
+      if (stderr) console.error(`Update stderr: ${stderr}`);
+
+      resolve({ success: true });
+
+      // If successful, restart the app
+      console.log('Update successful. Restarting application...');
+      app.relaunch();
+      app.quit();
+    });
+  });
+});
 
 /**
  * Open external URL in browser

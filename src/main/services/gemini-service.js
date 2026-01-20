@@ -114,7 +114,8 @@ class GeminiService {
             summary: this.extractSummary(session),
             filePath: filePath,
             projectHash: path.basename(projectPath),
-            messageCount: this.countMessages(session)
+            messageCount: this.countMessages(session),
+            rawId: session.sessionId || file.replace('.json', '')
           });
         } catch (err) {
           console.error(`[GeminiService] Error parsing session file ${file}:`, err);
@@ -442,7 +443,8 @@ class GeminiService {
         cwd: projectPath,
         shell: true,
         detached: true,
-        stdio: 'ignore'
+        stdio: 'ignore',
+        windowsHide: true
       });
 
       child.on('error', (err) => {

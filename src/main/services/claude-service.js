@@ -628,7 +628,8 @@ class ClaudeService {
         cwd: projectPath,
         shell: true,
         detached: true,
-        stdio: 'ignore'
+        stdio: 'ignore',
+        windowsHide: true
       });
 
       child.on('error', (err) => {

@@ -254,6 +254,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('utils:open-external', { url }),
   
   /**
+   * Open a directory selection dialog
+   * @returns {Promise<string|null>} The selected path or null if canceled
+   */
+  openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
+
+  /**
    * Get connection status for all providers
    */
   getConnectionStatus: () => 

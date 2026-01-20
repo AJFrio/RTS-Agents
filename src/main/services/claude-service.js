@@ -13,9 +13,6 @@ let trackedConversations = [];
 class ClaudeService {
   constructor() {
     this.apiKey = null;
-    // Debug: log the paths being used
-    console.log('[ClaudeService] Claude home dir:', CLAUDE_HOME);
-    console.log('[ClaudeService] Projects dir:', CLAUDE_PROJECTS_DIR);
   }
 
   // ============================================
@@ -44,17 +41,13 @@ class ClaudeService {
     const projects = [];
     const pathsToScan = [CLAUDE_PROJECTS_DIR, ...additionalPaths];
 
-    console.log(`[ClaudeService] Scanning paths:`, pathsToScan);
-
     for (const basePath of pathsToScan) {
       if (!fs.existsSync(basePath)) {
-        console.log(`[ClaudeService] Path does not exist: ${basePath}`);
         continue;
       }
 
       try {
         const entries = fs.readdirSync(basePath, { withFileTypes: true });
-        console.log(`[ClaudeService] Found ${entries.length} entries in ${basePath}`);
 
         for (const entry of entries) {
           if (entry.isDirectory()) {
@@ -70,7 +63,6 @@ class ClaudeService {
             const chatsPath = path.join(projectPath, 'chats');
             
             if (fs.existsSync(sessionsPath) || fs.existsSync(chatsPath)) {
-              console.log(`[ClaudeService] Found project: ${entry.name}`);
               projects.push({
                 hash: entry.name,
                 path: projectPath,
@@ -81,7 +73,6 @@ class ClaudeService {
               const files = fs.readdirSync(projectPath);
               const hasSessionFiles = files.some(f => f.endsWith('.json'));
               if (hasSessionFiles) {
-                console.log(`[ClaudeService] Found project with direct sessions: ${entry.name}`);
                 projects.push({
                   hash: entry.name,
                   path: projectPath,
@@ -92,11 +83,10 @@ class ClaudeService {
           }
         }
       } catch (err) {
-        console.error(`[ClaudeService] Error scanning ${basePath}:`, err);
+        // Ignore errors
       }
     }
 
-    console.log(`[ClaudeService] Total projects discovered: ${projects.length}`);
     return projects;
   }
 
@@ -109,13 +99,11 @@ class ClaudeService {
     const sessions = [];
 
     if (!fs.existsSync(sessionsPath)) {
-      console.log(`[ClaudeService] No sessions directory at: ${sessionsPath}`);
       return sessions;
     }
 
     try {
       const files = fs.readdirSync(sessionsPath).filter(f => f.endsWith('.json'));
-      console.log(`[ClaudeService] Found ${files.length} session files in ${sessionsPath}`);
 
       for (const file of files) {
         try {
@@ -146,14 +134,13 @@ class ClaudeService {
             messageCount: this.countMessages(session)
           });
         } catch (err) {
-          console.error(`[ClaudeService] Error parsing session file ${file}:`, err);
+          // Ignore error
         }
       }
     } catch (err) {
-      console.error(`[ClaudeService] Error reading sessions directory:`, err);
+      // Ignore error
     }
 
-    console.log(`[ClaudeService] Returning ${sessions.length} sessions from ${projectPath}`);
     return sessions;
   }
 
@@ -162,7 +149,6 @@ class ClaudeService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async getAllLocalSessions(additionalPaths = []) {
-    console.log('[ClaudeService] getAllLocalSessions called with paths:', additionalPaths);
     const projects = await this.discoverProjects(additionalPaths);
     const allSessions = [];
 
@@ -171,7 +157,6 @@ class ClaudeService {
       allSessions.push(...sessions);
     }
 
-    console.log(`[ClaudeService] Total local sessions found: ${allSessions.length}`);
     return allSessions;
   }
 
@@ -401,7 +386,7 @@ class ClaudeService {
         const localSessions = await this.getAllLocalSessions(additionalPaths);
         results.push(...localSessions);
       } catch (err) {
-        console.error('[ClaudeService] Error getting local sessions:', err);
+        // Ignore error
       }
     }
 
@@ -411,7 +396,7 @@ class ClaudeService {
         const cloudConversations = await this.getAllCloudConversations();
         results.push(...cloudConversations);
       } catch (err) {
-        console.error('[ClaudeService] Error getting cloud conversations:', err);
+        // Ignore error
       }
     }
 
@@ -479,7 +464,6 @@ class ClaudeService {
         fileSize: stats.size
       };
     } catch (err) {
-      console.error(`[ClaudeService] Error reading session details:`, err);
       return null;
     }
   }
@@ -596,7 +580,7 @@ class ClaudeService {
    */
   async startLocalSession(options) {
     const { spawn } = require('child_process');
-    const { prompt, projectPath, allowedTools = 'Read,Edit,Bash' } = options;
+    const { prompt, projectPath, allowedTools = 'Read,Edit,Bash', command } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -619,10 +603,9 @@ class ClaudeService {
     const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '--allowedTools', allowedTools];
 
     return new Promise((resolve, reject) => {
-      const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';
-
-      console.log(`Starting Claude CLI in ${projectPath}`);
-      console.log(`Command: ${claudeCmd} ${args.join(' ')}`);
+      const claudeCmd = (command && String(command).trim())
+        ? String(command).trim()
+        : (process.platform === 'win32' ? 'claude.cmd' : 'claude');
 
       const child = spawn(claudeCmd, args, {
         cwd: projectPath,
@@ -705,7 +688,7 @@ class ClaudeService {
           }
         }
       } catch (err) {
-        console.error(`[ClaudeService] Error scanning ${basePath}:`, err);
+        // Ignore error
       }
     }
 

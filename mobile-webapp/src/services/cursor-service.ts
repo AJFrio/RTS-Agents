@@ -186,7 +186,6 @@ class CursorService {
         displayName: this.extractRepoName(repo.url || repo.repository || ''),
       }));
     } catch (err) {
-      console.error('Error fetching Cursor repositories:', err);
       throw err;
     }
   }

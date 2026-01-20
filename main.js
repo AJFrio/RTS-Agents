@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, MenuItem } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, MenuItem, dialog } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
@@ -210,6 +210,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const device = {
     id: identity.id,
     name: identity.name,
+    deviceType: 'desktop',
     platform: process.platform,
     ...(nextStatus === 'on' ? { lastHeartbeat: nowIso } : {}),
     status: nextStatus,
@@ -996,6 +997,20 @@ function performUpdate() {
 ipcMain.handle('utils:open-external', async (event, { url }) => {
   await shell.openExternal(url);
   return { success: true };
+});
+
+/**
+ * Open directory selection dialog
+ */
+ipcMain.handle('dialog:open-directory', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+  if (canceled) {
+    return null;
+  } else {
+    return filePaths[0];
+  }
 });
 
 /**

@@ -118,7 +118,6 @@ class CursorService {
 
       return agents.map(agent => this.normalizeAgent(agent));
     } catch (err) {
-      console.error('Error fetching Cursor agents:', err);
       throw err;
     }
   }
@@ -292,6 +291,7 @@ class CursorService {
       }
     } catch (err) {
       console.warn('Error fetching Cursor cloud repositories:', err.message);
+      throw err;
     }
 
     const localRepos = await this.getAvailableLocalRepositories(localPaths);

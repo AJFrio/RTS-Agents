@@ -138,7 +138,7 @@ class ClaudeService {
         trackedConversations = JSON.parse(stored);
       }
     } catch (err) {
-      console.error('Failed to load tracked conversations:', err);
+      // Ignore error
     }
   }
 
@@ -146,7 +146,7 @@ class ClaudeService {
     try {
       localStorage.setItem('claude_tracked_conversations', JSON.stringify(trackedConversations));
     } catch (err) {
-      console.error('Failed to save tracked conversations:', err);
+      // Ignore error
     }
   }
 

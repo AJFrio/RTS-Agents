@@ -58,6 +58,7 @@ interface ComputerCardProps {
 
 function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
   const isOnline = computer.status === 'on';
+  const isHeadless = String(computer.deviceType || '').toLowerCase() === 'headless';
 
   return (
     <div className={`bg-card-dark border ${isOnline ? 'border-emerald-500/50' : 'border-border-dark'} p-4`}>
@@ -80,6 +81,13 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           </span>
         </div>
       </div>
+
+      {/* Headless notification */}
+      {isHeadless && (
+        <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 font-display text-[10px] uppercase tracking-wider">
+          Headless device (no UI): compute-only
+        </div>
+      )}
 
       {/* Tools */}
       {computer.tools && (

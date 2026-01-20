@@ -139,7 +139,7 @@ class CursorService {
       updatedAt: null, // Not provided in API
       summary: agent.summary || null,
       rawId: agent.id,
-      webUrl: null, // No public dashboard URL for Cursor agents yet
+      webUrl: `https://cursor.com/${agent.id}`,
       url: agent.target?.url || null,
       ref: agent.source?.ref || null,
       autoCreatePr: agent.target?.autoCreatePr || false

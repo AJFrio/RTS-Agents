@@ -154,7 +154,7 @@ class JulesService {
       updatedAt: session.updateTime ? new Date(session.updateTime) : null,
       summary: this.extractSummary(session),
       rawId: session.id,
-      webUrl: `https://console.cloud.google.com/jules/sessions/${session.id}`,
+      webUrl: `https://jules.google.com/session/${session.id}`,
       source: session.sourceContext?.source || null
     };
   }

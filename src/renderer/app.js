@@ -374,6 +374,12 @@ function setupEventListeners() {
     if (e.key === 'Enter') addGithubPath();
   });
 
+  // Settings - Update Application
+  const updateBtn = document.getElementById('update-app-btn');
+  if (updateBtn) {
+    updateBtn.addEventListener('click', updateApplication);
+  }
+
   // New Task Modal
   elements.newTaskBtn.addEventListener('click', openNewTaskModal);
   elements.taskPrompt.addEventListener('input', validateNewTaskForm);
@@ -1324,6 +1330,32 @@ window.removeGithubPath = async function(path) {
     showToast(`Failed to remove path: ${err.message}`, 'error');
   }
 };
+
+async function updateApplication() {
+  if (!confirm('Are you sure you want to update and restart the application? This will stop all running tasks.')) {
+    return;
+  }
+
+  const btn = document.getElementById('update-app-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined text-sm animate-spin">sync</span> UPDATING...';
+
+  try {
+    // Check connection status before attempting update
+    const status = await window.electronAPI.getConnectionStatus();
+    // We don't strictly need a provider status to be true to run git pull,
+    // but we can at least show a toast starting the process.
+
+    showToast('Initiating update sequence...', 'info');
+    await window.electronAPI.updateApp();
+    // The app will restart if successful, so we might not reach here,
+    // or we might want to handle failure case.
+  } catch (err) {
+    showToast(`Update failed: ${err.message}`, 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-symbols-outlined text-sm">download</span> UPDATE & RESTART';
+  }
+}
 
 function renderGithubPaths() {
   const paths = state.settings.githubPaths || [];

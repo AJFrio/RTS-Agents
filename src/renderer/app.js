@@ -2535,6 +2535,17 @@ async function loadBranches() {
         
         elements.branchesLoading.classList.add('hidden');
         elements.branchesContent.classList.remove('hidden');
+
+        // If we have a selected repo, refresh its PRs too
+        if (state.github.selectedRepo) {
+           const updatedRepo = state.github.repos.find(r => r.id === state.github.selectedRepo.id);
+           if (updatedRepo) {
+              // Update local state to match new repo data
+              state.github.selectedRepo = updatedRepo;
+              // Trigger selectRepo to refresh PRs
+              await selectRepo(updatedRepo.owner.login, updatedRepo.name, updatedRepo.id);
+           }
+        }
      } else {
         throw new Error(result.error);
      }

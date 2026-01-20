@@ -358,17 +358,17 @@
                   </div>
                   
                   <div id="repo-details-content" class="hidden flex flex-col h-full">
-                     <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-start bg-black/20">
+                     <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-center bg-black/20">
                         <div>
                            <h2 id="selected-repo-name" class="text-xl font-display font-bold text-white tracking-tight uppercase">Repo Name</h2>
-                           <a id="selected-repo-link" href="#" class="text-xs technical-font text-[#C2B280] hover:underline flex items-center gap-1 mt-1">
-                              <span class="material-symbols-outlined text-xs">open_in_new</span>
-                              View on GitHub
-                           </a>
                         </div>
-                        <div class="flex gap-2">
-                           <span class="px-2 py-1 text-[10px] technical-font bg-slate-800 text-slate-300 border border-slate-700">
-                              <span id="pr-count">0</span> OPEN PRS
+                        <div class="flex items-center gap-3">
+                           <a id="selected-repo-link" href="#" class="bg-[#C2B280] text-black px-3 py-1.5 text-xs technical-font font-bold hover:brightness-110 flex items-center gap-2 transition-all">
+                              <span class="material-symbols-outlined text-sm">open_in_new</span>
+                              VISIT REPO
+                           </a>
+                           <span class="px-2 py-1.5 text-[10px] technical-font bg-slate-800 text-slate-300 border border-slate-700 h-full flex items-center">
+                              <span id="pr-count" class="mr-1">0</span> OPEN PRS
                            </span>
                         </div>
                      </div>

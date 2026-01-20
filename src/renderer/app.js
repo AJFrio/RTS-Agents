@@ -67,6 +67,17 @@ const state = {
     promptMode: 'write', // 'write' | 'preview'
     pastedImages: [] // [{ id, name, mimeType, size, dataUrl }]
   },
+  // Create repo modal state
+  createRepo: {
+    open: false,
+    location: 'github', // 'github' | 'local' | 'remote'
+    name: '',
+    githubOwner: '',
+    githubPrivate: false,
+    localDir: '',
+    remoteDeviceId: '',
+    loading: false
+  },
   // Pagination state
   pagination: {
     currentPage: 1,
@@ -202,6 +213,22 @@ const elements = {
   createTaskLoading: document.getElementById('create-task-loading'),
   branchInputContainer: document.getElementById('branch-input-container'),
 
+  // Create Repo Modal
+  createRepoModal: document.getElementById('create-repo-modal'),
+  createRepoLocation: document.getElementById('create-repo-location'),
+  createRepoName: document.getElementById('create-repo-name'),
+  createRepoGithubSettings: document.getElementById('create-repo-github-settings'),
+  createRepoGithubOwner: document.getElementById('create-repo-github-owner'),
+  createRepoVisibilityPublic: document.getElementById('create-repo-visibility-public'),
+  createRepoVisibilityPrivate: document.getElementById('create-repo-visibility-private'),
+  createRepoLocalSettings: document.getElementById('create-repo-local-settings'),
+  createRepoLocalDir: document.getElementById('create-repo-local-dir'),
+  createRepoRemoteSettings: document.getElementById('create-repo-remote-settings'),
+  createRepoRemoteDevice: document.getElementById('create-repo-remote-device'),
+  createRepoError: document.getElementById('create-repo-error'),
+  createRepoSubmitBtn: document.getElementById('create-repo-submit-btn'),
+  createRepoLoading: document.getElementById('create-repo-loading'),
+
   // Pasted image viewer modal
   pastedImageModal: document.getElementById('pasted-image-modal'),
   pastedImageModalImg: document.getElementById('pasted-image-modal-img'),
@@ -221,6 +248,7 @@ const elements = {
   prFilterOpen: document.getElementById('pr-filter-open'),
   prFilterClosed: document.getElementById('pr-filter-closed'),
   prList: document.getElementById('pr-list'),
+  createRepoBtn: document.getElementById('create-repo-btn'),
   refreshBranchesBtn: document.getElementById('refresh-branches-btn'),
   repoCount: document.getElementById('repo-count'),
 
@@ -574,10 +602,51 @@ function setupEventListeners() {
   elements.repoFilter.addEventListener('input', debounce((e) => {
     filterRepos(e.target.value);
   }, 200));
+  if (elements.createRepoBtn) {
+    elements.createRepoBtn.addEventListener('click', openCreateRepoModal);
+  }
   elements.refreshBranchesBtn.addEventListener('click', loadBranches);
 
   elements.prFilterOpen.addEventListener('click', () => setPrFilter('open'));
   elements.prFilterClosed.addEventListener('click', () => setPrFilter('closed'));
+
+  // Create Repo Modal
+  if (elements.createRepoLocation) {
+    elements.createRepoLocation.addEventListener('change', (e) => {
+      state.createRepo.location = e.target.value;
+      updateCreateRepoModalVisibility();
+    });
+  }
+  if (elements.createRepoName) {
+    elements.createRepoName.addEventListener('input', (e) => {
+      state.createRepo.name = e.target.value;
+      hideCreateRepoError();
+    });
+  }
+  if (elements.createRepoGithubOwner) {
+    elements.createRepoGithubOwner.addEventListener('change', (e) => {
+      state.createRepo.githubOwner = e.target.value;
+      hideCreateRepoError();
+    });
+  }
+  if (elements.createRepoLocalDir) {
+    elements.createRepoLocalDir.addEventListener('input', (e) => {
+      state.createRepo.localDir = e.target.value;
+      hideCreateRepoError();
+    });
+  }
+  if (elements.createRepoRemoteDevice) {
+    elements.createRepoRemoteDevice.addEventListener('change', (e) => {
+      state.createRepo.remoteDeviceId = e.target.value;
+      hideCreateRepoError();
+    });
+  }
+  if (elements.createRepoVisibilityPublic) {
+    elements.createRepoVisibilityPublic.addEventListener('click', () => setCreateRepoVisibility(false));
+  }
+  if (elements.createRepoVisibilityPrivate) {
+    elements.createRepoVisibilityPrivate.addEventListener('click', () => setCreateRepoVisibility(true));
+  }
 
   // Listen for system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -1366,7 +1435,7 @@ function showView(view) {
   const titles = {
     dashboard: 'Agent Dashboard',
     settings: 'Settings',
-    branches: 'Repository Branches',
+    branches: 'Repositories',
     computers: 'Computers'
   };
   elements.viewTitle.textContent = titles[view] || 'Dashboard';
@@ -2297,6 +2366,250 @@ window.closeNewTaskModal = function() {
   elements.newTaskModal.classList.add('hidden');
   resetNewTaskForm();
 };
+
+// ============================================
+// Create Repo Modal
+// ============================================
+
+function hideCreateRepoError() {
+  if (!elements.createRepoError) return;
+  elements.createRepoError.textContent = '';
+  elements.createRepoError.classList.add('hidden');
+}
+
+function showCreateRepoError(message) {
+  if (!elements.createRepoError) return;
+  elements.createRepoError.textContent = message || 'Failed to create repository';
+  elements.createRepoError.classList.remove('hidden');
+}
+
+function setCreateRepoLoading(loading) {
+  state.createRepo.loading = !!loading;
+  if (elements.createRepoSubmitBtn) elements.createRepoSubmitBtn.disabled = !!loading;
+  if (elements.createRepoLoading) elements.createRepoLoading.classList.toggle('hidden', !loading);
+}
+
+function setCreateRepoVisibility(isPrivate) {
+  state.createRepo.githubPrivate = !!isPrivate;
+
+  const activeClasses = ['bg-[#C2B280]', 'text-black'];
+  const inactiveClasses = ['bg-black/20'];
+
+  if (elements.createRepoVisibilityPublic && elements.createRepoVisibilityPrivate) {
+    // Public selected
+    elements.createRepoVisibilityPublic.classList.toggle(activeClasses[0], !state.createRepo.githubPrivate);
+    elements.createRepoVisibilityPublic.classList.toggle(activeClasses[1], !state.createRepo.githubPrivate);
+    elements.createRepoVisibilityPublic.classList.toggle(inactiveClasses[0], state.createRepo.githubPrivate);
+
+    // Private selected
+    elements.createRepoVisibilityPrivate.classList.toggle(activeClasses[0], state.createRepo.githubPrivate);
+    elements.createRepoVisibilityPrivate.classList.toggle(activeClasses[1], state.createRepo.githubPrivate);
+    elements.createRepoVisibilityPrivate.classList.toggle(inactiveClasses[0], !state.createRepo.githubPrivate);
+  }
+}
+
+function updateCreateRepoModalVisibility() {
+  const loc = state.createRepo.location;
+
+  if (elements.createRepoGithubSettings) {
+    elements.createRepoGithubSettings.classList.toggle('hidden', loc !== 'github');
+  }
+  if (elements.createRepoLocalSettings) {
+    elements.createRepoLocalSettings.classList.toggle('hidden', loc !== 'local');
+  }
+  if (elements.createRepoRemoteSettings) {
+    elements.createRepoRemoteSettings.classList.toggle('hidden', loc !== 'remote');
+  }
+}
+
+async function populateCreateRepoGithubOwners() {
+  const electronAPI = getElectronAPI();
+  if (!elements.createRepoGithubOwner) return;
+
+  elements.createRepoGithubOwner.innerHTML = `<option value="">${state.configuredServices.github ? 'LOADING...' : 'GITHUB NOT CONFIGURED'}</option>`;
+
+  if (!state.configuredServices.github || !electronAPI?.github?.getOwners) {
+    return;
+  }
+
+  try {
+    const result = await electronAPI.github.getOwners();
+    const user = result?.user?.login;
+    const orgs = Array.isArray(result?.orgs) ? result.orgs : [];
+
+    const options = [];
+    if (user) {
+      options.push({ value: `user:${user}`, label: `${user} (personal)` });
+    }
+    orgs.forEach(o => {
+      const login = o?.login;
+      if (login) options.push({ value: `org:${login}`, label: `${login} (org)` });
+    });
+
+    if (options.length === 0) {
+      elements.createRepoGithubOwner.innerHTML = `<option value="">NO OWNERS FOUND</option>`;
+      return;
+    }
+
+    elements.createRepoGithubOwner.innerHTML = options
+      .map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`)
+      .join('');
+
+    // Default to personal account if present
+    const defaultValue = options[0]?.value || '';
+    elements.createRepoGithubOwner.value = defaultValue;
+    state.createRepo.githubOwner = defaultValue;
+  } catch (err) {
+    console.warn('Failed to load GitHub owners:', err?.message || err);
+    elements.createRepoGithubOwner.innerHTML = `<option value="">FAILED TO LOAD</option>`;
+  }
+}
+
+function populateCreateRepoRemoteDevices() {
+  if (!elements.createRepoRemoteDevice) return;
+
+  const devices = Array.isArray(state.computers.list) ? state.computers.list : [];
+  const remote = devices.filter(d => d?.id && d.id !== state.localDeviceId);
+
+  const options = [
+    `<option value="">SELECT A COMPUTER...</option>`,
+    ...remote.map(d => {
+      const status = (d.status || '').toUpperCase();
+      const label = `${d.name || d.id} ${status ? `(${status})` : ''}`;
+      return `<option value="${escapeHtml(d.id)}">${escapeHtml(label)}</option>`;
+    })
+  ];
+
+  elements.createRepoRemoteDevice.innerHTML = options.join('');
+}
+
+async function openCreateRepoModal() {
+  hideCreateRepoError();
+
+  state.createRepo.open = true;
+  state.createRepo.loading = false;
+  state.createRepo.location = 'github';
+  state.createRepo.name = '';
+  state.createRepo.githubOwner = '';
+  state.createRepo.githubPrivate = false;
+  state.createRepo.remoteDeviceId = '';
+
+  // Default local dir to first GitHub path (if configured)
+  const defaultDir = Array.isArray(state.settings.githubPaths) && state.settings.githubPaths.length > 0
+    ? state.settings.githubPaths[0]
+    : '';
+  state.createRepo.localDir = defaultDir;
+
+  if (elements.createRepoLocation) elements.createRepoLocation.value = state.createRepo.location;
+  if (elements.createRepoName) elements.createRepoName.value = '';
+  if (elements.createRepoLocalDir) elements.createRepoLocalDir.value = defaultDir;
+
+  setCreateRepoVisibility(false);
+  updateCreateRepoModalVisibility();
+
+  // Ensure computers are loaded so we can populate remote targets
+  if (state.computers.configured && (!Array.isArray(state.computers.list) || state.computers.list.length === 0)) {
+    await loadComputers();
+  }
+  populateCreateRepoRemoteDevices();
+
+  await populateCreateRepoGithubOwners();
+
+  if (elements.createRepoModal) {
+    elements.createRepoModal.classList.remove('hidden');
+  }
+}
+
+function closeCreateRepoModal() {
+  state.createRepo.open = false;
+  setCreateRepoLoading(false);
+  hideCreateRepoError();
+  if (elements.createRepoModal) {
+    elements.createRepoModal.classList.add('hidden');
+  }
+}
+
+async function submitCreateRepo() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI) {
+    showCreateRepoError('Electron API unavailable');
+    return;
+  }
+
+  hideCreateRepoError();
+
+  const location = elements.createRepoLocation?.value || state.createRepo.location;
+  const name = (elements.createRepoName?.value || '').trim();
+  if (!name) {
+    showCreateRepoError('Repository name is required');
+    return;
+  }
+
+  setCreateRepoLoading(true);
+
+  try {
+    if (location === 'github') {
+      const ownerValue = elements.createRepoGithubOwner?.value || '';
+      if (!ownerValue) throw new Error('Select an owner (org or personal)');
+
+      const [ownerType, owner] = ownerValue.split(':');
+      if (!ownerType || !owner) throw new Error('Invalid owner selection');
+
+      if (!electronAPI.github?.createRepo) throw new Error('GitHub create repo API not available');
+
+      const result = await electronAPI.github.createRepo({
+        ownerType,
+        owner,
+        name,
+        private: !!state.createRepo.githubPrivate
+      });
+
+      if (!result?.success) throw new Error(result?.error || 'Failed to create GitHub repository');
+
+      closeCreateRepoModal();
+      await loadBranches();
+      void window.showConfirmModal?.(`Created ${result.repo?.full_name || name} on GitHub.`, 'REPOSITORY CREATED');
+      return;
+    }
+
+    if (location === 'local') {
+      const dir = (elements.createRepoLocalDir?.value || '').trim();
+      if (!dir) throw new Error('Directory is required for local repos');
+      if (!electronAPI.projects?.createLocalRepo) throw new Error('Local repo creation API not available');
+
+      const result = await electronAPI.projects.createLocalRepo({ name, directory: dir });
+      if (!result?.success) throw new Error(result?.error || 'Failed to create local repository');
+
+      closeCreateRepoModal();
+      void window.showConfirmModal?.(`Created local repo at ${result.path}`, 'REPOSITORY CREATED');
+      return;
+    }
+
+    if (location === 'remote') {
+      const deviceId = elements.createRepoRemoteDevice?.value || '';
+      if (!deviceId) throw new Error('Select a remote computer');
+      if (!electronAPI.projects?.enqueueCreateRepo) throw new Error('Remote repo creation API not available');
+
+      const result = await electronAPI.projects.enqueueCreateRepo({ deviceId, name });
+      if (!result?.success) throw new Error(result?.error || 'Failed to enqueue remote repo creation');
+
+      closeCreateRepoModal();
+      void window.showConfirmModal?.(`Queued repo creation on remote device.`, 'REPO QUEUED');
+      return;
+    }
+
+    throw new Error(`Unknown location: ${location}`);
+  } catch (err) {
+    console.error('Create repo failed:', err);
+    showCreateRepoError(err?.message || 'Create repo failed');
+  } finally {
+    setCreateRepoLoading(false);
+  }
+}
+
+window.openCreateRepoModal = openCreateRepoModal;
+window.closeCreateRepoModal = closeCreateRepoModal;
+window.submitCreateRepo = submitCreateRepo;
 
 function sanitizeMarkdownToHtml(markdown) {
   try {

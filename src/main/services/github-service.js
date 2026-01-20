@@ -24,7 +24,10 @@ const makeRequest = (path, method = 'GET', body = null) => {
       hostname: 'api.github.com',
       path: path,
       method: method,
-      headers: getHeaders()
+      headers: {
+        ...getHeaders(),
+        ...(body ? { 'Content-Type': 'application/json' } : {})
+      }
     };
 
     const req = https.request(options, (res) => {
@@ -60,6 +63,31 @@ const makeRequest = (path, method = 'GET', body = null) => {
 const getUserRepos = async () => {
   // Fetch repos sorted by updated time to show relevant ones first
   return makeRequest('/user/repos?sort=updated&per_page=100&type=all');
+};
+
+const getCurrentUser = async () => {
+  return makeRequest('/user');
+};
+
+const getUserOrgs = async () => {
+  return makeRequest('/user/orgs?per_page=100');
+};
+
+const createRepository = async ({ ownerType = 'user', owner, name, private: isPrivate = false } = {}) => {
+  if (!name) throw new Error('Repository name is required');
+
+  const payload = {
+    name,
+    private: !!isPrivate
+  };
+
+  if (ownerType === 'org') {
+    if (!owner) throw new Error('Organization is required to create an org repo');
+    return makeRequest(`/orgs/${owner}/repos`, 'POST', payload);
+  }
+
+  // Default: personal repo for the authenticated user
+  return makeRequest('/user/repos', 'POST', payload);
 };
 
 const getPullRequests = async (owner, repo, state = 'open') => {
@@ -111,6 +139,9 @@ const testConnection = async () => {
 
 module.exports = {
   setApiKey,
+  getCurrentUser,
+  getUserOrgs,
+  createRepository,
   getUserRepos,
   getPullRequests,
   getBranches,

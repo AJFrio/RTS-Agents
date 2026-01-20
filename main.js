@@ -470,14 +470,17 @@ ipcMain.handle('settings:get-all-project-paths', async () => {
 // ============================================
 
 /**
- * Update the application (git pull + restart)
+ * Update the application (git pull + dependencies + build + restart)
  */
 ipcMain.handle('app:update', async () => {
-  console.log('Update requested. Executing git pull...');
+  console.log('Update requested. Executing git pull, npm install, and build...');
 
   return new Promise((resolve) => {
-    // Execute git pull
-    exec('git pull', (error, stdout, stderr) => {
+    // Execute git pull, npm install, and build css
+    // Using cwd: __dirname to ensure we run in the project root
+    const command = 'git pull && npm install && npm run build:css:prod';
+
+    exec(command, { cwd: __dirname }, (error, stdout, stderr) => {
       if (error) {
         console.error(`Update failed: ${error.message}`);
         resolve({ success: false, error: error.message });

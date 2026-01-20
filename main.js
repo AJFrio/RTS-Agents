@@ -481,7 +481,8 @@ ipcMain.handle('settings:get', async () => {
     claudeCloudConfigured: configStore.hasApiKey('claude'),
     claudeDefaultPath: claudeService.getDefaultPath(),
     githubPaths: configStore.getGithubPaths(),
-    filters: configStore.getFilters()
+    filters: configStore.getFilters(),
+    localDeviceId: configStore.getOrCreateDeviceIdentity().id
   };
 });
 

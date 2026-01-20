@@ -89,7 +89,8 @@ const state = {
     list: [],
     loading: false,
     configured: false
-  }
+  },
+  localDeviceId: null
 };
 
 // In production, `window.electronAPI` is provided by `preload.js` via contextBridge and is not writable.
@@ -340,6 +341,21 @@ async function init() {
   await loadSettings();
   await loadAgents();
   await checkConnectionStatus();
+  fetchComputersBackground(); // Non-blocking
+}
+
+async function fetchComputersBackground() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.listComputers) return;
+  try {
+    const result = await electronAPI.listComputers();
+    if (result && result.success) {
+       state.computers.list = result.computers || [];
+       state.computers.configured = !!result.configured;
+    }
+  } catch (err) {
+    console.warn('Background computer fetch failed:', err);
+  }
 }
 
 function setupSpeechRecognition() {
@@ -876,6 +892,11 @@ async function loadSettings() {
     state.configuredServices['claude-cloud'] = result.claudeCloudConfigured || result.apiKeys?.claude || false;
     state.configuredServices.github = result.apiKeys?.github || false;
 
+    // Save local device ID
+    if (result.localDeviceId) {
+      state.localDeviceId = result.localDeviceId;
+    }
+
     // Load saved filters if they exist
     if (result.filters && (result.filters.providers || result.filters.statuses)) {
       if (result.filters.providers) {
@@ -1012,7 +1033,21 @@ function updateServiceButtonVisibility() {
     if (serviceBtn) {
       let visible = false;
 
-      if (targetDevice) {
+      if (targetDevice === 'cloud') {
+        // Cloud mode: Show only cloud services
+        if (['jules', 'cursor', 'codex', 'claude-cloud'].includes(provider)) {
+          if (state.configuredServices[provider]) {
+            visible = true;
+          }
+        }
+      } else if (targetDevice === 'local') {
+        // Local mode: Show only local CLI tools
+        if (['gemini', 'claude-cli'].includes(provider)) {
+           if (state.configuredServices[provider]) {
+             visible = true;
+           }
+        }
+      } else if (targetDevice && typeof targetDevice === 'object') {
         // Remote mode: Only show tools installed on remote device
         // Only gemini and claude-cli are supported remotely
         if (provider === 'gemini' || provider === 'claude-cli') {
@@ -1023,7 +1058,8 @@ function updateServiceButtonVisibility() {
           }
         }
       } else {
-        // Local mode: Show locally configured services
+        // Fallback (initial state or error): Show everything configured locally
+        // This handles the case where targetDevice is null/undefined before selection
         if (state.configuredServices[provider]) {
           visible = true;
         }
@@ -1040,8 +1076,12 @@ function updateServiceButtonVisibility() {
 
   // Update service status message if no services are available
   if (availableCount === 0) {
-    if (targetDevice) {
+    if (targetDevice && typeof targetDevice === 'object') {
       elements.serviceStatus.textContent = 'No compatible CLI tools found on this remote device.';
+    } else if (targetDevice === 'local') {
+      elements.serviceStatus.textContent = 'No local CLI tools installed (Gemini/Claude). Check Settings.';
+    } else if (targetDevice === 'cloud') {
+      elements.serviceStatus.textContent = 'No cloud services configured. Check API Keys in Settings.';
     } else {
       elements.serviceStatus.textContent = 'No services configured. Please add API keys or install CLI tools in Settings.';
     }
@@ -2117,14 +2157,34 @@ function populateTargetDeviceDropdown() {
   const select = elements.newTaskTargetDevice;
   if (!select) return;
 
-  // Clear existing options (except first "This Computer")
-  while (select.options.length > 1) {
-    select.remove(1);
-  }
+  select.innerHTML = '';
 
-  // Populate from state.computers.list
-  // Filter for online devices if desired, or show all with status indication
+  // Group 1: Cloud Providers
+  const cloudGroup = document.createElement('optgroup');
+  cloudGroup.label = 'Cloud Providers';
+  const cloudOption = document.createElement('option');
+  cloudOption.value = 'cloud';
+  cloudOption.textContent = 'CLOUD SERVICES (JULES, CURSOR, CLAUDE)';
+  cloudGroup.appendChild(cloudOption);
+  select.appendChild(cloudGroup);
+
+  // Group 2: Local Device
+  const localGroup = document.createElement('optgroup');
+  localGroup.label = 'Local Device';
+  const localOption = document.createElement('option');
+  localOption.value = 'local';
+  localOption.textContent = 'THIS COMPUTER (LOCAL CLI)';
+  localGroup.appendChild(localOption);
+  select.appendChild(localGroup);
+
+  // Group 3: Remote Computers
+  const remoteGroup = document.createElement('optgroup');
+  remoteGroup.label = 'Remote Computers';
+
+  // Filter out the local computer from remote list
   state.computers.list.forEach(device => {
+    if (device.id === state.localDeviceId) return;
+
     // Only show devices that are ON or have recent heartbeat
     const lastHeartbeat = device.lastHeartbeat || device.heartbeatAt || device.updatedAt;
     const isOnline = device.status === 'on' || (lastHeartbeat && (Date.now() - new Date(lastHeartbeat).getTime() < 1000 * 60 * 6)); // 6 mins
@@ -2133,18 +2193,24 @@ function populateTargetDeviceDropdown() {
        const option = document.createElement('option');
        option.value = device.id;
        option.textContent = `REMOTE: ${(device.name || device.id).toUpperCase()}`;
-       select.appendChild(option);
+       remoteGroup.appendChild(option);
     }
   });
+
+  if (remoteGroup.children.length > 0) {
+    select.appendChild(remoteGroup);
+  }
 }
 
 function handleTargetDeviceChange(e) {
-  const deviceId = e.target.value;
+  const value = e.target.value;
 
-  if (!deviceId) {
-    state.newTask.targetDevice = null;
+  if (value === 'cloud') {
+    state.newTask.targetDevice = 'cloud';
+  } else if (value === 'local') {
+    state.newTask.targetDevice = 'local';
   } else {
-    state.newTask.targetDevice = state.computers.list.find(d => d.id === deviceId) || null;
+    state.newTask.targetDevice = state.computers.list.find(d => d.id === value) || null;
   }
 
   // Reset service selection as available services might change
@@ -2217,7 +2283,13 @@ function openNewTaskModal() {
 
   // Populate devices
   populateTargetDeviceDropdown();
-  if (elements.newTaskTargetDevice) elements.newTaskTargetDevice.value = "";
+  // Default to Local CLI if available, else Cloud
+  if (elements.newTaskTargetDevice) {
+     // Check if we have options (populateTargetDeviceDropdown creates groups)
+     // Try to select 'local' by default
+     elements.newTaskTargetDevice.value = 'local';
+     state.newTask.targetDevice = 'local';
+  }
 
   // Reset form
   resetNewTaskForm();

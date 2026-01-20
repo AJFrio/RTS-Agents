@@ -131,7 +131,6 @@ class JulesService {
 
       return sessions.map(session => this.normalizeSession(session));
     } catch (err) {
-      console.error('Error fetching Jules sessions:', err);
       throw err;
     }
   }

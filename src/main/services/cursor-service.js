@@ -116,7 +116,6 @@ class CursorService {
 
       return agents.map(agent => this.normalizeAgent(agent));
     } catch (err) {
-      console.error('Error fetching Cursor agents:', err);
       throw err;
     }
   }
@@ -244,7 +243,6 @@ class CursorService {
         displayName: this.extractRepoName(repo.url || repo.repository)
       }));
     } catch (err) {
-      console.error('Error fetching Cursor repositories:', err);
       throw err;
     }
   }

@@ -111,8 +111,53 @@ function ApiKeyInput({
   );
 }
 
+function NotificationSettings({ enableNotifications }: { enableNotifications: () => Promise<string> }) {
+  const [status, setStatus] = useState<string>(
+    'Notification' in window ? Notification.permission : 'unsupported'
+  );
+
+  const handleEnable = async () => {
+    const result = await enableNotifications();
+    setStatus(result);
+  };
+
+  if (status === 'unsupported') {
+    return <p className="text-xs text-slate-500">Notifications are not supported on this device.</p>;
+  }
+
+  if (status === 'granted') {
+    return (
+      <div className="flex items-center gap-2 text-emerald-500">
+        <span className="material-symbols-outlined text-sm">check_circle</span>
+        <span className="font-display text-xs font-bold uppercase">Notifications Enabled</span>
+      </div>
+    );
+  }
+
+  if (status === 'denied') {
+    return (
+      <div className="flex items-center gap-2 text-red-400">
+        <span className="material-symbols-outlined text-sm">block</span>
+        <div className="flex flex-col">
+            <span className="font-display text-xs font-bold uppercase">Notifications Blocked</span>
+            <span className="text-[10px] text-slate-500">Enable in browser settings</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleEnable}
+      className="bg-primary text-black px-4 py-2 font-display text-xs font-bold uppercase tracking-wider"
+    >
+      Enable Notifications
+    </button>
+  );
+}
+
 export default function Settings() {
-  const { state, dispatch, setApiKey, testApiKey, setCloudflareConfig, testCloudflareConfig, pullKeysFromKV } = useApp();
+  const { state, dispatch, setApiKey, testApiKey, setCloudflareConfig, testCloudflareConfig, pullKeysFromKV, enableNotifications } = useApp();
   const { configuredServices, settings } = state;
 
   const [cfAccountId, setCfAccountId] = useState('');
@@ -379,6 +424,20 @@ export default function Settings() {
           </div>
         </section>
       )}
+
+      {/* Notifications */}
+      <section className="bg-card-dark border border-border-dark p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-primary text-lg">notifications</span>
+          <h3 className="font-display text-sm font-bold uppercase tracking-tight">Notifications</h3>
+        </div>
+
+        <p className="text-xs text-slate-500 mb-4">
+          Enable native notifications to get alerted when tasks are ready for review.
+        </p>
+
+        <NotificationSettings enableNotifications={enableNotifications} />
+      </section>
 
       {/* Display Settings */}
       <section className="bg-card-dark border border-border-dark p-4">

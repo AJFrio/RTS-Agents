@@ -91,6 +91,8 @@ const elements = {
   viewSettings: document.getElementById('view-settings'),
   viewBranches: document.getElementById('view-branches'),
   viewTitle: document.getElementById('view-title'),
+  sidenavProviders: document.getElementById('sidenav-providers'),
+  sidenavStatus: document.getElementById('sidenav-status'),
   
   // Dashboard
   agentsGrid: document.getElementById('agents-grid'),
@@ -1134,6 +1136,14 @@ function showView(view) {
   elements.viewDashboard.classList.toggle('hidden', view !== 'dashboard');
   elements.viewSettings.classList.toggle('hidden', view !== 'settings');
   elements.viewBranches.classList.toggle('hidden', view !== 'branches');
+
+  // Show/hide sidenav sections
+  if (elements.sidenavProviders) {
+    elements.sidenavProviders.classList.toggle('hidden', view !== 'dashboard');
+  }
+  if (elements.sidenavStatus) {
+    elements.sidenavStatus.classList.toggle('hidden', view !== 'dashboard');
+  }
 
   // Load branches if view selected
   if (view === 'branches') {

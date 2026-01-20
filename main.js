@@ -15,6 +15,10 @@ const cloudflareKvService = require('./src/main/services/cloudflare-kv-service')
 let mainWindow;
 let pollingInterval = null;
 let cloudflareHeartbeatInterval = null;
+let isQuitting = false;
+
+const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
+const DEVICE_STALE_OFFLINE_MS = 6 * 60 * 1000; // 6 minutes
 
 function createWindow() {
   const displayMode = configStore.getDisplayMode();
@@ -103,25 +107,29 @@ async function ensureCloudflareNamespaceId() {
   return namespaceId;
 }
 
-async function sendCloudflareHeartbeat() {
+async function sendCloudflareHeartbeat({ status } = {}) {
   if (!configStore.hasCloudflareConfig()) return;
 
   const namespaceId = await ensureCloudflareNamespaceId();
   if (!namespaceId) return;
 
   const identity = configStore.getOrCreateDeviceIdentity();
+  const nowIso = new Date().toISOString();
+  const nextStatus = status || 'on';
   const device = {
     id: identity.id,
     name: identity.name,
     platform: process.platform,
-    lastHeartbeat: new Date().toISOString(),
+    ...(nextStatus === 'on' ? { lastHeartbeat: nowIso } : {}),
+    status: nextStatus,
+    lastStatusAt: nowIso,
     tools: {
       gemini: geminiService.isGeminiInstalled(),
       'claude-cli': claudeService.isClaudeInstalled()
     }
   };
 
-  await cloudflareKvService.heartbeat({ namespaceId, device });
+  await cloudflareKvService.heartbeat({ namespaceId, device, staleAfterMs: DEVICE_STALE_OFFLINE_MS });
 }
 
 function startCloudflareHeartbeatIfEnabled() {
@@ -137,13 +145,21 @@ function startCloudflareHeartbeatIfEnabled() {
     void sendCloudflareHeartbeat().catch(err => {
       console.warn('Cloudflare heartbeat failed:', err?.message || err);
     });
-  }, 300000); // 5 minutes
+  }, CLOUDFLARE_HEARTBEAT_INTERVAL_MS);
 }
 
 function stopCloudflareHeartbeat() {
   if (cloudflareHeartbeatInterval) {
     clearInterval(cloudflareHeartbeatInterval);
     cloudflareHeartbeatInterval = null;
+  }
+}
+
+async function sendCloudflareOffline() {
+  try {
+    await sendCloudflareHeartbeat({ status: 'off' });
+  } catch (err) {
+    console.warn('Cloudflare offline update failed:', err?.message || err);
   }
 }
 
@@ -974,7 +990,19 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   stopPolling();
   stopCloudflareHeartbeat();
+
+  if (isQuitting) return;
+  isQuitting = true;
+
+  // Give Cloudflare KV a brief chance to record OFF status before exit.
+  event.preventDefault();
+  void Promise.race([
+    sendCloudflareOffline(),
+    new Promise(resolve => setTimeout(resolve, 2000))
+  ]).finally(() => {
+    app.quit();
+  });
 });

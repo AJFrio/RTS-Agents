@@ -169,9 +169,45 @@ class CloudflareKvService {
     return next;
   }
 
-  async heartbeat({ namespaceId, device }) {
+  _getHeartbeatMs(device) {
+    const hb = device?.lastHeartbeat || device?.heartbeatAt || device?.updatedAt || null;
+    if (!hb) return null;
+    const ms = Date.parse(hb);
+    return Number.isFinite(ms) ? ms : null;
+  }
+
+  async heartbeat({ namespaceId, device, staleAfterMs } = {}) {
+    if (!device?.id) throw new Error('Missing device.id for heartbeat');
+
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+
     const devices = await this.ensureDevicesArray(namespaceId);
-    const next = this.upsertDevice(devices, device);
+    let next = this.upsertDevice(devices, device);
+
+    // Opportunistically mark other devices OFF if their last heartbeat is stale.
+    // This allows "crashed" devices to be flipped OFF by any active device.
+    if (typeof staleAfterMs === 'number' && staleAfterMs > 0) {
+      next = next.map(d => {
+        if (!d?.id) return d;
+        if (d.id === device.id) return d;
+
+        const hbMs = this._getHeartbeatMs(d);
+        if (hbMs == null) return d;
+
+        if (nowMs - hbMs >= staleAfterMs) {
+          if (d.status === 'off') return d;
+          return {
+            ...d,
+            status: 'off',
+            lastStatusAt: nowIso,
+            offReason: 'stale-heartbeat'
+          };
+        }
+        return d;
+      });
+    }
+
     await this.putValue(namespaceId, 'devices', next);
     return next;
   }

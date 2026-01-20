@@ -851,6 +851,22 @@
       </div>
     </div>
 
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
+
+      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-md p-6 shadow-2xl flex flex-col items-center text-center">
+        <span class="material-symbols-outlined text-[#C2B280] text-4xl mb-4">warning</span>
+        <h3 id="confirm-title" class="text-lg font-bold text-white uppercase tracking-tight mb-2">Confirm Action</h3>
+        <p id="confirm-message" class="text-sm text-slate-400 mb-6 font-light">Are you sure you want to proceed?</p>
+
+        <div class="flex gap-3 w-full">
+          <button id="confirm-cancel-btn" class="flex-1 px-4 py-2 technical-font text-xs font-bold text-slate-400 border border-slate-700 hover:text-white hover:border-slate-500 transition-colors">CANCEL</button>
+          <button id="confirm-ok-btn" class="flex-1 bg-[#C2B280] text-black px-4 py-2 technical-font text-xs font-bold hover:brightness-110 transition-all">CONFIRM</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Main app -->

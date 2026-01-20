@@ -145,8 +145,8 @@ test.describe('Merge conflict actions', () => {
 
     await expect(page.locator('#task-repo-search')).toHaveValue('DEMO-REPO');
     await expect(page.locator('#task-branch')).toHaveValue('feature-1');
-    await expect(page.locator('#task-prompt')).toContainText('merge conflicts');
-    await expect(page.locator('#task-prompt')).toContainText('https://github.com/acme/demo-repo/pull/7');
+    await expect(page.locator('#task-prompt')).toHaveValue(/merge conflicts/i);
+    await expect(page.locator('#task-prompt')).toHaveValue(/https:\/\/github\.com\/acme\/demo-repo\/pull\/7/);
     await expect(page.locator('#create-task-btn')).toBeEnabled();
   });
 });

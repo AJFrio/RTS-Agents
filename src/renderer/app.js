@@ -58,6 +58,15 @@ const state = {
     'claude-cloud': false,
     github: false
   },
+  // Track detailed capabilities (cloud vs local)
+  capabilities: {
+    gemini: { cloud: false, local: false },
+    jules: { cloud: false, local: false },
+    cursor: { cloud: false, local: false },
+    codex: { cloud: false, local: false },
+    claude: { cloud: false, local: false },
+    github: { cloud: false, local: false }
+  },
   loading: false,
   errors: [],
   // New task modal state
@@ -1031,6 +1040,32 @@ async function loadSettings() {
     state.configuredServices['claude-cloud'] = result.claudeCloudConfigured || result.apiKeys?.claude || false;
     state.configuredServices.github = result.apiKeys?.github || false;
 
+    // Update detailed capabilities
+    state.capabilities.gemini = {
+      cloud: false,
+      local: !!(result.geminiInstalled || (result.geminiPaths && result.geminiPaths.length > 0))
+    };
+    state.capabilities.jules = {
+      cloud: !!result.apiKeys?.jules,
+      local: false
+    };
+    state.capabilities.cursor = {
+      cloud: !!result.apiKeys?.cursor,
+      local: !!(result.cursorPaths && result.cursorPaths.length > 0)
+    };
+    state.capabilities.codex = {
+      cloud: !!result.apiKeys?.codex,
+      local: !!(result.codexPaths && result.codexPaths.length > 0)
+    };
+    state.capabilities.claude = {
+      cloud: !!(result.claudeCloudConfigured || result.apiKeys?.claude),
+      local: !!(result.claudeCliInstalled || (result.claudePaths && result.claudePaths.length > 0))
+    };
+    state.capabilities.github = {
+      cloud: !!result.apiKeys?.github,
+      local: !!(result.githubPaths && result.githubPaths.length > 0)
+    };
+
     // Save local device ID
     if (result.localDeviceId) {
       state.localDeviceId = result.localDeviceId;
@@ -1173,37 +1208,36 @@ function updateServiceButtonVisibility() {
       let visible = false;
 
       if (targetDevice === 'cloud') {
-        // Cloud mode: Show only cloud services
-        if (['jules', 'cursor', 'codex', 'claude-cloud'].includes(provider)) {
-          if (state.configuredServices[provider]) {
-            visible = true;
-          }
+        // Cloud mode: Show services with CLOUD capability
+        if (provider === 'claude-cloud') {
+          visible = state.capabilities.claude.cloud;
+        } else if (provider === 'claude-cli') {
+          visible = false;
+        } else if (state.capabilities[provider]?.cloud) {
+          visible = true;
         }
       } else if (targetDevice === 'local') {
-        // Local mode: Show only local CLI tools
-        // We include cursor and codex here if the user configured them (via paths), even if they are primarily cloud-based,
-        // to satisfy the requirement of making them available as "local services".
-        if (['gemini', 'claude-cli', 'cursor', 'codex'].includes(provider)) {
-           if (state.configuredServices[provider]) {
-             visible = true;
-           }
+        // Local mode: Show services with LOCAL capability
+        if (provider === 'claude-cli') {
+          visible = state.capabilities.claude.local;
+        } else if (provider === 'claude-cloud') {
+          visible = false;
+        } else if (state.capabilities[provider]?.local) {
+          visible = true;
         }
       } else if (targetDevice && typeof targetDevice === 'object') {
         // Remote mode: Only show tools installed on remote device
         // Only gemini and claude-cli are supported remotely
-        if (provider === 'gemini' || provider === 'claude-cli') {
-          // Check if tool is reported as installed in device.tools
-          // device.tools keys might be 'gemini', 'claude-cli'
-          if (targetDevice.tools && targetDevice.tools[provider]) {
-            visible = true;
-          }
-        }
-      } else {
-        // Fallback (initial state or error): Show everything configured locally
-        // This handles the case where targetDevice is null/undefined before selection
-        if (state.configuredServices[provider]) {
+        if (provider === 'gemini' && targetDevice.tools?.gemini) {
+          visible = true;
+        } else if (provider === 'claude-cli' && targetDevice.tools?.['claude-cli']) {
           visible = true;
         }
+      } else {
+        // Fallback: Show everything configured
+        if (provider === 'claude-cli') visible = state.capabilities.claude.local;
+        else if (provider === 'claude-cloud') visible = state.capabilities.claude.cloud;
+        else visible = state.capabilities[provider]?.cloud || state.capabilities[provider]?.local;
       }
 
       if (visible) {
@@ -1220,7 +1254,7 @@ function updateServiceButtonVisibility() {
     if (targetDevice && typeof targetDevice === 'object') {
       elements.serviceStatus.textContent = 'No compatible CLI tools found on this remote device.';
     } else if (targetDevice === 'local') {
-      elements.serviceStatus.textContent = 'No local CLI tools installed (Gemini/Claude). Check Settings.';
+      elements.serviceStatus.textContent = 'No local CLI tools installed (Gemini/Claude) or paths configured. Check Settings.';
     } else if (targetDevice === 'cloud') {
       elements.serviceStatus.textContent = 'No cloud services configured. Check API Keys in Settings.';
     } else {

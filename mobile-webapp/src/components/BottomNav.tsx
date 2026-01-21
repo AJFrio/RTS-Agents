@@ -7,7 +7,7 @@
 import { useApp } from '../store/AppContext';
 
 interface NavItem {
-  id: 'dashboard' | 'branches' | 'computers' | 'settings';
+  id: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings';
   icon: string;
   label: string;
 }
@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { id: 'branches', icon: 'fork_right', label: 'Branches' },
   { id: 'computers', icon: 'computer', label: 'Computers' },
+  { id: 'jira', icon: 'assignment', label: 'Jira' },
   { id: 'settings', icon: 'settings', label: 'Settings' },
 ];
 

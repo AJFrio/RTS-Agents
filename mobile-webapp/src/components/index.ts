@@ -11,3 +11,4 @@ export { default as Settings } from './Settings';
 export { default as NewTaskModal } from './NewTaskModal';
 export { default as ComputersList } from './ComputersList';
 export { default as BranchesView } from './BranchesView';
+export { default as JiraView } from './JiraView';

@@ -23,6 +23,8 @@ export default function Layout({ children }: LayoutProps) {
         return 'Branches';
       case 'computers':
         return 'Computers';
+      case 'jira':
+        return 'Jira';
       case 'settings':
         return 'Settings';
       default:

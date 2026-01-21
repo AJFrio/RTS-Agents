@@ -71,7 +71,7 @@ interface AppState {
   loadingPRs: boolean;
   
   // UI State
-  currentView: 'dashboard' | 'branches' | 'computers' | 'settings';
+  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings';
   showNewTaskModal: boolean;
   showAgentModal: boolean;
 }

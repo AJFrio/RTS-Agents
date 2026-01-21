@@ -13,6 +13,7 @@ const codexService = require('./src/main/services/codex-service');
 const claudeService = require('./src/main/services/claude-service');
 const githubService = require('./src/main/services/github-service');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
+const jiraService = require('./src/main/services/jira-service');
 
 let mainWindow;
 let pollingInterval = null;
@@ -582,8 +583,10 @@ ipcMain.handle('settings:get', async () => {
       codex: configStore.hasApiKey('codex'),
       claude: configStore.hasApiKey('claude'),
       github: configStore.hasApiKey('github'),
+      jira: configStore.hasApiKey('jira'),
       cloudflare: configStore.hasCloudflareConfig()
     },
+    jiraBaseUrl: configStore.getJiraBaseUrl(),
     cloudflare: (() => {
       const cfg = configStore.getCloudflareConfig();
       return {
@@ -631,6 +634,11 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     githubService.setApiKey(key);
   }
   
+  return { success: true };
+});
+
+ipcMain.handle('settings:set-jira-base-url', async (event, { url }) => {
+  configStore.setJiraBaseUrl(url);
   return { success: true };
 });
 
@@ -742,6 +750,8 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
       return await claudeService.testConnection();
     } else if (provider === 'github') {
       return await githubService.testConnection();
+    } else if (provider === 'jira') {
+      return await jiraService.testConnection();
     }
     return { success: false, error: 'Unknown provider' };
   } catch (err) {
@@ -775,6 +785,46 @@ ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
   }
   
   return { success: true };
+});
+
+// ============================================
+// IPC Handlers - Jira
+// ============================================
+
+ipcMain.handle('jira:get-boards', async () => {
+  try {
+    const boards = await jiraService.listBoards();
+    return { success: true, boards };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('jira:get-sprints', async (event, { boardId }) => {
+  try {
+    const sprints = await jiraService.listSprints(boardId);
+    return { success: true, sprints };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('jira:get-backlog-issues', async (event, { boardId }) => {
+  try {
+    const issues = await jiraService.getBacklogIssues(boardId);
+    return { success: true, issues };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('jira:get-sprint-issues', async (event, { sprintId }) => {
+  try {
+    const issues = await jiraService.getSprintIssues(sprintId);
+    return { success: true, issues };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 /**

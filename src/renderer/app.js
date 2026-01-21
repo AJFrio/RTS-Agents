@@ -56,7 +56,8 @@ const state = {
     codex: false,
     'claude-cli': false,
     'claude-cloud': false,
-    github: false
+    github: false,
+    jira: false
   },
   // Track detailed capabilities (cloud vs local)
   capabilities: {
@@ -113,6 +114,14 @@ const state = {
     loading: false,
     configured: false
   },
+  // Jira state
+  jira: {
+    boards: [],
+    issues: [],
+    selectedBoardId: null,
+    loading: false,
+    error: null
+  },
   localDeviceId: null
 };
 
@@ -132,6 +141,7 @@ const elements = {
   viewSettings: document.getElementById('view-settings'),
   viewBranches: document.getElementById('view-branches'),
   viewComputers: document.getElementById('view-computers'),
+  viewJira: document.getElementById('view-jira'),
   viewTitle: document.getElementById('view-title'),
   sidenavProviders: document.getElementById('sidenav-providers'),
   sidenavStatus: document.getElementById('sidenav-status'),
@@ -174,6 +184,8 @@ const elements = {
   statusGithub: document.getElementById('status-github'),
   
   // Settings
+  jiraBaseUrl: document.getElementById('jira-base-url'),
+  jiraApiKey: document.getElementById('jira-api-key'),
   julesApiKey: document.getElementById('jules-api-key'),
   cursorApiKey: document.getElementById('cursor-api-key'),
   codexApiKey: document.getElementById('codex-api-key'),
@@ -275,6 +287,14 @@ const elements = {
   computersEmpty: document.getElementById('computers-empty'),
   computersEmptySubtitle: document.getElementById('computers-empty-subtitle'),
   computersGrid: document.getElementById('computers-grid'),
+
+  // Jira View
+  jiraLoading: document.getElementById('jira-loading'),
+  jiraEmpty: document.getElementById('jira-empty'),
+  jiraContent: document.getElementById('jira-content'),
+  jiraBoardSelect: document.getElementById('jira-board-select'),
+  refreshJiraBtn: document.getElementById('refresh-jira-btn'),
+  jiraIssuesList: document.getElementById('jira-issues-list'),
 
   // PR Modal
   prModal: document.getElementById('pr-modal'),
@@ -519,6 +539,10 @@ function setupEventListeners() {
   });
 
   // Settings - API Keys
+  document.getElementById('save-jira-base-url').addEventListener('click', saveJiraBaseUrl);
+  document.getElementById('save-jira-key').addEventListener('click', () => saveApiKey('jira'));
+  document.getElementById('test-jira-key').addEventListener('click', () => testApiKey('jira'));
+  document.getElementById('disconnect-jira-key').addEventListener('click', () => disconnectApiKey('jira'));
   document.getElementById('save-jules-key').addEventListener('click', () => saveApiKey('jules'));
   document.getElementById('test-jules-key').addEventListener('click', () => testApiKey('jules'));
   document.getElementById('disconnect-jules-key').addEventListener('click', () => disconnectApiKey('jules'));
@@ -718,6 +742,24 @@ function setupEventListeners() {
   if (elements.createRepoVisibilityPrivate) {
     elements.createRepoVisibilityPrivate.addEventListener('click', () => setCreateRepoVisibility(true));
   }
+
+  // Jira View
+  elements.jiraBoardSelect.addEventListener('change', (e) => {
+    state.jira.selectedBoardId = e.target.value;
+    if (state.jira.selectedBoardId) {
+      loadJiraIssues(state.jira.selectedBoardId);
+    } else {
+      elements.jiraIssuesList.innerHTML = '';
+    }
+  });
+
+  elements.refreshJiraBtn.addEventListener('click', () => {
+    if (state.jira.selectedBoardId) {
+      loadJiraIssues(state.jira.selectedBoardId);
+    } else {
+      loadJiraBoards();
+    }
+  });
 
   // Listen for system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -1004,7 +1046,8 @@ async function loadSettings() {
       codexPaths: result.settings?.codexPaths || [],
       githubPaths: result.githubPaths || result.settings?.githubPaths || [],
       theme: result.settings?.theme || 'system',
-      displayMode: result.settings?.displayMode || 'fullscreen'
+      displayMode: result.settings?.displayMode || 'fullscreen',
+      jiraBaseUrl: result.jiraBaseUrl || ''
     };
 
     // Apply theme
@@ -1039,6 +1082,7 @@ async function loadSettings() {
     state.configuredServices['claude-cli'] = result.claudeCliInstalled || (result.claudePaths && result.claudePaths.length > 0) || false;
     state.configuredServices['claude-cloud'] = result.claudeCloudConfigured || result.apiKeys?.claude || false;
     state.configuredServices.github = result.apiKeys?.github || false;
+    state.configuredServices.jira = result.apiKeys?.jira && !!state.settings.jiraBaseUrl;
 
     // Update detailed capabilities
     state.capabilities.gemini = {
@@ -1121,6 +1165,17 @@ async function loadSettings() {
       document.getElementById('disconnect-github-key')?.classList.remove('hidden');
     } else {
       document.getElementById('disconnect-github-key')?.classList.add('hidden');
+    }
+
+    if (result.apiKeys?.jira) {
+      elements.jiraApiKey.placeholder = '••••••••••••••••';
+      document.getElementById('disconnect-jira-key')?.classList.remove('hidden');
+    } else {
+      document.getElementById('disconnect-jira-key')?.classList.add('hidden');
+    }
+
+    if (elements.jiraBaseUrl) {
+      elements.jiraBaseUrl.value = state.settings.jiraBaseUrl || '';
     }
 
     // Cloudflare KV settings
@@ -1570,7 +1625,8 @@ function showView(view) {
     dashboard: 'Agent Dashboard',
     settings: 'Settings',
     branches: 'Repositories',
-    computers: 'Computers'
+    computers: 'Computers',
+    jira: 'Jira'
   };
   elements.viewTitle.textContent = titles[view] || 'Dashboard';
 
@@ -1580,6 +1636,9 @@ function showView(view) {
   elements.viewBranches.classList.toggle('hidden', view !== 'branches');
   if (elements.viewComputers) {
     elements.viewComputers.classList.toggle('hidden', view !== 'computers');
+  }
+  if (elements.viewJira) {
+    elements.viewJira.classList.toggle('hidden', view !== 'jira');
   }
 
   // Show/hide sidenav sections
@@ -1601,6 +1660,9 @@ function showView(view) {
   if (view === 'computers') {
     loadComputers();
     elements.totalCount.textContent = `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`;
+  } else if (view === 'jira') {
+    loadJiraBoards();
+    elements.totalCount.textContent = `${state.jira.issues.length} Issues`;
   } else {
     updateCounts();
   }
@@ -1673,6 +1735,24 @@ function showErrors() {
 // ============================================ 
 // Settings Actions
 // ============================================ 
+
+async function saveJiraBaseUrl() {
+  const electronAPI = getElectronAPI();
+  const url = elements.jiraBaseUrl.value.trim();
+  if (!url) {
+    showToast('Please enter Jira Base URL', 'error');
+    return;
+  }
+  try {
+    await electronAPI.setJiraBaseUrl(url);
+    showToast('Jira Base URL saved', 'success');
+    state.settings.jiraBaseUrl = url;
+    // Check if we are now fully configured
+    await loadSettings();
+  } catch (err) {
+    showToast(`Save failed: ${err.message}`, 'error');
+  }
+}
 
 async function saveApiKey(provider) {
   const electronAPI = getElectronAPI();
@@ -4000,6 +4080,174 @@ function escapeHtml(text) {
 function escapeJsString(str) {
   if (!str) return '';
   return str.replace(/\\/g, '\\\\').replace(/'/g, "\'");
+}
+
+// ============================================
+// Jira Logic
+// ============================================
+
+async function loadJiraBoards() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.jira || !state.configuredServices.jira) {
+    if (elements.jiraEmpty) elements.jiraEmpty.classList.remove('hidden');
+    if (elements.jiraContent) elements.jiraContent.classList.add('hidden');
+    return;
+  }
+
+  state.jira.loading = true;
+  elements.jiraLoading.classList.remove('hidden');
+  elements.jiraEmpty.classList.add('hidden');
+  elements.jiraContent.classList.add('hidden');
+
+  try {
+    const result = await electronAPI.jira.getBoards();
+    if (result.success) {
+      state.jira.boards = result.boards || [];
+      renderJiraBoardsDropdown();
+
+      // Auto-select first board if none selected
+      if (!state.jira.selectedBoardId && state.jira.boards.length > 0) {
+        state.jira.selectedBoardId = state.jira.boards[0].id;
+        elements.jiraBoardSelect.value = state.jira.boards[0].id;
+        loadJiraIssues(state.jira.selectedBoardId);
+      } else {
+        elements.jiraLoading.classList.add('hidden');
+        elements.jiraContent.classList.remove('hidden');
+      }
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (err) {
+    console.error('Error loading Jira boards:', err);
+    showToast(`Failed to load Jira boards: ${err.message}`, 'error');
+    elements.jiraLoading.classList.add('hidden');
+    elements.jiraEmpty.classList.remove('hidden');
+    elements.jiraEmpty.querySelector('h3').textContent = 'Error Loading Jira';
+    elements.jiraEmpty.querySelector('p').textContent = err.message;
+  }
+}
+
+function renderJiraBoardsDropdown() {
+  if (!elements.jiraBoardSelect) return;
+
+  const current = state.jira.selectedBoardId;
+  const options = state.jira.boards.map(board =>
+    `<option value="${board.id}">${escapeHtml(board.name)} (${escapeHtml(board.type)})</option>`
+  ).join('');
+
+  elements.jiraBoardSelect.innerHTML = `<option value="">Select Board...</option>${options}`;
+
+  if (current) {
+    elements.jiraBoardSelect.value = current;
+  }
+}
+
+async function loadJiraIssues(boardId) {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.jira || !boardId) return;
+
+  state.jira.loading = true;
+  elements.jiraIssuesList.innerHTML = `
+    <div class="flex flex-col items-center justify-center h-32">
+       <span class="material-symbols-outlined text-[#C2B280] text-3xl animate-spin">sync</span>
+       <span class="text-xs technical-font text-slate-500 mt-2">LOADING ISSUES...</span>
+    </div>
+  `;
+
+  // Show content area
+  elements.jiraLoading.classList.add('hidden');
+  elements.jiraContent.classList.remove('hidden');
+
+  try {
+    const board = state.jira.boards.find(b => String(b.id) === String(boardId));
+    let issues = [];
+
+    if (board && board.type === 'scrum') {
+        // Get active sprints
+        const sprintsRes = await electronAPI.jira.getSprints(boardId);
+        if (sprintsRes.success && sprintsRes.sprints && sprintsRes.sprints.length > 0) {
+            // Find active sprint
+            const active = sprintsRes.sprints.find(s => s.state === 'active');
+            if (active) {
+                const issuesRes = await electronAPI.jira.getSprintIssues(active.id);
+                if (issuesRes.success) issues = issuesRes.issues || [];
+            }
+        }
+
+        // If no active sprint issues found, try backlog
+        if (issues.length === 0) {
+             const backlogRes = await electronAPI.jira.getBacklogIssues(boardId);
+             if (backlogRes.success) issues = backlogRes.issues || [];
+        }
+    } else {
+        const backlogRes = await electronAPI.jira.getBacklogIssues(boardId);
+        if (backlogRes.success) {
+            issues = backlogRes.issues || [];
+        }
+    }
+
+    state.jira.issues = issues;
+    elements.totalCount.textContent = `${issues.length} Issues`;
+    renderJiraIssues();
+
+  } catch (err) {
+    console.error('Error loading Jira issues:', err);
+    elements.jiraIssuesList.innerHTML = `
+        <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 text-xs technical-font text-center">
+           FAILED TO LOAD ISSUES: ${escapeHtml(err.message)}
+        </div>
+    `;
+  } finally {
+    state.jira.loading = false;
+  }
+}
+
+function renderJiraIssues() {
+  if (state.jira.issues.length === 0) {
+    elements.jiraIssuesList.innerHTML = `
+       <div class="px-4 py-6 text-center text-slate-500 technical-font text-xs">
+          NO ISSUES FOUND
+       </div>
+    `;
+    return;
+  }
+
+  elements.jiraIssuesList.innerHTML = state.jira.issues.map(issue => {
+    const key = escapeHtml(issue.key);
+    const summary = escapeHtml(issue.fields?.summary || 'No summary');
+    const status = escapeHtml(issue.fields?.status?.name || 'Unknown');
+    const priority = escapeHtml(issue.fields?.priority?.name || '');
+    const assignee = escapeHtml(issue.fields?.assignee?.displayName || 'Unassigned');
+
+    // Status color
+    let statusClass = 'text-slate-400 border-slate-600';
+    if (['Done', 'Closed', 'Resolved'].includes(status)) statusClass = 'text-emerald-500 border-emerald-500 bg-emerald-900/20';
+    else if (['In Progress', 'In Review'].includes(status)) statusClass = 'text-blue-500 border-blue-500 bg-blue-900/20';
+
+    return `
+      <div class="jira-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group flex flex-col gap-2">
+         <div class="flex justify-between items-start">
+            <div class="flex items-center gap-2">
+               <span class="text-[#C2B280] technical-font text-xs font-bold">${key}</span>
+               <h3 class="font-medium text-slate-200 text-sm group-hover:text-[#C2B280] transition-colors line-clamp-1">${summary}</h3>
+            </div>
+            <span class="px-2 py-0.5 text-[9px] technical-font border ${statusClass}">${status.toUpperCase()}</span>
+         </div>
+
+         <div class="flex items-center gap-4 text-[10px] technical-font text-slate-500">
+            <span class="flex items-center gap-1">
+               <span class="material-symbols-outlined text-xs">person</span>
+               ${assignee}
+            </span>
+            ${priority ? `
+            <span class="flex items-center gap-1">
+               <span class="material-symbols-outlined text-xs">priority_high</span>
+               ${priority}
+            </span>` : ''}
+         </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function extractRepoName(url) {

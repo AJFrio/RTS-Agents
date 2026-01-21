@@ -61,6 +61,7 @@ class StorageService {
       cursor: this.hasApiKey('cursor'),
       codex: this.hasApiKey('codex'),
       claude: this.hasApiKey('claude'),
+      jira: this.hasApiKey('jira'),
       github: this.hasApiKey('github'),
       cloudflare: this.hasCloudflareConfig(),
     };
@@ -116,6 +117,7 @@ class StorageService {
       pollingInterval: 30000,
       autoPolling: true,
       theme: 'system',
+      jiraBaseUrl: '',
     };
 
     if (!stored) return defaults;

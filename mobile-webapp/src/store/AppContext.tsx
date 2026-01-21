@@ -21,6 +21,7 @@ import {
   cursorService,
   codexService,
   claudeService,
+  jiraService,
   githubService,
   cloudflareKvService,
   storageService,
@@ -71,7 +72,7 @@ interface AppState {
   loadingPRs: boolean;
   
   // UI State
-  currentView: 'dashboard' | 'branches' | 'computers' | 'settings';
+  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings';
   showNewTaskModal: boolean;
   showAgentModal: boolean;
 }
@@ -255,15 +256,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const cursorKey = storageService.getApiKey('cursor');
     const codexKey = storageService.getApiKey('codex');
     const claudeKey = storageService.getApiKey('claude');
+    const jiraKey = storageService.getApiKey('jira');
     const githubKey = storageService.getApiKey('github');
     const cfConfig = storageService.getCloudflareConfig();
+    const appSettings = storageService.getSettings();
 
     if (julesKey) julesService.setApiKey(julesKey);
     if (cursorKey) cursorService.setApiKey(cursorKey);
     if (codexKey) codexService.setApiKey(codexKey);
     if (claudeKey) claudeService.setApiKey(claudeKey);
+    if (jiraKey) jiraService.setApiKey(jiraKey);
     if (githubKey) githubService.setApiKey(githubKey);
     if (cfConfig) cloudflareKvService.setConfig(cfConfig);
+    jiraService.setBaseUrl(appSettings.jiraBaseUrl || null);
 
     dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });
   }, []);
@@ -285,6 +290,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       case 'claude':
         claudeService.setApiKey(key);
         break;
+      case 'jira':
+        jiraService.setApiKey(key);
+        break;
       case 'github':
         githubService.setApiKey(key);
         break;
@@ -304,6 +312,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return codexService.testConnection();
       case 'claude':
         return claudeService.testConnection();
+      case 'jira':
+        return jiraService.testConnection();
       case 'github':
         return githubService.testConnection();
       default:
@@ -347,6 +357,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         claudeApiKey: 'claude',
         anthropic: 'claude',
         anthropicApiKey: 'claude',
+        jira: 'jira',
+        jiraApiKey: 'jira',
+        jiraToken: 'jira',
         github: 'github',
         githubApiKey: 'github',
         githubToken: 'github',
@@ -358,7 +371,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const provider = keyMapping[kvKey] || kvKey;
         
         // Only import recognized providers
-        if (['jules', 'cursor', 'codex', 'claude', 'github'].includes(provider)) {
+        if (['jules', 'cursor', 'codex', 'claude', 'jira', 'github'].includes(provider)) {
           storageService.setApiKey(provider, value);
           
           // Update the service
@@ -374,6 +387,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               break;
             case 'claude':
               claudeService.setApiKey(value);
+              break;
+            case 'jira':
+              jiraService.setApiKey(value);
               break;
             case 'github':
               githubService.setApiKey(value);

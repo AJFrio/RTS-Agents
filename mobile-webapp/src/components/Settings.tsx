@@ -175,9 +175,15 @@ export default function Settings() {
     dispatch({ type: 'SET_SETTINGS', payload: { autoPolling: !settings.autoPolling } });
   };
 
+  const [jiraBaseUrl, setJiraBaseUrl] = useState(settings.jiraBaseUrl || '');
+
   const handleIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseInt(e.target.value, 10) * 1000;
     dispatch({ type: 'SET_SETTINGS', payload: { pollingInterval: value } });
+  };
+
+  const handleSaveJiraBaseUrl = () => {
+    dispatch({ type: 'SET_SETTINGS', payload: { jiraBaseUrl: jiraBaseUrl.trim() } });
   };
 
   const handleSaveCloudflare = () => {
@@ -227,6 +233,39 @@ export default function Settings() {
         </div>
 
         <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="block font-display text-[10px] text-slate-500 uppercase tracking-wider">
+              Jira Base URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={jiraBaseUrl}
+                onChange={(e) => setJiraBaseUrl(e.target.value)}
+                placeholder="https://your-domain.atlassian.net"
+                className="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:outline-none text-sm py-2.5 px-3 text-white placeholder:text-slate-500"
+              />
+              <button
+                onClick={handleSaveJiraBaseUrl}
+                disabled={!jiraBaseUrl.trim()}
+                className="bg-primary text-black px-4 py-2 font-display text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save
+              </button>
+            </div>
+            <p className="font-display text-[9px] text-slate-600">Your Jira site URL (no trailing slash)</p>
+          </div>
+
+          <ApiKeyInput
+            label="Jira API Token / PAT"
+            placeholder="Enter Jira API token (or email:token)"
+            hint="Cloud: create an API token and paste token, or paste email:token. Data Center: use a Personal Access Token."
+            isConfigured={configuredServices.jira}
+            onSave={(key) => setApiKey('jira', key)}
+            onTest={() => testApiKey('jira')}
+            onDisconnect={() => handleDisconnect('jira')}
+          />
+
           <ApiKeyInput
             label="Jules API Key"
             placeholder="Enter Jules API key"

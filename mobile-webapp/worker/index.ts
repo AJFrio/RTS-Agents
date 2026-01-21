@@ -45,15 +45,91 @@ const PROXY_CONFIGS: Record<string, ProxyConfig> = {
     baseUrl: 'https://api.cloudflare.com/client/v4/accounts',
     authHeader: () => ({}), // Auth handled specially for Cloudflare
   },
+  jira: {
+    baseUrl: '',
+    authHeader: () => ({}), // Auth handled specially for Jira
+  },
 };
 
 function corsHeaders(): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, X-CF-Account-Id, X-CF-Api-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, X-JIRA-BASE-URL, X-CF-Account-Id, X-CF-Api-Token',
     'Access-Control-Max-Age': '86400',
   };
+}
+
+function normalizeBaseUrl(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+function jiraAuthHeader(apiKey: string): Record<string, string> {
+  // Support either:
+  // - "email:token" (Cloud basic auth)
+  // - "token" (PAT / bearer)
+  if (apiKey.includes(':')) {
+    return { 'Authorization': `Basic ${btoa(apiKey)}` };
+  }
+  return { 'Authorization': `Bearer ${apiKey}` };
+}
+
+async function handleJiraRequest(request: Request, path: string): Promise<Response> {
+  const apiKey = request.headers.get('X-API-Key');
+  const baseUrlHeader = request.headers.get('X-JIRA-BASE-URL');
+
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'API key required' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+  if (!baseUrlHeader) {
+    return new Response(JSON.stringify({ error: 'Jira base URL required' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+
+  const baseUrl = normalizeBaseUrl(baseUrlHeader);
+  const targetUrl = `${baseUrl}${path}`;
+  const authHeaders = jiraAuthHeader(apiKey);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...authHeaders,
+  };
+
+  try {
+    const fetchOptions: RequestInit = {
+      method: request.method,
+      headers,
+    };
+
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      const body = await request.text();
+      if (body) fetchOptions.body = body;
+    }
+
+    const response = await fetch(targetUrl, fetchOptions);
+    const responseBody = await response.text();
+
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'application/json',
+        ...corsHeaders(),
+      },
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Jira request failed';
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
 }
 
 async function handleProxyRequest(
@@ -74,6 +150,10 @@ async function handleProxyRequest(
   // Special handling for Cloudflare KV
   if (provider === 'cloudflare') {
     return handleCloudflareRequest(request, path);
+  }
+  // Special handling for Jira (base URL is dynamic)
+  if (provider === 'jira') {
+    return handleJiraRequest(request, path);
   }
 
   if (!apiKey) {

@@ -452,6 +452,9 @@
                    <select id="jira-board-select" class="bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-1 px-3 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
                       <option value="">Select Board...</option>
                    </select>
+                   <select id="jira-assignee-filter" class="bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-1 px-3 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                      <option value="">All Users</option>
+                   </select>
                 </div>
                 <div class="flex items-center gap-3">
                    <button id="refresh-jira-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400">
@@ -1291,6 +1294,47 @@
         <div class="flex gap-3 w-full">
           <button id="confirm-cancel-btn" class="flex-1 px-4 py-2 technical-font text-xs font-bold text-slate-400 border border-slate-700 hover:text-white hover:border-slate-500 transition-colors">CANCEL</button>
           <button id="confirm-ok-btn" class="flex-1 bg-[#C2B280] text-black px-4 py-2 technical-font text-xs font-bold hover:brightness-110 transition-all">CONFIRM</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Jira Issue Modal -->
+    <div id="jira-issue-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closeJiraIssueModal()"></div>
+      
+      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-start bg-black/40">
+          <div class="flex-1 mr-8">
+            <div class="flex items-center gap-3 mb-2">
+               <span id="jira-issue-modal-key" class="text-[#C2B280] technical-font text-sm font-bold">--</span>
+               <span id="jira-issue-modal-type" class="px-2 py-0.5 text-[10px] technical-font font-bold bg-[#C2B280]/10 text-[#C2B280] border border-[#C2B280]/30">ISSUE</span>
+               <span id="jira-issue-modal-status" class="px-2 py-0.5 text-[10px] technical-font font-bold bg-slate-700 text-slate-200">--</span>
+            </div>
+            <h2 id="jira-issue-modal-title" class="text-xl font-display font-bold text-white tracking-tight leading-tight">Loading...</h2>
+          </div>
+          <button onclick="closeJiraIssueModal()" class="text-slate-500 hover:text-[#C2B280] transition-colors">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <!-- Modal Content -->
+        <div id="jira-issue-modal-content" class="flex-1 overflow-y-auto p-8 bg-[#121212]">
+          <div class="flex items-center justify-center h-32">
+            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-black border-t border-[#2A2A2A] flex justify-between items-center text-[10px] technical-font">
+          <div class="flex items-center gap-4 text-slate-600">
+            <span id="jira-issue-modal-assignee">Assignee: --</span>
+            <span id="jira-issue-modal-priority">Priority: --</span>
+          </div>
+          <div class="flex items-center gap-4 text-slate-600">
+            <span id="jira-issue-modal-created">Created: --</span>
+            <span id="jira-issue-modal-updated">Updated: --</span>
+          </div>
         </div>
       </div>
     </div>

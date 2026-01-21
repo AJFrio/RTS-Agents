@@ -829,6 +829,24 @@ ipcMain.handle('jira:get-sprint-issues', async (event, { sprintId }) => {
   }
 });
 
+ipcMain.handle('jira:get-issue', async (event, { issueKey }) => {
+  try {
+    const issue = await jiraService.getIssue(issueKey);
+    return { success: true, issue };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('jira:get-issue-comments', async (event, { issueKey }) => {
+  try {
+    const comments = await jiraService.getIssueComments(issueKey);
+    return { success: true, comments: comments.comments || [] };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 /**
  * Update polling settings
  */

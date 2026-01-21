@@ -119,6 +119,7 @@ const state = {
     boards: [],
     issues: [],
     selectedBoardId: null,
+    selectedAssignee: null,
     loading: false,
     error: null
   },
@@ -293,6 +294,7 @@ const elements = {
   jiraEmpty: document.getElementById('jira-empty'),
   jiraContent: document.getElementById('jira-content'),
   jiraBoardSelect: document.getElementById('jira-board-select'),
+  jiraAssigneeFilter: document.getElementById('jira-assignee-filter'),
   refreshJiraBtn: document.getElementById('refresh-jira-btn'),
   jiraIssuesList: document.getElementById('jira-issues-list'),
 
@@ -746,12 +748,21 @@ function setupEventListeners() {
   // Jira View
   elements.jiraBoardSelect.addEventListener('change', (e) => {
     state.jira.selectedBoardId = e.target.value;
+    state.jira.selectedAssignee = null;
+    if (elements.jiraAssigneeFilter) elements.jiraAssigneeFilter.value = '';
     if (state.jira.selectedBoardId) {
       loadJiraIssues(state.jira.selectedBoardId);
     } else {
       elements.jiraIssuesList.innerHTML = '';
     }
   });
+
+  if (elements.jiraAssigneeFilter) {
+    elements.jiraAssigneeFilter.addEventListener('change', (e) => {
+      state.jira.selectedAssignee = e.target.value || null;
+      renderJiraIssues();
+    });
+  }
 
   elements.refreshJiraBtn.addEventListener('click', () => {
     if (state.jira.selectedBoardId) {
@@ -1662,7 +1673,9 @@ function showView(view) {
     elements.totalCount.textContent = `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`;
   } else if (view === 'jira') {
     loadJiraBoards();
-    elements.totalCount.textContent = `${state.jira.issues.length} Issues`;
+    if (state.jira.issues.length > 0) {
+      renderJiraIssues();
+    }
   } else {
     updateCounts();
   }
@@ -4277,7 +4290,6 @@ async function loadJiraIssues(boardId) {
     }
 
     state.jira.issues = issues;
-    elements.totalCount.textContent = `${issues.length} Issues`;
     renderJiraIssues();
 
   } catch (err) {
@@ -4293,16 +4305,48 @@ async function loadJiraIssues(boardId) {
 }
 
 function renderJiraIssues() {
-  if (state.jira.issues.length === 0) {
+  // Get unique assignees from issues
+  const assignees = new Set();
+  state.jira.issues.forEach(issue => {
+    const assignee = issue.fields?.assignee?.displayName || 'Unassigned';
+    assignees.add(assignee);
+  });
+  const sortedAssignees = Array.from(assignees).sort();
+
+  // Update assignee filter dropdown
+  if (elements.jiraAssigneeFilter) {
+    const currentValue = elements.jiraAssigneeFilter.value;
+    elements.jiraAssigneeFilter.innerHTML = '<option value="">All Users</option>' + 
+      sortedAssignees.map(assignee => 
+        `<option value="${escapeHtml(assignee)}">${escapeHtml(assignee)}</option>`
+      ).join('');
+    if (currentValue) {
+      elements.jiraAssigneeFilter.value = currentValue;
+    }
+  }
+
+  // Filter issues by assignee if selected
+  let filteredIssues = state.jira.issues;
+  if (state.jira.selectedAssignee) {
+    filteredIssues = state.jira.issues.filter(issue => {
+      const assignee = issue.fields?.assignee?.displayName || 'Unassigned';
+      return assignee === state.jira.selectedAssignee;
+    });
+  }
+
+  if (filteredIssues.length === 0) {
     elements.jiraIssuesList.innerHTML = `
        <div class="px-4 py-6 text-center text-slate-500 technical-font text-xs">
-          NO ISSUES FOUND
+          NO ISSUES FOUND${state.jira.selectedAssignee ? ` FOR ${escapeHtml(state.jira.selectedAssignee)}` : ''}
        </div>
     `;
+    elements.totalCount.textContent = `0 Issues${state.jira.selectedAssignee ? ` (${state.jira.issues.length} total)` : ''}`;
     return;
   }
 
-  elements.jiraIssuesList.innerHTML = state.jira.issues.map(issue => {
+  elements.totalCount.textContent = `${filteredIssues.length} Issues${state.jira.selectedAssignee ? ` (${state.jira.issues.length} total)` : ''}`;
+
+  elements.jiraIssuesList.innerHTML = filteredIssues.map(issue => {
     const key = escapeHtml(issue.key);
     const summary = escapeHtml(issue.fields?.summary || 'No summary');
     const status = escapeHtml(issue.fields?.status?.name || 'Unknown');
@@ -4315,7 +4359,7 @@ function renderJiraIssues() {
     else if (['In Progress', 'In Review'].includes(status)) statusClass = 'text-blue-500 border-blue-500 bg-blue-900/20';
 
     return `
-      <div class="jira-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group flex flex-col gap-2">
+      <div class="jira-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group flex flex-col gap-2" onclick="openJiraIssue('${key}')">
          <div class="flex justify-between items-start">
             <div class="flex items-center gap-2">
                <span class="text-[#C2B280] technical-font text-xs font-bold">${key}</span>
@@ -4345,6 +4389,172 @@ function extractRepoName(url) {
   const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
   return match ? match[1] : url;
 }
+
+// ============================================
+// Jira Issue Modal
+// ============================================
+
+function extractAdfText(node) {
+  // Jira Cloud description uses Atlassian Document Format (ADF).
+  // This extracts text nodes into a readable string.
+  if (!node || typeof node !== 'object') return '';
+  
+  if (typeof node.text === 'string') return node.text;
+  
+  const content = node.content;
+  if (Array.isArray(content)) {
+    return content.map(extractAdfText).filter(Boolean).join('');
+  }
+  
+  return '';
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '--';
+  try {
+    return new Date(dateString).toLocaleString();
+  } catch {
+    return dateString;
+  }
+}
+
+window.openJiraIssue = async function(issueKey) {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI?.jira) return;
+  
+  const modal = document.getElementById('jira-issue-modal');
+  const content = document.getElementById('jira-issue-modal-content');
+  
+  // Show modal with loading state
+  modal.classList.remove('hidden');
+  content.innerHTML = `
+    <div class="flex items-center justify-center h-32">
+      <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+    </div>
+  `;
+  
+  try {
+    const result = await electronAPI.jira.getIssue(issueKey);
+    
+    if (!result.success) {
+      content.innerHTML = `
+        <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 technical-font text-xs text-center">
+          FAILED TO LOAD ISSUE: ${escapeHtml(result.error)}
+        </div>
+      `;
+      return;
+    }
+    
+    const issue = result.issue;
+    const fields = issue.fields || {};
+    
+    // Update header
+    document.getElementById('jira-issue-modal-key').textContent = issue.key || '--';
+    document.getElementById('jira-issue-modal-type').textContent = (fields.issuetype?.name || 'ISSUE').toUpperCase();
+    document.getElementById('jira-issue-modal-status').textContent = (fields.status?.name || 'UNKNOWN').toUpperCase();
+    document.getElementById('jira-issue-modal-title').textContent = fields.summary || issue.key || 'No title';
+    
+    // Update footer
+    const assignee = fields.assignee?.displayName || 'Unassigned';
+    const priority = fields.priority?.name || '--';
+    document.getElementById('jira-issue-modal-assignee').textContent = `Assignee: ${assignee}`;
+    document.getElementById('jira-issue-modal-priority').textContent = priority !== '--' ? `Priority: ${priority}` : '';
+    document.getElementById('jira-issue-modal-created').textContent = `Created: ${formatDate(fields.created)}`;
+    document.getElementById('jira-issue-modal-updated').textContent = `Updated: ${formatDate(fields.updated)}`;
+    
+    // Extract description
+    const descriptionText = fields.description ? extractAdfText(fields.description) : '';
+    
+    // Fetch comments
+    let comments = [];
+    try {
+      const commentsResult = await electronAPI.jira.getIssueComments(issueKey);
+      if (commentsResult.success) {
+        comments = commentsResult.comments || [];
+      }
+    } catch (err) {
+      console.error('Error loading comments:', err);
+    }
+    
+    // Build content
+    let contentHtml = '';
+    
+    if (descriptionText) {
+      contentHtml += `
+        <div class="mb-6">
+          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">DESCRIPTION</h3>
+          <div class="prose prose-invert prose-sm max-w-none text-slate-300 font-light leading-relaxed whitespace-pre-wrap">${escapeHtml(descriptionText)}</div>
+        </div>
+      `;
+    }
+    
+    if (Array.isArray(fields.labels) && fields.labels.length > 0) {
+      contentHtml += `
+        <div class="mb-6">
+          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">LABELS</h3>
+          <div class="flex flex-wrap gap-2">
+            ${fields.labels.map(label => `
+              <span class="px-2 py-1 text-[10px] technical-font uppercase tracking-wider bg-slate-800 text-slate-300 border border-[#2A2A2A]">
+                ${escapeHtml(label)}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    if (comments.length > 0) {
+      contentHtml += `
+        <div class="mb-6">
+          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">COMMENTS (${comments.length})</h3>
+          <div class="space-y-4">
+            ${comments.map(comment => {
+              const author = comment.author?.displayName || 'Unknown';
+              const body = comment.body ? extractAdfText(comment.body) : '';
+              const created = formatDate(comment.created);
+              return `
+                <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-xs text-slate-500">person</span>
+                      <span class="text-xs technical-font text-slate-300 font-bold">${escapeHtml(author)}</span>
+                    </div>
+                    <span class="text-[10px] technical-font text-slate-500">${escapeHtml(created)}</span>
+                  </div>
+                  <div class="text-sm text-slate-300 font-light leading-relaxed whitespace-pre-wrap mt-2">${escapeHtml(body)}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    if (!descriptionText && (!fields.labels || fields.labels.length === 0) && comments.length === 0) {
+      contentHtml = `
+        <div class="flex flex-col items-center justify-center h-32 text-slate-500">
+          <span class="material-symbols-outlined text-4xl mb-2">info</span>
+          <p class="technical-font text-xs">No additional information available</p>
+        </div>
+      `;
+    }
+    
+    content.innerHTML = contentHtml;
+    
+  } catch (err) {
+    console.error('Error loading Jira issue:', err);
+    content.innerHTML = `
+      <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 technical-font text-xs text-center">
+        ERROR: ${escapeHtml(err.message)}
+      </div>
+    `;
+  }
+};
+
+window.closeJiraIssueModal = function() {
+  const modal = document.getElementById('jira-issue-modal');
+  modal.classList.add('hidden');
+};
 
 function debounce(fn, delay) {
   let timeout;

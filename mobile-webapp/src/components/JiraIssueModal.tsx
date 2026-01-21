@@ -47,19 +47,26 @@ export default function JiraIssueModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || !issueKey) return;
+    console.log('JiraIssueModal useEffect:', { isOpen, issueKey });
+    if (!isOpen || !issueKey) {
+      console.log('Modal not opening - isOpen:', isOpen, 'issueKey:', issueKey);
+      return;
+    }
 
     let cancelled = false;
     setLoading(true);
     setIssue(null);
     setError(null);
 
+    console.log('Fetching issue:', issueKey);
     jiraService
       .getIssue(issueKey)
       .then((data) => {
+        console.log('Issue fetched successfully:', data.key);
         if (!cancelled) setIssue(data);
       })
       .catch((err) => {
+        console.error('Error fetching issue:', err);
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load issue');
       })
       .finally(() => {
@@ -71,14 +78,21 @@ export default function JiraIssueModal({
     };
   }, [isOpen, issueKey]);
 
-  if (!isOpen) return null;
+  console.log('JiraIssueModal render:', { isOpen, issueKey, hasIssue: !!issue });
+
+  if (!isOpen) {
+    console.log('Modal not rendering - isOpen is false');
+    return null;
+  }
 
   const fields = issue?.fields;
   const descriptionText = fields?.description ? extractAdfText(fields.description) : '';
   const assignee = fields?.assignee?.displayName || 'Unassigned';
 
+  console.log('Rendering modal with:', { issueKey, loading, error: !!error, hasIssue: !!issue });
+
   return (
-    <div className="fixed inset-0 z-50 bg-background-dark">
+    <div className="fixed inset-0 z-[100] bg-background-dark">
       <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top">
         <button
           onClick={onClose}

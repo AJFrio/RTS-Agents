@@ -13,3 +13,4 @@ export { default as ComputersList } from './ComputersList';
 export { default as BranchesView } from './BranchesView';
 export { default as JiraView } from './JiraView';
 export { default as JiraIssueModal } from './JiraIssueModal';
+export { default as JiraFilterModal } from './JiraFilterModal';

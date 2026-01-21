@@ -143,6 +143,7 @@ export interface ApiKeyStatus {
   cursor: boolean;
   codex: boolean;
   claude: boolean;
+  jira: boolean;
   github: boolean;
   cloudflare: boolean;
 }
@@ -158,6 +159,7 @@ export interface AppSettings {
   pollingInterval: number;
   autoPolling: boolean;
   theme: 'system' | 'light' | 'dark';
+  jiraBaseUrl?: string;
 }
 
 export interface ProviderCounts {

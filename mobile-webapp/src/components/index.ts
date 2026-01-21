@@ -12,3 +12,4 @@ export { default as NewTaskModal } from './NewTaskModal';
 export { default as ComputersList } from './ComputersList';
 export { default as BranchesView } from './BranchesView';
 export { default as JiraView } from './JiraView';
+export { default as JiraIssueModal } from './JiraIssueModal';

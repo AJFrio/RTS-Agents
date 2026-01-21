@@ -1761,7 +1761,8 @@ async function saveApiKey(provider) {
     cursor: elements.cursorApiKey,
     codex: elements.codexApiKey,
     claude: elements.claudeApiKey,
-    github: elements.githubApiKey
+    github: elements.githubApiKey,
+    jira: elements.jiraApiKey
   };
   const input = inputMap[provider];
   const key = input.value.trim();
@@ -1823,7 +1824,8 @@ async function disconnectApiKey(provider) {
       cursor: elements.cursorApiKey,
       codex: elements.codexApiKey,
       claude: elements.claudeApiKey,
-      github: elements.githubApiKey
+      github: elements.githubApiKey,
+      jira: elements.jiraApiKey
     };
     const input = inputMap[provider];
     input.value = '';

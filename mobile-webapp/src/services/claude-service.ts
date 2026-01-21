@@ -293,6 +293,59 @@ class ClaudeService {
       throw err;
     }
   }
+
+  async sendFollowup(conversationId: string, prompt: string): Promise<void> {
+    if (!prompt) {
+      throw new Error('Prompt is required');
+    }
+
+    this.loadTrackedConversations();
+    const conversation = trackedConversations.find(c => c.id === conversationId);
+
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${conversationId}`);
+    }
+
+    const messages = [...(conversation.messages || [])];
+
+    // If there was a previous response, add it as an assistant message
+    if (conversation.lastResponse) {
+      const responseText = conversation.lastResponse.content.find(c => c.type === 'text')?.text || '';
+      messages.push({
+        role: 'assistant',
+        content: responseText,
+      });
+    }
+
+    // Add new user message
+    messages.push({
+      role: 'user',
+      content: prompt,
+    });
+
+    try {
+      const response = await this.createMessage(messages, {
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+      });
+
+      this.trackConversation(conversationId, {
+        messages,
+        lastResponse: response,
+        status: 'completed',
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      // Still track the user message even if API failed, but mark as failed
+      this.trackConversation(conversationId, {
+        messages,
+        status: 'failed',
+        error: err instanceof Error ? err.message : 'Unknown error',
+        updatedAt: new Date().toISOString(),
+      });
+      throw err;
+    }
+  }
 }
 
 export const claudeService = new ClaudeService();

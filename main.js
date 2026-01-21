@@ -307,6 +307,7 @@ async function processCloudflareQueue(namespaceId) {
 
     const repoPath = item?.repo?.path;
     const prompt = item?.prompt;
+    const attachments = item?.attachments || [];
     if (!prompt) throw new Error('Queued task missing prompt');
     if (!repoPath) throw new Error('Queued task missing repo.path');
 
@@ -327,7 +328,8 @@ async function processCloudflareQueue(namespaceId) {
       started = await codexService.createTask({
         prompt,
         repository: repoPath,
-        title: prompt.substring(0, 50)
+        title: prompt.substring(0, 50),
+        attachments: attachments
       });
       // Persist threads
       configStore.setCodexThreads(codexService.getTrackedThreads());
@@ -1287,6 +1289,7 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
         tool: provider,
         repo: { path: repoPath },
         prompt: options.prompt,
+        attachments: options.attachments,
         requestedBy: identity.name,
         createdAt: nowIso
       };

@@ -503,7 +503,7 @@ class ClaudeService {
    * @param {string} [options.projectPath] - For local CLI, the project path
    */
   async createTask(options) {
-    const { prompt, repository, title, projectPath } = options;
+    const { prompt, repository, title, projectPath, attachments } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -523,8 +523,37 @@ class ClaudeService {
     const conversationId = `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Build initial messages
+    let messageContent = prompt;
+
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      messageContent = [];
+
+      // Add text prompt
+      messageContent.push({
+        type: 'text',
+        text: prompt
+      });
+
+      // Add attachments
+      for (const attachment of attachments) {
+        if (attachment.dataUrl) {
+          const match = attachment.dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+          if (match) {
+            messageContent.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: match[1],
+                data: match[2]
+              }
+            });
+          }
+        }
+      }
+    }
+
     const messages = [
-      { role: 'user', content: prompt }
+      { role: 'user', content: messageContent }
     ];
 
     try {

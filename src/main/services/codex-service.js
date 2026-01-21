@@ -446,17 +446,41 @@ class CodexService {
    * @param {string} [options.title] - Task title
    */
   async createTask(options) {
-    const { prompt, repository, branch, title } = options;
+    const { prompt, repository, branch, title, attachments } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
+    }
+
+    let messageContent = prompt;
+
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      messageContent = [];
+
+      // Add text prompt
+      messageContent.push({
+        type: 'text',
+        text: prompt
+      });
+
+      // Add attachments
+      for (const attachment of attachments) {
+        if (attachment.dataUrl) {
+          messageContent.push({
+            type: 'image_url',
+            image_url: {
+              url: attachment.dataUrl
+            }
+          });
+        }
+      }
     }
 
     // Create thread with initial message
     const thread = await this.createThread({
       messages: [{
         role: 'user',
-        content: prompt
+        content: messageContent
       }],
       metadata: {
         title: title || prompt.substring(0, 50),

@@ -234,6 +234,16 @@ class CursorService {
     const response = await this.request<CursorAgent>('/agents', 'POST', body);
     return this.normalizeAgent(response);
   }
+
+  async sendFollowup(agentId: string, prompt: string): Promise<void> {
+    if (!prompt) {
+      throw new Error('Prompt is required');
+    }
+
+    await this.request(`/agents/${agentId}/followup`, 'POST', {
+      prompt: { text: prompt },
+    });
+  }
 }
 
 export const cursorService = new CursorService();

@@ -304,6 +304,16 @@ class JulesService {
     const response = await this.request<JulesSession>('/sessions', 'POST', body);
     return this.normalizeSession(response);
   }
+
+  async sendFollowup(sessionId: string, prompt: string): Promise<void> {
+    if (!prompt) {
+      throw new Error('Prompt is required');
+    }
+
+    await this.request(`/sessions/${sessionId}:sendMessage`, 'POST', {
+      prompt,
+    });
+  }
 }
 
 export const julesService = new JulesService();

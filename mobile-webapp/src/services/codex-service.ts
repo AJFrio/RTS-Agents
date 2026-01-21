@@ -116,6 +116,15 @@ class CodexService {
     });
   }
 
+  async createRun(threadId: string, options: { assistant_id?: string } = {}): Promise<CodexRun> {
+    const body = {
+      assistant_id: options.assistant_id || 'asst_codex', // Default Codex assistant
+      ...options,
+    };
+
+    return this.request(`/threads/${threadId}/runs`, 'POST', body);
+  }
+
   async listRuns(threadId: string, limit = 20): Promise<{ data?: CodexRun[] }> {
     return this.request(`/threads/${threadId}/runs?limit=${limit}`);
   }
@@ -324,6 +333,15 @@ class CodexService {
       branch,
       title,
     });
+  }
+
+  async sendFollowup(threadId: string, prompt: string): Promise<void> {
+    if (!prompt) {
+      throw new Error('Prompt is required');
+    }
+
+    await this.createMessage(threadId, prompt);
+    await this.createRun(threadId);
   }
 }
 

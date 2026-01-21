@@ -4,10 +4,15 @@
  * Full-screen modal for viewing agent details
  */
 
+import { useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useApp } from '../store/AppContext';
 import type { Activity, ConversationMessage, Message } from '../store/types';
+import { julesService } from '../services/jules-service';
+import { cursorService } from '../services/cursor-service';
+import { codexService } from '../services/codex-service';
+import { claudeService } from '../services/claude-service';
 
 const providerStyles: Record<string, { text: string; bg: string }> = {
   jules: { text: 'text-primary', bg: 'bg-primary/10' },
@@ -41,10 +46,13 @@ function formatDate(date: Date | null | undefined): string {
 export default function AgentModal() {
   const { state, dispatch } = useApp();
   const { selectedAgent, showAgentModal, loadingAgent } = state;
+  const [followupPrompt, setFollowupPrompt] = useState('');
+  const [sendingFollowup, setSendingFollowup] = useState(false);
 
   const handleClose = () => {
     dispatch({ type: 'SET_SHOW_AGENT_MODAL', payload: false });
     dispatch({ type: 'SET_SELECTED_AGENT', payload: null });
+    setFollowupPrompt('');
   };
 
   const handleOpenExternal = () => {
@@ -56,6 +64,52 @@ export default function AgentModal() {
   const handleOpenPR = () => {
     if (selectedAgent?.prUrl) {
       window.open(selectedAgent.prUrl, '_blank');
+    }
+  };
+
+  const handleSendFollowup = async () => {
+    if (!selectedAgent || !followupPrompt.trim() || sendingFollowup) return;
+
+    setSendingFollowup(true);
+    try {
+      const { provider, rawId } = selectedAgent;
+
+      switch (provider) {
+        case 'jules':
+          await julesService.sendFollowup(rawId, followupPrompt);
+          break;
+        case 'cursor':
+          await cursorService.sendFollowup(rawId, followupPrompt);
+          break;
+        case 'codex':
+          await codexService.sendFollowup(rawId, followupPrompt);
+          break;
+        case 'claude-cloud':
+          await claudeService.sendFollowup(rawId, followupPrompt);
+          break;
+      }
+
+      setFollowupPrompt('');
+
+      // Refresh agent details
+      const service =
+        provider === 'jules' ? julesService :
+        provider === 'cursor' ? cursorService :
+        provider === 'codex' ? codexService :
+        provider === 'claude-cloud' ? claudeService : null;
+
+      if (service) {
+        dispatch({ type: 'SET_LOADING_AGENT', payload: true });
+        const details = await service.getAgentDetails(rawId);
+        dispatch({ type: 'SET_SELECTED_AGENT', payload: details });
+      }
+
+    } catch (err) {
+      console.error('Error sending follow-up:', err);
+      // Ideally show a toast or error message here
+    } finally {
+      setSendingFollowup(false);
+      dispatch({ type: 'SET_LOADING_AGENT', payload: false });
     }
   };
 
@@ -236,6 +290,36 @@ export default function AgentModal() {
                       />
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Follow-up Prompt */}
+            {(selectedAgent.status === 'completed' || selectedAgent.status === 'failed') && (
+              <div className="bg-card-dark border border-border-dark p-4 mt-6">
+                <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Follow-up</h3>
+                <div className="space-y-3">
+                  <textarea
+                    value={followupPrompt}
+                    onChange={(e) => setFollowupPrompt(e.target.value)}
+                    placeholder="Enter your follow-up prompt here..."
+                    className="w-full bg-slate-900 border border-border-dark rounded p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-y min-h-[80px]"
+                    disabled={sendingFollowup}
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleSendFollowup}
+                      disabled={!followupPrompt.trim() || sendingFollowup}
+                      className="flex items-center gap-2 bg-primary text-black px-4 py-2 font-display text-xs font-bold uppercase tracking-wider rounded active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {sendingFollowup ? (
+                        <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-sm">send</span>
+                      )}
+                      Send Follow-up
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

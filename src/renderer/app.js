@@ -2665,7 +2665,7 @@ function handleTargetDeviceChange(e) {
 
   // Reset service selection as available services might change
   state.newTask.selectedService = null;
-  resetNewTaskForm(false); // don't reset target device
+  resetNewTaskForm({ keepInput: true });
 
   updateServiceButtonVisibility();
 }
@@ -3127,7 +3127,7 @@ async function handleTaskPromptPaste(event) {
   renderNewTaskPastedImages();
 }
 
-function resetNewTaskForm() {
+function resetNewTaskForm(options = {}) {
   // Reset service selection
   document.querySelectorAll('.service-btn').forEach(btn => {
     btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
@@ -3144,11 +3144,15 @@ function resetNewTaskForm() {
   hideRepoDropdown();
   
   resetNewTaskBranchDropdown();
-  elements.taskPrompt.value = '';
-  state.newTask.promptMode = 'write';
-  state.newTask.pastedImages = [];
-  setTaskPromptMode('write');
-  renderNewTaskPastedImages();
+
+  if (!options.keepInput) {
+    elements.taskPrompt.value = '';
+    state.newTask.promptMode = 'write';
+    state.newTask.pastedImages = [];
+    setTaskPromptMode('write');
+    renderNewTaskPastedImages();
+  }
+
   elements.taskAutoPr.checked = true;
   elements.createTaskBtn.disabled = true;
   elements.serviceStatus.textContent = '';

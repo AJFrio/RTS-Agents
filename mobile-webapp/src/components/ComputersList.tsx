@@ -7,6 +7,7 @@
 import { useEffect } from 'react';
 import { useApp } from '../store/AppContext';
 import type { Computer } from '../store/types';
+import { getAvailableTools, hasTool } from '../utils/tools';
 
 function formatTimeAgo(dateStr: string | undefined): string {
   if (!dateStr) return 'Unknown';
@@ -60,6 +61,9 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
   const isOnline = computer.status === 'on';
   const isHeadless = String(computer.deviceType || '').toLowerCase() === 'headless';
 
+  const availableTools = getAvailableTools(computer);
+  const checkTool = (tool: string) => hasTool(computer, tool);
+
   return (
     <div className={`bg-card-dark border ${isOnline ? 'border-emerald-500/50' : 'border-border-dark'} p-4`}>
       {/* Header */}
@@ -90,44 +94,45 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
       )}
 
       {/* Tools */}
-      {computer.tools && (
+      {availableTools.size > 0 ? (
         <div className="mb-3">
           <p className="font-display text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
           <div className="flex flex-wrap gap-1.5">
-            {computer.tools.gemini && (
+            {checkTool('gemini') && (
               <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 font-display text-[9px] uppercase">
                 Gemini CLI
               </span>
             )}
-            {computer.tools['claude-cli'] && (
+            {checkTool('claude-cli') && (
               <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-500 font-display text-[9px] uppercase">
                 Claude CLI
               </span>
             )}
-            {computer.tools.codex && (
+            {checkTool('codex') && (
               <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 font-display text-[9px] uppercase">
                 Codex
               </span>
             )}
-            {computer.tools.cursor && (
+            {checkTool('cursor') && (
               <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 text-blue-500 font-display text-[9px] uppercase">
                 Cursor
               </span>
             )}
-            {computer.tools.jules && (
-              <span className="px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-display text-[9px] uppercase">
-                Jules
-              </span>
-            )}
-            {computer.tools['claude-cloud'] && (
-              <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-500 font-display text-[9px] uppercase">
-                Claude Cloud
-              </span>
-            )}
-            {!computer.tools.gemini && !computer.tools['claude-cli'] && !computer.tools.codex && !computer.tools.cursor && !computer.tools.jules && !computer.tools['claude-cloud'] && (
-              <span className="text-[10px] text-slate-600">No tools detected</span>
-            )}
+            {/* Fallback for unknown tools */}
+            {Array.from(availableTools).map(tool => {
+               if (['Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI'].includes(tool)) return null;
+               return (
+                <span key={tool} className="px-2 py-0.5 bg-slate-500/10 border border-slate-500/30 text-slate-400 font-display text-[9px] uppercase">
+                  {tool}
+                </span>
+               );
+            })}
           </div>
+        </div>
+      ) : (
+        <div className="mb-3">
+           <p className="font-display text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
+           <span className="text-[10px] text-slate-600">No tools detected</span>
         </div>
       )}
 
@@ -158,7 +163,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           Last seen: {formatTimeAgo(computer.lastHeartbeat)}
         </span>
 
-        {isOnline && (computer.tools?.gemini || computer.tools?.['claude-cli']) && (
+        {isOnline && (checkTool('gemini') || checkTool('claude-cli') || checkTool('codex')) && (
           <button
             onClick={onDispatchTask}
             className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"

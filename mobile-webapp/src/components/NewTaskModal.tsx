@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../store/AppContext';
 import type { Provider, Repository } from '../store/types';
+import { hasTool } from '../utils/tools';
 
 interface ServiceOption {
   id: Provider;
@@ -107,9 +108,10 @@ export default function NewTaskModal() {
           throw new Error('Selected device not found');
         }
 
-        // Find tool to use based on device capabilities
+        // Find tool to use based on device capabilities (using new schema)
         let tool = 'gemini'; // Default to gemini for remote devices
-        if (device.tools?.['claude-cli']) {
+
+        if (hasTool(device, 'claude CLI')) {
           tool = 'claude-cli';
         }
 

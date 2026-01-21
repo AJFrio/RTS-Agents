@@ -120,14 +120,9 @@ export interface Computer {
   status: 'on' | 'off';
   lastHeartbeat?: string;
   lastStatusAt?: string;
-  tools?: {
-    gemini?: boolean;
-    'claude-cli'?: boolean;
-    codex?: boolean;
-    cursor?: boolean;
-    jules?: boolean;
-    'claude-cloud'?: boolean;
-  };
+  tools?: Array<{
+    'CLI tools': string[];
+  }>;
   repos?: {
     name: string;
     path: string | null;

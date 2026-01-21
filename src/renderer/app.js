@@ -3176,71 +3176,159 @@ async function loadRepositoriesForService(service) {
   const electronAPI = getElectronAPI();
   if (!electronAPI) return;
 
-  state.newTask.loadingRepos = true;
-  elements.taskRepoSearch.disabled = true;
-  elements.taskRepoSearch.placeholder = 'Loading repositories...';
+  const isRemoteDevice = state.newTask.targetDevice && typeof state.newTask.targetDevice === 'object';
+  const cacheKey = `rts_repo_cache_${service}_${isRemoteDevice ? state.newTask.targetDevice.id : 'local'}`;
+
+  // Try to load from cache
+  let cachedRepos = [];
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      cachedRepos = JSON.parse(cached);
+    }
+  } catch (e) {
+    console.warn('Failed to load repo cache', e);
+  }
+
+  const hasCache = Array.isArray(cachedRepos) && cachedRepos.length > 0;
+
+  // Initial UI State
   elements.taskRepoSearch.value = '';
   elements.taskRepo.value = '';
   elements.repoDropdown.innerHTML = '';
-  elements.repoLoading.classList.remove('hidden');
-  elements.repoChevron.classList.add('hidden');
   elements.repoError.classList.add('hidden');
-  elements.serviceStatus.textContent = '';
 
-  try {
-    let repositories = [];
+  if (hasCache) {
+    // Show cached data immediately
+    state.newTask.repositories = cachedRepos;
+    populateRepoDropdown(cachedRepos, service);
 
-    const isRemoteDevice = state.newTask.targetDevice && typeof state.newTask.targetDevice === 'object';
-
-    if (isRemoteDevice) {
-      // Remote mode: get repos from device state
-      // The heartbeat sends `repos` array
-      repositories = state.newTask.targetDevice.repos || [];
-      // Simulate API delay for better UX consistency
-      await new Promise(resolve => setTimeout(resolve, 300));
-    } else {
-      // Local/Cloud mode - fetch repositories from local API
-      const result = await electronAPI.getRepositories(service);
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      repositories = result.repositories || [];
-    }
-
-    state.newTask.repositories = repositories;
-
-    // Always populate dropdown (will show "NO REPOSITORIES FOUND" if empty)
-    populateRepoDropdown(state.newTask.repositories, service);
-
-    if (state.newTask.repositories.length === 0) {
-      elements.taskRepoSearch.placeholder = 'No repositories found';
-      elements.serviceStatus.textContent = 'No repositories available for this service';
-      elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
-    } else {
-      elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
-      elements.serviceStatus.textContent = `${state.newTask.repositories.length} repositories available`;
-      elements.serviceStatus.className = 'mt-3 text-xs technical-font text-emerald-400';
-    }
-
-  } catch (err) {
-    console.error('Error loading repositories:', err);
-    elements.repoError.textContent = err.message;
-    elements.repoError.classList.remove('hidden');
-    elements.taskRepoSearch.placeholder = 'Error loading repositories';
-    elements.serviceStatus.textContent = err.message;
-    elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
-
-    state.newTask.repositories = [];
-    populateRepoDropdown([], service);
-  } finally {
-    state.newTask.loadingRepos = false;
-    elements.repoLoading.classList.add('hidden');
-    elements.repoChevron.classList.remove('hidden');
-
-    // Always enable the input so user can see empty/error state feedback
+    elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
     elements.taskRepoSearch.disabled = false;
 
+    // Subtle loading state
+    state.newTask.loadingRepos = true; // Still "loading" in background
+    elements.repoLoading.classList.remove('hidden');
+    elements.repoChevron.classList.add('hidden'); // Show spinner instead of chevron
+    elements.serviceStatus.textContent = `${cachedRepos.length} repositories (refreshing...)`;
+    elements.serviceStatus.className = 'mt-3 text-xs technical-font text-slate-500 animate-pulse';
+
     validateNewTaskForm();
+  } else {
+    // Blocking loading state
+    state.newTask.loadingRepos = true;
+    elements.taskRepoSearch.disabled = true;
+    elements.taskRepoSearch.placeholder = 'Loading repositories...';
+    elements.repoLoading.classList.remove('hidden');
+    elements.repoChevron.classList.add('hidden');
+    elements.serviceStatus.textContent = '';
+  }
+
+  // Define fetch operation
+  const fetchRepos = async () => {
+    try {
+      let repositories = [];
+
+      // Capture current device reference to avoid state access errors if it changes
+      const currentTargetDevice = state.newTask.targetDevice;
+
+      if (isRemoteDevice) {
+        // Remote mode: get repos from device state
+        // Ensure device context is still valid
+        if (!currentTargetDevice || typeof currentTargetDevice !== 'object') {
+             return;
+        }
+        repositories = currentTargetDevice.repos || [];
+        // Simulate API delay for better UX consistency
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } else {
+        // Local/Cloud mode - fetch repositories from local API
+        const result = await electronAPI.getRepositories(service);
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+        repositories = result.repositories || [];
+      }
+
+      // RACE CONDITION CHECK: Ensure user is still viewing this service
+      if (state.newTask.selectedService !== service) {
+          return;
+      }
+
+      // Merge Logic (Union by ID/Path/URL)
+      const mergedMap = new Map();
+
+      // Helper to get unique key
+      const getKey = (r) => r.id || r.path || r.url || r.name;
+
+      // Add cached (if any) - treating them as base
+      if (hasCache) {
+        cachedRepos.forEach(r => mergedMap.set(getKey(r), r));
+      }
+
+      // Add fresh - overwriting cache for same keys, adding new ones
+      repositories.forEach(r => mergedMap.set(getKey(r), r));
+
+      const finalRepos = Array.from(mergedMap.values());
+      state.newTask.repositories = finalRepos;
+
+      // Update Cache
+      localStorage.setItem(cacheKey, JSON.stringify(finalRepos));
+
+      // Update UI
+      populateRepoDropdown(finalRepos, service);
+
+      if (finalRepos.length === 0) {
+        elements.taskRepoSearch.placeholder = 'No repositories found';
+        elements.serviceStatus.textContent = 'No repositories available for this service';
+        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
+      } else {
+        elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
+        elements.serviceStatus.textContent = `${finalRepos.length} repositories available`;
+        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-emerald-400';
+      }
+
+      // Clear any error
+      elements.repoError.classList.add('hidden');
+
+    } catch (err) {
+      console.error('Error loading repositories:', err);
+      // Only show error in UI if we don't have cache (blocking mode)
+      // Or if we want to warn user that refresh failed
+
+      if (!hasCache) {
+        elements.repoError.textContent = err.message;
+        elements.repoError.classList.remove('hidden');
+        elements.taskRepoSearch.placeholder = 'Error loading repositories';
+        elements.serviceStatus.textContent = err.message;
+        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
+
+        state.newTask.repositories = [];
+        populateRepoDropdown([], service);
+      } else {
+        // We have cache, just show a toast or small error in status
+        elements.serviceStatus.textContent = `${cachedRepos.length} repositories (offline/cached)`;
+        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-500';
+        console.warn('Background repo refresh failed', err);
+      }
+    } finally {
+      state.newTask.loadingRepos = false;
+      elements.repoLoading.classList.add('hidden');
+      elements.repoChevron.classList.remove('hidden');
+
+      // Always enable the input so user can see empty/error state feedback
+      elements.taskRepoSearch.disabled = false;
+
+      validateNewTaskForm();
+    }
+  };
+
+  if (hasCache) {
+    // Non-blocking: trigger background fetch but don't await it here
+    fetchRepos();
+  } else {
+    // Blocking: wait for fetch
+    await fetchRepos();
   }
 }
 

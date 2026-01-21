@@ -29,6 +29,10 @@ const schema = {
       cloudflare: {
         type: 'string',
         default: ''
+      },
+      jira: {
+        type: 'string',
+        default: ''
       }
     },
     default: {}
@@ -119,6 +123,10 @@ const schema = {
         type: 'array',
         items: { type: 'string' },
         default: []
+      },
+      jiraBaseUrl: {
+        type: 'string',
+        default: ''
       },
       cliCommands: {
         type: 'object',
@@ -256,6 +264,14 @@ class ConfigStore {
 
   setFilters(filters) {
     this.store.set('settings.filters', filters);
+  }
+
+  getJiraBaseUrl() {
+    return this.store.get('settings.jiraBaseUrl', '');
+  }
+
+  setJiraBaseUrl(url) {
+    this.store.set('settings.jiraBaseUrl', url);
   }
 
   getDisplayMode() {

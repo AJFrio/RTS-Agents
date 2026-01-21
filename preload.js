@@ -46,6 +46,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   setApiKey: (provider, key) => 
     ipcRenderer.invoke('settings:set-api-key', { provider, key }),
+
+  /**
+   * Set Jira Base URL
+   * @param {string} url
+   */
+  setJiraBaseUrl: (url) =>
+    ipcRenderer.invoke('settings:set-jira-base-url', { url }),
   
   /**
    * Test if an API key is valid
@@ -334,6 +341,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     markPrReadyForReview: (nodeId) => ipcRenderer.invoke('github:mark-pr-ready-for-review', { nodeId }),
     createRepo: ({ ownerType, owner, name, private: isPrivate }) =>
       ipcRenderer.invoke('github:create-repo', { ownerType, owner, name, private: isPrivate })
+  },
+
+  // ============================================
+  // Jira API
+  // ============================================
+  jira: {
+    getBoards: () => ipcRenderer.invoke('jira:get-boards'),
+    getSprints: (boardId) => ipcRenderer.invoke('jira:get-sprints', { boardId }),
+    getBacklogIssues: (boardId) => ipcRenderer.invoke('jira:get-backlog-issues', { boardId }),
+    getSprintIssues: (sprintId) => ipcRenderer.invoke('jira:get-sprint-issues', { sprintId })
   },
 
   // ============================================

@@ -12,11 +12,11 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"dompurify": "^3.2.5",
+		"marked": "^15.0.12",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
-		"react-router-dom": "^7.6.1",
-		"marked": "^15.0.12",
-		"dompurify": "^3.2.5"
+		"react-router-dom": "^7.6.1"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.21.0",

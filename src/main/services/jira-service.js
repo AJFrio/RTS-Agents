@@ -1,4 +1,5 @@
 const https = require('https');
+const http = require('http');
 const { URL } = require('url');
 const configStore = require('./config-store');
 
@@ -16,7 +17,12 @@ class JiraService {
     const key = this.apiKey;
     if (!key) return null;
     if (key.includes(':')) {
-      return `Basic ${Buffer.from(key).toString('base64')}`;
+      // Split by first colon and trim both parts to handle potential copy-paste whitespace
+      const splitIndex = key.indexOf(':');
+      const email = key.substring(0, splitIndex).trim();
+      const token = key.substring(splitIndex + 1).trim();
+      const cleanKey = `${email}:${token}`;
+      return `Basic ${Buffer.from(cleanKey).toString('base64')}`;
     }
     return `Bearer ${key}`;
   }
@@ -27,9 +33,11 @@ class JiraService {
 
     const fullUrl = `${this.baseUrl}${endpoint}`;
     const urlObj = new URL(fullUrl);
+    const requestModule = urlObj.protocol === 'http:' ? http : https;
 
     const options = {
       hostname: urlObj.hostname,
+      port: urlObj.port,
       path: urlObj.pathname + urlObj.search,
       method,
       headers: {
@@ -40,7 +48,7 @@ class JiraService {
     };
 
     return new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
+      const req = requestModule.request(options, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {

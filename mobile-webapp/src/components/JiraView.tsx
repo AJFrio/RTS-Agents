@@ -253,7 +253,7 @@ export default function JiraView() {
                       console.log('Click on issue:', issue.key);
                       openIssue(issue);
                     }}
-                    onMouseDown={(e) => {
+                    onMouseDown={() => {
                       console.log('MouseDown on issue:', issue.key);
                     }}
                     onTouchStart={(e) => {
@@ -262,7 +262,7 @@ export default function JiraView() {
                       console.log('TouchStart on issue:', issue.key);
                       openIssue(issue);
                     }}
-                    onPointerDown={(e) => {
+                    onPointerDown={() => {
                       console.log('PointerDown on issue:', issue.key);
                     }}
                     onKeyDown={(e) => {

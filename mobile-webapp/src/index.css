@@ -8,12 +8,12 @@
 
 /* ============================================
  * RTS Agents Mobile PWA
- * Tactical Sandstorm Theme
+ * Modern SaaS Theme
  * ============================================ */
 
 /* Base styles */
 :root {
-  --color-primary: #C2B280;
+  --color-primary: #93b8c5;
   --color-background-light: #F5F5F0;
   --color-background-dark: #121212;
   --color-sidebar-dark: #0D0D0D;
@@ -53,9 +53,8 @@ input, textarea {
 /* Technical font class */
 .technical-font {
   font-family: 'JetBrains Mono', monospace;
-  text-transform: uppercase;
   font-size: 0.75rem;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
 }
 
 /* Material icons */
@@ -63,31 +62,30 @@ input, textarea {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
 
-/* Sharp corners override */
-.rounded,
-.rounded-lg,
-.rounded-xl,
-.rounded-full {
-  border-radius: 0 !important;
-}
-
+/* Modern rounded corners - allow Tailwind defaults */
 /* Form checkbox styling */
 input[type='checkbox'] {
-  border-radius: 0 !important;
+  border-radius: 4px;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
   background: var(--color-sidebar-dark);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7aa5b3;
 }
 
 /* Input range styling */
@@ -102,19 +100,21 @@ input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   height: 16px;
-  width: 8px;
+  width: 16px;
   background: var(--color-primary);
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input[type='range']::-moz-range-thumb {
   height: 16px;
-  width: 8px;
+  width: 16px;
   background: var(--color-primary);
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 50%;
   border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Safe area utilities */
@@ -159,7 +159,8 @@ input[type='range']::-moz-range-thumb {
 /* Active state for touch */
 button:active,
 a:active {
-  opacity: 0.8;
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
 }
 
 /* Focus styles */
@@ -169,6 +170,7 @@ textarea:focus-visible,
 select:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+  border-radius: 8px;
 }
 
 /* Prose overrides for markdown content */
@@ -179,13 +181,13 @@ select:focus-visible {
 .prose code {
   background: var(--color-card-dark);
   padding: 0.125rem 0.25rem;
-  border-radius: 0;
+  border-radius: 4px;
   font-size: 0.875em;
 }
 
 .prose pre {
   background: var(--color-sidebar-dark);
-  border-radius: 0;
+  border-radius: 8px;
   border: 1px solid var(--color-border-dark);
 }
 
@@ -226,11 +228,13 @@ html:not(.dark) body {
   right: 16px;
   background: var(--color-card-dark);
   border: 1px solid var(--color-border-dark);
+  border-radius: 12px;
   padding: 16px;
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
 }
 
 /* Disable body scroll when modal is open */

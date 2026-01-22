@@ -43,12 +43,12 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="flex flex-col h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200">
       {/* Header */}
-      <header className="flex-shrink-0 h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-border-dark bg-white/80 dark:bg-sidebar-dark/80 backdrop-blur-md safe-top z-20">
+      <header className="flex-shrink-0 h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-border-dark bg-white/90 dark:bg-sidebar-dark/90 backdrop-blur-lg safe-top z-20 shadow-sm">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-primary text-lg">grid_view</span>
-          <h1 className="font-display font-bold text-sm uppercase tracking-tight">{getViewTitle()}</h1>
+          <h1 className="font-semibold text-sm tracking-tight">{getViewTitle()}</h1>
           {state.currentView === 'dashboard' && (
-            <span className="font-display text-[10px] text-slate-500 ml-2">
+            <span className="text-xs text-slate-500 ml-2">
               {state.counts.total} Tasks
             </span>
           )}
@@ -61,7 +61,7 @@ export default function Layout({ children }: LayoutProps) {
               <button
                 onClick={handleRefresh}
                 disabled={state.loading}
-                className="p-2 text-slate-500 hover:text-primary transition-colors active:scale-95"
+                className="p-2 text-slate-500 hover:text-primary transition-colors duration-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                 aria-label="Refresh"
               >
                 <span className={`material-symbols-outlined text-xl ${state.loading ? 'animate-spin' : ''}`}>
@@ -72,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
               {/* New Task Button */}
               <button
                 onClick={handleNewTask}
-                className="flex items-center gap-1 bg-primary text-black px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider active:scale-95 transition-transform"
+                className="flex items-center gap-1.5 bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md active:scale-95 transition-all duration-200"
               >
                 <span className="material-symbols-outlined text-sm">add</span>
                 New

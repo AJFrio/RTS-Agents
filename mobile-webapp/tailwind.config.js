@@ -29,7 +29,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#C2B280", // Muted Desert Tan
+        primary: "#93b8c5", // Light Blue/Cyan
         "background-light": "#F5F5F0",
         "background-dark": "#121212", // Matte Charcoal
         "sidebar-dark": "#0D0D0D",
@@ -41,7 +41,7 @@ export default {
         sans: ["Inter", "sans-serif"],
       },
       borderRadius: {
-        DEFAULT: "0px", // Sharp corners
+        DEFAULT: "8px", // Modern rounded corners
       },
       // Mobile-specific spacing
       spacing: {

@@ -149,17 +149,17 @@ export default function JiraView() {
   return (
     <div className="p-4 space-y-4">
       {!isReady && (
-        <div className="bg-card-dark border border-border-dark p-4">
+        <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-primary text-lg">assignment</span>
-            <h3 className="font-display text-sm font-bold uppercase tracking-tight">Jira</h3>
+            <h3 className="text-base font-semibold">Jira</h3>
           </div>
           <p className="text-xs text-slate-500">
             Add your Jira Base URL and API token in Settings to load tickets.
           </p>
           <button
             onClick={handleOpenSettings}
-            className="mt-3 bg-primary text-black px-4 py-2 font-display text-[10px] font-bold uppercase tracking-wider"
+            className="mt-3 bg-primary text-black px-4 py-2 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
           >
             Open Settings
           </button>
@@ -167,11 +167,11 @@ export default function JiraView() {
       )}
 
       {isReady && (
-        <div className="bg-card-dark border border-border-dark p-4 space-y-3">
+        <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-lg">assignment</span>
-              <h3 className="font-display text-sm font-bold uppercase tracking-tight">Tickets</h3>
+              <h3 className="text-base font-semibold">Tickets</h3>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -189,7 +189,7 @@ export default function JiraView() {
               <button
                 onClick={loadJira}
                 disabled={loading}
-                className="border border-border-dark text-slate-400 px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-colors"
+                className="border border-border-dark text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-all duration-200"
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </button>
@@ -198,11 +198,11 @@ export default function JiraView() {
 
           {boards.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="font-display text-[10px] text-slate-500 uppercase tracking-wider">Board</span>
+              <span className="text-xs font-medium text-slate-400">Board</span>
               <select
                 value={selectedBoardId ?? boards[0]?.id ?? ''}
                 onChange={(e) => setSelectedBoardId(parseInt(e.target.value, 10))}
-                className="flex-1 bg-black/40 border border-border-dark text-sm py-2 px-3 text-white"
+                className="flex-1 bg-black/40 border border-border-dark text-sm py-2 px-3 text-white rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
               >
                 {boards.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -214,8 +214,8 @@ export default function JiraView() {
           )}
 
           {error && (
-            <div className="bg-red-900/20 border border-red-500/50 p-3">
-              <p className="text-xs text-red-300">{error}</p>
+            <div className="bg-red-900/20 border border-red-500/50 p-3 rounded-lg shadow-sm">
+              <p className="text-sm text-red-300">{error}</p>
             </div>
           )}
         </div>
@@ -223,17 +223,17 @@ export default function JiraView() {
 
       {isReady && !error && (
         <div className="space-y-4">
-          <section className="bg-card-dark border border-border-dark">
+          <section className="bg-card-dark border border-border-dark rounded-xl shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-border-dark flex items-center justify-between bg-black/20">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-slate-400 text-sm">
                   list
                 </span>
-                <span className="font-display text-xs font-bold uppercase tracking-tight text-white">
+                <span className="text-sm font-semibold text-white">
                   All Tickets
                 </span>
               </div>
-              <span className="font-display text-[10px] text-slate-500">
+              <span className="text-xs text-slate-500">
                 {filteredTickets.length} {filteredTickets.length === 1 ? 'item' : 'items'}
               </span>
             </div>
@@ -283,14 +283,14 @@ export default function JiraView() {
                         <div className="text-sm font-semibold text-white line-clamp-2">
                           {issue.fields?.summary || '(no summary)'}
                         </div>
-                        <div className="mt-1 flex items-center gap-3 text-[10px] font-display text-slate-500">
-                          <span>Assignee: {getAssignee(issue)}</span>
-                          {issue.fields?.status?.name && (
-                            <span className="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded">
-                              {issue.fields.status.name}
-                            </span>
-                          )}
-                        </div>
+                              <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
+                                <span>Assignee: {getAssignee(issue)}</span>
+                                {issue.fields?.status?.name && (
+                                  <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-xs">
+                                    {issue.fields.status.name}
+                                  </span>
+                                )}
+                              </div>
                       </div>
                       <span className="material-symbols-outlined text-slate-500 text-sm mt-1">
                         chevron_right

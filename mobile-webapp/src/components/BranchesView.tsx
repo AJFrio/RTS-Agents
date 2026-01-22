@@ -45,16 +45,16 @@ function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left p-3 border transition-colors ${
+      className={`w-full text-left p-3 border rounded-xl transition-all duration-200 shadow-sm ${
         isSelected
-          ? 'border-primary bg-primary/10'
-          : 'border-border-dark hover:border-slate-600'
+          ? 'border-primary bg-primary/10 shadow-md'
+          : 'border-border-dark hover:border-slate-600 hover:shadow-md'
       }`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <h4 className="font-bold text-sm text-white truncate">{repo.name}</h4>
-          <p className="font-display text-[10px] text-slate-500 truncate">{repo.full_name}</p>
+          <h4 className="font-semibold text-sm text-white truncate">{repo.name}</h4>
+          <p className="text-xs text-slate-500 truncate">{repo.full_name}</p>
         </div>
         {repo.private && (
           <span className="material-symbols-outlined text-slate-500 text-sm ml-2">lock</span>
@@ -82,12 +82,12 @@ function PRCard({ pr, onView }: PRCardProps) {
   return (
     <button
       onClick={onView}
-      className="w-full text-left p-4 bg-card-dark border border-border-dark hover:border-slate-600 transition-colors"
+      className="w-full text-left p-4 bg-card-dark border border-border-dark rounded-xl hover:border-slate-600 hover:shadow-md transition-all duration-200 shadow-sm"
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="font-display text-[10px] text-slate-500">#{pr.number}</span>
-          <span className={`px-2 py-0.5 font-display text-[9px] font-bold uppercase ${
+          <span className="text-xs text-slate-500">#{pr.number}</span>
+          <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${
             isDraft
               ? 'bg-slate-700 text-slate-400'
               : 'bg-emerald-500/20 text-emerald-500'
@@ -109,7 +109,7 @@ function PRCard({ pr, onView }: PRCardProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-600">
+      <div className="flex items-center gap-2 mt-2 text-xs text-slate-600">
         <img
           src={pr.user.avatar_url}
           alt={pr.user.login}
@@ -183,8 +183,8 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
         {/* PR Header */}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="font-display text-sm text-slate-500">#{pr.number}</span>
-            <span className={`px-2 py-0.5 font-display text-[10px] font-bold uppercase ${
+            <span className="text-sm text-slate-500">#{pr.number}</span>
+            <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${
               pr.draft
                 ? 'bg-slate-700 text-slate-400'
                 : 'bg-emerald-500/20 text-emerald-500'
@@ -209,8 +209,8 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
 
         {/* Description */}
         {pr.body && (
-          <div className="bg-card-dark border border-border-dark p-4">
-            <h3 className="font-display text-[10px] text-slate-500 uppercase tracking-wider mb-2">Description</h3>
+          <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+            <h3 className="text-xs font-semibold text-slate-400 mb-2">Description</h3>
             <div
               className="prose prose-sm prose-invert max-w-none text-slate-300"
               dangerouslySetInnerHTML={{ __html: renderMarkdown(pr.body) }}
@@ -259,7 +259,7 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
             <button
               onClick={handleMarkReady}
               disabled={isActionLoading}
-              className="w-full flex items-center justify-center gap-2 bg-[#C2B280] text-black py-3 font-display text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-primary text-black py-3 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               {isActionLoading ? (
                 <span className="material-symbols-outlined text-sm animate-spin">sync</span>
@@ -272,7 +272,7 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
             <button
               onClick={handleMerge}
               disabled={isActionLoading}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-500 text-black py-3 font-display text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-emerald-500 text-black py-3 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               {isActionLoading ? (
                 <span className="material-symbols-outlined text-sm animate-spin">sync</span>
@@ -287,7 +287,7 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
           <button
             onClick={handleOpenInGitHub}
             disabled={isActionLoading}
-            className="w-full flex items-center justify-center gap-2 border border-border-dark text-slate-300 py-3 font-display text-xs font-bold uppercase tracking-wider hover:bg-card-dark disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 border border-border-dark text-slate-300 py-3 text-sm font-semibold rounded-lg hover:bg-card-dark disabled:opacity-50 transition-all duration-200"
           >
             <span className="material-symbols-outlined text-sm">open_in_new</span>
             Open in GitHub
@@ -390,13 +390,13 @@ export default function BranchesView() {
     return (
       <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
         <span className="material-symbols-outlined text-slate-600 text-6xl">fork_right</span>
-        <h3 className="mt-4 text-lg font-bold uppercase tracking-tight">GitHub Not Configured</h3>
+        <h3 className="mt-4 text-lg font-semibold">GitHub Not Configured</h3>
         <p className="mt-2 text-slate-500 text-sm max-w-sm">
           Add your GitHub Personal Access Token in Settings to view branches and PRs.
         </p>
         <button
           onClick={() => dispatch({ type: 'SET_VIEW', payload: 'settings' })}
-          className="mt-4 bg-primary text-black px-6 py-2 font-display text-xs font-bold uppercase tracking-wider"
+          className="mt-4 bg-primary text-black px-6 py-2 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
         >
           Open Settings
         </button>
@@ -409,7 +409,7 @@ export default function BranchesView() {
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
-        <p className="mt-4 font-display text-xs text-slate-500 uppercase tracking-wider">Loading repositories...</p>
+        <p className="mt-4 text-sm text-slate-500">Loading repositories...</p>
       </div>
     );
   }
@@ -425,7 +425,7 @@ export default function BranchesView() {
         </p>
         <button
           onClick={handleRefresh}
-          className="mt-4 border border-border-dark text-slate-400 px-6 py-2 font-display text-xs font-bold uppercase tracking-wider hover:border-slate-600 transition-colors"
+          className="mt-4 border border-border-dark text-slate-400 px-6 py-2 text-sm font-semibold rounded-lg hover:border-slate-600 hover:shadow-sm transition-all duration-200"
         >
           Refresh
         </button>
@@ -463,7 +463,7 @@ export default function BranchesView() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search repositories..."
-              className="w-full bg-black border border-border-dark text-sm py-2.5 pl-10 pr-4 font-display text-xs placeholder:text-slate-500 focus:outline-none focus:border-primary"
+              className="w-full bg-black border border-border-dark text-sm py-2.5 pl-10 pr-4 rounded-lg placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 shadow-sm"
             />
           </div>
         </div>
@@ -492,7 +492,7 @@ export default function BranchesView() {
             ) : loadingPRs ? (
               <div className="flex flex-col items-center justify-center h-full">
                 <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
-                <p className="mt-2 font-display text-xs text-slate-500">Loading PRs...</p>
+                <p className="mt-2 text-sm text-slate-500">Loading PRs...</p>
               </div>
             ) : pullRequests.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-500">
@@ -502,7 +502,7 @@ export default function BranchesView() {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-display text-[10px] text-slate-500 uppercase tracking-wider">
+                  <h3 className="text-xs font-semibold text-slate-400">
                     Open Pull Requests ({pullRequests.length})
                   </h3>
                 </div>

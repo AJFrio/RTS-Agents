@@ -65,7 +65,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
   const checkTool = (tool: string) => hasTool(computer, tool);
 
   return (
-    <div className={`bg-card-dark border ${isOnline ? 'border-emerald-500/50' : 'border-border-dark'} p-4`}>
+    <div className={`bg-card-dark border ${isOnline ? 'border-emerald-500/50' : 'border-border-dark'} p-4 rounded-xl shadow-sm`}>
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -74,13 +74,13 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           </span>
           <div>
             <h3 className="font-bold text-sm text-white">{computer.name}</h3>
-            <p className="font-display text-[10px] text-slate-500">{getPlatformLabel(computer.platform)}</p>
+            <p className="text-xs text-slate-500">{getPlatformLabel(computer.platform)}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-600'}`} />
-          <span className={`font-display text-[10px] font-bold uppercase ${isOnline ? 'text-emerald-500' : 'text-slate-500'}`}>
+          <span className={`text-xs font-bold uppercase ${isOnline ? 'text-emerald-500' : 'text-slate-500'}`}>
             {isOnline ? 'Online' : 'Offline'}
           </span>
         </div>
@@ -88,7 +88,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
 
       {/* Headless notification */}
       {isHeadless && (
-        <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 font-display text-[10px] uppercase tracking-wider">
+        <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 text-xs uppercase tracking-wider">
           Headless device (no UI): compute-only
         </div>
       )}
@@ -96,25 +96,25 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
       {/* Tools */}
       {availableTools.size > 0 ? (
         <div className="mb-3">
-          <p className="font-display text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
+          <p className="text-xs text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
           <div className="flex flex-wrap gap-1.5">
             {checkTool('gemini') && (
-              <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 font-display text-[9px] uppercase">
+              <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs uppercase">
                 Gemini CLI
               </span>
             )}
             {checkTool('claude-cli') && (
-              <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-500 font-display text-[9px] uppercase">
+              <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/30 text-orange-500 text-xs uppercase">
                 Claude CLI
               </span>
             )}
             {checkTool('codex') && (
-              <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 font-display text-[9px] uppercase">
+              <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 text-xs uppercase">
                 Codex
               </span>
             )}
             {checkTool('cursor') && (
-              <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 text-blue-500 font-display text-[9px] uppercase">
+              <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 text-blue-500 text-xs uppercase">
                 Cursor
               </span>
             )}
@@ -122,7 +122,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
             {Array.from(availableTools).map(tool => {
                if (['Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI'].includes(tool)) return null;
                return (
-                <span key={tool} className="px-2 py-0.5 bg-slate-500/10 border border-slate-500/30 text-slate-400 font-display text-[9px] uppercase">
+                <span key={tool} className="px-2 py-0.5 bg-slate-500/10 border border-slate-500/30 text-slate-400 text-xs uppercase">
                   {tool}
                 </span>
                );
@@ -131,33 +131,33 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
         </div>
       ) : (
         <div className="mb-3">
-           <p className="font-display text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
-           <span className="text-[10px] text-slate-600">No tools detected</span>
+           <p className="text-xs text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
+           <span className="text-xs text-slate-600">No tools detected</span>
         </div>
       )}
 
       {/* Repositories */}
       {computer.repos && computer.repos.length > 0 && (
         <div className="mb-3">
-          <p className="font-display text-[9px] text-slate-600 uppercase tracking-wider mb-1.5">
+          <p className="text-xs text-slate-600 uppercase tracking-wider mb-1.5">
             Repositories ({computer.repos.length})
           </p>
           <div className="space-y-1 max-h-24 overflow-y-auto">
             {computer.repos.slice(0, 5).map((repo, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <div key={i} className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span className="material-symbols-outlined text-xs">folder</span>
                 <span className="truncate">{repo.name}</span>
               </div>
             ))}
             {computer.repos.length > 5 && (
-              <p className="text-[10px] text-slate-600">+{computer.repos.length - 5} more</p>
+              <p className="text-xs text-slate-600">+{computer.repos.length - 5} more</p>
             )}
           </div>
         </div>
       )}
 
       {/* Last heartbeat */}
-      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-border-dark">
+      <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-border-dark">
         <span className="flex items-center gap-1">
           <span className="material-symbols-outlined text-xs">schedule</span>
           Last seen: {formatTimeAgo(computer.lastHeartbeat)}
@@ -306,10 +306,10 @@ export default function ComputersList() {
       )}
 
       {/* Note about mobile */}
-      <div className="mt-6 p-3 bg-slate-800/50 border border-border-dark">
+      <div className="mt-6 p-3 bg-slate-800/50 border border-border-dark rounded-xl">
         <div className="flex items-start gap-2">
           <span className="material-symbols-outlined text-slate-500 text-sm">info</span>
-          <p className="text-[10px] text-slate-500">
+          <p className="text-xs text-slate-500">
             This mobile app does not register itself as a computer. It can only view and dispatch tasks to other registered devices.
           </p>
         </div>

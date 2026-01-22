@@ -59,7 +59,7 @@ function ApiKeyInput({
 
   return (
     <div className="space-y-2">
-      <label className="block font-display text-[10px] text-slate-500 uppercase tracking-wider">
+      <label className="block text-xs font-medium text-slate-400">
         {label}
       </label>
       
@@ -69,13 +69,13 @@ function ApiKeyInput({
           value={key}
           onChange={(e) => setKey(e.target.value)}
           placeholder={isConfigured ? '••••••••' : placeholder}
-          className="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:outline-none text-sm py-2.5 px-3 text-white placeholder:text-slate-500"
+          className="flex-1 bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
         />
         
         <button
           onClick={handleSave}
           disabled={!key.trim()}
-          className="bg-primary text-black px-4 py-2 font-display text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
         >
           Save
         </button>
@@ -85,7 +85,7 @@ function ApiKeyInput({
         <button
           onClick={handleTest}
           disabled={!isConfigured || testing}
-          className="border border-border-dark text-slate-400 px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-colors"
+          className="border border-border-dark text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-all duration-200"
         >
           {testing ? 'Testing...' : 'Test'}
         </button>
@@ -93,20 +93,20 @@ function ApiKeyInput({
         {isConfigured && (
           <button
             onClick={handleDisconnect}
-            className="border border-red-900/50 text-red-400 px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider hover:bg-red-900/20 transition-colors"
+            className="border border-red-900/50 text-red-400 px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-red-900/20 transition-all duration-200"
           >
             Disconnect
           </button>
         )}
 
         {testResult && (
-          <span className={`font-display text-[10px] ${testResult.success ? 'text-emerald-500' : 'text-red-400'}`}>
+          <span className={`text-xs ${testResult.success ? 'text-emerald-500' : 'text-red-400'}`}>
             {testResult.success ? 'Connected!' : testResult.error || 'Failed'}
           </span>
         )}
       </div>
 
-      <p className="font-display text-[9px] text-slate-600">{hint}</p>
+      <p className="text-xs text-slate-500">{hint}</p>
     </div>
   );
 }
@@ -129,7 +129,7 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
     return (
       <div className="flex items-center gap-2 text-emerald-500">
         <span className="material-symbols-outlined text-sm">check_circle</span>
-        <span className="font-display text-xs font-bold uppercase">Notifications Enabled</span>
+        <span className="text-sm font-semibold">Notifications Enabled</span>
       </div>
     );
   }
@@ -139,8 +139,8 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
       <div className="flex items-center gap-2 text-red-400">
         <span className="material-symbols-outlined text-sm">block</span>
         <div className="flex flex-col">
-            <span className="font-display text-xs font-bold uppercase">Notifications Blocked</span>
-            <span className="text-[10px] text-slate-500">Enable in browser settings</span>
+            <span className="text-sm font-semibold">Notifications Blocked</span>
+            <span className="text-xs text-slate-500">Enable in browser settings</span>
         </div>
       </div>
     );
@@ -149,7 +149,7 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
   return (
     <button
       onClick={handleEnable}
-      className="bg-primary text-black px-4 py-2 font-display text-xs font-bold uppercase tracking-wider"
+      className="bg-primary text-black px-4 py-2 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
     >
       Enable Notifications
     </button>
@@ -226,15 +226,15 @@ export default function Settings() {
   return (
     <div className="p-4 space-y-6">
       {/* API Keys Section */}
-      <section className="bg-card-dark border border-border-dark p-4">
+      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">key</span>
-          <h3 className="font-display text-sm font-bold uppercase tracking-tight">API Keys</h3>
+          <h3 className="text-base font-semibold">API Keys</h3>
         </div>
 
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="block font-display text-[10px] text-slate-500 uppercase tracking-wider">
+            <label className="block text-xs font-medium text-slate-400">
               Jira Base URL
             </label>
             <div className="flex gap-2">
@@ -243,17 +243,17 @@ export default function Settings() {
                 value={jiraBaseUrl}
                 onChange={(e) => setJiraBaseUrl(e.target.value)}
                 placeholder="https://your-domain.atlassian.net"
-                className="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:outline-none text-sm py-2.5 px-3 text-white placeholder:text-slate-500"
+                className="flex-1 bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
               />
               <button
                 onClick={handleSaveJiraBaseUrl}
                 disabled={!jiraBaseUrl.trim()}
-                className="bg-primary text-black px-4 py-2 font-display text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 Save
               </button>
             </div>
-            <p className="font-display text-[9px] text-slate-600">Your Jira site URL (no trailing slash)</p>
+            <p className="text-xs text-slate-500">Your Jira site URL (no trailing slash)</p>
           </div>
 
           <ApiKeyInput
@@ -319,10 +319,10 @@ export default function Settings() {
       </section>
 
       {/* Cloudflare KV Section */}
-      <section className="bg-card-dark border border-border-dark p-4">
+      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">cloud</span>
-          <h3 className="font-display text-sm font-bold uppercase tracking-tight">Cloudflare KV</h3>
+          <h3 className="text-base font-semibold">Cloudflare KV</h3>
         </div>
 
         <p className="text-xs text-slate-500 mb-4">
@@ -331,7 +331,7 @@ export default function Settings() {
 
         <div className="space-y-3">
           <div>
-            <label className="block font-display text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-medium text-slate-400 mb-1">
               Account ID
             </label>
             <input
@@ -339,12 +339,12 @@ export default function Settings() {
               value={cfAccountId}
               onChange={(e) => setCfAccountId(e.target.value)}
               placeholder={configuredServices.cloudflare ? '••••••••' : 'Enter Cloudflare Account ID'}
-              className="w-full bg-black/40 border border-border-dark focus:border-primary focus:outline-none text-sm py-2.5 px-3 text-white placeholder:text-slate-500"
+              className="w-full bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
             />
           </div>
 
           <div>
-            <label className="block font-display text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-medium text-slate-400 mb-1">
               API Token
             </label>
             <input
@@ -352,7 +352,7 @@ export default function Settings() {
               value={cfApiToken}
               onChange={(e) => setCfApiToken(e.target.value)}
               placeholder={configuredServices.cloudflare ? '••••••••' : 'Enter Cloudflare API token'}
-              className="w-full bg-black/40 border border-border-dark focus:border-primary focus:outline-none text-sm py-2.5 px-3 text-white placeholder:text-slate-500"
+              className="w-full bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
             />
           </div>
 
@@ -360,7 +360,7 @@ export default function Settings() {
             <button
               onClick={handleSaveCloudflare}
               disabled={!cfAccountId.trim() || !cfApiToken.trim()}
-              className="bg-primary text-black px-4 py-2 font-display text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               Save
             </button>
@@ -368,7 +368,7 @@ export default function Settings() {
             <button
               onClick={handleTestCloudflare}
               disabled={!configuredServices.cloudflare || cfTesting}
-              className="border border-border-dark text-slate-400 px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-colors"
+              className="border border-border-dark text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-all duration-200"
             >
               {cfTesting ? 'Testing...' : 'Test'}
             </button>
@@ -376,14 +376,14 @@ export default function Settings() {
             {configuredServices.cloudflare && (
               <button
                 onClick={handleDisconnectCloudflare}
-                className="border border-red-900/50 text-red-400 px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider hover:bg-red-900/20 transition-colors"
+                className="border border-red-900/50 text-red-400 px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-red-900/20 transition-all duration-200"
               >
                 Disconnect
               </button>
             )}
 
             {cfTestResult && (
-              <span className={`font-display text-[10px] ${cfTestResult.success ? 'text-emerald-500' : 'text-red-400'}`}>
+              <span className={`text-xs ${cfTestResult.success ? 'text-emerald-500' : 'text-red-400'}`}>
                 {cfTestResult.success ? 'Connected!' : cfTestResult.error || 'Failed'}
               </span>
             )}
@@ -393,10 +393,10 @@ export default function Settings() {
 
       {/* Sync Keys from Cloud */}
       {configuredServices.cloudflare && (
-        <section className="bg-card-dark border border-border-dark p-4">
+        <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <span className="material-symbols-outlined text-primary text-lg">sync</span>
-            <h3 className="font-display text-sm font-bold uppercase tracking-tight">Sync Keys from Cloud</h3>
+            <h3 className="text-base font-semibold">Sync Keys from Cloud</h3>
           </div>
 
           <p className="text-xs text-slate-500 mb-4">
@@ -421,7 +421,7 @@ export default function Settings() {
                 }
               }}
               disabled={syncingKeys}
-              className="w-full flex items-center justify-center gap-2 bg-primary/20 border border-primary text-primary py-3 font-display text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/30 transition-colors"
+              className="w-full flex items-center justify-center gap-2 bg-primary/20 border border-primary text-primary py-3 text-sm font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/30 transition-all duration-200"
             >
               <span className={`material-symbols-outlined text-sm ${syncingKeys ? 'animate-spin' : ''}`}>
                 {syncingKeys ? 'sync' : 'cloud_download'}
@@ -430,7 +430,7 @@ export default function Settings() {
             </button>
 
             {syncResult && (
-              <div className={`p-3 ${syncResult.success ? 'bg-emerald-900/20 border border-emerald-500/50' : 'bg-red-900/20 border border-red-500/50'}`}>
+              <div className={`p-3 rounded-lg ${syncResult.success ? 'bg-emerald-900/20 border border-emerald-500/50' : 'bg-red-900/20 border border-red-500/50'}`}>
                 <div className="flex items-start gap-2">
                   <span className={`material-symbols-outlined text-sm ${syncResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
                     {syncResult.success ? 'check_circle' : 'error'}
@@ -457,7 +457,7 @@ export default function Settings() {
               </div>
             )}
 
-            <p className="font-display text-[9px] text-slate-600">
+            <p className="text-xs text-slate-500">
               Tip: Use "Push Keys to Cloud" in the Electron app's Settings to make keys available here.
             </p>
           </div>
@@ -465,10 +465,10 @@ export default function Settings() {
       )}
 
       {/* Notifications */}
-      <section className="bg-card-dark border border-border-dark p-4">
+      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">notifications</span>
-          <h3 className="font-display text-sm font-bold uppercase tracking-tight">Notifications</h3>
+          <h3 className="text-base font-semibold">Notifications</h3>
         </div>
 
         <p className="text-xs text-slate-500 mb-4">
@@ -479,15 +479,15 @@ export default function Settings() {
       </section>
 
       {/* Display Settings */}
-      <section className="bg-card-dark border border-border-dark p-4">
+      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">palette</span>
-          <h3 className="font-display text-sm font-bold uppercase tracking-tight">Display</h3>
+          <h3 className="text-base font-semibold">Display</h3>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block font-display text-[10px] text-slate-500 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-medium text-slate-400 mb-2">
               Theme
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -495,16 +495,16 @@ export default function Settings() {
                 <button
                   key={theme}
                   onClick={() => handleThemeChange(theme)}
-                  className={`flex flex-col items-center gap-2 p-3 border transition-colors ${
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg transition-all duration-200 ${
                     settings.theme === theme
-                      ? 'border-primary bg-primary/10 text-primary'
+                      ? 'border-primary bg-primary/10 text-primary shadow-sm'
                       : 'border-border-dark text-slate-400 hover:border-slate-600'
                   }`}
                 >
                   <span className="material-symbols-outlined text-lg">
                     {theme === 'system' ? 'settings_brightness' : theme === 'light' ? 'light_mode' : 'dark_mode'}
                   </span>
-                  <span className="font-display text-[10px] font-bold uppercase">{theme}</span>
+                  <span className="text-xs font-medium capitalize">{theme}</span>
                 </button>
               ))}
             </div>
@@ -513,10 +513,10 @@ export default function Settings() {
       </section>
 
       {/* Polling Settings */}
-      <section className="bg-card-dark border border-border-dark p-4">
+      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">schedule</span>
-          <h3 className="font-display text-sm font-bold uppercase tracking-tight">Data Polling</h3>
+          <h3 className="text-base font-semibold">Data Polling</h3>
         </div>
 
         <div className="space-y-4">
@@ -527,15 +527,15 @@ export default function Settings() {
               onChange={handlePollingToggle}
               className="w-4 h-4 bg-transparent border-primary text-primary focus:ring-0 focus:ring-offset-0"
             />
-            <span className="font-display text-xs text-slate-300">Enable auto refresh</span>
+            <span className="text-sm text-slate-300">Enable auto refresh</span>
           </label>
 
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="font-display text-[10px] text-slate-500 uppercase tracking-wider">
+              <label className="text-xs font-medium text-slate-400">
                 Refresh interval
               </label>
-              <span className="text-primary font-display font-bold text-sm">
+              <span className="text-primary font-semibold text-sm">
                 {Math.round(settings.pollingInterval / 1000)}s
               </span>
             </div>
@@ -549,7 +549,7 @@ export default function Settings() {
               disabled={!settings.autoPolling}
               className="w-full h-1 bg-border-dark appearance-none cursor-pointer disabled:opacity-50"
             />
-            <div className="flex justify-between text-[9px] font-display text-slate-600 mt-1">
+            <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>5s</span>
               <span>5min</span>
             </div>
@@ -561,9 +561,9 @@ export default function Settings() {
       <section className="text-center py-4">
         <div className="flex items-center justify-center gap-2 mb-2">
           <span className="material-symbols-outlined text-primary text-lg">grid_view</span>
-          <span className="font-display font-bold text-sm uppercase tracking-tight">RTS Agents</span>
+          <span className="font-semibold text-sm">RTS Agents</span>
         </div>
-        <p className="font-display text-[10px] text-slate-500">Mobile PWA v1.0.0</p>
+        <p className="text-xs text-slate-500">Mobile PWA v1.0.0</p>
       </section>
     </div>
   );

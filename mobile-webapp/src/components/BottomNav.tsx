@@ -28,7 +28,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-sidebar-dark border-t border-slate-200 dark:border-border-dark z-30 safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-sidebar-dark border-t border-slate-200 dark:border-border-dark z-30 safe-bottom rounded-t-2xl shadow-lg">
       <div className="flex items-center justify-around h-full max-w-lg mx-auto">
         {navItems.map(item => {
           const isActive = state.currentView === item.id;
@@ -37,24 +37,24 @@ export default function BottomNav() {
             <button
               key={item.id}
               onClick={() => handleNavClick(item.id)}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 relative ${
                 isActive
                   ? 'text-primary'
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
-              <span className={`material-symbols-outlined text-2xl ${isActive ? 'font-bold' : ''}`}>
+              <span className={`material-symbols-outlined text-2xl transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
                 {item.icon}
               </span>
-              <span className={`font-display text-[9px] uppercase tracking-wider mt-0.5 ${
-                isActive ? 'font-bold' : ''
+              <span className={`text-[9px] font-medium mt-0.5 transition-all duration-200 ${
+                isActive ? 'font-semibold' : ''
               }`}>
                 {item.label}
               </span>
               
               {/* Active indicator */}
               {isActive && (
-                <div className="absolute bottom-0 w-12 h-0.5 bg-primary" />
+                <div className="absolute bottom-0 w-12 h-1 bg-primary rounded-t-full" />
               )}
             </button>
           );

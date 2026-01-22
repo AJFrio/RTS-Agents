@@ -121,7 +121,7 @@ export default function AgentModal() {
   return (
     <div className="fixed inset-0 z-50 bg-background-dark">
       {/* Header */}
-      <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top">
+      <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top shadow-sm">
         <button
           onClick={handleClose}
           className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors"
@@ -146,18 +146,18 @@ export default function AgentModal() {
         {loadingAgent ? (
           <div className="flex flex-col items-center justify-center h-64">
             <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
-            <p className="mt-4 font-display text-xs text-slate-500 uppercase tracking-wider">Loading details...</p>
+            <p className="mt-4 text-sm text-slate-500">Loading details...</p>
           </div>
         ) : selectedAgent ? (
           <div className="p-4 space-y-6">
             {/* Agent Header */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className={`px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wider ${provider.bg} ${provider.text}`}>
-                  {selectedAgent.provider === 'claude-cloud' ? 'CLAUDE' : selectedAgent.provider.toUpperCase()}
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${provider.bg} ${provider.text}`}>
+                  {selectedAgent.provider === 'claude-cloud' ? 'Claude' : selectedAgent.provider.charAt(0).toUpperCase() + selectedAgent.provider.slice(1)}
                 </span>
-                <span className={`px-2 py-0.5 font-display text-[10px] font-bold ${status.bg} ${status.text}`}>
-                  {selectedAgent.status.toUpperCase()}
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${status.bg} ${status.text}`}>
+                  {selectedAgent.status.charAt(0).toUpperCase() + selectedAgent.status.slice(1)}
                 </span>
               </div>
               <h2 className="text-xl font-bold text-white mb-2">{selectedAgent.name}</h2>
@@ -193,7 +193,7 @@ export default function AgentModal() {
             {selectedAgent.prUrl && (
               <button
                 onClick={handleOpenPR}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-3 font-display text-xs font-bold uppercase tracking-wider active:scale-[0.98] transition-transform"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-3 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200"
               >
                 <span className="material-symbols-outlined text-sm">merge</span>
                 View Pull Request
@@ -202,16 +202,16 @@ export default function AgentModal() {
 
             {/* Prompt */}
             {selectedAgent.prompt && (
-              <div className="bg-card-dark border border-border-dark p-4">
-                <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Prompt</h3>
+              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-400 mb-2">Prompt</h3>
                 <p className="text-sm text-slate-300 whitespace-pre-wrap">{selectedAgent.prompt}</p>
               </div>
             )}
 
             {/* Summary */}
             {selectedAgent.summary && (
-              <div className="bg-card-dark border border-border-dark p-4">
-                <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Summary</h3>
+              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-400 mb-2">Summary</h3>
                 <div
                   className="prose prose-sm prose-invert max-w-none text-slate-300"
                   dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedAgent.summary) }}
@@ -221,13 +221,13 @@ export default function AgentModal() {
 
             {/* Activities (Jules) */}
             {selectedAgent.activities && selectedAgent.activities.length > 0 && (
-              <div className="bg-card-dark border border-border-dark p-4">
-                <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Activities</h3>
+              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-400 mb-3">Activities</h3>
                 <div className="space-y-3">
                   {selectedAgent.activities.map((activity: Activity) => (
                     <div key={activity.id} className="border-l-2 border-border-dark pl-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-display text-[10px] text-primary font-bold uppercase">
+                        <span className="text-xs text-primary font-medium">
                           {activity.type.replace('_', ' ')}
                         </span>
                         {activity.timestamp && (
@@ -250,15 +250,15 @@ export default function AgentModal() {
 
             {/* Conversation (Cursor) */}
             {selectedAgent.conversation && selectedAgent.conversation.length > 0 && (
-              <div className="bg-card-dark border border-border-dark p-4">
-                <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Conversation</h3>
+              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-400 mb-3">Conversation</h3>
                 <div className="space-y-3">
                   {selectedAgent.conversation.map((msg: ConversationMessage) => (
                     <div
                       key={msg.id}
-                      className={`p-3 ${msg.isUser ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-800'}`}
+                      className={`p-3 rounded-lg ${msg.isUser ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-800'}`}
                     >
-                      <span className="font-display text-[10px] font-bold uppercase text-slate-500 mb-1 block">
+                      <span className="text-xs font-semibold text-slate-400 mb-1 block">
                         {msg.isUser ? 'You' : 'Agent'}
                       </span>
                       <div
@@ -273,15 +273,15 @@ export default function AgentModal() {
 
             {/* Messages (Codex/Claude) */}
             {selectedAgent.messages && selectedAgent.messages.length > 0 && (
-              <div className="bg-card-dark border border-border-dark p-4">
-                <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Messages</h3>
+              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-400 mb-3">Messages</h3>
                 <div className="space-y-3">
                   {selectedAgent.messages.map((msg: Message) => (
                     <div
                       key={msg.id}
-                      className={`p-3 ${msg.role === 'user' ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-800'}`}
+                      className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-800'}`}
                     >
-                      <span className="font-display text-[10px] font-bold uppercase text-slate-500 mb-1 block">
+                      <span className="text-xs font-semibold text-slate-400 mb-1 block">
                         {msg.role === 'user' ? 'You' : 'Assistant'}
                       </span>
                       <div
@@ -296,21 +296,21 @@ export default function AgentModal() {
 
             {/* Follow-up Prompt */}
             {(selectedAgent.status === 'completed' || selectedAgent.status === 'failed') && (
-              <div className="bg-card-dark border border-border-dark p-4 mt-6">
-                <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Follow-up</h3>
+              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm mt-6">
+                <h3 className="text-xs font-semibold text-slate-400 mb-2">Follow-up</h3>
                 <div className="space-y-3">
                   <textarea
                     value={followupPrompt}
                     onChange={(e) => setFollowupPrompt(e.target.value)}
                     placeholder="Enter your follow-up prompt here..."
-                    className="w-full bg-slate-900 border border-border-dark rounded p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary resize-y min-h-[80px]"
+                    className="w-full bg-slate-900 border border-border-dark rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-y min-h-[80px] transition-all duration-200"
                     disabled={sendingFollowup}
                   />
                   <div className="flex justify-end">
                     <button
                       onClick={handleSendFollowup}
                       disabled={!followupPrompt.trim() || sendingFollowup}
-                      className="flex items-center gap-2 bg-primary text-black px-4 py-2 font-display text-xs font-bold uppercase tracking-wider rounded active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 bg-primary text-black px-4 py-2 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {sendingFollowup ? (
                         <span className="material-symbols-outlined text-sm animate-spin">sync</span>
@@ -326,7 +326,7 @@ export default function AgentModal() {
 
             {/* Task ID */}
             <div className="text-center pt-4">
-              <span className="font-display text-[10px] text-slate-600">
+              <span className="text-xs text-slate-600">
                 Task ID: {selectedAgent.rawId}
               </span>
             </div>

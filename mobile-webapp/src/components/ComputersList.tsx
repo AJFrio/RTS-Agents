@@ -207,7 +207,7 @@ export default function ComputersList() {
         </p>
         <button
           onClick={() => dispatch({ type: 'SET_VIEW', payload: 'settings' })}
-          className="mt-4 bg-primary text-black px-6 py-2 font-display text-xs font-bold uppercase tracking-wider"
+          className="mt-4 bg-primary text-black px-6 py-2 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
         >
           Open Settings
         </button>

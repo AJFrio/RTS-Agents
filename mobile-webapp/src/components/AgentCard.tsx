@@ -63,18 +63,18 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left bg-white dark:bg-card-dark border ${provider.border} p-4 transition-all active:scale-[0.98] hover:bg-slate-50 dark:hover:bg-card-dark/80`}
+      className={`w-full text-left bg-white dark:bg-card-dark border ${provider.border} p-4 rounded-xl shadow-sm transition-all duration-200 active:scale-[0.98] hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:shadow-md`}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${provider.dot}`} />
-          <span className={`font-display text-[10px] font-bold uppercase tracking-wider ${provider.text}`}>
-            {agent.provider === 'claude-cloud' ? 'CLAUDE' : agent.provider.toUpperCase()}
+          <span className={`text-xs font-medium ${provider.text}`}>
+            {agent.provider === 'claude-cloud' ? 'Claude' : agent.provider.charAt(0).toUpperCase() + agent.provider.slice(1)}
           </span>
         </div>
-        <span className={`px-2 py-0.5 font-display text-[9px] font-bold ${status.bg} ${status.text}`}>
-          {statusLabels[agent.status] || agent.status.toUpperCase()}
+        <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${status.bg} ${status.text}`}>
+          {statusLabels[agent.status] || agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
         </span>
       </div>
 
@@ -84,7 +84,7 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
       </h3>
 
       {/* Metadata */}
-      <div className="flex items-center gap-4 text-[10px] font-display text-slate-500">
+      <div className="flex items-center gap-4 text-xs text-slate-500">
         {/* Repository */}
         {agent.repository && (
           <div className="flex items-center gap-1 truncate max-w-[140px]">
@@ -111,8 +111,8 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
       {/* PR Link */}
       {agent.prUrl && (
         <div className="mt-2 pt-2 border-t border-slate-200 dark:border-border-dark">
-          <div className="flex items-center gap-1 text-[10px] font-display text-emerald-500">
-            <span className="material-symbols-outlined text-xs">merge</span>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-500">
+            <span className="material-symbols-outlined text-sm">merge</span>
             <span>PR Available</span>
           </div>
         </div>

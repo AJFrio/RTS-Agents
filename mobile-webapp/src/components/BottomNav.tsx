@@ -28,7 +28,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-sidebar-dark border-t border-slate-200 dark:border-border-dark z-30 safe-bottom rounded-t-2xl shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-sidebar-dark border-t border-slate-200 dark:border-border-dark z-30 safe-bottom shadow-lg">
       <div className="flex items-center justify-around h-full max-w-lg mx-auto">
         {navItems.map(item => {
           const isActive = state.currentView === item.id;

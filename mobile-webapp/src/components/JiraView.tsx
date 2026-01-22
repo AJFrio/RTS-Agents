@@ -247,28 +247,10 @@ export default function JiraView() {
                     key={issue.id}
                     role="button"
                     tabIndex={0}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Click on issue:', issue.key);
-                      openIssue(issue);
-                    }}
-                    onMouseDown={() => {
-                      console.log('MouseDown on issue:', issue.key);
-                    }}
-                    onTouchStart={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('TouchStart on issue:', issue.key);
-                      openIssue(issue);
-                    }}
-                    onPointerDown={() => {
-                      console.log('PointerDown on issue:', issue.key);
-                    }}
+                    onClick={() => openIssue(issue)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        console.log('KeyDown on issue:', issue.key);
                         openIssue(issue);
                       }
                     }}

@@ -748,6 +748,7 @@ function setupEventListeners() {
   // Jira View
   elements.jiraBoardSelect.addEventListener('change', (e) => {
     state.jira.selectedBoardId = e.target.value;
+    localStorage.setItem('rts_jira_board_id', state.jira.selectedBoardId);
     state.jira.selectedAssignee = null;
     if (elements.jiraAssigneeFilter) elements.jiraAssigneeFilter.value = '';
     if (state.jira.selectedBoardId) {
@@ -4237,8 +4238,15 @@ async function loadJiraBoards() {
       state.jira.boards = result.boards || [];
       renderJiraBoardsDropdown();
 
-      // Auto-select first board if none selected
-      if (!state.jira.selectedBoardId && state.jira.boards.length > 0) {
+      // Auto-select last used board or first board if none selected
+      const savedBoardId = localStorage.getItem('rts_jira_board_id');
+      const savedBoardExists = savedBoardId && state.jira.boards.some(b => String(b.id) === String(savedBoardId));
+
+      if (savedBoardExists) {
+        state.jira.selectedBoardId = savedBoardId;
+        elements.jiraBoardSelect.value = savedBoardId;
+        loadJiraIssues(savedBoardId);
+      } else if (!state.jira.selectedBoardId && state.jira.boards.length > 0) {
         state.jira.selectedBoardId = state.jira.boards[0].id;
         elements.jiraBoardSelect.value = state.jira.boards[0].id;
         loadJiraIssues(state.jira.selectedBoardId);
@@ -4292,33 +4300,77 @@ async function loadJiraIssues(boardId) {
 
   try {
     const board = state.jira.boards.find(b => String(b.id) === String(boardId));
-    let issues = [];
+    let allIssues = [];
 
     if (board && board.type === 'scrum') {
-        // Get active sprints
+        // Get sprints (active, future, closed - filtered by API or here)
         const sprintsRes = await electronAPI.jira.getSprints(boardId);
+
         if (sprintsRes.success && sprintsRes.sprints && sprintsRes.sprints.length > 0) {
-            // Find active sprint
-            const active = sprintsRes.sprints.find(s => s.state === 'active');
-            if (active) {
-                const issuesRes = await electronAPI.jira.getSprintIssues(active.id);
-                if (issuesRes.success) issues = issuesRes.issues || [];
+            // Filter for active and future sprints
+            // Note: JiraService.listSprints already requests state=active,future,closed
+            const relevantSprints = sprintsRes.sprints.filter(s => s.state === 'active' || s.state === 'future');
+
+            // Sort: Active first, then Future
+            relevantSprints.sort((a, b) => {
+                if (a.state === 'active' && b.state !== 'active') return -1;
+                if (a.state !== 'active' && b.state === 'active') return 1;
+                return (a.startDate || '').localeCompare(b.startDate || '');
+            });
+
+            // Fetch issues for each sprint
+            // We do this sequentially to maintain order and avoiding flooding API if many sprints
+            for (const sprint of relevantSprints) {
+                try {
+                    const issuesRes = await electronAPI.jira.getSprintIssues(sprint.id);
+                    if (issuesRes.success && issuesRes.issues) {
+                        // Tag issues with group info
+                        issuesRes.issues.forEach(i => {
+                            i._group = {
+                                id: `sprint-${sprint.id}`,
+                                name: `${sprint.name} (${sprint.state.toUpperCase()})`,
+                                type: 'sprint',
+                                order: sprint.state === 'active' ? 1 : 2
+                            };
+                        });
+                        allIssues.push(...issuesRes.issues);
+                    }
+                } catch (e) {
+                    console.warn(`Failed to load issues for sprint ${sprint.name}`, e);
+                }
             }
         }
 
-        // If no active sprint issues found, try backlog
-        if (issues.length === 0) {
+        // Always fetch backlog as well
+        try {
              const backlogRes = await electronAPI.jira.getBacklogIssues(boardId);
-             if (backlogRes.success) issues = backlogRes.issues || [];
+             if (backlogRes.success && backlogRes.issues) {
+                 backlogRes.issues.forEach(i => {
+                     i._group = {
+                         id: 'backlog',
+                         name: 'BACKLOG',
+                         type: 'backlog',
+                         order: 3
+                     };
+                 });
+                 allIssues.push(...backlogRes.issues);
+             }
+        } catch (e) {
+             console.warn('Failed to load backlog', e);
         }
+
     } else {
+        // Kanban or other: just get backlog/board issues
         const backlogRes = await electronAPI.jira.getBacklogIssues(boardId);
-        if (backlogRes.success) {
-            issues = backlogRes.issues || [];
+        if (backlogRes.success && backlogRes.issues) {
+            backlogRes.issues.forEach(i => {
+                i._group = { id: 'board', name: 'ISSUES', type: 'board', order: 1 };
+            });
+            allIssues.push(...backlogRes.issues);
         }
     }
 
-    state.jira.issues = issues;
+    state.jira.issues = allIssues;
     renderJiraIssues();
 
   } catch (err) {
@@ -4375,41 +4427,73 @@ function renderJiraIssues() {
 
   elements.totalCount.textContent = `${filteredIssues.length} Issues${state.jira.selectedAssignee ? ` (${state.jira.issues.length} total)` : ''}`;
 
-  elements.jiraIssuesList.innerHTML = filteredIssues.map(issue => {
-    const key = escapeHtml(issue.key);
-    const summary = escapeHtml(issue.fields?.summary || 'No summary');
-    const status = escapeHtml(issue.fields?.status?.name || 'Unknown');
-    const priority = escapeHtml(issue.fields?.priority?.name || '');
-    const assignee = escapeHtml(issue.fields?.assignee?.displayName || 'Unassigned');
+  // Group issues
+  const groups = {};
+  const groupOrder = [];
 
-    // Status color
-    let statusClass = 'text-slate-400 border-slate-600';
-    if (['Done', 'Closed', 'Resolved'].includes(status)) statusClass = 'text-emerald-500 border-emerald-500 bg-emerald-900/20';
-    else if (['In Progress', 'In Review'].includes(status)) statusClass = 'text-blue-500 border-blue-500 bg-blue-900/20';
+  filteredIssues.forEach(issue => {
+      const g = issue._group || { id: 'unknown', name: 'OTHER', order: 99 };
+      if (!groups[g.id]) {
+          groups[g.id] = { meta: g, issues: [] };
+          groupOrder.push(g.id);
+      }
+      groups[g.id].issues.push(issue);
+  });
 
-    return `
-      <div class="jira-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group flex flex-col gap-2" onclick="openJiraIssue('${key}')">
-         <div class="flex justify-between items-start">
-            <div class="flex items-center gap-2">
-               <span class="text-[#C2B280] technical-font text-xs font-bold">${key}</span>
-               <h3 class="font-medium text-slate-200 text-sm group-hover:text-[#C2B280] transition-colors line-clamp-1">${summary}</h3>
-            </div>
-            <span class="px-2 py-0.5 text-[9px] technical-font border ${statusClass}">${status.toUpperCase()}</span>
-         </div>
+  // Sort groups by meta.order
+  groupOrder.sort((a, b) => (groups[a].meta.order || 99) - (groups[b].meta.order || 99));
 
-         <div class="flex items-center gap-4 text-[10px] technical-font text-slate-500">
-            <span class="flex items-center gap-1">
-               <span class="material-symbols-outlined text-xs">person</span>
-               ${assignee}
-            </span>
-            ${priority ? `
-            <span class="flex items-center gap-1">
-               <span class="material-symbols-outlined text-xs">priority_high</span>
-               ${priority}
-            </span>` : ''}
-         </div>
-      </div>
-    `;
+  // Render groups
+  elements.jiraIssuesList.innerHTML = groupOrder.map(gid => {
+      const group = groups[gid];
+      const issuesHtml = group.issues.map(issue => {
+        const key = escapeHtml(issue.key);
+        const summary = escapeHtml(issue.fields?.summary || 'No summary');
+        const status = escapeHtml(issue.fields?.status?.name || 'Unknown');
+        const priority = escapeHtml(issue.fields?.priority?.name || '');
+        const assignee = escapeHtml(issue.fields?.assignee?.displayName || 'Unassigned');
+
+        // Status color
+        let statusClass = 'text-slate-400 border-slate-600';
+        if (['Done', 'Closed', 'Resolved'].includes(status)) statusClass = 'text-emerald-500 border-emerald-500 bg-emerald-900/20';
+        else if (['In Progress', 'In Review'].includes(status)) statusClass = 'text-blue-500 border-blue-500 bg-blue-900/20';
+
+        return `
+          <div class="jira-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group flex flex-col gap-2" onclick="openJiraIssue('${key}')">
+             <div class="flex justify-between items-start">
+                <div class="flex items-center gap-2">
+                   <span class="text-[#C2B280] technical-font text-xs font-bold">${key}</span>
+                   <h3 class="font-medium text-slate-200 text-sm group-hover:text-[#C2B280] transition-colors line-clamp-1">${summary}</h3>
+                </div>
+                <span class="px-2 py-0.5 text-[9px] technical-font border ${statusClass}">${status.toUpperCase()}</span>
+             </div>
+
+             <div class="flex items-center gap-4 text-[10px] technical-font text-slate-500">
+                <span class="flex items-center gap-1">
+                   <span class="material-symbols-outlined text-xs">person</span>
+                   ${assignee}
+                </span>
+                ${priority ? `
+                <span class="flex items-center gap-1">
+                   <span class="material-symbols-outlined text-xs">priority_high</span>
+                   ${priority}
+                </span>` : ''}
+             </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="mb-6">
+           <h3 class="text-xs technical-font text-[#C2B280] font-bold mb-3 border-b border-[#2A2A2A] pb-2 flex justify-between items-center sticky top-0 bg-[#1A1A1A] z-10 py-2">
+               <span>${escapeHtml(group.meta.name)}</span>
+               <span class="text-slate-500 bg-[#2A2A2A] px-2 py-0.5 rounded text-[10px]">${group.issues.length}</span>
+           </h3>
+           <div class="flex flex-col gap-2">
+               ${issuesHtml}
+           </div>
+        </div>
+      `;
   }).join('');
 }
 

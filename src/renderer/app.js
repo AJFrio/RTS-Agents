@@ -357,7 +357,7 @@ function getTacticalStatus(status) {
 function getStatusStyle(status) {
   const styles = {
     running: { bg: 'bg-yellow-500/20', border: 'border-yellow-500', text: 'text-yellow-500' },
-    completed: { bg: 'bg-[#C2B280]', border: 'border-[#C2B280]', text: 'text-black' },
+    completed: { bg: 'bg-primary', border: 'border-primary', text: 'text-black' },
     pending: { bg: 'bg-slate-700', border: 'border-slate-600', text: 'text-slate-400' },
     failed: { bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-500' },
     stopped: { bg: 'bg-slate-700', border: 'border-slate-600', text: 'text-slate-400' }
@@ -371,7 +371,7 @@ function getStatusStyle(status) {
 function getProviderStyle(provider) {
   const styles = {
     gemini: { border: 'border-emerald-500', text: 'text-emerald-500', dot: 'bg-emerald-500' },
-    jules: { border: 'border-[#C2B280]', text: 'text-[#C2B280]', dot: 'bg-[#C2B280]' },
+    jules: { border: 'border-primary', text: 'text-primary', dot: 'bg-primary' },
     cursor: { border: 'border-blue-500', text: 'text-blue-500', dot: 'bg-blue-500' },
     codex: { border: 'border-cyan-500', text: 'text-cyan-500', dot: 'bg-cyan-500' },
     'claude-cli': { border: 'border-orange-500', text: 'text-orange-500', dot: 'bg-orange-500' },
@@ -450,13 +450,13 @@ function setupSpeechRecognition() {
   recognition.onstart = () => {
     isRecording = true;
     btn.classList.add('text-red-500', 'animate-pulse');
-    btn.classList.remove('text-slate-500', 'hover:text-[#C2B280]');
+    btn.classList.remove('text-slate-500', 'hover:text-primary');
   };
 
   recognition.onend = () => {
     isRecording = false;
     btn.classList.remove('text-red-500', 'animate-pulse');
-    btn.classList.add('text-slate-500', 'hover:text-[#C2B280]');
+    btn.classList.add('text-slate-500', 'hover:text-primary');
   };
 
   recognition.onresult = (event) => {
@@ -483,7 +483,7 @@ function setupSpeechRecognition() {
     }
     isRecording = false;
     btn.classList.remove('text-red-500', 'animate-pulse');
-    btn.classList.add('text-slate-500', 'hover:text-[#C2B280]');
+    btn.classList.add('text-slate-500', 'hover:text-primary');
   };
 
   btn.addEventListener('click', () => {
@@ -933,10 +933,10 @@ function hideRepoDropdown() {
 function highlightRepoOption(items, index) {
   items.forEach((item, i) => {
     if (i === index) {
-      item.classList.add('bg-[#C2B280]/20', 'active-repo-option');
+      item.classList.add('bg-primary/20', 'active-repo-option');
       item.scrollIntoView({ block: 'nearest' });
     } else {
-      item.classList.remove('bg-[#C2B280]/20', 'active-repo-option');
+      item.classList.remove('bg-primary/20', 'active-repo-option');
     }
   });
 }
@@ -979,7 +979,7 @@ function populateRepoDropdown(repositories, service) {
     const displayName = (repo.displayName || repo.name).toUpperCase();
     
     const option = document.createElement('div');
-    option.className = 'repo-option px-4 py-3 text-xs technical-font text-slate-300 cursor-pointer hover:bg-[#C2B280]/10 border-b border-[#2A2A2A] last:border-b-0 transition-colors';
+    option.className = 'repo-option px-4 py-3 text-xs text-slate-600 dark:text-slate-300 cursor-pointer hover:bg-primary/10 border-b border-slate-200 dark:border-border-dark last:border-b-0 transition-colors';
     option.dataset.value = value;
     option.dataset.displayName = displayName;
     option.dataset.repoUrl = repo.url || repo.path || '';
@@ -993,9 +993,9 @@ function populateRepoDropdown(repositories, service) {
     option.addEventListener('click', () => selectRepoOption(option));
     option.addEventListener('mouseenter', () => {
       elements.repoDropdown.querySelectorAll('.repo-option').forEach(item => {
-        item.classList.remove('bg-[#C2B280]/20', 'active-repo-option');
+        item.classList.remove('bg-primary/20', 'active-repo-option');
       });
-      option.classList.add('bg-[#C2B280]/20', 'active-repo-option');
+      option.classList.add('bg-primary/20', 'active-repo-option');
     });
     
     elements.repoDropdown.appendChild(option);
@@ -1518,60 +1518,83 @@ function createAgentCard(agent) {
   const statusStyle = getStatusStyle(agent.status);
   const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
   const tacticalStatus = getTacticalStatus(agent.status);
+  
+  // Provider dot color matching mobile webapp
+  const providerDotColors = {
+    'jules': 'bg-primary',
+    'cursor': 'bg-blue-500',
+    'codex': 'bg-cyan-500',
+    'claude-cloud': 'bg-amber-500',
+    'gemini': 'bg-emerald-500',
+    'claude-cli': 'bg-orange-500'
+  };
+  const providerDot = providerDotColors[agent.provider] || 'bg-primary';
+  
+  // Status labels matching mobile webapp
+  const statusLabels = {
+    'running': 'RUNNING',
+    'completed': 'COMPLETE',
+    'pending': 'PENDING',
+    'failed': 'FAILED',
+    'stopped': 'STOPPED'
+  };
+  const statusLabel = statusLabels[agent.status] || tacticalStatus;
+  
+  // Provider display name
+  const providerName = agent.provider === 'claude-cloud' ? 'Claude' : 
+                       agent.provider.charAt(0).toUpperCase() + agent.provider.slice(1);
 
   return `
-    <div class="agent-card bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-6 group hover:border-[#C2B280] transition-colors cursor-pointer relative overflow-hidden"
+    <button class="w-full text-left agent-card rounded-xl shadow-sm hover:shadow-md active:scale-[0.98] p-4 transition-all duration-200"
          onclick="openAgentDetails('${agent.provider}', '${escapeJsString(agent.rawId || '')}', '${escapeJsString(agent.filePath || '')}')">
-      <!-- Header with badges and time -->
-      <div class="flex justify-between items-start mb-4">
-        <div class="flex gap-2">
-          <span class="px-2 py-0.5 text-[9px] technical-font border ${providerStyle.border} ${providerStyle.text}">${agent.provider.toUpperCase()}</span>
-          <span class="px-2 py-0.5 text-[9px] technical-font ${statusStyle.bg} ${statusStyle.text}">${tacticalStatus}</span>
+      <!-- Header -->
+      <div class="flex items-start justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full ${providerDot}"></span>
+          <span class="text-xs font-medium ${providerStyle.text}">
+            ${providerName}
+          </span>
         </div>
-        <span class="text-[10px] technical-font text-slate-500">${timeAgo}</span>
+        <span class="px-2.5 py-1 text-xs font-medium rounded-md ${statusStyle.bg} ${statusStyle.text}">
+          ${statusLabel}
+        </span>
       </div>
 
       <!-- Title -->
-      <h3 class="text-lg font-bold dark:text-white mb-2 tracking-tight group-hover:text-[#C2B280] transition-colors uppercase line-clamp-2">${escapeHtml(agent.name)}</h3>
+      <h3 class="font-bold text-sm mb-2 line-clamp-2 text-slate-800 dark:text-white">
+        ${escapeHtml(agent.name)}
+      </h3>
 
-      <!-- Description/Prompt -->
-      ${agent.prompt ? `
-        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 line-clamp-2 font-light leading-relaxed">
-          ${escapeHtml(agent.prompt)}
-        </p>
-      ` : '<div class="mb-6"></div>'}
-
-      <!-- Footer with repo and PR link -->
-      <div class="flex items-center justify-between mt-auto">
+      <!-- Metadata -->
+      <div class="flex items-center gap-4 text-xs text-slate-500">
         ${agent.repository ? `
-          <div class="flex items-center gap-2 text-[10px] technical-font text-slate-400">
-            <span class="material-symbols-outlined text-xs">folder_open</span>
-            ${extractRepoName(agent.repository)}
+          <div class="flex items-center gap-1 truncate max-w-[140px]">
+            <span class="material-symbols-outlined text-xs">folder</span>
+            <span class="truncate">${extractRepoName(agent.repository)}</span>
           </div>
-        ` : '<div></div>'}
-        <div class="flex gap-3">
-          ${agent.webUrl ? `
-            <a href="#" onclick="event.stopPropagation(); openExternal('${agent.webUrl}')"
-               class="text-[10px] technical-font text-slate-400 hover:text-[#C2B280] hover:underline flex items-center gap-1">
-              <span class="material-symbols-outlined text-xs">terminal</span>
-              Console
-            </a>
-          ` : ''}
-          ${agent.prUrl ? `
-            <a href="#" onclick="event.stopPropagation(); openExternal('${agent.prUrl}')"
-               class="text-[10px] technical-font text-[#C2B280] hover:underline flex items-center gap-1">
-              <span class="material-symbols-outlined text-xs">open_in_new</span>
-              View PR
-            </a>
-          ` : ''}
+        ` : ''}
+        ${agent.branch ? `
+          <div class="flex items-center gap-1">
+            <span class="material-symbols-outlined text-xs">fork_right</span>
+            <span>${escapeHtml(agent.branch)}</span>
+          </div>
+        ` : ''}
+        <div class="flex items-center gap-1 ml-auto">
+          <span class="material-symbols-outlined text-xs">schedule</span>
+          <span>${timeAgo}</span>
         </div>
       </div>
 
-      <!-- Running indicator -->
-      ${agent.status === 'running' ? `
-        <div class="absolute top-0 right-0 w-2 h-2 bg-yellow-500 animate-pulse"></div>
+      <!-- PR Link -->
+      ${agent.prUrl ? `
+        <div class="mt-2 pt-2 border-t border-slate-200 dark:border-border-dark">
+          <div class="flex items-center gap-1.5 text-xs text-emerald-500">
+            <span class="material-symbols-outlined text-sm">merge</span>
+            <span>PR Available</span>
+          </div>
+        </div>
       ` : ''}
-    </div>
+    </button>
   `;
 }
 
@@ -1606,7 +1629,7 @@ function renderPathList(paths, containerElement, removeFunction) {
   }
 
   containerElement.innerHTML = paths.map(path => `
-    <div class="flex items-center justify-between p-3 bg-slate-700/20 border border-[#2A2A2A]">
+    <div class="flex items-center justify-between p-3 bg-slate-700/20 border border-border-dark">
       <span class="text-sm text-slate-300 font-mono truncate">${escapeHtml(path)}</span>
       <button onclick="${removeFunction}('${escapeHtml(path)}')"
               class="text-slate-400 hover:text-red-400 transition-colors">
@@ -1626,10 +1649,10 @@ function showView(view) {
   // Update nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
     if (btn.dataset.view === view) {
-      btn.classList.add('active', 'bg-[#C2B280]', 'text-black', 'font-medium');
+      btn.classList.add('active', 'bg-primary', 'text-black', 'font-medium');
       btn.classList.remove('text-slate-600', 'dark:text-slate-400');
     } else {
-      btn.classList.remove('active', 'bg-[#C2B280]', 'text-black', 'font-medium');
+      btn.classList.remove('active', 'bg-primary', 'text-black', 'font-medium');
       btn.classList.add('text-slate-600', 'dark:text-slate-400');
     }
   });
@@ -2010,18 +2033,18 @@ function applyTheme(theme) {
   ['system', 'light', 'dark'].forEach(t => {
     const btn = document.getElementById(`theme-${t}`);
     if (t === theme) {
-      btn.classList.add('border-[#C2B280]', 'bg-[#C2B280]/5');
-      btn.classList.remove('border-slate-200', 'dark:border-[#2A2A2A]');
-      btn.querySelector('.technical-font').classList.add('text-[#C2B280]');
+      btn.classList.add('border-primary', 'bg-primary/5');
+      btn.classList.remove('border-slate-200', 'dark:border-border-dark');
+      btn.querySelector('.technical-font').classList.add('text-primary');
       btn.querySelector('.technical-font').classList.remove('text-slate-600', 'dark:text-slate-400');
-      btn.querySelector('.material-symbols-outlined').classList.add('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-primary');
       btn.querySelector('.material-symbols-outlined').classList.remove('text-slate-500');
     } else {
-      btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
-      btn.classList.add('border-slate-200', 'dark:border-[#2A2A2A]');
-      btn.querySelector('.technical-font').classList.remove('text-[#C2B280]');
+      btn.classList.remove('border-primary', 'bg-primary/5');
+      btn.classList.add('border-slate-200', 'dark:border-border-dark');
+      btn.querySelector('.technical-font').classList.remove('text-primary');
       btn.querySelector('.technical-font').classList.add('text-slate-600', 'dark:text-slate-400');
-      btn.querySelector('.material-symbols-outlined').classList.remove('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-primary');
       btn.querySelector('.material-symbols-outlined').classList.add('text-slate-500');
     }
   });
@@ -2053,19 +2076,19 @@ function applyDisplayMode(mode) {
     const btn = document.getElementById(`display-${m}`);
     if (m === mode) {
       // Active styles
-      btn.classList.add('border-[#C2B280]', 'bg-[#C2B280]/5');
-      btn.classList.remove('border-slate-200', 'dark:border-[#2A2A2A]');
-      btn.querySelector('.technical-font').classList.add('text-[#C2B280]');
+      btn.classList.add('border-primary', 'bg-primary/5');
+      btn.classList.remove('border-slate-200', 'dark:border-border-dark');
+      btn.querySelector('.technical-font').classList.add('text-primary');
       btn.querySelector('.technical-font').classList.remove('text-slate-600', 'dark:text-slate-400');
-      btn.querySelector('.material-symbols-outlined').classList.add('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-primary');
       btn.querySelector('.material-symbols-outlined').classList.remove('text-slate-500');
     } else {
       // Inactive styles
-      btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
-      btn.classList.add('border-slate-200', 'dark:border-[#2A2A2A]');
-      btn.querySelector('.technical-font').classList.remove('text-[#C2B280]');
+      btn.classList.remove('border-primary', 'bg-primary/5');
+      btn.classList.add('border-slate-200', 'dark:border-border-dark');
+      btn.querySelector('.technical-font').classList.remove('text-primary');
       btn.querySelector('.technical-font').classList.add('text-slate-600', 'dark:text-slate-400');
-      btn.querySelector('.material-symbols-outlined').classList.remove('text-[#C2B280]');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-primary');
       btn.querySelector('.material-symbols-outlined').classList.add('text-slate-500');
     }
   });
@@ -2272,7 +2295,7 @@ function renderGithubPaths() {
 
   elements.githubPathsEmpty.classList.add('hidden');
   elements.githubPathsList.innerHTML = paths.map(path => `
-    <div class="flex items-center justify-between p-3 bg-slate-700/20 border border-[#2A2A2A]">
+    <div class="flex items-center justify-between p-3 bg-slate-700/20 border border-border-dark">
       <span class="text-sm text-slate-300 font-mono truncate">${escapeHtml(path)}</span>
       <button onclick="removeGithubPath('${escapeHtml(path)}')" 
               class="text-slate-400 hover:text-red-400 transition-colors">
@@ -2291,7 +2314,7 @@ window.openAgentDetails = async function(provider, rawId, filePath) {
   elements.agentModal.classList.remove('hidden');
   elements.modalContent.innerHTML = `
     <div class="flex items-center justify-center h-32">
-      <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+      <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
     </div>
   `;
 
@@ -2326,8 +2349,15 @@ function renderAgentDetails(provider, details) {
   
   // Update status badge
   const statusStyle = getStatusStyle(details.status);
-  elements.modalStatusBadge.className = `px-2 py-0.5 text-[10px] technical-font ${statusStyle.bg} ${statusStyle.text} font-bold`;
-  elements.modalStatusBadge.textContent = getTacticalStatus(details.status);
+  const statusLabels = {
+    'running': 'RUNNING',
+    'completed': 'COMPLETE',
+    'pending': 'PENDING',
+    'failed': 'FAILED',
+    'stopped': 'STOPPED'
+  };
+  elements.modalStatusBadge.className = `px-2.5 py-1 text-xs font-medium rounded-md ${statusStyle.bg} ${statusStyle.text}`;
+  elements.modalStatusBadge.textContent = statusLabels[details.status] || getTacticalStatus(details.status);
   
   // Update subtitle
   const modalSubtitle = document.getElementById('modal-subtitle');
@@ -2345,8 +2375,8 @@ function renderAgentDetails(provider, details) {
   // Metadata Grid
   content += `
     <div class="grid grid-cols-2 gap-4">
-      <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
-        <div class="text-[9px] technical-font text-[#C2B280] mb-2">Info</div>
+      <div class="bg-card-dark border border-border-dark p-4">
+        <div class="text-[9px] technical-font text-primary mb-2">Info</div>
         <div class="space-y-3">
           <div class="flex flex-col">
             <span class="text-[9px] technical-font text-slate-500">Created</span>
@@ -2360,9 +2390,9 @@ function renderAgentDetails(provider, details) {
           ` : ''}
         </div>
       </div>
-      <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4 flex flex-col justify-between">
+      <div class="bg-card-dark border border-border-dark p-4 flex flex-col justify-between">
         <div>
-          <div class="text-[9px] technical-font text-[#C2B280] mb-2">Repo</div>
+          <div class="text-[9px] technical-font text-primary mb-2">Repo</div>
           ${details.repository ? `
           <div class="flex items-center gap-2 mb-3">
             <span class="material-symbols-outlined text-sm text-slate-500">folder</span>
@@ -2378,13 +2408,13 @@ function renderAgentDetails(provider, details) {
         </div>
         <div class="mt-4 flex justify-end gap-2">
           ${details.webUrl ? `
-          <button onclick="openExternal('${details.webUrl}')" class="bg-[#1A1A1A] text-slate-300 border border-slate-600 px-4 py-1.5 text-[10px] technical-font font-bold hover:bg-slate-800 flex items-center gap-2">
+          <button onclick="openExternal('${details.webUrl}')" class="bg-white dark:bg-card-dark text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-1.5 text-xs font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 flex items-center gap-2">
             <span class="material-symbols-outlined text-xs">terminal</span>
             View Console
           </button>
           ` : ''}
           ${details.prUrl ? `
-          <button onclick="openExternal('${details.prUrl}')" class="bg-[#C2B280] text-black px-4 py-1.5 text-[10px] technical-font font-bold hover:brightness-110 flex items-center gap-2">
+          <button onclick="openExternal('${details.prUrl}')" class="bg-primary text-black px-4 py-1.5 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200 flex items-center gap-2">
             <span class="material-symbols-outlined text-xs">open_in_new</span>
             View PR
           </button>
@@ -2400,11 +2430,11 @@ function renderAgentDetails(provider, details) {
   if (details.prompt) {
     content += `
       <section>
-        <div class="flex items-center gap-2 mb-3 border-l-2 border-[#C2B280] pl-3">
-          <span class="material-symbols-outlined text-sm text-[#C2B280]">edit_note</span>
-          <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Task Description</h3>
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary pl-3">
+          <span class="material-symbols-outlined text-sm text-primary">edit_note</span>
+          <h3 class="text-[11px] technical-font text-primary font-bold">Task Description</h3>
         </div>
-        <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-6">
+        <div class="bg-card-dark border border-border-dark p-6">
           <div class="markdown-content text-sm text-slate-300 font-light leading-relaxed">${promptHtml}</div>
         </div>
       </section>
@@ -2415,11 +2445,11 @@ function renderAgentDetails(provider, details) {
   if (details.summary) {
     content += `
       <section>
-        <div class="flex items-center gap-2 mb-3 border-l-2 border-[#C2B280] pl-3">
-          <span class="material-symbols-outlined text-sm text-[#C2B280]">description</span>
-          <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Summary</h3>
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary pl-3">
+          <span class="material-symbols-outlined text-sm text-primary">description</span>
+          <h3 class="text-[11px] technical-font text-primary font-bold">Summary</h3>
         </div>
-        <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-6">
+        <div class="bg-card-dark border border-border-dark p-6">
           <p class="text-sm text-slate-300 font-light leading-relaxed">${escapeHtml(details.summary)}</p>
         </div>
       </section>
@@ -2430,19 +2460,19 @@ function renderAgentDetails(provider, details) {
   if (details.conversation && details.conversation.length > 0) {
     content += `
       <section>
-        <div class="flex items-center justify-between mb-3 border-l-2 border-[#C2B280] pl-3">
+        <div class="flex items-center justify-between mb-3 border-l-2 border-primary pl-3">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm text-[#C2B280]">chat</span>
-            <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Conversation</h3>
+            <span class="material-symbols-outlined text-sm text-primary">chat</span>
+            <h3 class="text-[11px] technical-font text-primary font-bold">Conversation</h3>
           </div>
           <span class="text-[9px] technical-font text-slate-500">${details.conversation.length} entries</span>
         </div>
         <div class="space-y-3 max-h-72 overflow-y-auto pr-2 mb-4">
           ${details.conversation.map(msg => `
             <div class="flex ${msg.isUser ? 'justify-end' : 'justify-start'}">
-              <div class="max-w-[85%] ${msg.isUser ? 'bg-[#C2B280]/10 border-[#C2B280]/30' : 'bg-[#1A1A1A] border-[#2A2A2A]'} border p-3">
+              <div class="max-w-[85%] ${msg.isUser ? 'bg-primary/10 border-primary/30' : 'bg-card-dark border-border-dark'} border p-3">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="text-[9px] technical-font ${msg.isUser ? 'text-[#C2B280]' : 'text-slate-400'}">${msg.isUser ? 'You' : 'Agent'}</span>
+                  <span class="text-[9px] technical-font ${msg.isUser ? 'text-primary' : 'text-slate-400'}">${msg.isUser ? 'You' : 'Agent'}</span>
                 </div>
                 <p class="text-sm text-white leading-relaxed">${escapeHtml(msg.text || '')}</p>
               </div>
@@ -2457,17 +2487,17 @@ function renderAgentDetails(provider, details) {
   if (details.activities && details.activities.length > 0) {
     content += `
       <section>
-        <div class="flex items-center justify-between mb-4 border-l-2 border-[#C2B280] pl-3">
+        <div class="flex items-center justify-between mb-4 border-l-2 border-primary pl-3">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm text-[#C2B280]">history</span>
-            <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Activity</h3>
+            <span class="material-symbols-outlined text-sm text-primary">history</span>
+            <h3 class="text-[11px] technical-font text-primary font-bold">Activity</h3>
           </div>
           <span class="text-[9px] technical-font text-slate-500">${details.activities.length} events</span>
         </div>
-        <div class="relative pl-8 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-[#C2B280]/30">
+        <div class="relative pl-8 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-primary/30">
           ${details.activities.map((activity, index) => `
             <div class="relative">
-              <div class="absolute -left-[26px] top-1.5 w-4 h-4 ${index === 0 ? 'bg-[#C2B280]' : 'bg-[#C2B280]/40'} border-4 border-[#0D0D0D]"></div>
+              <div class="absolute -left-[26px] top-1.5 w-4 h-4 ${index === 0 ? 'bg-primary' : 'bg-primary/40'} border-4 border-sidebar-dark"></div>
               <div class="flex justify-between items-start">
                 <div>
                   <p class="text-sm text-white font-medium">${escapeHtml(activity.title || activity.type)}</p>
@@ -2510,17 +2540,17 @@ function renderAgentDetails(provider, details) {
   if (details.messages && details.messages.length > 0) {
     content += `
       <section>
-        <div class="flex items-center justify-between mb-3 border-l-2 border-[#C2B280] pl-3">
+        <div class="flex items-center justify-between mb-3 border-l-2 border-primary pl-3">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm text-[#C2B280]">chat</span>
-            <h3 class="text-[11px] technical-font text-[#C2B280] font-bold">Messages</h3>
+            <span class="material-symbols-outlined text-sm text-primary">chat</span>
+            <h3 class="text-[11px] technical-font text-primary font-bold">Messages</h3>
           </div>
           <span class="text-[9px] technical-font text-slate-500">${details.messages.length} entries</span>
         </div>
         <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
           ${details.messages.map(msg => `
             <div class="flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-              <div class="max-w-[85%] ${msg.role === 'user' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-[#1A1A1A] border-[#2A2A2A]'} border p-3">
+              <div class="max-w-[85%] ${msg.role === 'user' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-card-dark border-border-dark'} border p-3">
                 <div class="flex items-center gap-2 mb-1">
                   <span class="text-[9px] technical-font ${msg.role === 'user' ? 'text-emerald-400' : 'text-slate-400'}">${capitalizeFirst(msg.role)}</span>
                 </div>
@@ -2536,16 +2566,16 @@ function renderAgentDetails(provider, details) {
   // Follow-up Input Section (Jules/Cursor)
   if ((provider === 'jules' || provider === 'cursor') && details.rawId) {
     content += `
-      <section class="mt-6 pt-4 border-t border-[#2A2A2A]">
+      <section class="mt-6 pt-4 border-t border-border-dark">
         <div class="flex flex-col gap-2">
            <label class="text-[10px] technical-font text-slate-500 uppercase">Send Follow-up Message</label>
            <textarea id="follow-up-input"
-                     class="w-full bg-[#0D0D0D] border border-[#2A2A2A] text-slate-300 text-sm p-3 focus:border-[#C2B280] focus:outline-none transition-colors h-24 resize-none"
+                     class="w-full bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark text-slate-800 dark:text-slate-300 text-sm p-3 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all duration-200 h-24 resize-none"
                      placeholder="Type instructions to continue task..."></textarea>
            <div class="flex justify-end mt-2">
               <button onclick="sendFollowUp('${provider}', '${escapeJsString(details.rawId)}')"
                       id="send-follow-up-btn"
-                      class="bg-[#C2B280] text-black px-4 py-2 text-xs technical-font font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                      class="bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2">
                  <span class="material-symbols-outlined text-sm">send</span>
                  SEND
               </button>
@@ -2811,7 +2841,7 @@ function setCreateRepoLoading(loading) {
 function setCreateRepoVisibility(isPrivate) {
   state.createRepo.githubPrivate = !!isPrivate;
 
-  const activeClasses = ['bg-[#C2B280]', 'text-black'];
+  const activeClasses = ['bg-primary', 'text-black'];
   const inactiveClasses = ['bg-black/20'];
 
   if (elements.createRepoVisibilityPublic && elements.createRepoVisibilityPrivate) {
@@ -3053,7 +3083,7 @@ function setTaskPromptMode(mode) {
 
   // Simple active styling
   if (elements.taskPromptTabWrite && elements.taskPromptTabPreview) {
-    const activeClasses = ['bg-[#C2B280]', 'text-black'];
+    const activeClasses = ['bg-primary', 'text-black'];
     const inactiveClasses = ['text-slate-400'];
 
     elements.taskPromptTabWrite.classList.toggle(activeClasses[0], !isPreview);
@@ -3088,7 +3118,7 @@ function renderNewTaskPastedImages() {
   }
 
   elements.taskPromptImages.innerHTML = imgs.map(img => `
-    <div class="relative w-20 h-20 border border-[#2A2A2A] bg-black overflow-hidden group cursor-pointer"
+    <div class="relative w-20 h-20 border border-border-dark bg-black overflow-hidden group cursor-pointer"
          onclick="openPastedImageModal('${escapeJsString(img.id)}')"
          title="${escapeHtml(img.name || 'pasted image')}">
       <img src="${escapeHtml(img.dataUrl)}" alt="${escapeHtml(img.name || 'pasted image')}"
@@ -3158,8 +3188,8 @@ async function handleTaskPromptPaste(event) {
 function resetNewTaskForm(options = {}) {
   // Reset service selection
   document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
-    btn.classList.add('border-[#2A2A2A]');
+    btn.classList.remove('border-primary', 'bg-primary/5');
+    btn.classList.add('border-border-dark');
   });
 
   // Reset form fields - searchable dropdown
@@ -3196,13 +3226,13 @@ window.selectService = async function(service) {
 
   // Update UI for selected service
   document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-[#C2B280]', 'bg-[#C2B280]/5');
-    btn.classList.add('border-[#2A2A2A]');
+    btn.classList.remove('border-primary', 'bg-primary/5');
+    btn.classList.add('border-border-dark');
   });
 
   const selectedBtn = document.getElementById(`service-${service}`);
-  selectedBtn.classList.remove('border-[#2A2A2A]');
-  selectedBtn.classList.add('border-[#C2B280]', 'bg-[#C2B280]/5');
+  selectedBtn.classList.remove('border-border-dark');
+  selectedBtn.classList.add('border-primary', 'bg-primary/5');
 
   // Show/hide branch input - hide for local CLI tools and cloud-only services
   if (service === 'gemini' || service === 'codex' || service === 'claude-cli' || service === 'claude-cloud') {
@@ -3514,7 +3544,7 @@ async function loadBranches() {
      if (result.success) {
         state.github.repos = result.repos || [];
         state.github.filteredRepos = [...state.github.repos];
-        elements.repoCount.textContent = `${state.github.repos.length} REPOS`;
+        elements.repoCount.textContent = `${state.github.repos.length} repos`;
         
         renderRepos();
         
@@ -3640,8 +3670,8 @@ function renderComputerCard(device) {
 
   const statusLabel = online ? 'ONLINE' : 'OFFLINE';
   const statusClass = online
-    ? 'border-emerald-500 text-emerald-500 bg-emerald-500/10'
-    : 'border-slate-600 text-slate-400 bg-slate-800/30';
+    ? 'text-emerald-500 bg-emerald-500/20'
+    : 'text-slate-400 bg-slate-700';
 
   const isHeadless = String(device?.deviceType || '').toLowerCase() === 'headless';
 
@@ -3674,14 +3704,14 @@ function renderComputerCard(device) {
   }
 
   return `
-    <div class="agent-card p-6">
+    <div class="agent-card rounded-xl shadow-sm hover:shadow-md p-4">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <div class="text-[10px] technical-font text-slate-500">COMPUTER</div>
-          <div class="mt-1 text-lg font-display font-bold text-white uppercase tracking-tight line-clamp-1">${name}</div>
+          <div class="mt-1 text-lg font-display font-bold text-slate-800 dark:text-white uppercase tracking-tight line-clamp-1">${name}</div>
           <div class="mt-1 text-[10px] technical-font text-slate-500">ID: ${id}</div>
         </div>
-        <span class="px-2 py-1 text-[10px] technical-font border ${statusClass} font-bold">${statusLabel}</span>
+        <span class="px-2.5 py-1 text-xs font-medium rounded-md ${statusClass}">${statusLabel}</span>
       </div>
 
       ${isHeadless ? `
@@ -3719,8 +3749,8 @@ function filterRepos(query) {
 function renderRepos() {
    if (state.github.filteredRepos.length === 0) {
       elements.repoList.innerHTML = `
-         <div class="px-4 py-6 text-center text-slate-500 technical-font text-xs">
-            NO REPOSITORIES FOUND
+         <div class="px-4 py-6 text-center text-slate-500 text-sm font-medium">
+            No repositories found
          </div>
       `;
       return;
@@ -3731,24 +3761,24 @@ function renderRepos() {
       const localMatch = state.github.localRepos.find(local => local.name.toLowerCase() === repo.name.toLowerCase());
 
       return `
-      <div class="repo-item p-4 border border-transparent hover:border-[#C2B280]/50 hover:bg-[#C2B280]/5 cursor-pointer transition-all mb-1 ${state.github.selectedRepo?.id === repo.id ? 'bg-[#C2B280]/10 border-[#C2B280]' : ''}"
+      <div class="repo-item p-3 border border-slate-200 dark:border-transparent hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all mb-1 rounded-lg ${state.github.selectedRepo?.id === repo.id ? 'bg-primary/10 border-primary' : ''}"
            onclick="selectRepo('${repo.owner.login}', '${repo.name}', ${repo.id})">
          <div class="flex justify-between items-start mb-1">
-            <span class="font-bold text-slate-300 text-sm truncate pr-2">${escapeHtml(repo.name)}</span>
+            <span class="font-semibold text-slate-800 dark:text-slate-300 text-sm truncate pr-2">${escapeHtml(repo.name)}</span>
             ${repo.private ? '<span class="material-symbols-outlined text-xs text-slate-500">lock</span>' : ''}
          </div>
-         <div class="flex justify-between items-center text-[10px] technical-font text-slate-500">
+         <div class="flex justify-between items-center text-xs text-slate-500">
             <span>${formatTimeAgo(repo.updated_at)}</span>
             <div class="flex items-center gap-2">
                ${localMatch ? `
                <button onclick="event.stopPropagation(); pullRepo('${escapeJsString(localMatch.path)}')"
-                       class="bg-emerald-600 text-white px-2 py-1 text-[9px] technical-font font-bold hover:brightness-110 flex items-center gap-1"
+                       class="bg-emerald-600 text-white px-2 py-1 text-xs font-medium rounded-md hover:brightness-110 active:scale-[0.98] flex items-center gap-1 transition-all duration-200"
                        title="Pull from main">
-                  <span class="material-symbols-outlined text-[10px]">download</span> PULL
+                  <span class="material-symbols-outlined text-xs">download</span> Pull
                </button>
                ` : ''}
-               ${repo.open_issues_count > 0 ? `<span class="text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">bug_report</span> ${repo.open_issues_count}</span>` : ''}
-               <span class="text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">star</span> ${repo.stargazers_count}</span>
+               ${repo.open_issues_count > 0 ? `<span class="text-slate-500 dark:text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs">bug_report</span> ${repo.open_issues_count}</span>` : ''}
+               <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs">star</span> ${repo.stargazers_count}</span>
             </div>
          </div>
       </div>
@@ -3789,13 +3819,13 @@ function updatePrFilterUI() {
 
   // Update buttons
   if (isOpen) {
-    elements.prFilterOpen.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all bg-[#C2B280] text-black';
-    elements.prFilterClosed.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all text-slate-400 hover:text-slate-200';
-    elements.prStatusText.textContent = 'OPEN PRS';
+    elements.prFilterOpen.className = 'px-3 py-1 text-xs font-medium rounded-md transition-all bg-primary text-black';
+    elements.prFilterClosed.className = 'px-3 py-1 text-xs font-medium rounded-md transition-all text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200';
+    elements.prStatusText.textContent = 'Open PRs';
   } else {
-    elements.prFilterOpen.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all text-slate-400 hover:text-slate-200';
-    elements.prFilterClosed.className = 'px-3 py-1 text-[10px] technical-font font-bold transition-all bg-[#C2B280] text-black';
-    elements.prStatusText.textContent = 'CLOSED PRS';
+    elements.prFilterOpen.className = 'px-3 py-1 text-xs font-medium rounded-md transition-all text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200';
+    elements.prFilterClosed.className = 'px-3 py-1 text-xs font-medium rounded-md transition-all bg-primary text-black';
+    elements.prStatusText.textContent = 'Closed PRs';
   }
 }
 
@@ -3837,8 +3867,8 @@ window.selectRepo = async function(owner, repoName, repoId) {
    if (!isSameRepo) {
      elements.prList.innerHTML = `
         <div class="flex flex-col items-center justify-center h-32">
-           <span class="material-symbols-outlined text-[#C2B280] text-3xl animate-spin">sync</span>
-           <span class="text-xs technical-font text-slate-500 mt-2">LOADING PRs...</span>
+           <span class="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
+           <span class="text-sm text-slate-500 mt-2 font-medium">Loading PRs...</span>
         </div>
      `;
      elements.prCount.textContent = '-';
@@ -3861,8 +3891,8 @@ window.selectRepo = async function(owner, repoName, repoId) {
 
       if (!isSameRepo) {
         elements.prList.innerHTML = `
-           <div class="p-4 border border-red-900/50 bg-red-900/10 text-red-400 text-xs technical-font text-center">
-              FAILED TO LOAD PRs: ${escapeHtml(err.message)}
+           <div class="p-4 border border-red-500/50 bg-red-500/10 text-red-500 text-sm font-medium text-center rounded-lg">
+              Failed to load PRs: ${escapeHtml(err.message)}
            </div>
         `;
       } else {
@@ -3878,7 +3908,7 @@ function renderPrs() {
       elements.prList.innerHTML = `
          <div class="flex flex-col items-center justify-center h-64 text-slate-500">
             <span class="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
-            <span class="technical-font text-xs">NO OPEN PULL REQUESTS</span>
+            <span class="text-sm font-medium">No open pull requests</span>
          </div>
       `;
       return;
@@ -3887,25 +3917,25 @@ function renderPrs() {
    elements.prList.innerHTML = state.github.prs.map(pr => {
       let statusBadge = '';
       if (pr.state === 'open') {
-          statusBadge = '<span class="px-2 py-0.5 text-[9px] technical-font bg-emerald-900/30 text-emerald-500 border border-emerald-900/50">OPEN</span>';
+          statusBadge = '<span class="px-2.5 py-1 text-xs font-medium rounded-md bg-emerald-500/20 text-emerald-500">Open</span>';
       } else if (pr.merged_at) {
-          statusBadge = '<span class="px-2 py-0.5 text-[9px] technical-font bg-purple-900/30 text-purple-500 border border-purple-900/50">MERGED</span>';
+          statusBadge = '<span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-500/20 text-purple-500">Merged</span>';
       } else {
-          statusBadge = '<span class="px-2 py-0.5 text-[9px] technical-font bg-red-900/30 text-red-500 border border-red-900/50">CLOSED</span>';
+          statusBadge = '<span class="px-2.5 py-1 text-xs font-medium rounded-md bg-red-500/20 text-red-500">Closed</span>';
       }
 
       return `
-      <div class="pr-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group" 
+      <div class="pr-card bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark rounded-xl shadow-sm hover:shadow-md hover:border-primary transition-all duration-200 cursor-pointer group p-4 active:scale-[0.98]" 
            onclick="openPrDetails('${pr.base.repo.owner.login}', '${pr.base.repo.name}', ${pr.number})">
          <div class="flex justify-between items-start mb-2">
             <div class="flex items-center gap-2">
-               <span class="text-[#C2B280] technical-font text-xs">#${pr.number}</span>
-               <h3 class="font-bold text-slate-200 text-sm group-hover:text-[#C2B280] transition-colors">${escapeHtml(pr.title)}</h3>
+               <span class="text-primary text-xs font-medium">#${pr.number}</span>
+               <h3 class="font-semibold text-slate-800 dark:text-slate-200 text-sm group-hover:text-primary transition-colors">${escapeHtml(pr.title)}</h3>
             </div>
             ${statusBadge}
          </div>
          
-         <div class="flex items-center gap-4 text-[10px] technical-font text-slate-500 mb-3">
+         <div class="flex items-center gap-4 text-xs text-slate-500 mb-3">
             <span class="flex items-center gap-1">
                <span class="material-symbols-outlined text-xs">account_circle</span>
                ${escapeHtml(pr.user.login)}
@@ -3917,11 +3947,11 @@ function renderPrs() {
          </div>
          
          <div class="flex items-center gap-2 mt-2">
-            <div class="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
-               <div class="h-full bg-[#C2B280]" style="width: 100%"></div>
+            <div class="flex-1 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+               <div class="h-full bg-primary" style="width: 100%"></div>
             </div>
-            <span class="text-[9px] technical-font text-slate-400 flex items-center gap-1">
-               <span class="material-symbols-outlined text-[10px]">call_merge</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+               <span class="material-symbols-outlined text-xs">call_merge</span>
                ${escapeHtml(pr.head.ref)}
             </span>
          </div>
@@ -4361,7 +4391,7 @@ async function loadJiraIssues(boardId) {
   state.jira.loading = true;
   elements.jiraIssuesList.innerHTML = `
     <div class="flex flex-col items-center justify-center h-32">
-       <span class="material-symbols-outlined text-[#C2B280] text-3xl animate-spin">sync</span>
+       <span class="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
        <span class="text-xs technical-font text-slate-500 mt-2">LOADING ISSUES...</span>
     </div>
   `;
@@ -4531,11 +4561,11 @@ function renderJiraIssues() {
         else if (['In Progress', 'In Review'].includes(status)) statusClass = 'text-blue-500 border-blue-500 bg-blue-900/20';
 
         return `
-          <div class="jira-card bg-[#0D0D0D] border border-[#2A2A2A] p-4 hover:border-[#C2B280] transition-colors cursor-pointer group flex flex-col gap-2" onclick="openJiraIssue('${key}')">
+          <div class="jira-card bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark rounded-xl shadow-sm hover:shadow-md hover:border-primary transition-all duration-200 cursor-pointer group flex flex-col gap-2 p-4" onclick="openJiraIssue('${key}')">
              <div class="flex justify-between items-start">
                 <div class="flex items-center gap-2">
-                   <span class="text-[#C2B280] technical-font text-xs font-bold">${key}</span>
-                   <h3 class="font-medium text-slate-200 text-sm group-hover:text-[#C2B280] transition-colors line-clamp-1">${summary}</h3>
+                   <span class="text-primary technical-font text-xs font-bold">${key}</span>
+                   <h3 class="font-medium text-slate-200 text-sm group-hover:text-primary transition-colors line-clamp-1">${summary}</h3>
                 </div>
                 <span class="px-2 py-0.5 text-[9px] technical-font border ${statusClass}">${status.toUpperCase()}</span>
              </div>
@@ -4557,9 +4587,9 @@ function renderJiraIssues() {
 
       return `
         <div class="mb-6">
-           <h3 class="text-xs technical-font text-[#C2B280] font-bold mb-3 border-b border-[#2A2A2A] pb-2 flex justify-between items-center sticky top-0 bg-[#1A1A1A] z-10 py-2">
+           <h3 class="text-xs technical-font text-primary font-bold mb-3 border-b border-border-dark pb-2 flex justify-between items-center sticky top-0 bg-card-dark z-10 py-2">
                <span>${escapeHtml(group.meta.name)}</span>
-               <span class="text-slate-500 bg-[#2A2A2A] px-2 py-0.5 rounded text-[10px]">${group.issues.length}</span>
+               <span class="text-slate-500 bg-border-dark px-2 py-0.5 rounded text-[10px]">${group.issues.length}</span>
            </h3>
            <div class="flex flex-col gap-2">
                ${issuesHtml}
@@ -4614,7 +4644,7 @@ window.openJiraIssue = async function(issueKey) {
   modal.classList.remove('hidden');
   content.innerHTML = `
     <div class="flex items-center justify-center h-32">
-      <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+      <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
     </div>
   `;
   
@@ -4667,7 +4697,7 @@ window.openJiraIssue = async function(issueKey) {
     if (descriptionText) {
       contentHtml += `
         <div class="mb-6">
-          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">DESCRIPTION</h3>
+          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-border-dark pb-2">DESCRIPTION</h3>
           <div class="prose prose-invert prose-sm max-w-none text-slate-300 font-light leading-relaxed whitespace-pre-wrap">${escapeHtml(descriptionText)}</div>
         </div>
       `;
@@ -4676,10 +4706,10 @@ window.openJiraIssue = async function(issueKey) {
     if (Array.isArray(fields.labels) && fields.labels.length > 0) {
       contentHtml += `
         <div class="mb-6">
-          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">LABELS</h3>
+          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-border-dark pb-2">LABELS</h3>
           <div class="flex flex-wrap gap-2">
             ${fields.labels.map(label => `
-              <span class="px-2 py-1 text-[10px] technical-font uppercase tracking-wider bg-slate-800 text-slate-300 border border-[#2A2A2A]">
+              <span class="px-2 py-1 text-[10px] technical-font uppercase tracking-wider bg-slate-800 text-slate-300 border border-border-dark">
                 ${escapeHtml(label)}
               </span>
             `).join('')}
@@ -4691,14 +4721,14 @@ window.openJiraIssue = async function(issueKey) {
     if (comments.length > 0) {
       contentHtml += `
         <div class="mb-6">
-          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">COMMENTS (${comments.length})</h3>
+          <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-border-dark pb-2">COMMENTS (${comments.length})</h3>
           <div class="space-y-4">
             ${comments.map(comment => {
               const author = comment.author?.displayName || 'Unknown';
               const body = comment.body ? extractAdfText(comment.body) : '';
               const created = formatDate(comment.created);
               return `
-                <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
+                <div class="bg-card-dark border border-border-dark p-4">
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-2">
                       <span class="material-symbols-outlined text-xs text-slate-500">person</span>
@@ -4755,7 +4785,7 @@ function showToast(message, type = 'info') {
   toast.className = `fixed bottom-4 right-4 px-4 py-2 text-xs technical-font font-bold z-50 transition-all transform translate-y-0 opacity-100 border ${ 
     type === 'success' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 
     type === 'error' ? 'bg-red-500/20 border-red-500 text-red-400' : 
-    'bg-[#1A1A1A] border-[#2A2A2A] text-white'
+    'bg-card-dark border-border-dark text-white'
   }`;
   toast.textContent = message;
   document.body.appendChild(toast);

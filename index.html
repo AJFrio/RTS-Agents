@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.cursor.com https://jules.googleapis.com https://api.openai.com https://api.anthropic.com;">
   <title>RTS Agents | Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles/output.css">
   <style>
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
       letter-spacing: -0.01em;
+      font-weight: 400;
     }
     .technical-font {
       font-family: 'JetBrains Mono', monospace;
@@ -19,55 +20,25 @@
       font-size: 0.75rem;
       letter-spacing: 0.1em;
     }
-    ::-webkit-scrollbar {
-      width: 4px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0D0D0D;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #C2B280;
-    }
     .material-symbols-outlined {
       font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
     }
-    input[type="range"] {
-      -webkit-appearance: none;
-      background: #2A2A2A;
-      height: 4px;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      height: 16px;
-      width: 8px;
-      background: #C2B280;
-      cursor: pointer;
-      border-radius: 0;
-    }
     .inner-glow:focus-within {
-      box-shadow: inset 0 0 10px rgba(194, 178, 128, 0.1);
-    }
-    /* Sharp corners override */
-    .rounded, .rounded-lg, .rounded-xl, .rounded-full {
-      border-radius: 0 !important;
-    }
-    /* Form checkbox styling */
-    input[type="checkbox"] {
-      border-radius: 0 !important;
+      box-shadow: inset 0 0 10px rgba(147, 184, 197, 0.1);
     }
   </style>
 </head>
-<body class="bg-[#F5F5F0] dark:bg-[#121212] text-slate-800 dark:text-slate-200">
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200">
   <div id="app" class="flex h-screen overflow-hidden">
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-64 flex-shrink-0 border-r border-slate-200 dark:border-[#2A2A2A] bg-white dark:bg-[#0D0D0D] flex flex-col">
+    <aside id="sidebar" class="w-64 flex-shrink-0 border-r border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark flex flex-col">
       <!-- Logo -->
-      <div class="p-6 border-b border-slate-200 dark:border-[#2A2A2A]">
+      <div class="p-6 border-b border-slate-200 dark:border-border-dark">
         <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-[#C2B280]">grid_view</span>
+          <span class="material-symbols-outlined text-primary">grid_view</span>
           <div>
-            <h1 class="font-display font-bold text-lg tracking-tighter dark:text-white uppercase">RTS Agents</h1>
-            <p class="text-[10px] technical-font text-slate-500 dark:text-slate-400">v1.0.0</p>
+            <h1 class="font-semibold text-lg tracking-tight dark:text-white">RTS Agents</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-normal">v1.0.0</p>
           </div>
         </div>
       </div>
@@ -75,36 +46,36 @@
       <!-- Navigation -->
       <nav class="flex-1 overflow-y-auto p-4 space-y-8">
         <div>
-          <div class="text-[10px] technical-font text-slate-400 dark:text-slate-500 mb-4 px-2">Main Controls</div>
+          <div class="text-xs text-slate-400 dark:text-slate-500 mb-4 px-2 font-medium">Main Controls</div>
           <ul class="space-y-1">
             <li>
-              <button data-view="dashboard" class="nav-btn active flex items-center gap-3 px-3 py-2 w-full text-left transition-all">
+              <button data-view="dashboard" class="nav-btn active flex items-center gap-3 px-3 py-2 w-full text-left transition-all rounded-lg">
                 <span class="material-symbols-outlined text-sm">dashboard</span>
-                <span class="text-sm uppercase tracking-wider">Dashboard</span>
+                <span class="text-sm font-medium tracking-wide">Dashboard</span>
               </button>
             </li>
             <li>
-              <button data-view="branches" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
+              <button data-view="branches" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all rounded-lg">
                 <span class="material-symbols-outlined text-sm">source</span>
-                <span class="text-sm uppercase tracking-wider">Repositories</span>
+                <span class="text-sm font-medium tracking-wide">Repositories</span>
               </button>
             </li>
             <li>
-              <button data-view="computers" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
+              <button data-view="computers" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all rounded-lg">
                 <span class="material-symbols-outlined text-sm">computer</span>
-                <span class="text-sm uppercase tracking-wider">Computers</span>
+                <span class="text-sm font-medium tracking-wide">Computers</span>
               </button>
             </li>
             <li>
-              <button data-view="jira" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
+              <button data-view="jira" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all rounded-lg">
                 <span class="material-symbols-outlined text-sm">assignment</span>
-                <span class="text-sm uppercase tracking-wider">Jira</span>
+                <span class="text-sm font-medium tracking-wide">Jira</span>
               </button>
             </li>
             <li>
-              <button data-view="settings" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all">
+              <button data-view="settings" class="nav-btn flex items-center gap-3 px-3 py-2 w-full text-left text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#1A1A1A] transition-all rounded-lg">
                 <span class="material-symbols-outlined text-sm">settings</span>
-                <span class="text-sm uppercase tracking-wider">Settings</span>
+                <span class="text-sm font-medium tracking-wide">Settings</span>
               </button>
             </li>
           </ul>
@@ -112,11 +83,11 @@
 
         <!-- Provider Filters -->
         <div id="sidenav-providers">
-          <div class="text-[10px] technical-font text-slate-400 dark:text-slate-500 mb-4 px-2 font-bold">Providers</div>
+          <div class="text-xs text-slate-400 dark:text-slate-500 mb-4 px-2 font-semibold">Providers</div>
           <ul class="space-y-3 px-2">
             <li class="flex items-center justify-between text-xs">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="filter-gemini" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                <input type="checkbox" id="filter-gemini" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                 <span class="dark:text-slate-300">GEMINI CLI</span>
               </label>
@@ -124,15 +95,15 @@
             </li>
             <li class="flex items-center justify-between text-xs">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="filter-jules" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
-                <span class="w-2 h-2 rounded-full bg-[#C2B280]"></span>
+                <input type="checkbox" id="filter-jules" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
+                <span class="w-2 h-2 rounded-full bg-primary"></span>
                 <span class="dark:text-slate-300">JULES</span>
               </label>
               <span id="count-jules" class="technical-font text-slate-500">00</span>
             </li>
             <li class="flex items-center justify-between text-xs">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="filter-cursor" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                <input type="checkbox" id="filter-cursor" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
                 <span class="w-2 h-2 rounded-full bg-blue-500"></span>
                 <span class="dark:text-slate-300">CURSOR</span>
               </label>
@@ -140,7 +111,7 @@
             </li>
             <li class="flex items-center justify-between text-xs">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="filter-codex" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                <input type="checkbox" id="filter-codex" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
                 <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
                 <span class="dark:text-slate-300">CODEX</span>
               </label>
@@ -148,7 +119,7 @@
             </li>
             <li class="flex items-center justify-between text-xs">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="filter-claude-cli" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                <input type="checkbox" id="filter-claude-cli" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
                 <span class="w-2 h-2 rounded-full bg-orange-500"></span>
                 <span class="dark:text-slate-300">CLAUDE CLI</span>
               </label>
@@ -156,7 +127,7 @@
             </li>
             <li class="flex items-center justify-between text-xs">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="filter-claude-cloud" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                <input type="checkbox" id="filter-claude-cloud" checked class="provider-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
                 <span class="w-2 h-2 rounded-full bg-amber-500"></span>
                 <span class="dark:text-slate-300">CLAUDE CLOUD</span>
               </label>
@@ -167,22 +138,22 @@
 
         <!-- Status Filters -->
         <div id="sidenav-status">
-          <div class="text-[10px] technical-font text-slate-400 dark:text-slate-500 mb-4 px-2 font-bold">Operation Status</div>
+          <div class="text-xs text-slate-400 dark:text-slate-500 mb-4 px-2 font-semibold">Operation Status</div>
           <ul class="space-y-3 px-2">
             <li class="flex items-center gap-2 text-xs">
-              <input type="checkbox" id="filter-running" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+              <input type="checkbox" id="filter-running" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
               <span class="dark:text-slate-300">RUNNING</span>
             </li>
             <li class="flex items-center gap-2 text-xs">
-              <input type="checkbox" id="filter-completed" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+              <input type="checkbox" id="filter-completed" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
               <span class="dark:text-slate-300">OP-COMPLETE</span>
             </li>
             <li class="flex items-center gap-2 text-xs">
-              <input type="checkbox" id="filter-pending" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+              <input type="checkbox" id="filter-pending" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
               <span class="dark:text-slate-400">PENDING_QUEUE</span>
             </li>
             <li class="flex items-center gap-2 text-xs">
-              <input type="checkbox" id="filter-failed" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+              <input type="checkbox" id="filter-failed" checked class="status-filter form-checkbox h-3 w-3 bg-transparent border-primary text-primary focus:ring-0">
               <span class="dark:text-slate-400">FAILED/STOPPED</span>
             </li>
           </ul>
@@ -190,45 +161,45 @@
       </nav>
 
       <!-- Connection Status (Link Matrix) -->
-      <div id="connection-status" class="p-6 border-t border-slate-200 dark:border-[#2A2A2A] bg-slate-50 dark:bg-black/20">
-        <div class="text-[9px] technical-font text-slate-400 mb-3 uppercase">Links</div>
+      <div id="connection-status" class="p-6 border-t border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-black/20">
+        <div class="text-xs text-slate-400 mb-3 font-medium">Links</div>
         <div class="space-y-2">
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">Gemini</span>
-            <span id="status-gemini" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 font-medium">Gemini</span>
+            <span id="status-gemini" class="font-semibold text-slate-500">STBY</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">Jules</span>
-            <span id="status-jules" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 font-medium">Jules</span>
+            <span id="status-jules" class="font-semibold text-slate-500">STBY</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">Cursor</span>
-            <span id="status-cursor" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 font-medium">Cursor</span>
+            <span id="status-cursor" class="font-semibold text-slate-500">STBY</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">Codex</span>
-            <span id="status-codex" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 font-medium">Codex</span>
+            <span id="status-codex" class="font-semibold text-slate-500">STBY</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">Claude CLI</span>
-            <span id="status-claude-cli" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 font-medium">Claude CLI</span>
+            <span id="status-claude-cli" class="font-semibold text-slate-500">STBY</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">Claude Cloud</span>
-            <span id="status-claude-cloud" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 font-medium">Claude Cloud</span>
+            <span id="status-claude-cloud" class="font-semibold text-slate-500">STBY</span>
           </div>
           <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-500 uppercase">GitHub</span>
-            <span id="status-github" class="font-bold text-slate-500">STBY</span>
+            <span class="text-slate-500 font-medium">GitHub</span>
+            <span id="status-github" class="font-semibold text-slate-500">STBY</span>
           </div>
         </div>
       </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto flex flex-col bg-[#F5F5F0] dark:bg-[#121212]">
+    <main class="flex-1 overflow-y-auto flex flex-col bg-[#F5F5F0] dark:bg-background-dark">
       <!-- Header -->
-      <header class="h-16 shrink-0 flex items-center justify-between px-8 border-b border-slate-200 dark:border-[#2A2A2A] bg-white/50 dark:bg-[#0D0D0D]/50 backdrop-blur-md sticky top-0 z-10">
+      <header class="h-16 shrink-0 flex items-center justify-between px-8 border-b border-slate-200 dark:border-border-dark bg-white/50 dark:bg-sidebar-dark/50 backdrop-blur-md sticky top-0 z-10">
         <div class="flex items-baseline gap-4">
           <h2 id="view-title" class="text-xl font-display font-bold uppercase tracking-tight dark:text-white">Agent Dashboard</h2>
           <span id="total-count" class="technical-font text-slate-400 dark:text-slate-500">0 Tasks</span>
@@ -240,15 +211,15 @@
               <span class="material-symbols-outlined text-sm">search</span>
             </span>
             <input type="text" id="search-input" placeholder="SEARCH TASKS" 
-              class="bg-slate-100 dark:bg-[#1A1A1A] border-none focus:ring-1 focus:ring-[#C2B280] text-xs technical-font py-2 pl-10 pr-4 w-64 text-slate-800 dark:text-white placeholder:text-slate-500" style="padding-left: 2.5rem !important; text-align: right;">
+              class="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs technical-font py-2 pl-10 pr-4 w-64 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-500 transition-all duration-200" style="padding-left: 2.5rem !important; text-align: right;">
           </div>
           <!-- New Task Button -->
-          <button id="new-task-btn" class="bg-[#C2B280] text-black flex items-center gap-2 px-4 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all border border-[#C2B280]">
+          <button id="new-task-btn" class="bg-primary text-black flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">
             <span class="material-symbols-outlined text-sm">add</span>
             NEW_TASK
           </button>
           <!-- Refresh Button -->
-          <button id="refresh-btn" class="flex items-center gap-2 px-4 py-2 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400">
+          <button id="refresh-btn" class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400">
             <span id="refresh-icon" class="material-symbols-outlined text-sm">refresh</span>
             SYNC
           </button>
@@ -261,7 +232,7 @@
         <div id="view-dashboard" class="view-content">
           <!-- Loading State -->
           <div id="loading-state" class="flex flex-col items-center justify-center h-64">
-            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+            <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
             <p class="mt-4 technical-font text-slate-400">Loading...</p>
           </div>
 
@@ -273,7 +244,7 @@
               Configure API command keys in Settings to establish connection with Jules and Cursor Cloud, 
               or verify Gemini CLI installation for local operations.
             </p>
-            <button onclick="showView('settings')" class="mt-4 bg-[#C2B280] text-black px-6 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all">
+            <button onclick="showView('settings')" class="mt-4 bg-primary text-black px-6 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">
               Open Settings
             </button>
           </div>
@@ -295,15 +266,15 @@
           </div>
 
           <!-- Pagination Controls -->
-          <div id="pagination-controls" class="hidden flex items-center justify-between mt-8 pt-6 border-t border-slate-200 dark:border-[#2A2A2A]">
+          <div id="pagination-controls" class="hidden flex items-center justify-between mt-8 pt-6 border-t border-slate-200 dark:border-border-dark">
             <span id="pagination-info" class="technical-font text-xs text-slate-500">SHOWING 1-50 OF 100 TASKS</span>
             <div class="flex items-center gap-4">
-              <button id="prev-page-btn" class="flex items-center gap-2 px-4 py-2 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent">
+              <button id="prev-page-btn" class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent">
                 <span class="material-symbols-outlined text-sm">chevron_left</span>
                 PREV
               </button>
-              <span id="page-indicator" class="technical-font text-xs text-[#C2B280] font-bold">PAGE 01 / 01</span>
-              <button id="next-page-btn" class="flex items-center gap-2 px-4 py-2 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent">
+              <span id="page-indicator" class="technical-font text-xs text-primary font-bold">PAGE 01 / 01</span>
+              <button id="next-page-btn" class="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent dark:disabled:hover:bg-transparent">
                 NEXT
                 <span class="material-symbols-outlined text-sm">chevron_right</span>
               </button>
@@ -315,18 +286,18 @@
         <div id="view-branches" class="view-content hidden">
           <!-- Loading State -->
           <div id="branches-loading" class="hidden flex flex-col items-center justify-center h-64">
-            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
-            <p class="mt-4 technical-font text-slate-400">Fetching Repositories...</p>
+            <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
+            <p class="mt-4 text-sm text-slate-400 font-medium">Fetching Repositories...</p>
           </div>
 
           <!-- Empty State -->
           <div id="branches-empty" class="hidden flex flex-col items-center justify-center h-64">
             <span class="material-symbols-outlined text-slate-600 text-6xl">fork_right</span>
-            <h3 class="mt-4 text-lg font-bold dark:text-white uppercase tracking-tight">No Repositories Found</h3>
+            <h3 class="mt-4 text-lg font-semibold dark:text-white tracking-tight">No Repositories Found</h3>
             <p class="mt-2 text-slate-500 text-center max-w-md text-sm">
               Connect your GitHub account in Settings to view branches and PRs.
             </p>
-            <button onclick="showView('settings')" class="mt-4 bg-[#C2B280] text-black px-6 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all">
+            <button onclick="showView('settings')" class="mt-4 bg-primary text-black px-6 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">
               Open Settings
             </button>
           </div>
@@ -335,27 +306,27 @@
           <div id="branches-content" class="hidden flex flex-col h-full">
             <div class="flex items-center justify-between mb-6">
                <div class="flex items-center gap-4">
-                  <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">Repositories</h3>
-                  <span id="repo-count" class="technical-font text-slate-500 text-xs">0 REPOS</span>
+                  <h3 class="text-lg font-semibold dark:text-white tracking-tight">Repositories</h3>
+                  <span id="repo-count" class="text-slate-500 text-xs font-medium">0 repos</span>
                </div>
                <div class="flex items-center gap-3">
-                 <button id="create-repo-btn" class="bg-[#C2B280] text-black flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold hover:brightness-110 transition-all border border-[#C2B280]">
+                 <button id="create-repo-btn" class="bg-primary text-black flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">
                     <span class="material-symbols-outlined text-sm">add</span>
-                    NEW REPO
+                    New Repo
                  </button>
-                 <button id="refresh-branches-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400">
+                 <button id="refresh-branches-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400">
                     <span class="material-symbols-outlined text-sm">refresh</span>
-                    REFRESH
+                    Refresh
                  </button>
                </div>
             </div>
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
                <!-- Repo List -->
-               <div class="lg:col-span-1 border border-[#2A2A2A] bg-[#1A1A1A] flex flex-col h-[calc(100vh-200px)]">
-                  <div class="p-4 border-b border-[#2A2A2A]">
-                     <input type="text" id="repo-filter" placeholder="FILTER REPOS..." 
-                        class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-2 px-3 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all">
+               <div class="lg:col-span-1 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-[calc(100vh-200px)] overflow-hidden">
+                  <div class="p-4 border-b border-slate-200 dark:border-border-dark">
+                     <input type="text" id="repo-filter" placeholder="Filter repos..." 
+                        class="w-full bg-white dark:bg-black border border-slate-200 dark:border-border-dark text-slate-800 dark:text-slate-300 text-xs py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                   </div>
                   <div id="repo-list" class="flex-1 overflow-y-auto p-2 space-y-1">
                      <!-- Repo items injected here -->
@@ -363,28 +334,28 @@
                </div>
                
                <!-- PR List / Details -->
-               <div class="lg:col-span-2 border border-[#2A2A2A] bg-[#1A1A1A] flex flex-col h-[calc(100vh-200px)]">
+               <div class="lg:col-span-2 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-[calc(100vh-200px)] overflow-hidden">
                   <div id="repo-details-placeholder" class="flex flex-col items-center justify-center h-full text-slate-500">
                      <span class="material-symbols-outlined text-4xl mb-2">arrow_back</span>
-                     <span class="technical-font text-xs">SELECT A REPOSITORY</span>
+                     <span class="text-sm font-medium">Select a repository</span>
                   </div>
                   
                   <div id="repo-details-content" class="hidden flex flex-col h-full">
-                     <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-center bg-black/20">
+                     <div class="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center bg-slate-50 dark:bg-black/20">
                         <div>
-                           <h2 id="selected-repo-name" class="text-xl font-display font-bold text-white tracking-tight uppercase">Repo Name</h2>
+                           <h2 id="selected-repo-name" class="text-xl font-semibold text-slate-800 dark:text-white tracking-tight">Repo Name</h2>
                         </div>
                         <div class="flex items-center gap-3">
-                           <a id="selected-repo-link" href="#" class="bg-[#C2B280] text-black px-3 py-1.5 text-xs technical-font font-bold hover:brightness-110 flex items-center gap-2 transition-all">
+                           <a id="selected-repo-link" href="#" class="bg-primary text-black px-3 py-1.5 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] flex items-center gap-2 transition-all duration-200">
                               <span class="material-symbols-outlined text-sm">open_in_new</span>
-                              VISIT REPO
+                              Visit Repo
                            </a>
-                           <div class="flex bg-slate-800 border border-slate-700 p-0.5 h-full gap-0.5">
-                              <button id="pr-filter-open" class="px-3 py-1 text-[10px] technical-font font-bold transition-all bg-[#C2B280] text-black">OPEN</button>
-                              <button id="pr-filter-closed" class="px-3 py-1 text-[10px] technical-font font-bold transition-all text-slate-400 hover:text-slate-200">CLOSED</button>
+                           <div class="flex bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-0.5 rounded-lg gap-0.5">
+                              <button id="pr-filter-open" class="px-3 py-1 text-xs font-medium rounded-md transition-all bg-primary text-black">Open</button>
+                              <button id="pr-filter-closed" class="px-3 py-1 text-xs font-medium rounded-md transition-all text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">Closed</button>
                            </div>
-                           <span class="px-2 py-1.5 text-[10px] technical-font bg-slate-800 text-slate-300 border border-slate-700 h-full flex items-center">
-                              <span id="pr-count" class="mr-1">0</span> <span id="pr-status-text">PRS</span>
+                           <span class="px-2 py-1.5 text-xs font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-lg flex items-center">
+                              <span id="pr-count" class="mr-1">0</span> <span id="pr-status-text">PRs</span>
                            </span>
                         </div>
                      </div>
@@ -402,7 +373,7 @@
         <div id="view-computers" class="view-content hidden">
           <!-- Loading State -->
           <div id="computers-loading" class="hidden flex flex-col items-center justify-center h-64">
-            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+            <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
             <p class="mt-4 technical-font text-slate-400">Fetching Computers...</p>
           </div>
 
@@ -413,7 +384,7 @@
             <p id="computers-empty-subtitle" class="mt-2 text-slate-500 text-center max-w-md text-sm">
               Configure Cloudflare KV in Settings to see available computers.
             </p>
-            <button onclick="showView('settings')" class="mt-4 bg-[#C2B280] text-black px-6 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all">
+            <button onclick="showView('settings')" class="mt-4 bg-primary text-black px-6 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">
               Open Settings
             </button>
           </div>
@@ -428,7 +399,7 @@
         <div id="view-jira" class="view-content hidden">
           <!-- Loading State -->
           <div id="jira-loading" class="hidden flex flex-col items-center justify-center h-64">
-             <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+             <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
              <p class="mt-4 technical-font text-slate-400">Fetching Jira...</p>
           </div>
 
@@ -439,7 +410,7 @@
              <p class="mt-2 text-slate-500 text-center max-w-md text-sm">
                 Configure Jira Base URL and API Token in Settings to view boards and issues.
              </p>
-             <button onclick="showView('settings')" class="mt-4 bg-[#C2B280] text-black px-6 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all">
+             <button onclick="showView('settings')" class="mt-4 bg-primary text-black px-6 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all">
                 Open Settings
              </button>
           </div>
@@ -449,15 +420,15 @@
              <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-4">
                    <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">Jira Board</h3>
-                   <select id="jira-board-select" class="bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-1 px-3 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                   <select id="jira-board-select" class="bg-black border border-border-dark text-slate-300 technical-font text-xs py-1 px-3 focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer hover:border-slate-600">
                       <option value="">Select Board...</option>
                    </select>
-                   <select id="jira-assignee-filter" class="bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-1 px-3 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                   <select id="jira-assignee-filter" class="bg-black border border-border-dark text-slate-300 technical-font text-xs py-1 px-3 focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer hover:border-slate-600">
                       <option value="">All Users</option>
                    </select>
                 </div>
                 <div class="flex items-center gap-3">
-                   <button id="refresh-jira-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs technical-font font-bold border border-slate-300 dark:border-[#2A2A2A] hover:bg-slate-200 dark:hover:bg-[#2A2A2A] transition-all text-slate-600 dark:text-slate-400">
+                   <button id="refresh-jira-btn" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400">
                       <span class="material-symbols-outlined text-sm">refresh</span>
                       REFRESH
                    </button>
@@ -474,9 +445,9 @@
         <div id="view-settings" class="view-content hidden">
           <div class="max-w-4xl mx-auto w-full space-y-8">
             <!-- API Keys Section -->
-            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
+            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8">
               <div class="flex items-center gap-3 mb-8">
-                <span class="material-symbols-outlined text-[#C2B280]">key</span>
+                <span class="material-symbols-outlined text-primary">key</span>
                 <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">API Command Keys</h3>
               </div>
               
@@ -486,8 +457,8 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Jira Base URL</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="text" id="jira-base-url" placeholder="https://your-domain.atlassian.net"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-jira-base-url" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-jira-base-url" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
                   </div>
                   <p class="text-[10px] technical-font text-slate-500 opacity-60">Your Jira site URL (no trailing slash)</p>
                 </div>
@@ -497,9 +468,9 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Jira API Token / PAT</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="password" id="jira-api-key" placeholder="Enter 'email:token' (Cloud) or PAT (Server)"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-jira-key" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
-                    <button id="test-jira-key" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-jira-key" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
+                    <button id="test-jira-key" class="border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-6 py-2.5 text-[10px] font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200">TEST</button>
                     <button id="disconnect-jira-key" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
                       <span class="material-symbols-outlined text-sm">link_off</span>
                     </button>
@@ -512,9 +483,9 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Jules API Key</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="password" id="jules-api-key" placeholder="Enter Jules API key"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-jules-key" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
-                    <button id="test-jules-key" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-jules-key" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
+                    <button id="test-jules-key" class="border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-6 py-2.5 text-[10px] font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200">TEST</button>
                     <button id="disconnect-jules-key" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
                       <span class="material-symbols-outlined text-sm">link_off</span>
                     </button>
@@ -527,9 +498,9 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Cursor Cloud API Key</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="password" id="cursor-api-key" placeholder="Enter Cursor API key"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-cursor-key" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
-                    <button id="test-cursor-key" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-cursor-key" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
+                    <button id="test-cursor-key" class="border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-6 py-2.5 text-[10px] font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200">TEST</button>
                     <button id="disconnect-cursor-key" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
                       <span class="material-symbols-outlined text-sm">link_off</span>
                     </button>
@@ -542,9 +513,9 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">OpenAI Codex API Key</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="password" id="codex-api-key" placeholder="Enter OpenAI API key"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-codex-key" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
-                    <button id="test-codex-key" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-codex-key" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
+                    <button id="test-codex-key" class="border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-6 py-2.5 text-[10px] font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200">TEST</button>
                     <button id="disconnect-codex-key" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
                       <span class="material-symbols-outlined text-sm">link_off</span>
                     </button>
@@ -557,9 +528,9 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Anthropic Claude API Key</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="password" id="claude-api-key" placeholder="Enter Anthropic API key"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-claude-key" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
-                    <button id="test-claude-key" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-claude-key" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
+                    <button id="test-claude-key" class="border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-6 py-2.5 text-[10px] font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200">TEST</button>
                     <button id="disconnect-claude-key" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
                       <span class="material-symbols-outlined text-sm">link_off</span>
                     </button>
@@ -572,9 +543,9 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">GitHub Personal Access Token</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="password" id="github-api-key" placeholder="Enter GitHub Personal Access Token (repo scope)"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-github-key" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
-                    <button id="test-github-key" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-github-key" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
+                    <button id="test-github-key" class="border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-6 py-2.5 text-[10px] font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200">TEST</button>
                     <button id="disconnect-github-key" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
                       <span class="material-symbols-outlined text-sm">link_off</span>
                     </button>
@@ -587,7 +558,7 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Cloudflare Account ID (Client ID)</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="text" id="cloudflare-account-id" placeholder="Enter Cloudflare Account ID"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
+                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:border-primary focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
                   </div>
                   <p class="text-[10px] technical-font text-slate-500 opacity-60">Used for Cloudflare KV (computers registry)</p>
                 </div>
@@ -595,19 +566,19 @@
                   <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Cloudflare API Token</label>
                   <div class="flex gap-2 inner-glow">
                     <input type="password" id="cloudflare-api-token" placeholder="Enter Cloudflare API token"
-                      class="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500">
-                    <button id="save-cloudflare-config" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">SAVE</button>
-                    <button id="test-cloudflare-config" class="border border-[#2A2A2A] text-slate-400 px-6 py-2.5 text-[10px] technical-font font-bold hover:bg-white/5">TEST</button>
+                      class="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white font-display placeholder:text-slate-500 transition-all duration-200">
+                    <button id="save-cloudflare-config" class="bg-primary text-black px-6 py-2.5 text-[10px] font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">SAVE</button>
+                    <button id="test-cloudflare-config" class="border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-6 py-2.5 text-[10px] font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200">TEST</button>
                     <button id="disconnect-cloudflare-config" class="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 hidden">
                       <span class="material-symbols-outlined text-sm">link_off</span>
                     </button>
                   </div>
                   <div class="flex gap-2 mt-4 hidden" id="cloudflare-key-sync-controls">
-                    <button id="push-keys-cf" class="border border-[#2A2A2A] text-slate-400 hover:text-[#C2B280] px-4 py-2 text-[10px] technical-font font-bold hover:bg-white/5 flex items-center gap-2">
+                    <button id="push-keys-cf" class="border border-border-dark text-slate-400 hover:text-primary px-4 py-2 text-[10px] technical-font font-bold hover:bg-white/5 flex items-center gap-2">
                        <span class="material-symbols-outlined text-sm">upload</span>
                        PUSH KEYS
                     </button>
-                    <button id="pull-keys-cf" class="border border-[#2A2A2A] text-slate-400 hover:text-[#C2B280] px-4 py-2 text-[10px] technical-font font-bold hover:bg-white/5 flex items-center gap-2">
+                    <button id="pull-keys-cf" class="border border-border-dark text-slate-400 hover:text-primary px-4 py-2 text-[10px] technical-font font-bold hover:bg-white/5 flex items-center gap-2">
                        <span class="material-symbols-outlined text-sm">download</span>
                        PULL KEYS
                     </button>
@@ -618,24 +589,24 @@
             </section>
 
             <!-- Display Settings -->
-            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
+            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8">
               <div class="flex items-center gap-3 mb-8">
-                <span class="material-symbols-outlined text-[#C2B280]">monitor</span>
+                <span class="material-symbols-outlined text-primary">monitor</span>
                 <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">Display</h3>
               </div>
               
               <div class="space-y-4">
                 <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">App Theme</label>
                 <div class="grid grid-cols-3 gap-4">
-                  <button id="theme-system" class="theme-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-[#2A2A2A] hover:border-[#C2B280] transition-all bg-slate-50 dark:bg-black/20">
+                  <button id="theme-system" class="theme-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-border-dark hover:border-primary transition-all bg-slate-50 dark:bg-black/20">
                     <span class="material-symbols-outlined text-slate-500">settings_brightness</span>
                     <span class="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">SYSTEM</span>
                   </button>
-                  <button id="theme-light" class="theme-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-[#2A2A2A] hover:border-[#C2B280] transition-all bg-slate-50 dark:bg-black/20">
+                  <button id="theme-light" class="theme-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-border-dark hover:border-primary transition-all bg-slate-50 dark:bg-black/20">
                     <span class="material-symbols-outlined text-slate-500">light_mode</span>
                     <span class="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">LIGHT</span>
                   </button>
-                  <button id="theme-dark" class="theme-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-[#2A2A2A] hover:border-[#C2B280] transition-all bg-slate-50 dark:bg-black/20">
+                  <button id="theme-dark" class="theme-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-border-dark hover:border-primary transition-all bg-slate-50 dark:bg-black/20">
                     <span class="material-symbols-outlined text-slate-500">dark_mode</span>
                     <span class="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">DARK</span>
                   </button>
@@ -646,11 +617,11 @@
               <div class="space-y-4 mt-8">
                 <label class="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Window Mode</label>
                 <div class="grid grid-cols-2 gap-4">
-                  <button id="display-windowed" class="display-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-[#2A2A2A] hover:border-[#C2B280] transition-all bg-slate-50 dark:bg-black/20">
+                  <button id="display-windowed" class="display-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-border-dark hover:border-primary transition-all bg-slate-50 dark:bg-black/20">
                     <span class="material-symbols-outlined text-slate-500">grid_view</span>
                     <span class="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">WINDOWED</span>
                   </button>
-                  <button id="display-fullscreen" class="display-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-[#2A2A2A] hover:border-[#C2B280] transition-all bg-slate-50 dark:bg-black/20">
+                  <button id="display-fullscreen" class="display-btn flex flex-col items-center gap-3 p-4 border border-slate-200 dark:border-border-dark hover:border-primary transition-all bg-slate-50 dark:bg-black/20">
                     <span class="material-symbols-outlined text-slate-500">fullscreen</span>
                     <span class="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">FULL SCREEN</span>
                   </button>
@@ -659,22 +630,22 @@
             </section>
 
             <!-- Polling Settings -->
-            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
+            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8">
               <div class="flex items-center gap-3 mb-8">
-                <span class="material-symbols-outlined text-[#C2B280]">history</span>
+                <span class="material-symbols-outlined text-primary">history</span>
                 <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">Data Polling</h3>
               </div>
               
               <div class="space-y-8">
                 <div class="flex items-center gap-3">
-                  <input type="checkbox" id="auto-polling" checked class="form-checkbox h-4 w-4 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
+                  <input type="checkbox" id="auto-polling" checked class="form-checkbox h-4 w-4 bg-transparent border-primary text-primary focus:ring-0">
                   <label class="text-sm technical-font text-slate-300 cursor-pointer" for="auto-polling">Enable auto refresh</label>
                 </div>
                 
                 <div class="space-y-4">
                   <div class="flex justify-between items-end">
                     <label class="text-[10px] technical-font text-slate-500">Refresh interval</label>
-                    <span class="text-[#C2B280] font-display font-bold"><span id="interval-value">30</span> SECONDS</span>
+                    <span class="text-primary font-display font-bold"><span id="interval-value">30</span> SECONDS</span>
                   </div>
                   <input type="range" id="polling-interval" min="5" max="300" value="30" step="5" class="w-full cursor-pointer">
                   <div class="flex justify-between text-[9px] technical-font text-slate-600">
@@ -686,9 +657,9 @@
             </section>
 
             <!-- CLI Tools Paths -->
-            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
+            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8">
               <div class="flex items-center gap-3 mb-8">
-                <span class="material-symbols-outlined text-[#C2B280]">terminal</span>
+                <span class="material-symbols-outlined text-primary">terminal</span>
                 <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">CLI Tools Paths</h3>
               </div>
               
@@ -697,17 +668,17 @@
               </p>
 
               <!-- Gemini Paths -->
-              <div class="mb-8 border-b border-[#2A2A2A] pb-8">
+              <div class="mb-8 border-b border-border-dark pb-8">
                 <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Gemini CLI</h4>
-                <div class="mb-4 p-3 bg-slate-700/20 border border-[#2A2A2A]">
+                <div class="mb-4 p-3 bg-slate-700/20 border border-border-dark">
                   <span class="text-[9px] technical-font text-slate-400">Default path:</span>
                   <p id="default-gemini-path" class="text-sm text-slate-300 font-mono">--</p>
                 </div>
 
                 <div class="flex gap-2 mb-4">
                   <input type="text" id="new-gemini-path" placeholder="Add custom path..."
-                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
-                  <button id="browse-gemini-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#2A2A2A] text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
+                    class="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="browse-gemini-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-border-dark text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
                     <span class="material-symbols-outlined text-sm">folder_open</span>
                   </button>
                   <button id="add-gemini-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
@@ -719,12 +690,12 @@
               </div>
 
               <!-- Claude Paths -->
-              <div class="mb-8 border-b border-[#2A2A2A] pb-8">
+              <div class="mb-8 border-b border-border-dark pb-8">
                 <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Claude CLI</h4>
                 <div class="flex gap-2 mb-4">
                   <input type="text" id="new-claude-path" placeholder="Add custom path..."
-                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
-                  <button id="browse-claude-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#2A2A2A] text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
+                    class="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="browse-claude-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-border-dark text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
                     <span class="material-symbols-outlined text-sm">folder_open</span>
                   </button>
                   <button id="add-claude-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
@@ -735,12 +706,12 @@
               </div>
 
               <!-- Cursor Paths -->
-              <div class="mb-8 border-b border-[#2A2A2A] pb-8">
+              <div class="mb-8 border-b border-border-dark pb-8">
                 <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Cursor CLI</h4>
                 <div class="flex gap-2 mb-4">
                   <input type="text" id="new-cursor-path" placeholder="Add custom path..."
-                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
-                  <button id="browse-cursor-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#2A2A2A] text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
+                    class="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="browse-cursor-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-border-dark text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
                     <span class="material-symbols-outlined text-sm">folder_open</span>
                   </button>
                   <button id="add-cursor-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
@@ -755,8 +726,8 @@
                 <h4 class="text-sm font-bold text-slate-300 uppercase mb-4">Codex CLI</h4>
                 <div class="flex gap-2 mb-4">
                   <input type="text" id="new-codex-path" placeholder="Add custom path..."
-                    class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
-                  <button id="browse-codex-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#2A2A2A] text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
+                    class="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                  <button id="browse-codex-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-border-dark text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
                     <span class="material-symbols-outlined text-sm">folder_open</span>
                   </button>
                   <button id="add-codex-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
@@ -768,9 +739,9 @@
             </section>
 
             <!-- GitHub Repository Paths -->
-            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
+            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8">
               <div class="flex items-center gap-3 mb-8">
-                <span class="material-symbols-outlined text-[#C2B280]">source</span>
+                <span class="material-symbols-outlined text-primary">source</span>
                 <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">GitHub Repository Paths</h3>
               </div>
               
@@ -780,8 +751,8 @@
               
               <div class="flex gap-2 mb-4">
                 <input type="text" id="new-github-path" placeholder="e.g., D:\GitHub or ~/projects..."
-                  class="flex-1 bg-black/40 border border-[#2A2A2A] focus:border-[#C2B280] focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
-                <button id="browse-github-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#2A2A2A] text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
+                  class="flex-1 bg-black/40 border border-border-dark focus:border-primary focus:ring-0 text-sm py-2.5 px-4 text-white font-display placeholder:text-slate-500">
+                <button id="browse-github-path" class="bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-border-dark text-slate-300 px-4 py-2.5 flex items-center justify-center transition-all" title="Browse Folder">
                   <span class="material-symbols-outlined text-sm">folder_open</span>
                 </button>
                 <button id="add-github-path" class="bg-emerald-600 text-white px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110">ADD</button>
@@ -797,9 +768,9 @@
             </section>
 
             <!-- System Settings -->
-            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2A2A2A] p-8">
+            <section class="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8">
               <div class="flex items-center gap-3 mb-8">
-                <span class="material-symbols-outlined text-[#C2B280]">system_update</span>
+                <span class="material-symbols-outlined text-primary">system_update</span>
                 <h3 class="text-lg font-bold dark:text-white uppercase tracking-tight">System</h3>
               </div>
 
@@ -811,7 +782,7 @@
                       Pull latest changes from GitHub and restart the application.
                     </p>
                   </div>
-                  <button id="update-app-btn" class="bg-[#C2B280] text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110 flex items-center gap-2">
+                  <button id="update-app-btn" class="bg-primary text-black px-6 py-2.5 text-[10px] technical-font font-bold hover:brightness-110 flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">download</span>
                     UPDATE & RESTART
                   </button>
@@ -828,17 +799,17 @@
     <div id="new-task-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closeNewTaskModal()"></div>
       
-      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-3xl flex flex-col shadow-2xl">
+      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-3xl flex flex-col shadow-2xl rounded-xl overflow-hidden">
         <!-- Modal Header -->
-        <div class="border-b border-[#2A2A2A] p-6 flex justify-between items-center bg-black/40">
+        <div class="border-b border-border-dark p-6 flex justify-between items-center bg-black/40">
           <div class="flex items-center gap-4">
-            <span class="material-symbols-outlined text-[#C2B280] text-2xl">rocket_launch</span>
+            <span class="material-symbols-outlined text-primary text-2xl">rocket_launch</span>
             <div>
-              <h2 class="technical-font text-lg font-bold text-white tracking-widest">New Task</h2>
-              <p class="text-[10px] technical-font text-slate-500">Configure and launch an AI agent</p>
+              <h2 class="text-lg font-semibold text-white tracking-tight">New Task</h2>
+              <p class="text-xs text-slate-500 font-normal">Configure and launch an AI agent</p>
             </div>
           </div>
-          <button onclick="closeNewTaskModal()" class="text-slate-500 hover:text-[#C2B280] transition-colors">
+          <button onclick="closeNewTaskModal()" class="text-slate-500 hover:text-primary transition-colors rounded-lg p-1 hover:bg-white/5">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -848,18 +819,18 @@
           <!-- Step 1: Service Selection -->
           <section>
             <div class="flex items-center gap-3 mb-4">
-              <span class="flex items-center justify-center w-6 h-6 border border-[#C2B280] text-[10px] technical-font text-[#C2B280]">01</span>
-              <h3 class="technical-font font-bold text-slate-300">Choose Service</h3>
+              <span class="flex items-center justify-center w-6 h-6 border border-primary text-xs font-medium text-primary rounded-md">01</span>
+              <h3 class="font-semibold text-slate-300">Choose Service</h3>
             </div>
 
             <!-- Target Device Selector -->
             <div class="mb-6">
-               <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Target Device</label>
+                <label class="text-xs text-slate-500 mb-2 block font-medium">Target Device</label>
                <div class="relative">
                   <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">devices</span>
                   <select id="new-task-target-device"
-                     class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
-                     <option value="">THIS COMPUTER (LOCAL)</option>
+                     class="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 pl-10 pr-4 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer hover:border-slate-600">
+                     <option value="">This Computer (Local)</option>
                   </select>
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
                </div>
@@ -868,45 +839,45 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <!-- Gemini CLI -->
               <button type="button" id="service-gemini" onclick="selectService('gemini')" 
-                class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
                 <span class="material-symbols-outlined text-slate-400 mb-3">terminal</span>
-                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">GEMINI CLI</div>
-                <div class="text-[9px] text-slate-500 uppercase leading-tight">Local projects via Google API</div>
+                <div class="text-sm font-semibold text-slate-300 mb-1">Gemini CLI</div>
+                <div class="text-xs text-slate-500 leading-tight">Local projects via Google API</div>
               </button>
               <!-- Jules -->
               <button type="button" id="service-jules" onclick="selectService('jules')"
-                class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
                 <span class="material-symbols-outlined text-slate-400 mb-3">code</span>
-                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">JULES</div>
-                <div class="text-[9px] text-slate-500 uppercase leading-tight">GitHub repos via Jules API</div>
+                <div class="text-sm font-semibold text-slate-300 mb-1">Jules</div>
+                <div class="text-xs text-slate-500 leading-tight">GitHub repos via Jules API</div>
               </button>
               <!-- Cursor Bot -->
               <button type="button" id="service-cursor" onclick="selectService('cursor')"
-                class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
                 <span class="material-symbols-outlined text-slate-400 mb-3">near_me</span>
-                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CURSOR</div>
-                <div class="text-[9px] text-slate-500 uppercase leading-tight">Cloud-based via Cursor API</div>
+                <div class="text-sm font-semibold text-slate-300 mb-1">Cursor</div>
+                <div class="text-xs text-slate-500 leading-tight">Cloud-based via Cursor API</div>
               </button>
               <!-- OpenAI Codex -->
               <button type="button" id="service-codex" onclick="selectService('codex')"
-                class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
                 <span class="material-symbols-outlined text-slate-400 mb-3">psychology</span>
-                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CODEX</div>
-                <div class="text-[9px] text-slate-500 uppercase leading-tight">Cloud tasks via OpenAI</div>
+                <div class="text-sm font-semibold text-slate-300 mb-1">Codex</div>
+                <div class="text-xs text-slate-500 leading-tight">Cloud tasks via OpenAI</div>
               </button>
               <!-- Claude CLI (Local) -->
               <button type="button" id="service-claude-cli" onclick="selectService('claude-cli')"
-                class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
                 <span class="material-symbols-outlined text-slate-400 mb-3">terminal</span>
-                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CLAUDE CLI</div>
-                <div class="text-[9px] text-slate-500 uppercase leading-tight">Local projects via CLI</div>
+                <div class="text-sm font-semibold text-slate-300 mb-1">Claude CLI</div>
+                <div class="text-xs text-slate-500 leading-tight">Local projects via CLI</div>
               </button>
               <!-- Claude Cloud (API) -->
               <button type="button" id="service-claude-cloud" onclick="selectService('claude-cloud')"
-                class="service-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
                 <span class="material-symbols-outlined text-slate-400 mb-3">cloud</span>
-                <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">CLAUDE CLOUD</div>
-                <div class="text-[9px] text-slate-500 uppercase leading-tight">Anthropic API</div>
+                <div class="text-sm font-semibold text-slate-300 mb-1">Claude Cloud</div>
+                <div class="text-xs text-slate-500 leading-tight">Anthropic API</div>
               </button>
             </div>
             <p id="service-status" class="mt-3 text-xs technical-font text-slate-500"></p>
@@ -915,25 +886,25 @@
           <!-- Step 2: Repository & Branch Configuration -->
           <section>
             <div class="flex items-center gap-3 mb-4">
-              <span class="flex items-center justify-center w-6 h-6 border border-slate-600 text-[10px] technical-font text-slate-400">02</span>
-              <h3 class="technical-font font-bold text-slate-300">Configure Target</h3>
+              <span class="flex items-center justify-center w-6 h-6 border border-slate-600 text-xs font-medium text-slate-400 rounded-md">02</span>
+              <h3 class="font-semibold text-slate-300">Configure Target</h3>
             </div>
             
             <div class="space-y-4">
               <!-- Repository Selection -->
               <div>
-                <label class="technical-font text-[10px] text-slate-500 mb-2 block">Repository</label>
+                <label class="text-xs text-slate-500 mb-2 block font-medium">Repository</label>
                 <div class="relative" id="repo-search-container">
                   <input type="text" id="task-repo-search" disabled autocomplete="off"
                     placeholder="Select service first..."
-                    class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-4 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                   <input type="hidden" id="task-repo" value="">
                   <div id="repo-loading" class="hidden absolute right-3 top-1/2 -translate-y-1/2">
-                    <span class="material-symbols-outlined text-[#C2B280] text-sm animate-spin">sync</span>
+                    <span class="material-symbols-outlined text-primary text-sm animate-spin">sync</span>
                   </div>
                   <span id="repo-chevron" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">expand_more</span>
                   <!-- Dropdown list -->
-                  <div id="repo-dropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-black border border-[#2A2A2A] shadow-lg">
+                  <div id="repo-dropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-black border border-border-dark shadow-lg rounded-lg overflow-hidden">
                     <!-- Repo options will be populated here -->
                   </div>
                 </div>
@@ -943,17 +914,17 @@
               <!-- Branch Input -->
               <div id="branch-input-container" class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="technical-font text-[10px] text-slate-500 mb-2 block">Branch</label>
+                  <label class="text-xs text-slate-500 mb-2 block font-medium">Branch</label>
                   <select id="task-branch"
-                    class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 px-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all">
+                    class="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 px-4 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
                     <option value="main">main</option>
                   </select>
                 </div>
                 <div>
-                  <label class="technical-font text-[10px] text-slate-500 mb-2 block">Auto PR</label>
+                  <label class="text-xs text-slate-500 mb-2 block font-medium">Auto PR</label>
                   <div class="flex items-center gap-3 h-[46px]">
-                    <input type="checkbox" id="task-auto-pr" checked class="form-checkbox h-4 w-4 bg-transparent border-[#C2B280] text-[#C2B280] focus:ring-0">
-                    <label class="text-xs technical-font text-slate-400 cursor-pointer" for="task-auto-pr">Enabled</label>
+                    <input type="checkbox" id="task-auto-pr" checked class="form-checkbox h-4 w-4 bg-transparent border-primary text-primary focus:ring-0 rounded">
+                    <label class="text-xs text-slate-400 cursor-pointer font-normal" for="task-auto-pr">Enabled</label>
                   </div>
                 </div>
               </div>
@@ -963,40 +934,40 @@
           <!-- Step 3: Task Details -->
           <section>
             <div class="flex items-center gap-3 mb-4">
-              <span class="flex items-center justify-center w-6 h-6 border border-slate-600 text-[10px] technical-font text-slate-400">03</span>
-              <h3 class="technical-font font-bold text-slate-300">Describe Task</h3>
+              <span class="flex items-center justify-center w-6 h-6 border border-slate-600 text-xs font-medium text-slate-400 rounded-md">03</span>
+              <h3 class="font-semibold text-slate-300">Describe Task</h3>
             </div>
             
             <div>
               <div class="flex items-center justify-between mb-2">
-                <label class="technical-font text-[10px] text-slate-500 block">Task Description</label>
-                <div class="flex items-center gap-1 border border-[#2A2A2A] bg-black">
+                <label class="text-xs text-slate-500 block font-medium">Task Description</label>
+                <div class="flex items-center gap-1 border border-border-dark bg-black rounded-lg overflow-hidden">
                   <button id="task-prompt-tab-write" type="button" onclick="setTaskPromptMode('write')"
-                    class="px-3 py-1 text-[10px] technical-font font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                    WRITE
+                    class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                    Write
                   </button>
                   <button id="task-prompt-tab-preview" type="button" onclick="setTaskPromptMode('preview')"
-                    class="px-3 py-1 text-[10px] technical-font font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                    PREVIEW
+                    class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                    Preview
                   </button>
                 </div>
               </div>
 
               <div class="relative">
                 <textarea id="task-prompt" rows="7" placeholder="Write Description... (paste images directly here)"
-                  class="w-full bg-black border border-[#2A2A2A] text-slate-300 font-sans text-sm p-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all resize-none"></textarea>
+                  class="w-full bg-black border border-border-dark text-slate-300 font-sans text-sm p-4 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"></textarea>
                 <div id="task-prompt-preview"
-                  class="hidden w-full bg-black border border-[#2A2A2A] text-slate-200 font-sans text-sm p-4 leading-relaxed max-h-64 overflow-y-auto"></div>
+                  class="hidden w-full bg-black border border-border-dark text-slate-200 font-sans text-sm p-4 rounded-lg leading-relaxed max-h-64 overflow-y-auto"></div>
 
-                <button id="task-speech-btn" class="absolute bottom-3 right-3 text-slate-500 hover:text-[#C2B280] transition-colors p-1 rounded-full hover:bg-white/5" title="Speech to text">
+                <button id="task-speech-btn" class="absolute bottom-3 right-3 text-slate-500 hover:text-primary transition-colors p-1 rounded-full hover:bg-white/5" title="Speech to text">
                   <span class="material-symbols-outlined">mic</span>
                 </button>
               </div>
 
-              <div id="task-prompt-images-container" class="hidden mt-3 bg-black border border-[#2A2A2A] p-3">
+              <div id="task-prompt-images-container" class="hidden mt-3 bg-black border border-border-dark p-3 rounded-lg">
                 <div class="flex items-center justify-between mb-2">
-                  <span class="technical-font text-[10px] text-slate-500">Pasted Images</span>
-                  <span id="task-prompt-images-count" class="technical-font text-[10px] text-slate-600">0</span>
+                  <span class="text-xs text-slate-500 font-medium">Pasted Images</span>
+                  <span id="task-prompt-images-count" class="text-xs text-slate-600 font-medium">0</span>
                 </div>
                 <div id="task-prompt-images" class="flex flex-wrap gap-3"></div>
               </div>
@@ -1005,15 +976,15 @@
         </div>
 
         <!-- Modal Footer -->
-        <div class="border-t border-[#2A2A2A] p-6 flex justify-between items-center bg-black/20">
+        <div class="border-t border-border-dark p-6 flex justify-between items-center bg-black/20">
           <div class="flex items-center gap-2 text-[10px] technical-font text-slate-600">
             <span class="material-symbols-outlined text-xs">info</span>
             All fields required
           </div>
           <div class="flex gap-4">
-            <button onclick="closeNewTaskModal()" class="px-6 py-2 technical-font text-xs font-bold text-slate-400 hover:text-white transition-colors">CANCEL</button>
+            <button onclick="closeNewTaskModal()" class="px-6 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors duration-200">CANCEL</button>
             <button id="create-task-btn" onclick="submitNewTask()" disabled
-              class="bg-[#C2B280] text-black px-8 py-3 technical-font text-xs font-bold hover:brightness-110 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              class="bg-primary text-black px-8 py-3 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
               <span id="create-task-loading" class="hidden material-symbols-outlined text-sm animate-spin">sync</span>
               <span class="material-symbols-outlined text-sm">bolt</span>
               Create Task
@@ -1027,17 +998,17 @@
     <div id="create-repo-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCreateRepoModal()"></div>
 
-      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-2xl flex flex-col shadow-2xl">
+      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-2xl flex flex-col shadow-2xl">
         <!-- Modal Header -->
-        <div class="border-b border-[#2A2A2A] p-6 flex justify-between items-center bg-black/40">
+        <div class="border-b border-border-dark p-6 flex justify-between items-center bg-black/40">
           <div class="flex items-center gap-4">
-            <span class="material-symbols-outlined text-[#C2B280] text-2xl">source</span>
+            <span class="material-symbols-outlined text-primary text-2xl">source</span>
             <div>
               <h2 class="technical-font text-lg font-bold text-white tracking-widest">Create Repository</h2>
               <p class="text-[10px] technical-font text-slate-500">GitHub, local, or remote computer</p>
             </div>
           </div>
-          <button onclick="closeCreateRepoModal()" class="text-slate-500 hover:text-[#C2B280] transition-colors">
+          <button onclick="closeCreateRepoModal()" class="text-slate-500 hover:text-primary transition-colors">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -1050,7 +1021,7 @@
               <div class="relative">
                 <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">place</span>
                 <select id="create-repo-location"
-                  class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                  class="w-full bg-black border border-border-dark text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer hover:border-slate-600">
                   <option value="github">GITHUB</option>
                   <option value="local">THIS COMPUTER (LOCAL)</option>
                   <option value="remote">REMOTE COMPUTER</option>
@@ -1062,14 +1033,14 @@
             <div>
               <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Repository name</label>
               <input id="create-repo-name" type="text" placeholder="my-new-repo"
-                class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 px-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all" />
+                class="w-full bg-black border border-border-dark text-slate-300 technical-font text-xs py-3 px-4 focus:ring-1 focus:ring-primary focus:border-primary transition-all" />
             </div>
           </section>
 
           <!-- GitHub Settings -->
           <section id="create-repo-github-settings" class="space-y-4">
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[#C2B280] text-sm">cloud</span>
+              <span class="material-symbols-outlined text-primary text-sm">cloud</span>
               <h3 class="technical-font font-bold text-slate-300">GitHub Settings</h3>
             </div>
 
@@ -1078,7 +1049,7 @@
               <div class="relative">
                 <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">person</span>
                 <select id="create-repo-github-owner"
-                  class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                  class="w-full bg-black border border-border-dark text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer hover:border-slate-600">
                   <option value="">LOADING...</option>
                 </select>
                 <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
@@ -1088,12 +1059,12 @@
 
             <div class="grid grid-cols-2 gap-4">
               <button type="button" id="create-repo-visibility-public"
-                class="visibility-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all bg-black/20">
+                class="visibility-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all bg-black/20">
                 <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">PUBLIC</div>
                 <div class="text-[9px] text-slate-500 uppercase leading-tight">Visible to everyone</div>
               </button>
               <button type="button" id="create-repo-visibility-private"
-                class="visibility-btn border border-[#2A2A2A] p-4 text-left hover:border-[#C2B280]/50 transition-all">
+                class="visibility-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
                 <div class="technical-font text-[11px] font-bold text-slate-300 mb-1">PRIVATE</div>
                 <div class="text-[9px] text-slate-500 uppercase leading-tight">Invite-only access</div>
               </button>
@@ -1103,14 +1074,14 @@
           <!-- Local Settings -->
           <section id="create-repo-local-settings" class="hidden space-y-4">
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[#C2B280] text-sm">folder</span>
+              <span class="material-symbols-outlined text-primary text-sm">folder</span>
               <h3 class="technical-font font-bold text-slate-300">Local Settings</h3>
             </div>
 
             <div>
               <label class="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Directory</label>
               <input id="create-repo-local-dir" type="text" placeholder="e.g., ~/GitHub"
-                class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 px-4 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all" />
+                class="w-full bg-black border border-border-dark text-slate-300 technical-font text-xs py-3 px-4 focus:ring-1 focus:ring-primary focus:border-primary transition-all" />
               <p class="mt-2 text-[10px] technical-font text-slate-600">Defaults to your first GitHub path (Settings) when available.</p>
             </div>
           </section>
@@ -1118,7 +1089,7 @@
           <!-- Remote Settings -->
           <section id="create-repo-remote-settings" class="hidden space-y-4">
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[#C2B280] text-sm">computer</span>
+              <span class="material-symbols-outlined text-primary text-sm">computer</span>
               <h3 class="technical-font font-bold text-slate-300">Remote Computer</h3>
             </div>
 
@@ -1127,7 +1098,7 @@
               <div class="relative">
                 <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">devices</span>
                 <select id="create-repo-remote-device"
-                  class="w-full bg-black border border-[#2A2A2A] text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-[#C2B280] focus:border-[#C2B280] transition-all cursor-pointer hover:border-slate-600">
+                  class="w-full bg-black border border-border-dark text-slate-300 technical-font text-xs py-3 pl-10 pr-10 focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer hover:border-slate-600">
                   <option value="">SELECT A COMPUTER...</option>
                 </select>
                 <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
@@ -1140,15 +1111,15 @@
         </div>
 
         <!-- Modal Footer -->
-        <div class="border-t border-[#2A2A2A] p-6 flex justify-between items-center bg-black/20">
+        <div class="border-t border-border-dark p-6 flex justify-between items-center bg-black/20">
           <div class="flex items-center gap-2 text-[10px] technical-font text-slate-600">
             <span class="material-symbols-outlined text-xs">info</span>
             Name required
           </div>
           <div class="flex gap-4">
-            <button onclick="closeCreateRepoModal()" class="px-6 py-2 technical-font text-xs font-bold text-slate-400 hover:text-white transition-colors">CANCEL</button>
+            <button onclick="closeCreateRepoModal()" class="px-6 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors duration-200">CANCEL</button>
             <button id="create-repo-submit-btn" onclick="submitCreateRepo()"
-              class="bg-[#C2B280] text-black px-8 py-3 technical-font text-xs font-bold hover:brightness-110 flex items-center gap-2 transition-all">
+              class="bg-primary text-black px-8 py-3 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] flex items-center gap-2 transition-all duration-200">
               <span id="create-repo-loading" class="hidden material-symbols-outlined text-sm animate-spin">sync</span>
               <span class="material-symbols-outlined text-sm">bolt</span>
               CREATE
@@ -1161,12 +1132,12 @@
     <!-- Pasted Image Viewer Modal -->
     <div id="pasted-image-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closePastedImageModal()"></div>
-      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl">
-        <button onclick="closePastedImageModal()" class="absolute top-3 right-3 text-slate-500 hover:text-[#C2B280] transition-colors z-10">
+      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl">
+        <button onclick="closePastedImageModal()" class="absolute top-3 right-3 text-slate-500 hover:text-primary transition-colors z-10">
           <span class="material-symbols-outlined text-2xl">close</span>
         </button>
         <div class="p-4">
-          <img id="pasted-image-modal-img" alt="Pasted image preview" class="w-full max-h-[80vh] object-contain bg-black border border-[#2A2A2A]" />
+          <img id="pasted-image-modal-img" alt="Pasted image preview" class="w-full max-h-[80vh] object-contain bg-black border border-border-dark" />
         </div>
       </div>
     </div>
@@ -1175,18 +1146,18 @@
     <div id="agent-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal()"></div>
       
-      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col rounded-xl">
         <!-- Modal Header -->
-        <div class="p-8 border-b border-[#2A2A2A]">
-          <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-500 hover:text-[#C2B280] transition-colors z-10">
+        <div class="p-8 border-b border-border-dark">
+          <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-500 hover:text-primary transition-colors z-10">
             <span class="material-symbols-outlined text-2xl">close</span>
           </button>
           <div class="flex items-start gap-4 mb-2">
-            <span id="modal-provider-badge" class="px-3 py-1 text-[10px] technical-font border border-[#C2B280] text-[#C2B280]">PROVIDER</span>
+            <span id="modal-provider-badge" class="px-3 py-1 text-[10px] technical-font border border-primary text-primary">PROVIDER</span>
             <h2 id="modal-title" class="text-2xl font-display font-bold text-white tracking-widest uppercase">Agent Details</h2>
           </div>
           <div class="flex items-center gap-3">
-            <span id="modal-status-badge" class="px-2 py-0.5 text-[10px] technical-font bg-[#C2B280] text-black font-bold">STATUS</span>
+            <span id="modal-status-badge" class="px-2 py-0.5 text-[10px] technical-font bg-primary text-black font-bold">STATUS</span>
             <span id="modal-subtitle" class="text-[10px] technical-font text-slate-500">Task overview and activity</span>
           </div>
         </div>
@@ -1194,12 +1165,12 @@
         <!-- Modal Content -->
         <div id="modal-content" class="flex-1 overflow-y-auto p-8">
           <div class="flex items-center justify-center h-32">
-            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+            <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
           </div>
         </div>
 
         <!-- Modal Footer -->
-        <div class="p-4 bg-black border-t border-[#2A2A2A] flex justify-end items-center text-[9px] technical-font text-slate-600">
+        <div class="p-4 bg-black border-t border-border-dark flex justify-end items-center text-[9px] technical-font text-slate-600">
           <span id="modal-task-id">Task ID: --</span>
         </div>
       </div>
@@ -1208,9 +1179,9 @@
     <div id="pr-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closePrModal()"></div>
       
-      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         <!-- Modal Header -->
-        <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-start bg-black/40">
+        <div class="p-6 border-b border-border-dark flex justify-between items-start bg-black/40">
           <div class="flex-1 mr-8">
             <div class="flex items-center gap-3 mb-2">
                <span id="pr-modal-number" class="text-slate-500 technical-font text-sm">#0</span>
@@ -1218,20 +1189,20 @@
             </div>
             <h2 id="pr-modal-title" class="text-xl font-display font-bold text-white tracking-tight leading-tight">PR Title</h2>
           </div>
-          <button onclick="closePrModal()" class="text-slate-500 hover:text-[#C2B280] transition-colors">
+          <button onclick="closePrModal()" class="text-slate-500 hover:text-primary transition-colors">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
         
         <!-- Modal Content -->
-        <div class="flex-1 overflow-y-auto p-8 bg-[#121212]">
+        <div class="flex-1 overflow-y-auto p-8 bg-background-dark">
            <!-- Info Grid -->
            <div class="grid grid-cols-2 gap-4 mb-8">
-              <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
+              <div class="bg-[#1A1A1A] border border-border-dark p-4">
                  <div class="text-[9px] technical-font text-slate-500 mb-1">SOURCE</div>
-                 <div id="pr-modal-head" class="text-xs font-mono text-[#C2B280]">feature-branch</div>
+                 <div id="pr-modal-head" class="text-xs font-mono text-primary">feature-branch</div>
               </div>
-              <div class="bg-[#1A1A1A] border border-[#2A2A2A] p-4">
+              <div class="bg-[#1A1A1A] border border-border-dark p-4">
                  <div class="text-[9px] technical-font text-slate-500 mb-1">TARGET</div>
                  <div id="pr-modal-base" class="text-xs font-mono text-slate-300">main</div>
               </div>
@@ -1239,14 +1210,14 @@
            
            <!-- Body -->
            <div class="mb-8">
-              <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-[#2A2A2A] pb-2">DESCRIPTION</h3>
+              <h3 class="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-border-dark pb-2">DESCRIPTION</h3>
               <div id="pr-modal-body" class="prose prose-invert prose-sm max-w-none text-slate-300 font-light leading-relaxed">
                  <!-- PR body content -->
               </div>
            </div>
            
            <!-- Merge Status -->
-           <div id="merge-status-container" class="bg-[#1A1A1A] border border-[#2A2A2A] p-4 flex items-center justify-between">
+           <div id="merge-status-container" class="bg-[#1A1A1A] border border-border-dark p-4 flex items-center justify-between">
               <div class="flex items-center gap-3">
                  <span id="merge-icon" class="material-symbols-outlined text-emerald-500">check_circle</span>
                  <div>
@@ -1255,19 +1226,19 @@
                  </div>
               </div>
               <div class="flex items-center gap-2">
-                <button id="merge-github-btn" class="hidden border border-slate-600 text-slate-200 px-4 py-2 text-xs technical-font font-bold hover:bg-white/5 transition-all flex items-center gap-2">
+                <button id="merge-github-btn" class="hidden border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-200 px-4 py-2 text-xs font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 flex items-center gap-2">
                    <span class="material-symbols-outlined text-sm">open_in_new</span>
                    GITHUB
                 </button>
-                <button id="merge-fix-btn" class="hidden bg-[#C2B280] text-black px-4 py-2 text-xs technical-font font-bold hover:brightness-110 transition-all flex items-center gap-2">
+                <button id="merge-fix-btn" class="hidden bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200 flex items-center gap-2">
                    <span class="material-symbols-outlined text-sm">build</span>
                    FIX
                 </button>
-                <button id="close-pr-btn" class="hidden border border-red-900/50 text-red-500 px-4 py-2 text-xs technical-font font-bold hover:bg-red-900/10 transition-all flex items-center gap-2">
+                <button id="close-pr-btn" class="hidden border border-red-500/50 text-red-500 px-4 py-2 text-xs font-semibold rounded-lg hover:bg-red-500/10 active:scale-[0.98] transition-all duration-200 flex items-center gap-2">
                    <span class="material-symbols-outlined text-sm">close</span>
                    CLOSE PULL REQUEST
                 </button>
-                <button id="merge-btn" class="bg-emerald-600 text-white px-6 py-2 text-xs technical-font font-bold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2">
+                <button id="merge-btn" class="bg-emerald-600 text-white px-6 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2">
                    <span class="material-symbols-outlined text-sm">merge</span>
                    MERGE PULL REQUEST
                 </button>
@@ -1276,8 +1247,8 @@
         </div>
         
         <!-- Modal Footer -->
-        <div class="p-4 bg-black border-t border-[#2A2A2A] flex justify-between items-center text-[10px] technical-font">
-          <a id="pr-modal-link" href="#" class="text-slate-500 hover:text-[#C2B280] flex items-center gap-1 transition-colors">
+        <div class="p-4 bg-black border-t border-border-dark flex justify-between items-center text-[10px] technical-font">
+          <a id="pr-modal-link" href="#" class="text-slate-500 hover:text-primary flex items-center gap-1 transition-colors">
              <span class="material-symbols-outlined text-xs">open_in_new</span>
              OPEN IN BROWSER
           </a>
@@ -1290,14 +1261,14 @@
     <div id="confirm-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm"></div>
 
-      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-md p-6 shadow-2xl flex flex-col items-center text-center">
-        <span class="material-symbols-outlined text-[#C2B280] text-4xl mb-4">warning</span>
+      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-md p-6 shadow-2xl flex flex-col items-center text-center rounded-xl">
+        <span class="material-symbols-outlined text-primary text-4xl mb-4">warning</span>
         <h3 id="confirm-title" class="text-lg font-bold text-white uppercase tracking-tight mb-2">Confirm Action</h3>
         <p id="confirm-message" class="text-sm text-slate-400 mb-6 font-light">Are you sure you want to proceed?</p>
 
         <div class="flex gap-3 w-full">
-          <button id="confirm-cancel-btn" class="flex-1 px-4 py-2 technical-font text-xs font-bold text-slate-400 border border-slate-700 hover:text-white hover:border-slate-500 transition-colors">CANCEL</button>
-          <button id="confirm-ok-btn" class="flex-1 bg-[#C2B280] text-black px-4 py-2 technical-font text-xs font-bold hover:brightness-110 transition-all">CONFIRM</button>
+          <button id="confirm-cancel-btn" class="flex-1 px-4 py-2 text-xs font-semibold rounded-lg text-slate-400 border border-slate-300 dark:border-slate-700 hover:text-slate-600 dark:hover:text-white hover:border-slate-500 active:scale-[0.98] transition-all duration-200">CANCEL</button>
+          <button id="confirm-ok-btn" class="flex-1 bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200">CONFIRM</button>
         </div>
       </div>
     </div>
@@ -1306,31 +1277,31 @@
     <div id="jira-issue-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closeJiraIssueModal()"></div>
       
-      <div class="relative bg-[#0D0D0D] border border-[#2A2A2A] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         <!-- Modal Header -->
-        <div class="p-6 border-b border-[#2A2A2A] flex justify-between items-start bg-black/40">
+        <div class="p-6 border-b border-border-dark flex justify-between items-start bg-black/40">
           <div class="flex-1 mr-8">
             <div class="flex items-center gap-3 mb-2">
-               <span id="jira-issue-modal-key" class="text-[#C2B280] technical-font text-sm font-bold">--</span>
-               <span id="jira-issue-modal-type" class="px-2 py-0.5 text-[10px] technical-font font-bold bg-[#C2B280]/10 text-[#C2B280] border border-[#C2B280]/30">ISSUE</span>
+               <span id="jira-issue-modal-key" class="text-primary technical-font text-sm font-bold">--</span>
+               <span id="jira-issue-modal-type" class="px-2 py-0.5 text-[10px] technical-font font-bold bg-primary/10 text-primary border border-primary/30">ISSUE</span>
                <span id="jira-issue-modal-status" class="px-2 py-0.5 text-[10px] technical-font font-bold bg-slate-700 text-slate-200">--</span>
             </div>
             <h2 id="jira-issue-modal-title" class="text-xl font-display font-bold text-white tracking-tight leading-tight">Loading...</h2>
           </div>
-          <button onclick="closeJiraIssueModal()" class="text-slate-500 hover:text-[#C2B280] transition-colors">
+          <button onclick="closeJiraIssueModal()" class="text-slate-500 hover:text-primary transition-colors">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
         
         <!-- Modal Content -->
-        <div id="jira-issue-modal-content" class="flex-1 overflow-y-auto p-8 bg-[#121212]">
+        <div id="jira-issue-modal-content" class="flex-1 overflow-y-auto p-8 bg-background-dark">
           <div class="flex items-center justify-center h-32">
-            <span class="material-symbols-outlined text-[#C2B280] text-4xl animate-spin">sync</span>
+            <span class="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
           </div>
         </div>
 
         <!-- Modal Footer -->
-        <div class="p-4 bg-black border-t border-[#2A2A2A] flex justify-between items-center text-[10px] technical-font">
+        <div class="p-4 bg-black border-t border-border-dark flex justify-between items-center text-[10px] technical-font">
           <div class="flex items-center gap-4 text-slate-600">
             <span id="jira-issue-modal-assignee">Assignee: --</span>
             <span id="jira-issue-modal-priority">Priority: --</span>

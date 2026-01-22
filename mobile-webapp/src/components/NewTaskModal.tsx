@@ -49,14 +49,33 @@ export default function NewTaskModal() {
   // Load repositories when service is selected
   useEffect(() => {
     if (selectedService && (selectedService === 'jules' || selectedService === 'cursor')) {
+      const cacheKey = `rts_repo_cache_${selectedService}`;
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setRepositories(parsed);
+          if (parsed.length > 0) {
+            setSelectedRepo(parsed[0].id);
+          }
+        } catch (e) {
+          // Ignore cache errors
+        }
+      }
+
       setLoadingRepos(true);
-      setRepositories([]);
-      setSelectedRepo('');
+      if (!cached) {
+        setRepositories([]);
+        setSelectedRepo('');
+      }
       
       getRepositories(selectedService)
         .then(repos => {
           setRepositories(repos);
-          if (repos.length > 0) {
+          localStorage.setItem(cacheKey, JSON.stringify(repos));
+          // Update selection only if not already set (or valid)
+          if (repos.length > 0 && (!selectedRepo || !repos.find(r => r.id === selectedRepo))) {
             setSelectedRepo(repos[0].id);
           }
         })

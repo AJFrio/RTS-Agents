@@ -108,6 +108,12 @@ const mergePullRequest = async (owner, repo, pullNumber, method = 'merge') => {
   });
 };
 
+const closePullRequest = async (owner, repo, pullNumber) => {
+  return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`, 'PATCH', {
+    state: 'closed'
+  });
+};
+
 const markPullRequestReadyForReview = async (nodeId) => {
   const query = `
     mutation($id: ID!) {
@@ -147,6 +153,7 @@ module.exports = {
   getBranches,
   getPullRequestDetails,
   mergePullRequest,
+  closePullRequest,
   markPullRequestReadyForReview,
   testConnection
 };

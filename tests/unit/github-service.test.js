@@ -68,4 +68,24 @@ describe('GitHub Service', () => {
       expect.any(Function)
     );
   });
+
+  test('closePullRequest sends correct PATCH request', async () => {
+    const promise = githubService.closePullRequest('owner', 'repo', 123);
+
+    const requestCallback = requestSpy.mock.calls[0][1];
+    requestCallback(mockResponse);
+    mockResponse.emit('data', JSON.stringify({ state: 'closed' }));
+    mockResponse.emit('end');
+
+    await promise;
+
+    expect(requestSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/repos/owner/repo/pulls/123',
+        method: 'PATCH'
+      }),
+      expect.any(Function)
+    );
+    expect(mockRequest.write).toHaveBeenCalledWith(JSON.stringify({ state: 'closed' }));
+  });
 });

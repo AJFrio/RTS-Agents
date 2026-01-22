@@ -338,6 +338,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getOwners: () => ipcRenderer.invoke('github:get-owners'),
     getPrDetails: (owner, repo, prNumber) => ipcRenderer.invoke('github:get-pr-details', { owner, repo, prNumber }),
     mergePr: (owner, repo, prNumber, method) => ipcRenderer.invoke('github:merge-pr', { owner, repo, prNumber, method }),
+    closePr: (owner, repo, prNumber) => ipcRenderer.invoke('github:close-pr', { owner, repo, prNumber }),
     markPrReadyForReview: (nodeId) => ipcRenderer.invoke('github:mark-pr-ready-for-review', { nodeId }),
     createRepo: ({ ownerType, owner, name, private: isPrivate }) =>
       ipcRenderer.invoke('github:create-repo', { ownerType, owner, name, private: isPrivate })

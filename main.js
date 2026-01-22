@@ -14,6 +14,7 @@ const claudeService = require('./src/main/services/claude-service');
 const githubService = require('./src/main/services/github-service');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
 const jiraService = require('./src/main/services/jira-service');
+const projectService = require('./src/main/services/project-service');
 
 let mainWindow;
 let pollingInterval = null;
@@ -25,42 +26,6 @@ let isProcessingCloudflareQueue = false;
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
 const UPDATE_INTERVAL_MS = 21600000; // 6 hours
 const DEVICE_STALE_OFFLINE_MS = 6 * 60 * 1000; // 6 minutes
-
-function execAsync(command, options = {}) {
-  return new Promise((resolve, reject) => {
-    exec(command, options, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(stderr || stdout || error.message));
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
-  });
-}
-
-async function createLocalGitRepo({ directory, name }) {
-  if (!name || typeof name !== 'string') throw new Error('Missing repository name');
-  if (!directory || typeof directory !== 'string') throw new Error('Missing base directory');
-
-  const baseDir = directory.trim();
-  const repoName = name.trim();
-  if (!baseDir) throw new Error('Missing base directory');
-  if (!repoName) throw new Error('Missing repository name');
-
-  if (!fs.existsSync(baseDir)) {
-    throw new Error(`Base directory does not exist: ${baseDir}`);
-  }
-
-  const repoPath = path.join(baseDir, repoName);
-  if (fs.existsSync(repoPath)) {
-    throw new Error(`Target path already exists: ${repoPath}`);
-  }
-
-  await fsp.mkdir(repoPath, { recursive: false });
-  await execAsync('git init', { cwd: repoPath });
-
-  return repoPath;
-}
 
 function createWindow() {
   const displayMode = configStore.getDisplayMode();
@@ -292,7 +257,7 @@ async function processCloudflareQueue(namespaceId) {
         updatedAt: new Date().toISOString()
       });
 
-      const createdPath = await createLocalGitRepo({ directory: baseDir, name: String(repoName) });
+      const createdPath = await projectService.createLocalRepo({ directory: baseDir, name: String(repoName) });
 
       await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
         ...baseStatus,
@@ -1502,8 +1467,30 @@ ipcMain.handle('github:merge-pr', async (event, { owner, repo, prNumber, method 
 
 ipcMain.handle('projects:create-local-repo', async (event, { name, directory } = {}) => {
   try {
-    const repoPath = await createLocalGitRepo({ directory, name });
+    const repoPath = await projectService.createLocalRepo({ directory, name });
     return { success: true, path: repoPath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('projects:get-local', async () => {
+  try {
+    const githubPaths = configStore.getGithubPaths();
+    if (!Array.isArray(githubPaths) || githubPaths.length === 0) {
+      return { success: true, repos: [] };
+    }
+    const repos = await projectService.getLocalRepos(githubPaths);
+    return { success: true, repos };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('projects:pull-repo', async (event, { path }) => {
+  try {
+    await projectService.pullRepo(path);
+    return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
   }

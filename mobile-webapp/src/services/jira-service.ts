@@ -134,6 +134,13 @@ class JiraService {
     return res.issues || [];
   }
 
+  async getBoardIssues(boardId: number): Promise<JiraIssue[]> {
+    const res = await this.request<JiraIssuesResponse>(
+      `/rest/agile/1.0/board/${boardId}/issue?maxResults=100&fields=summary,assignee,status,priority,issuetype,created,updated,labels,description,reporter`
+    );
+    return res.issues || [];
+  }
+
   async getIssue(issueKey: string): Promise<JiraIssue> {
     return this.request<JiraIssue>(
       `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,assignee,status,priority,issuetype,created,updated,labels,description,reporter`

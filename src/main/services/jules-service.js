@@ -242,16 +242,45 @@ class JulesService {
 
     return {
       ...this.normalizeSession(session),
-      activities: (activitiesResponse.activities || []).map(activity => ({
-        id: activity.id,
-        type: this.getActivityType(activity),
-        originator: activity.originator,
-        title: activity.progressUpdated?.title || activity.planGenerated?.plan?.steps?.[0]?.title || null,
-        description: activity.progressUpdated?.description || null,
-        timestamp: activity.createTime,
-        artifacts: activity.artifacts || []
-      }))
+      activities: (activitiesResponse.activities || []).map(activity => {
+        const artifacts = activity.artifacts || [];
+        const commands = artifacts
+          .filter(a => a.bashOutput)
+          .map(a => a.bashOutput.command);
+
+        const fileChanges = artifacts
+          .filter(a => a.changeSet && a.changeSet.gitPatch)
+          .map(a => this.extractFilesFromPatch(a.changeSet.gitPatch.unidiffPatch))
+          .flat();
+
+        return {
+          id: activity.id,
+          type: this.getActivityType(activity),
+          originator: activity.originator,
+          title: activity.progressUpdated?.title || activity.planGenerated?.plan?.steps?.[0]?.title || (commands.length > 0 ? 'Executed Command' : null) || (fileChanges.length > 0 ? 'Code Changes' : null),
+          description: activity.progressUpdated?.description || null,
+          timestamp: activity.createTime,
+          commands: commands,
+          fileChanges: fileChanges,
+          artifacts: artifacts
+        };
+      })
     };
+  }
+
+  /**
+   * Extract file paths from a git patch
+   * @param {string} patch
+   */
+  extractFilesFromPatch(patch) {
+    if (!patch) return [];
+    const files = [];
+    const regex = /^\+\+\+ b\/(.+)$/gm;
+    let match;
+    while ((match = regex.exec(patch)) !== null) {
+      files.push(match[1]);
+    }
+    return files;
   }
 
   /**

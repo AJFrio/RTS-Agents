@@ -2468,6 +2468,31 @@ function renderAgentDetails(provider, details) {
               <div class="flex justify-between items-start">
                 <div>
                   <p class="text-sm text-white font-medium">${escapeHtml(activity.title || activity.type)}</p>
+                  ${activity.description ? `<p class="text-xs text-slate-400 mt-1">${escapeHtml(activity.description)}</p>` : ''}
+
+                  ${activity.commands && activity.commands.length > 0 ? `
+                    <div class="mt-2 space-y-1">
+                      ${activity.commands.map(cmd => `
+                        <div class="text-[10px] font-mono bg-black/50 p-2 border border-slate-800 text-green-400 truncate">
+                          $ ${escapeHtml(cmd)}
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+
+                  ${activity.fileChanges && activity.fileChanges.length > 0 ? `
+                    <div class="mt-2">
+                      <p class="text-[10px] technical-font text-slate-500 mb-1">MODIFIED FILES:</p>
+                      <div class="space-y-1">
+                        ${activity.fileChanges.map(file => `
+                          <div class="flex items-center gap-1 text-[10px] font-mono text-slate-300">
+                             <span class="material-symbols-outlined text-[10px] text-yellow-500">edit_document</span>
+                             ${escapeHtml(file)}
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
                 </div>
                 <span class="text-[10px] technical-font text-slate-500">${activity.timestamp ? formatTimeAgo(activity.timestamp) : ''}</span>
               </div>

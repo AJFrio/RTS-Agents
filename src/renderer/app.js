@@ -100,6 +100,7 @@ const state = {
   // GitHub state
   github: {
     repos: [],
+    localRepos: [],
     filteredRepos: [],
     selectedRepo: null,
     prs: [],
@@ -3501,8 +3502,15 @@ async function loadBranches() {
   }
 
   try {
-     const result = await electronAPI.github.getRepos();
+     const [result, localResult] = await Promise.all([
+        electronAPI.github.getRepos(),
+        electronAPI.projects.getLocalRepos()
+     ]);
      
+     if (localResult && localResult.success) {
+        state.github.localRepos = localResult.repos || [];
+     }
+
      if (result.success) {
         state.github.repos = result.repos || [];
         state.github.filteredRepos = [...state.github.repos];
@@ -3718,7 +3726,11 @@ function renderRepos() {
       return;
    }
    
-   elements.repoList.innerHTML = state.github.filteredRepos.map(repo => `
+   elements.repoList.innerHTML = state.github.filteredRepos.map(repo => {
+      // Check for local match
+      const localMatch = state.github.localRepos.find(local => local.name.toLowerCase() === repo.name.toLowerCase());
+
+      return `
       <div class="repo-item p-4 border border-transparent hover:border-[#C2B280]/50 hover:bg-[#C2B280]/5 cursor-pointer transition-all mb-1 ${state.github.selectedRepo?.id === repo.id ? 'bg-[#C2B280]/10 border-[#C2B280]' : ''}"
            onclick="selectRepo('${repo.owner.login}', '${repo.name}', ${repo.id})">
          <div class="flex justify-between items-start mb-1">
@@ -3728,13 +3740,38 @@ function renderRepos() {
          <div class="flex justify-between items-center text-[10px] technical-font text-slate-500">
             <span>${formatTimeAgo(repo.updated_at)}</span>
             <div class="flex items-center gap-2">
+               ${localMatch ? `
+               <button onclick="event.stopPropagation(); pullRepo('${escapeJsString(localMatch.path)}')"
+                       class="bg-emerald-600 text-white px-2 py-1 text-[9px] technical-font font-bold hover:brightness-110 flex items-center gap-1"
+                       title="Pull from main">
+                  <span class="material-symbols-outlined text-[10px]">download</span> PULL
+               </button>
+               ` : ''}
                ${repo.open_issues_count > 0 ? `<span class="text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">bug_report</span> ${repo.open_issues_count}</span>` : ''}
                <span class="text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-[10px]">star</span> ${repo.stargazers_count}</span>
             </div>
          </div>
       </div>
-   `).join('');
+   `}).join('');
 }
+
+window.pullRepo = async function(path) {
+   const electronAPI = getElectronAPI();
+   if (!electronAPI || !path) return;
+
+   showToast('Pulling repository...', 'info');
+
+   try {
+      const result = await electronAPI.projects.pullRepo(path);
+      if (result.success) {
+         showToast('Repository updated successfully', 'success');
+      } else {
+         throw new Error(result.error);
+      }
+   } catch (err) {
+      showToast(`Pull failed: ${err.message}`, 'error');
+   }
+};
 
 function setPrFilter(filter) {
   if (state.github.prFilter === filter) return;

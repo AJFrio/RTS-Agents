@@ -569,6 +569,15 @@ ipcMain.handle('github:mark-pr-ready-for-review', async (event, { nodeId }) => {
   }
 });
 
+ipcMain.handle('github:close-pr', async (event, { owner, repo, prNumber }) => {
+  try {
+    const result = await githubService.closePullRequest(owner, repo, prNumber);
+    return { success: true, result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // ============================================
 // IPC Handlers - Settings
 // ============================================

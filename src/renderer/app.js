@@ -309,6 +309,7 @@ const elements = {
   prModalLink: document.getElementById('pr-modal-link'),
   prModalMeta: document.getElementById('pr-modal-meta'),
   mergeBtn: document.getElementById('merge-btn'),
+  closePrBtn: document.getElementById('close-pr-btn'),
   mergeGithubBtn: document.getElementById('merge-github-btn'),
   mergeFixBtn: document.getElementById('merge-fix-btn'),
   mergeStatusContainer: document.getElementById('merge-status-container'),
@@ -3922,6 +3923,16 @@ window.openPrDetails = async function(owner, repo, number) {
          // Merge status
          elements.mergeStatusContainer.classList.remove('opacity-50', 'pointer-events-none');
 
+         // Setup Close Button
+         if (pr.state === 'open') {
+             elements.closePrBtn.classList.remove('hidden');
+             elements.closePrBtn.disabled = false;
+             elements.closePrBtn.innerHTML = '<span class="material-symbols-outlined text-sm">close</span> CLOSE PULL REQUEST';
+             elements.closePrBtn.onclick = () => closePr(owner, repo, number);
+         } else {
+             elements.closePrBtn.classList.add('hidden');
+         }
+
          if (pr.draft) {
              hideMergeConflictActions();
              elements.mergeIcon.textContent = 'edit_note';
@@ -4116,6 +4127,30 @@ window.mergePr = async function(owner, repo, number) {
       showToast(`Merge failed: ${err.message}`, 'error');
       elements.mergeBtn.disabled = false;
       elements.mergeBtn.innerHTML = '<span class="material-symbols-outlined text-sm">merge</span> MERGE PULL REQUEST';
+   }
+};
+
+window.closePr = async function(owner, repo, number) {
+   const electronAPI = getElectronAPI();
+   if (!await showConfirmModal('Are you sure you want to close this pull request?', 'CLOSE PULL REQUEST')) return;
+
+   elements.closePrBtn.disabled = true;
+   elements.closePrBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-sm">sync</span> CLOSING...';
+
+   try {
+      const result = await electronAPI.github.closePr(owner, repo, number);
+      if (result.success) {
+         showToast('Pull request closed successfully', 'success');
+         closePrModal();
+         // Refresh PR list
+         selectRepo(owner, repo, state.github.selectedRepo.id);
+      } else {
+         throw new Error(result.error);
+      }
+   } catch (err) {
+      showToast(`Close failed: ${err.message}`, 'error');
+      elements.closePrBtn.disabled = false;
+      elements.closePrBtn.innerHTML = '<span class="material-symbols-outlined text-sm">close</span> CLOSE PULL REQUEST';
    }
 };
 

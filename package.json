@@ -11,6 +11,7 @@
     "build:css:once": "tailwindcss -i ./src/input.css -o ./styles/output.css",
     "build:css:prod": "tailwindcss -i ./src/input.css -o ./styles/output.css --minify",
     "build:dist": "npm run build:css:prod && node scripts/build-dist.js",
+    "dev:server": "node scripts/dev-server.js",
     "test": "jest",
     "test:e2e": "npm run build:css:prod && env -u DISPLAY xvfb-maybe playwright test",
     "tauri": "tauri",

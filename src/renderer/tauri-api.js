@@ -2,7 +2,7 @@
  * Tauri API Bridge
  *
  * This module provides a unified interface to Tauri commands,
- * replacing the Electron IPC API (window.electronAPI).
+ * matching the Electron API interface expected by app.js.
  *
  * In Tauri, APIs are injected at runtime via window.__TAURI_INTERNALS__
  */
@@ -20,24 +20,48 @@ async function listen(event, callback) {
   if (!window.__TAURI_INTERNALS__) {
     throw new Error('Tauri APIs not available');
   }
-  return window.__TAURI_INTERNALS__.listen(event, callback);
+  return window.__TAURI_INTERNALS__.listen(event, (e) => callback(e.payload));
 }
 
 // Helper to open URLs using shell plugin
 async function shellOpen(url) {
-  // The shell plugin's open function is available through the invoke mechanism
   return invoke('plugin:shell|open', { path: url });
 }
 
 export const tauriAPI = {
   // ========================================
-  // Agent Commands
+  // Core Agent Commands
   // ========================================
 
   /**
    * Get all agents from all enabled providers
+   * Adapts Rust response to match Electron API format:
+   * { agents: [], counts: { total, gemini, jules, etc }, errors: [] }
    */
-  getAgents: () => invoke('get_agents'),
+  getAgents: async () => {
+    const result = await invoke('get_agents');
+    // Adapt response to expected format
+    const counts = { total: result.total || 0 };
+    const agents = result.agents || [];
+
+    // Count by provider
+    for (const agent of agents) {
+      const provider = agent.provider?.toLowerCase() || 'unknown';
+      counts[provider] = (counts[provider] || 0) + 1;
+    }
+
+    return {
+      agents: agents.map(a => ({
+        ...a,
+        provider: a.provider?.toLowerCase(),
+        rawId: a.raw_id || a.id,
+        createdAt: a.created_at,
+        updatedAt: a.last_updated,
+      })),
+      counts,
+      errors: []
+    };
+  },
 
   /**
    * Get detailed information about a specific agent
@@ -46,22 +70,56 @@ export const tauriAPI = {
     invoke('get_agent_details', { provider, rawId, filePath }),
 
   /**
-   * Start a new agent session
+   * Send a message to an agent
+   * TODO: Implement in Rust backend
    */
-  startAgentSession: (provider, prompt, projectPath, repository, branch, autoCreatePr) =>
-    invoke('start_agent_session', {
-      provider,
-      prompt,
-      projectPath,
-      repository,
-      branch,
-      autoCreatePr
-    }),
+  sendMessage: async (provider, rawId, message) => {
+    console.warn('sendMessage not yet implemented in Rust backend');
+    return { success: false, error: 'Not implemented' };
+  },
 
   /**
-   * Stop a running agent
+   * Create a new task/agent
+   * Maps to start_agent_session in Rust
    */
-  stopAgent: (provider, rawId) => invoke('stop_agent', { provider, rawId }),
+  createTask: async (service, options) => {
+    try {
+      const result = await invoke('start_agent_session', {
+        provider: service,
+        prompt: options.prompt,
+        projectPath: options.projectPath || options.directory,
+        repository: options.repository || options.repo,
+        branch: options.branch,
+        autoCreatePr: options.autoCreatePr
+      });
+      return { success: true, ...result };
+    } catch (e) {
+      return { success: false, error: e.toString() };
+    }
+  },
+
+  /**
+   * Get repositories for a service
+   * TODO: Implement properly per provider
+   */
+  getRepositories: async (service) => {
+    // For now, return projects from config
+    try {
+      const projects = await invoke('get_projects');
+      return {
+        success: true,
+        repositories: projects.map(p => ({
+          id: p.id,
+          name: p.name,
+          url: p.github_repo || p.path,
+          displayName: p.name.toUpperCase(),
+          path: p.path
+        }))
+      };
+    } catch (e) {
+      return { success: false, repositories: [], error: e.toString() };
+    }
+  },
 
   // ========================================
   // Settings Commands
@@ -69,18 +127,74 @@ export const tauriAPI = {
 
   /**
    * Get all application settings
+   * Adapts Rust response to match Electron API format
    */
-  getSettings: () => invoke('get_settings'),
+  getSettings: async () => {
+    const settings = await invoke('get_settings');
+
+    // Check for API keys
+    const [hasGithub, hasJules, hasCursor, hasCodex, hasClaude, hasJira] = await Promise.all([
+      invoke('has_api_key', { provider: 'github' }).catch(() => false),
+      invoke('has_api_key', { provider: 'jules' }).catch(() => false),
+      invoke('has_api_key', { provider: 'cursor' }).catch(() => false),
+      invoke('has_api_key', { provider: 'codex' }).catch(() => false),
+      invoke('has_api_key', { provider: 'claude' }).catch(() => false),
+      invoke('has_api_key', { provider: 'jira' }).catch(() => false),
+    ]);
+
+    // Check if CLIs are installed (basic check via path existence)
+    // TODO: Implement proper CLI detection in Rust
+    const geminiInstalled = settings.gemini_enabled;
+    const claudeCliInstalled = settings.claude_enabled;
+
+    return {
+      settings: {
+        theme: settings.theme || 'system',
+        pollingInterval: (settings.refresh_interval || 30) * 1000, // Convert to ms
+        autoPolling: true,
+        geminiPaths: [],
+        claudePaths: [],
+        cursorPaths: [],
+        codexPaths: [],
+      },
+      githubPaths: settings.projects?.map(p => p.path) || [],
+      apiKeys: {
+        github: hasGithub,
+        jules: hasJules,
+        cursor: hasCursor,
+        codex: hasCodex,
+        claude: hasClaude,
+        jira: hasJira,
+      },
+      geminiInstalled,
+      claudeCliInstalled,
+    };
+  },
 
   /**
-   * Update all application settings
+   * Get connection status for all providers
    */
-  setSettings: (settings) => invoke('set_settings', { settings }),
+  getConnectionStatus: async () => {
+    // Check which providers have valid API keys
+    const providers = ['github', 'jules', 'cursor', 'codex', 'claude', 'jira'];
+    const status = {};
 
-  /**
-   * Get current theme
-   */
-  getTheme: () => invoke('get_theme'),
+    for (const provider of providers) {
+      try {
+        const hasKey = await invoke('has_api_key', { provider });
+        status[provider] = { connected: hasKey };
+      } catch {
+        status[provider] = { connected: false };
+      }
+    }
+
+    // Add CLI providers
+    status['gemini'] = { connected: true }; // Assume available if enabled
+    status['claude-cli'] = { connected: true };
+    status['claude-cloud'] = status.claude;
+
+    return status;
+  },
 
   /**
    * Set theme (system, light, dark)
@@ -88,19 +202,29 @@ export const tauriAPI = {
   setTheme: (theme) => invoke('set_theme', { theme }),
 
   /**
-   * Get refresh interval in seconds
+   * Set display mode
+   * TODO: Implement in Rust backend
    */
-  getRefreshInterval: () => invoke('get_refresh_interval'),
+  setDisplayMode: async (mode) => {
+    console.warn('setDisplayMode not yet implemented');
+  },
 
   /**
-   * Set refresh interval
+   * Set polling configuration
    */
-  setRefreshInterval: (interval) => invoke('set_refresh_interval', { interval }),
+  setPolling: async (enabled, interval) => {
+    if (interval) {
+      await invoke('set_refresh_interval', { interval: Math.floor(interval / 1000) });
+    }
+  },
 
   /**
-   * Check if an API key exists for a provider
+   * Save filters to settings
+   * TODO: Implement in Rust backend
    */
-  hasApiKey: (provider) => invoke('has_api_key', { provider }),
+  saveFilters: async (filters) => {
+    console.warn('saveFilters not yet implemented');
+  },
 
   /**
    * Set API key for a provider
@@ -108,336 +232,333 @@ export const tauriAPI = {
   setApiKey: (provider, apiKey) => invoke('set_api_key', { provider, apiKey }),
 
   /**
-   * Delete API key for a provider
+   * Test API key for a provider
+   * TODO: Implement proper API testing in Rust
    */
-  deleteApiKey: (provider) => invoke('delete_api_key', { provider }),
+  testApiKey: async (provider) => {
+    try {
+      const hasKey = await invoke('has_api_key', { provider });
+      return { success: hasKey };
+    } catch (e) {
+      return { success: false, error: e.toString() };
+    }
+  },
 
   /**
-   * Check if a provider is enabled
+   * Remove API key for a provider
    */
-  isProviderEnabled: (provider) => invoke('is_provider_enabled', { provider }),
+  removeApiKey: (provider) => invoke('delete_api_key', { provider }),
 
   /**
-   * Enable or disable a provider
+   * Set Jira base URL
    */
-  setProviderEnabled: (provider, enabled) =>
-    invoke('set_provider_enabled', { provider, enabled }),
+  setJiraBaseUrl: async (url) => {
+    const [, email] = await invoke('get_jira_config');
+    await invoke('set_jira_config', { baseUrl: url, email });
+  },
 
   /**
-   * Get list of enabled providers
+   * Set Cloudflare config
    */
-  getEnabledProviders: () => invoke('get_enabled_providers'),
+  setCloudflareConfig: async (accountId, apiToken) => {
+    await invoke('set_api_key', { provider: 'cloudflare', apiKey: apiToken });
+    await invoke('set_cloudflare_config', { accountId, namespaceId: null });
+  },
 
   /**
-   * Get configured projects
+   * Test Cloudflare connection
    */
-  getProjects: () => invoke('get_projects'),
+  testCloudflare: async () => {
+    try {
+      await invoke('cloudflare_kv_list', { prefix: '', limit: 1 });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.toString() };
+    }
+  },
 
   /**
-   * Add a project
+   * Clear Cloudflare config
    */
-  addProject: (project) => invoke('add_project', { project }),
+  clearCloudflareConfig: async () => {
+    await invoke('delete_api_key', { provider: 'cloudflare' });
+    await invoke('set_cloudflare_config', { accountId: null, namespaceId: null });
+  },
 
   /**
-   * Remove a project
+   * Push keys to Cloudflare KV
+   * TODO: Implement in Rust backend
    */
-  removeProject: (projectId) => invoke('remove_project', { projectId }),
+  pushKeysToCloudflare: async () => {
+    console.warn('pushKeysToCloudflare not yet implemented');
+    return { success: false, error: 'Not implemented' };
+  },
 
   /**
-   * Get Jira configuration (base_url, email)
+   * Pull keys from Cloudflare KV
+   * TODO: Implement in Rust backend
    */
-  getJiraConfig: () => invoke('get_jira_config'),
-
-  /**
-   * Set Jira configuration
-   */
-  setJiraConfig: (baseUrl, email) => invoke('set_jira_config', { baseUrl, email }),
-
-  /**
-   * Get Cloudflare configuration (account_id, namespace_id)
-   */
-  getCloudflareConfig: () => invoke('get_cloudflare_config'),
-
-  /**
-   * Set Cloudflare configuration
-   */
-  setCloudflareConfig: (accountId, namespaceId) =>
-    invoke('set_cloudflare_config', { accountId, namespaceId }),
-
-  /**
-   * Migrate settings from Electron store
-   */
-  migrateFromElectron: (electronStorePath) =>
-    invoke('migrate_from_electron', { electronStorePath }),
-
-  /**
-   * Export settings to a file
-   */
-  exportSettings: (path) => invoke('export_settings', { path }),
-
-  /**
-   * Import settings from a file
-   */
-  importSettings: (path) => invoke('import_settings', { path }),
+  pullKeysFromCloudflare: async () => {
+    console.warn('pullKeysFromCloudflare not yet implemented');
+    return { success: false, error: 'Not implemented' };
+  },
 
   // ========================================
-  // GitHub Commands
+  // Path Management Commands
+  // TODO: Implement these in Rust backend
   // ========================================
 
-  /**
-   * Get current authenticated GitHub user
-   */
-  githubGetUser: () => invoke('github_get_user'),
-
-  /**
-   * Get a GitHub repository
-   */
-  githubGetRepo: (owner, repo) => invoke('github_get_repo', { owner, repo }),
-
-  /**
-   * List pull requests for a repository
-   */
-  githubListPrs: (owner, repo, prState) =>
-    invoke('github_list_prs', { owner, repo, prState }),
-
-  /**
-   * Get a specific pull request
-   */
-  githubGetPr: (owner, repo, prNumber) =>
-    invoke('github_get_pr', { owner, repo, prNumber }),
-
-  /**
-   * Get files changed in a pull request
-   */
-  githubGetPrFiles: (owner, repo, prNumber) =>
-    invoke('github_get_pr_files', { owner, repo, prNumber }),
-
-  /**
-   * Get reviews for a pull request
-   */
-  githubGetPrReviews: (owner, repo, prNumber) =>
-    invoke('github_get_pr_reviews', { owner, repo, prNumber }),
-
-  /**
-   * Get check runs for a commit/ref
-   */
-  githubGetCheckRuns: (owner, repo, refName) =>
-    invoke('github_get_check_runs', { owner, repo, refName }),
-
-  /**
-   * Create a pull request
-   */
-  githubCreatePr: (owner, repo, title, body, head, base) =>
-    invoke('github_create_pr', { owner, repo, title, body, head, base }),
-
-  /**
-   * Merge a pull request
-   */
-  githubMergePr: (owner, repo, prNumber, mergeMethod) =>
-    invoke('github_merge_pr', { owner, repo, prNumber, mergeMethod }),
-
-  /**
-   * List user's repositories
-   */
-  githubListRepos: () => invoke('github_list_repos'),
-
-  /**
-   * List branches for a repository
-   */
-  githubListBranches: (owner, repo) =>
-    invoke('github_list_branches', { owner, repo }),
+  addGeminiPath: async (path) => {
+    console.warn('addGeminiPath not yet implemented');
+    return { success: true, paths: [path] };
+  },
+  removeGeminiPath: async (path) => {
+    console.warn('removeGeminiPath not yet implemented');
+    return { success: true, paths: [] };
+  },
+  addClaudePath: async (path) => {
+    console.warn('addClaudePath not yet implemented');
+    return { success: true, paths: [path] };
+  },
+  removeClaudePath: async (path) => {
+    console.warn('removeClaudePath not yet implemented');
+    return { success: true, paths: [] };
+  },
+  addCursorPath: async (path) => {
+    console.warn('addCursorPath not yet implemented');
+    return { success: true, paths: [path] };
+  },
+  removeCursorPath: async (path) => {
+    console.warn('removeCursorPath not yet implemented');
+    return { success: true, paths: [] };
+  },
+  addCodexPath: async (path) => {
+    console.warn('addCodexPath not yet implemented');
+    return { success: true, paths: [path] };
+  },
+  removeCodexPath: async (path) => {
+    console.warn('removeCodexPath not yet implemented');
+    return { success: true, paths: [] };
+  },
+  addGithubPath: async (path) => {
+    // Add as a project
+    const id = 'project-' + Date.now();
+    const name = path.split('/').pop() || path;
+    await invoke('add_project', { project: { id, name, path } });
+    const projects = await invoke('get_projects');
+    return { success: true, paths: projects.map(p => p.path) };
+  },
+  removeGithubPath: async (path) => {
+    const projects = await invoke('get_projects');
+    const project = projects.find(p => p.path === path);
+    if (project) {
+      await invoke('remove_project', { projectId: project.id });
+    }
+    const remaining = await invoke('get_projects');
+    return { success: true, paths: remaining.map(p => p.path) };
+  },
 
   // ========================================
-  // Jira Commands
+  // Multi-device / Cloudflare Commands
   // ========================================
 
   /**
-   * Get a Jira issue by key
+   * List computers/devices from Cloudflare KV
    */
-  jiraGetIssue: (issueKey) => invoke('jira_get_issue', { issueKey }),
+  listComputers: async () => {
+    try {
+      const heartbeats = await invoke('cloudflare_get_heartbeats');
+      return {
+        success: true,
+        computers: heartbeats || [],
+        configured: true
+      };
+    } catch (e) {
+      return { success: false, computers: [], configured: false };
+    }
+  },
 
   /**
-   * Search Jira issues with JQL
+   * Update app (git pull and restart)
+   * TODO: Implement in Rust backend
    */
-  jiraSearch: (jql, maxResults) => invoke('jira_search', { jql, maxResults }),
-
-  /**
-   * Get issues assigned to current user
-   */
-  jiraGetMyIssues: () => invoke('jira_get_my_issues'),
-
-  /**
-   * Get issues for a project
-   */
-  jiraGetProjectIssues: (projectKey) =>
-    invoke('jira_get_project_issues', { projectKey }),
-
-  /**
-   * Create a Jira issue
-   */
-  jiraCreateIssue: (projectKey, summary, description, issueTypeId, priorityId, assigneeId) =>
-    invoke('jira_create_issue', {
-      projectKey, summary, description, issueTypeId, priorityId, assigneeId
-    }),
-
-  /**
-   * Update a Jira issue
-   */
-  jiraUpdateIssue: (issueKey, summary, description) =>
-    invoke('jira_update_issue', { issueKey, summary, description }),
-
-  /**
-   * Transition a Jira issue
-   */
-  jiraTransitionIssue: (issueKey, transitionId) =>
-    invoke('jira_transition_issue', { issueKey, transitionId }),
-
-  /**
-   * Get available transitions for an issue
-   */
-  jiraGetTransitions: (issueKey) => invoke('jira_get_transitions', { issueKey }),
-
-  /**
-   * Get a Jira project
-   */
-  jiraGetProject: (projectKey) => invoke('jira_get_project', { projectKey }),
-
-  /**
-   * Get all accessible Jira projects
-   */
-  jiraGetProjects: () => invoke('jira_get_projects'),
+  updateApp: async () => {
+    console.warn('updateApp not yet implemented');
+  },
 
   // ========================================
-  // Cloudflare KV Commands
+  // Directory Dialog
   // ========================================
 
   /**
-   * Get a value from Cloudflare KV
+   * Open directory picker dialog
    */
-  cloudflareKvGet: (key) => invoke('cloudflare_kv_get', { key }),
-
-  /**
-   * Set a value in Cloudflare KV
-   */
-  cloudflareKvSet: (key, value, expirationTtl) =>
-    invoke('cloudflare_kv_set', { key, value, expirationTtl }),
-
-  /**
-   * Delete a value from Cloudflare KV
-   */
-  cloudflareKvDelete: (key) => invoke('cloudflare_kv_delete', { key }),
-
-  /**
-   * List keys in Cloudflare KV
-   */
-  cloudflareKvList: (prefix, limit) =>
-    invoke('cloudflare_kv_list', { prefix, limit }),
-
-  /**
-   * Send heartbeat to Cloudflare KV
-   */
-  cloudflareSendHeartbeat: () => invoke('cloudflare_send_heartbeat'),
-
-  /**
-   * Get all active heartbeats
-   */
-  cloudflareGetHeartbeats: () => invoke('cloudflare_get_heartbeats'),
-
-  /**
-   * Sync agent state to Cloudflare KV
-   */
-  cloudflareSyncAgents: (agents) => invoke('cloudflare_sync_agents', { agents }),
-
-  /**
-   * Get all agent states from all machines
-   */
-  cloudflareGetAllAgents: () => invoke('cloudflare_get_all_agents'),
-
-  /**
-   * Get the current machine ID
-   */
-  getMachineId: () => invoke('get_machine_id'),
+  openDirectory: () => invoke('pick_directory'),
 
   // ========================================
-  // Project Commands
+  // GitHub Commands (nested for compatibility)
   // ========================================
 
-  /**
-   * Discover local Git projects
-   */
-  discoverProjects: (maxDepth) => invoke('discover_projects', { maxDepth }),
-
-  /**
-   * Get detailed info about a project
-   */
-  getProjectInfo: (path) => invoke('get_project_info', { path }),
-
-  /**
-   * Pull latest changes
-   */
-  projectPull: (path) => invoke('project_pull', { path }),
-
-  /**
-   * Fetch from remote
-   */
-  projectFetch: (path) => invoke('project_fetch', { path }),
-
-  /**
-   * Checkout a branch
-   */
-  projectCheckout: (path, branch) => invoke('project_checkout', { path, branch }),
-
-  /**
-   * Create and checkout a new branch
-   */
-  projectCreateBranch: (path, branch) =>
-    invoke('project_create_branch', { path, branch }),
-
-  /**
-   * Get all branches
-   */
-  projectGetBranches: (path) => invoke('project_get_branches', { path }),
-
-  /**
-   * Create a git worktree
-   */
-  projectCreateWorktree: (path, branch, worktreePath) =>
-    invoke('project_create_worktree', { path, branch, worktreePath }),
-
-  /**
-   * Remove a git worktree
-   */
-  projectRemoveWorktree: (path, worktreePath) =>
-    invoke('project_remove_worktree', { path, worktreePath }),
-
-  /**
-   * List git worktrees
-   */
-  projectListWorktrees: (path) => invoke('project_list_worktrees', { path }),
+  github: {
+    getRepos: async () => {
+      try {
+        const repos = await invoke('github_list_repos');
+        return { success: true, repos };
+      } catch (e) {
+        return { success: false, repos: [], error: e.toString() };
+      }
+    },
+    getBranches: async (owner, repo) => {
+      try {
+        const branches = await invoke('github_list_branches', { owner, repo });
+        return { success: true, branches };
+      } catch (e) {
+        return { success: false, branches: [], error: e.toString() };
+      }
+    },
+    getOwners: async () => {
+      try {
+        const user = await invoke('github_get_user');
+        return { success: true, owners: [user] };
+      } catch (e) {
+        return { success: false, owners: [], error: e.toString() };
+      }
+    },
+    getPrs: async (owner, repo, prState) => {
+      try {
+        const prs = await invoke('github_list_prs', { owner, repo, prState: prState || 'open' });
+        return { success: true, prs };
+      } catch (e) {
+        return { success: false, prs: [], error: e.toString() };
+      }
+    },
+    getPrDetails: async (owner, repo, number) => {
+      try {
+        const pr = await invoke('github_get_pr', { owner, repo, prNumber: number });
+        return { success: true, pr };
+      } catch (e) {
+        return { success: false, error: e.toString() };
+      }
+    },
+    mergePr: async (owner, repo, number, method) => {
+      try {
+        await invoke('github_merge_pr', { owner, repo, prNumber: number, mergeMethod: method || 'merge' });
+        return { success: true };
+      } catch (e) {
+        return { success: false, error: e.toString() };
+      }
+    },
+    closePr: async (owner, repo, number) => {
+      // TODO: Implement close PR in Rust
+      console.warn('closePr not yet implemented');
+      return { success: false, error: 'Not implemented' };
+    },
+    markPrReadyForReview: async (nodeId) => {
+      // TODO: Implement in Rust (requires GraphQL)
+      console.warn('markPrReadyForReview not yet implemented');
+      return { success: false, error: 'Not implemented' };
+    },
+    createRepo: async (options) => {
+      // TODO: Implement create repo in Rust
+      console.warn('createRepo not yet implemented');
+      return { success: false, error: 'Not implemented' };
+    },
+  },
 
   // ========================================
-  // Task Commands
+  // Jira Commands (nested for compatibility)
   // ========================================
 
-  /**
-   * Get all background tasks
-   */
-  getTasks: () => invoke('get_tasks'),
+  jira: {
+    getBoards: async () => {
+      try {
+        const projects = await invoke('jira_get_projects');
+        // Adapt projects as boards
+        return {
+          success: true,
+          boards: projects.map(p => ({
+            id: p.id || p.key,
+            name: p.name,
+            type: 'scrum'
+          }))
+        };
+      } catch (e) {
+        return { success: false, boards: [], error: e.toString() };
+      }
+    },
+    getSprints: async (boardId) => {
+      // TODO: Implement sprints in Rust
+      console.warn('getSprints not yet implemented');
+      return { success: true, sprints: [] };
+    },
+    getSprintIssues: async (sprintId) => {
+      // TODO: Implement sprint issues in Rust
+      console.warn('getSprintIssues not yet implemented');
+      return { success: true, issues: [] };
+    },
+    getBacklogIssues: async (boardId) => {
+      try {
+        const issues = await invoke('jira_get_project_issues', { projectKey: boardId });
+        return { success: true, issues };
+      } catch (e) {
+        return { success: false, issues: [], error: e.toString() };
+      }
+    },
+    getIssue: async (issueKey) => {
+      try {
+        const issue = await invoke('jira_get_issue', { issueKey });
+        return { success: true, issue };
+      } catch (e) {
+        return { success: false, error: e.toString() };
+      }
+    },
+    getIssueComments: async (issueKey) => {
+      // TODO: Implement issue comments in Rust
+      console.warn('getIssueComments not yet implemented');
+      return { success: true, comments: [] };
+    },
+  },
 
-  /**
-   * Get a specific task
-   */
-  getTask: (taskId) => invoke('get_task', { taskId }),
+  // ========================================
+  // Projects Commands (nested for compatibility)
+  // ========================================
 
-  /**
-   * Cancel a running task
-   */
-  cancelTask: (taskId) => invoke('cancel_task', { taskId }),
-
-  /**
-   * Clear completed tasks
-   */
-  clearCompletedTasks: () => invoke('clear_completed_tasks'),
+  projects: {
+    getLocalRepos: async () => {
+      try {
+        const projects = await invoke('get_projects');
+        return {
+          success: true,
+          repos: projects.map(p => ({
+            id: p.id,
+            name: p.name,
+            path: p.path,
+            url: p.github_repo
+          }))
+        };
+      } catch (e) {
+        return { success: false, repos: [], error: e.toString() };
+      }
+    },
+    createLocalRepo: async (options) => {
+      // TODO: Implement local repo creation
+      console.warn('createLocalRepo not yet implemented');
+      return { success: false, error: 'Not implemented' };
+    },
+    enqueueCreateRepo: async (options) => {
+      // TODO: Implement remote repo creation queue
+      console.warn('enqueueCreateRepo not yet implemented');
+      return { success: false, error: 'Not implemented' };
+    },
+    pullRepo: async (path) => {
+      try {
+        await invoke('project_pull', { path });
+        return { success: true };
+      } catch (e) {
+        return { success: false, error: e.toString() };
+      }
+    },
+  },
 
   // ========================================
   // Utility Commands
@@ -449,99 +570,19 @@ export const tauriAPI = {
   openExternal: (url) => shellOpen(url),
 
   /**
-   * Get app version
-   */
-  getAppVersion: () => invoke('get_app_version'),
-
-  /**
-   * Get app name
-   */
-  getAppName: () => invoke('get_app_name'),
-
-  /**
-   * Get platform info (os, arch, family)
-   */
-  getPlatformInfo: () => invoke('get_platform_info'),
-
-  /**
-   * Check if running in dev mode
-   */
-  isDevMode: () => invoke('is_dev_mode'),
-
-  /**
-   * Get app data directory path
-   */
-  getAppDataDir: () => invoke('get_app_data_dir'),
-
-  /**
-   * Get home directory path
-   */
-  getHomeDir: () => invoke('get_home_dir'),
-
-  /**
-   * Pick a directory with native dialog
-   */
-  pickDirectory: () => invoke('pick_directory'),
-
-  /**
-   * Pick a file with native dialog
-   */
-  pickFile: (filters) => invoke('pick_file', { filters }),
-
-  /**
-   * Save file dialog
-   */
-  saveFileDialog: (defaultName, filters) =>
-    invoke('save_file_dialog', { defaultName, filters }),
-
-  /**
-   * Show a message dialog
-   */
-  showMessage: (title, message, kind) =>
-    invoke('show_message', { title, message, kind }),
-
-  /**
-   * Show a confirmation dialog
-   */
-  showConfirm: (title, message) => invoke('show_confirm', { title, message }),
-
-  // ========================================
-  // Event Listeners
-  // ========================================
-
-  /**
    * Listen for agent refresh tick events
    */
   onRefreshTick: (callback) => listen('agents:refresh-tick', callback),
 
   /**
-   * Listen for heartbeat tick events
+   * Get app version
    */
-  onHeartbeatTick: (callback) => listen('cloudflare:heartbeat-tick', callback),
-};
+  getAppVersion: () => invoke('get_app_version'),
 
-// Export for compatibility with existing code that might use destructured imports
-export const {
-  getAgents,
-  getAgentDetails,
-  startAgentSession,
-  stopAgent,
-  getSettings,
-  setSettings,
-  getTheme,
-  setTheme,
-  getRefreshInterval,
-  setRefreshInterval,
-  hasApiKey,
-  setApiKey,
-  deleteApiKey,
-  isProviderEnabled,
-  setProviderEnabled,
-  getEnabledProviders,
-  getProjects,
-  addProject,
-  removeProject,
-  openExternal,
-} = tauriAPI;
+  /**
+   * Get platform info
+   */
+  getPlatformInfo: () => invoke('get_platform_info'),
+};
 
 export default tauriAPI;

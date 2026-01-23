@@ -29,7 +29,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#C2B280", // Muted Desert Tan
+        primary: "#93b8c5", // Light Blue/Cyan
+        "primary-hover": "#7aa5b3",
         "background-light": "#F5F5F0",
         "background-dark": "#121212", // Matte Charcoal
         "sidebar-dark": "#0D0D0D",
@@ -38,10 +39,10 @@ module.exports = {
       },
       fontFamily: {
         display: ["JetBrains Mono", "monospace"],
-        sans: ["Inter", "sans-serif"],
+        sans: ["Plus Jakarta Sans", "Inter", "system-ui", "-apple-system", "sans-serif"],
       },
       borderRadius: {
-        DEFAULT: "0px", // Sharp corners
+        DEFAULT: "8px", // Modern rounded corners
       },
     },
   },

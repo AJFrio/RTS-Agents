@@ -127,10 +127,29 @@ const state = {
   localDeviceId: null
 };
 
-// In production, `window.electronAPI` is provided by `preload.js` via contextBridge and is not writable.
-// For automated tests, we allow providing a mock via `window.__electronAPI`.
+// Platform detection: Tauri vs Electron
+// In Tauri, window.__TAURI_INTERNALS__ is defined
+// In Electron, window.electronAPI is provided by preload.js
+const isTauri = typeof window.__TAURI_INTERNALS__ !== 'undefined';
+
+// API bridge - provides unified access to platform APIs
+let platformAPI = null;
+
+async function initPlatformAPI() {
+  if (isTauri) {
+    // Dynamically import Tauri API bridge
+    const { tauriAPI } = await import('./tauri-api.js');
+    platformAPI = tauriAPI;
+  } else {
+    // Use Electron API (for testing, allow mock via __electronAPI)
+    platformAPI = window.__electronAPI || window.electronAPI;
+  }
+  return platformAPI;
+}
+
+// For backward compatibility, getElectronAPI now returns the platform API
 function getElectronAPI() {
-  return window.__electronAPI || window.electronAPI;
+  return platformAPI || window.__electronAPI || window.electronAPI;
 }
 
 // ============================================ 
@@ -405,6 +424,9 @@ function formatTimeAgo(date) {
 // ============================================ 
 
 async function init() {
+  // Initialize platform API (Tauri or Electron)
+  await initPlatformAPI();
+
   setupEventListeners();
   setupSpeechRecognition();
   setupPollingListener();
@@ -783,12 +805,20 @@ function setupEventListeners() {
   });
 }
 
-function setupPollingListener() {
-  const electronAPI = getElectronAPI();
-  if (electronAPI && electronAPI.onRefreshTick) {
-    electronAPI.onRefreshTick(() => {
+async function setupPollingListener() {
+  const api = getElectronAPI();
+  if (api && api.onRefreshTick) {
+    // Tauri returns an unlisten function wrapped in a Promise
+    // Electron just registers the callback
+    const result = api.onRefreshTick((event) => {
       loadAgents(true); // Silent refresh
     });
+
+    // In Tauri, onRefreshTick returns a Promise<UnlistenFn>
+    // We don't need to await it for basic functionality
+    if (result && typeof result.then === 'function') {
+      result.catch(err => console.warn('Failed to setup refresh listener:', err));
+    }
   }
 }
 

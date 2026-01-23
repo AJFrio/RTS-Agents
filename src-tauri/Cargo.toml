@@ -1,0 +1,42 @@
+[package]
+name = "rts-agents"
+version = "0.1.0"
+description = "RTS Agents - AI Coding Agent Manager"
+authors = ["RTS Agents Team"]
+license = "MIT"
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "rts_agents_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.9.5", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-log = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+tokio = { version = "1.41", features = ["full"] }
+keyring = "3.6"
+dirs = "5.0"
+walkdir = "2.5"
+uuid = { version = "1.11", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2.0"
+anyhow = "1.0"
+hostname = "0.4"
+log = "0.4"
+base64 = "0.22"
+url = "2.5"
+regex = "1.11"
+which = "7.0"
+open = "5.3"
+urlencoding = "2.1"
+rfd = "0.15"

@@ -1,0 +1,48 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "RTS Agents",
+  "version": "0.1.0",
+  "identifier": "com.rtsagents.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "npm run build:dist",
+    "beforeBuildCommand": "npm run build:dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "RTS Agents",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.anthropic.com https://*.google.com https://*.github.com https://*.atlassian.net https://*.cloudflare.com https://api.cloudflare.com https://api.cursor.com https://api.openai.com https://jules.google.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "AI Coding Agent Manager",
+    "longDescription": "RTS Agents helps you manage and monitor your AI coding agents including Gemini, Claude, Cursor, Jules, and Codex."
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

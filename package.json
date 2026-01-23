@@ -10,8 +10,13 @@
     "build:css": "tailwindcss -i ./src/input.css -o ./styles/output.css --watch",
     "build:css:once": "tailwindcss -i ./src/input.css -o ./styles/output.css",
     "build:css:prod": "tailwindcss -i ./src/input.css -o ./styles/output.css --minify",
+    "build:dist": "npm run build:css:prod && node scripts/build-dist.js",
     "test": "jest",
-    "test:e2e": "npm run build:css:prod && env -u DISPLAY xvfb-maybe playwright test"
+    "test:e2e": "npm run build:css:prod && env -u DISPLAY xvfb-maybe playwright test",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:debug": "tauri build --debug"
   },
   "keywords": [
     "electron",
@@ -25,11 +30,15 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-shell": "^2.3.4",
     "electron-store": "^8.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.19",
+    "@tauri-apps/cli": "^2.9.6",
     "@types/jest": "^29.5.14",
     "concurrently": "^9.2.1",
     "electron": "^28.0.0",

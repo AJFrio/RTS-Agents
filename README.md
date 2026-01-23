@@ -89,42 +89,149 @@ The repository includes a mobile-optimized Progressive Web App (PWA) in the `mob
 
 ## Installation
 
-### Prerequisites
-- **Node.js**: recommended **Node 18+** (Electron 28 runtime)
-- **npm** (bundled with Node)
-- **Git** (required for cloning and for the in-app “Update & Restart” feature)
+### Download Pre-built Releases (Recommended)
 
-Optional, depending on features you use:
-- **Gemini CLI** (for Gemini local sessions + creating Gemini tasks)
-- **Claude Code CLI** (for Claude local sessions + creating Claude CLI tasks)
+Download the latest release for your platform from the [Releases page](https://github.com/YOUR_USERNAME/RTS-Agents/releases):
 
-### Install dependencies (Windows PowerShell)
+| Platform | Download |
+|----------|----------|
+| **macOS** | `RTS Agents_x.x.x_aarch64.dmg` (Apple Silicon) or `RTS Agents_x.x.x_x64.dmg` (Intel) |
+| **Windows** | `RTS Agents_x.x.x_x64-setup.exe` or `.msi` |
+| **Linux** | `rts-agents_x.x.x_amd64.deb` (Debian/Ubuntu) or `.AppImage` |
 
-```powershell
-git clone <YOUR_REPO_URL>
-cd <YOUR_REPO_FOLDER>
-npm ci
-```
+**macOS**: Open the DMG, drag to Applications, then right-click → Open (first launch only, to bypass Gatekeeper).
 
-If you do not have a lockfile or prefer standard install:
+**Windows**: Run the installer. If SmartScreen warns, click "More info" → "Run anyway".
 
-```powershell
+**Linux**: Install the `.deb` with `sudo dpkg -i rts-agents_x.x.x_amd64.deb` or run the AppImage directly.
+
+---
+
+### Build from Source
+
+#### Prerequisites
+
+- **Node.js 18+** and **npm**
+- **Rust** (install via [rustup.rs](https://rustup.rs))
+- **Git**
+- **Platform-specific dependencies** (see below)
+
+#### macOS
+
+```bash
+# Install Xcode command line tools (if not already installed)
+xcode-select --install
+
+# Clone and build
+git clone https://github.com/YOUR_USERNAME/RTS-Agents.git
+cd RTS-Agents
 npm install
+npm run tauri:build
 ```
 
-### Run the app
+The built app will be at `src-tauri/target/release/bundle/macos/RTS Agents.app`
 
-Production-style start (build minified CSS, then launch Electron):
+#### Windows
 
 ```powershell
-npm run start
+# Install Rust from rustup.rs, then:
+git clone https://github.com/YOUR_USERNAME/RTS-Agents.git
+cd RTS-Agents
+npm install
+npm run tauri:build
 ```
 
-Developer mode (Tailwind CSS watch + Electron):
+The installer will be at `src-tauri\target\release\bundle\msi\` or `nsis\`
 
-```powershell
-npm run dev
+#### Linux (Debian/Ubuntu)
+
+```bash
+# Install system dependencies
+sudo apt update
+sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+  libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Clone and build
+git clone https://github.com/YOUR_USERNAME/RTS-Agents.git
+cd RTS-Agents
+npm install
+npm run tauri:build
 ```
+
+The built packages will be at `src-tauri/target/release/bundle/deb/` and `appimage/`
+
+#### Linux (Fedora/RHEL)
+
+```bash
+# Install system dependencies
+sudo dnf install -y webkit2gtk4.1-devel openssl-devel curl wget file \
+  libappindicator-gtk3-devel librsvg2-devel
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Clone and build
+git clone https://github.com/YOUR_USERNAME/RTS-Agents.git
+cd RTS-Agents
+npm install
+npm run tauri:build
+```
+
+#### Linux (Arch)
+
+```bash
+# Install system dependencies
+sudo pacman -S --needed webkit2gtk-4.1 base-devel curl wget file openssl \
+  libappindicator-gtk3 librsvg
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# Clone and build
+git clone https://github.com/YOUR_USERNAME/RTS-Agents.git
+cd RTS-Agents
+npm install
+npm run tauri:build
+```
+
+---
+
+### Development Mode
+
+Run the app in development mode with hot reload:
+
+```bash
+npm run tauri:dev
+```
+
+This builds the frontend, starts a dev server, and launches the app. Changes to frontend code will hot reload; Rust changes require restart.
+
+---
+
+### Legacy Electron Mode (Deprecated)
+
+The app can still run in Electron mode if needed:
+
+```bash
+npm run start   # Production
+npm run dev     # Development
+```
+
+Note: Electron mode is deprecated and will be removed in a future release.
+
+---
+
+### Optional CLI Tools
+
+For local agent features, install:
+- **Gemini CLI** (for Gemini local sessions)
+- **Claude Code CLI** (for Claude local sessions)
 
 ---
 
@@ -218,16 +325,27 @@ If Claude CLI shows as “not installed”:
 
 ## Scripts
 
-- `npm run start`: build minified Tailwind CSS and launch Electron
-- `npm run dev`: Tailwind CSS watch + launch Electron
-- `npm run dev:headless`: run a lightweight headless device (no Electron UI) that registers to Cloudflare KV, pulls keys, and executes queued remote tasks
-- `npm run test`: Jest unit + integration tests
-- `npm run test:e2e`: Playwright E2E tests (optimized for headless Linux with `xvfb-maybe`)
+### Tauri (Recommended)
 
-### Running Playwright on Windows
-The provided `test:e2e` script uses `env` and `xvfb-maybe`, which are typically not available on Windows.
+- `npm run tauri:dev` - Development mode with hot reload
+- `npm run tauri:build` - Build production app for your platform
+- `npm run tauri:build:debug` - Build debug version (faster, larger)
+- `npm run build:dist` - Build frontend assets only
 
-On Windows, install browsers and run Playwright directly:
+### Legacy Electron
+
+- `npm run start` - Build CSS and launch Electron (production)
+- `npm run dev` - Tailwind watch + Electron (development)
+- `npm run dev:headless` - Headless mode for Cloudflare KV sync
+
+### Testing
+
+- `npm run test` - Jest unit + integration tests
+- `npm run test:e2e` - Playwright E2E tests
+
+#### Running Playwright on Windows
+
+The `test:e2e` script uses Unix tools. On Windows, run directly:
 
 ```powershell
 npx playwright install
@@ -236,24 +354,37 @@ npx playwright test
 
 ---
 
-## How it’s built (high level)
+## How it's built (high level)
+
+### Tauri Architecture (Current)
+
+- **Rust backend**: `src-tauri/src/`
+  - `lib.rs` - Main app setup, command registration, background tasks
+  - `commands/` - 60+ Tauri commands (agents, settings, GitHub, Jira, etc.)
+  - `services/` - Business logic for each provider
+  - `models/` - Data structures (Agent, Settings, etc.)
+- **Frontend**: `src/renderer/`
+  - `app.js` - Dashboard UI + Settings + New Task modal + GitHub view
+  - `tauri-api.js` - Bridge to Tauri commands (replaces Electron IPC)
+- **Provider services** (Rust): `src-tauri/src/services/`
+  - `gemini.rs` - Local session discovery + CLI spawning
+  - `claude.rs` - Local sessions + Anthropic API + CLI spawning
+  - `jules.rs` - Jules API
+  - `cursor.rs` - Cursor Cloud API
+  - `codex.rs` - OpenAI Assistants/Threads
+  - `github.rs` - GitHub REST API
+  - `jira.rs` - Jira REST API
+  - `cloudflare_kv.rs` - Cloudflare KV for multi-device sync
+- **Persistence**:
+  - API keys stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
+  - Settings stored in app data directory as JSON
+
+### Legacy Electron Architecture (Deprecated)
 
 - **Electron main process**: `main.js`
-  - Owns provider services and IPC handlers
-  - Polling emits `agents:refresh-tick` events to the renderer
 - **Preload bridge**: `preload.js`
-  - Exposes a safe `window.electronAPI` to the renderer via `contextBridge`
-- **Renderer UI**: `src/renderer/app.js`
-  - Dashboard UI + Settings + New Task modal + GitHub view
 - **Provider services**: `src/main/services/*.js`
-  - `gemini-service.js` (local session discovery + start session)
-  - `claude-service.js` (local session discovery + Anthropic API + start CLI session)
-  - `jules-service.js` (Jules API)
-  - `cursor-service.js` (Cursor Cloud API)
-  - `codex-service.js` (OpenAI Assistants/Threads; tracks created threads locally)
-  - `github-service.js` (GitHub REST + GraphQL for “ready for review”)
-- **Persistence**: `electron-store` via `src/main/services/config-store.js`
-  - Stores API keys, polling settings, repo paths, filters, and tracked Codex/Claude cloud IDs locally.
+- **Persistence**: `electron-store` with encryption
 
 ---
 
@@ -277,5 +408,10 @@ The app runs `git pull` in the current working directory and then relaunches.
 
 ## Notes on security
 
-- API keys are stored locally using `electron-store` with a built-in encryption key in the app. This provides basic at-rest obfuscation but should not be treated as a substitute for OS-level security.
-- Prefer tokens with the minimum scopes needed, especially for GitHub.
+- **Tauri version**: API keys are stored in your OS's native secure storage:
+  - **macOS**: Keychain
+  - **Windows**: Credential Manager
+  - **Linux**: Secret Service (GNOME Keyring, KWallet, etc.)
+- **Electron version** (deprecated): Keys stored with `electron-store` encryption (less secure)
+- Prefer tokens with the minimum scopes needed, especially for GitHub
+- The app runs with a strict Content Security Policy (CSP) limiting external connections to known API endpoints

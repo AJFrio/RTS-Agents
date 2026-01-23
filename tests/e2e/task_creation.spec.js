@@ -1,43 +1,49 @@
-const { _electron: electron } = require('playwright');
-const path = require('path');
 const { test, expect } = require('@playwright/test');
 
 test.describe('Task Creation Shortcut', () => {
-  let electronApp;
-
-  test.beforeAll(async () => {
-    electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__electronAPI = {
+        getAgents: async () => ({ agents: [], counts: { total: 0 }, errors: [] }),
+        getSettings: async () => ({
+          settings: { theme: 'dark', pollingInterval: 30000, autoPolling: false },
+          githubPaths: [],
+          apiKeys: { github: true, jules: true, cursor: true, codex: true, claude: true },
+          geminiInstalled: true,
+          claudeCliInstalled: true
+        }),
+        getConnectionStatus: async () => ({
+          github: { connected: true },
+          cursor: { connected: true },
+          jules: { connected: true }
+        }),
+        onRefreshTick: () => {},
+        setApiKey: async () => {},
+        testApiKey: async () => ({ success: true }),
+        setTheme: async () => {},
+        openExternal: async () => {}
+      };
     });
+
+    await page.goto('http://localhost:3333');
+    await page.waitForLoadState('domcontentloaded');
   });
 
-  test.afterAll(async () => {
-    await electronApp.close();
-  });
-
-  test('Ctrl+Enter in prompt textarea should trigger submission', async () => {
-    const window = await electronApp.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
-
+  test('Ctrl+Enter in prompt textarea should trigger submission', async ({ page }) => {
     // Open New Task Modal
-    await window.click('#new-task-btn');
-    const modal = window.locator('#new-task-modal');
+    await page.click('#new-task-btn');
+    const modal = page.locator('#new-task-modal');
     await expect(modal).toBeVisible();
 
     // Type in prompt
-    const promptInput = window.locator('#task-prompt');
+    const promptInput = page.locator('#task-prompt');
     await promptInput.fill('Test prompt for shortcut');
 
     // Press Ctrl+Enter
     await promptInput.press('Control+Enter');
 
     // Expect error toast because service is not selected
-    // The toast is created in document.body
-    // toast.textContent = message;
-    // showToast('Please fill in all required fields', 'error');
-
-    // We look for the toast with the specific text
-    const toast = window.locator('text=Please fill in all required fields');
+    const toast = page.locator('text=Please fill in all required fields');
     await expect(toast).toBeVisible();
   });
 });

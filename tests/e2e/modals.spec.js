@@ -1,28 +1,8 @@
-const { _electron: electron } = require('playwright');
 const { test, expect } = require('@playwright/test');
-const path = require('path');
 
 test.describe('Modal Tests', () => {
-  let electronApp;
-  let page;
-
-  test.beforeAll(async () => {
-    // Launch Electron app
-    electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
-    });
-  });
-
-  test.afterAll(async () => {
-    if (electronApp) {
-      await electronApp.close();
-    }
-  });
-
-  test.beforeEach(async () => {
-    page = await electronApp.firstWindow();
-
-    // Inject mock API before the page loads/reloads
+  test.beforeEach(async ({ page }) => {
+    // Inject mock API before the page loads
     await page.addInitScript(() => {
       window.__electronAPI = {
         getAgents: async () => ({
@@ -92,12 +72,11 @@ test.describe('Modal Tests', () => {
       };
     });
 
-    // Reload to ensure the init script runs and the app initializes with the mock
-    await page.reload();
+    await page.goto('http://localhost:3333');
     await page.waitForLoadState('domcontentloaded');
   });
 
-  test('Agent Details Modal should open and display correct info', async () => {
+  test('Agent Details Modal should open and display correct info', async ({ page }) => {
     // Wait for agents to load (the mock returns one agent)
     const agentCard = page.locator('.agent-card').first();
     await expect(agentCard).toBeVisible();
@@ -118,8 +97,6 @@ test.describe('Modal Tests', () => {
     await expect(page.locator('#modal-content')).toContainText('Hello agent');
 
     // Close the modal
-    const closeBtn = modal.locator('button').filter({ hasText: 'close' });
-    // Or finding the close button by icon
     const closeIcon = modal.locator('.material-symbols-outlined', { hasText: 'close' });
     await closeIcon.click();
 
@@ -127,7 +104,7 @@ test.describe('Modal Tests', () => {
     await expect(modal).toHaveClass(/hidden/);
   });
 
-  test('New Task Modal should work correctly', async () => {
+  test('New Task Modal should work correctly', async ({ page }) => {
     // Open New Task Modal
     const newTaskBtn = page.locator('#new-task-btn');
     await newTaskBtn.click();

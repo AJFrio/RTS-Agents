@@ -1,24 +1,7 @@
-const { _electron: electron } = require('playwright');
 const { test, expect } = require('@playwright/test');
-const path = require('path');
 
 test.describe('Merge conflict actions', () => {
-  let electronApp;
-  let page;
-
-  test.beforeAll(async () => {
-    electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
-    });
-  });
-
-  test.afterAll(async () => {
-    if (electronApp) await electronApp.close();
-  });
-
-  test.beforeEach(async () => {
-    page = await electronApp.firstWindow();
-
+  test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       window.__openedExternal = [];
 
@@ -110,11 +93,11 @@ test.describe('Merge conflict actions', () => {
       };
     });
 
-    await page.reload();
+    await page.goto('http://localhost:3333');
     await page.waitForLoadState('domcontentloaded');
   });
 
-  test('Shows GitHub + Fix buttons and Fix pre-fills a task', async () => {
+  test('Shows GitHub + Fix buttons and Fix pre-fills a task', async ({ page }) => {
     // Go to branches view
     await page.click('button[data-view="branches"]');
     await expect(page.locator('#view-branches')).toBeVisible();
@@ -150,4 +133,3 @@ test.describe('Merge conflict actions', () => {
     await expect(page.locator('#create-task-btn')).toBeEnabled();
   });
 });
-

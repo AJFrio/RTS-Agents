@@ -214,19 +214,6 @@ This builds the frontend, starts a dev server, and launches the app. Changes to 
 
 ---
 
-### Legacy Electron Mode (Deprecated)
-
-The app can still run in Electron mode if needed:
-
-```bash
-npm run start   # Production
-npm run dev     # Development
-```
-
-Note: Electron mode is deprecated and will be removed in a future release.
-
----
-
 ### Optional CLI Tools
 
 For local agent features, install:
@@ -237,7 +224,7 @@ For local agent features, install:
 
 ## Keys required (and where they’re used)
 
-This app stores provider credentials in a local Electron settings store. You can configure keys in **Settings → API Command Keys**.
+You can configure keys in **Settings → API Command Keys**. API keys are stored in your OS's native secure storage (macOS Keychain, Windows Credential Manager, Linux Secret Service).
 
 ### Jules API key (required for Jules)
 - **Used for**: listing sessions, listing sources/repos, creating sessions, reading activities
@@ -332,12 +319,6 @@ If Claude CLI shows as “not installed”:
 - `npm run tauri:build:debug` - Build debug version (faster, larger)
 - `npm run build:dist` - Build frontend assets only
 
-### Legacy Electron
-
-- `npm run start` - Build CSS and launch Electron (production)
-- `npm run dev` - Tailwind watch + Electron (development)
-- `npm run dev:headless` - Headless mode for Cloudflare KV sync
-
 ### Testing
 
 - `npm run test` - Jest unit + integration tests
@@ -379,15 +360,6 @@ npx playwright test
   - API keys stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
   - Settings stored in app data directory as JSON
 
-### Legacy Electron Architecture (Deprecated)
-
-- **Electron main process**: `main.js`
-- **Preload bridge**: `preload.js`
-- **Provider services**: `src/main/services/*.js`
-- **Persistence**: `electron-store` with encryption
-
----
-
 ## Troubleshooting
 
 ### A provider shows “Offline” or “Error”
@@ -408,10 +380,9 @@ The app runs `git pull` in the current working directory and then relaunches.
 
 ## Notes on security
 
-- **Tauri version**: API keys are stored in your OS's native secure storage:
+- API keys are stored in your OS's native secure storage:
   - **macOS**: Keychain
   - **Windows**: Credential Manager
   - **Linux**: Secret Service (GNOME Keyring, KWallet, etc.)
-- **Electron version** (deprecated): Keys stored with `electron-store` encryption (less secure)
 - Prefer tokens with the minimum scopes needed, especially for GitHub
 - The app runs with a strict Content Security Policy (CSP) limiting external connections to known API endpoints

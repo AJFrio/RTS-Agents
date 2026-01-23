@@ -1,25 +1,9 @@
-const { _electron: electron } = require('playwright');
-const path = require('path');
 const { test, expect } = require('@playwright/test');
 
 test.describe('Repository Dropdown Navigation', () => {
-  let electronApp;
-
-  test.beforeAll(async () => {
-    electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
-    });
-  });
-
-  test.afterAll(async () => {
-    await electronApp.close();
-  });
-
-  test('Keyboard navigation works in repository dropdown', async () => {
-    const window = await electronApp.firstWindow();
-
-    // Mock electronAPI
-    await window.addInitScript(() => {
+  test.beforeEach(async ({ page }) => {
+    // Mock API
+    await page.addInitScript(() => {
       window.__electronAPI = {
         getAgents: async () => ({ agents: [], counts: {} }),
         getSettings: async () => ({
@@ -41,19 +25,21 @@ test.describe('Repository Dropdown Navigation', () => {
       };
     });
 
-    await window.reload();
-    await window.waitForLoadState('domcontentloaded');
+    await page.goto('http://localhost:3333');
+    await page.waitForLoadState('domcontentloaded');
+  });
 
+  test('Keyboard navigation works in repository dropdown', async ({ page }) => {
     // Open New Task Modal
-    await window.click('#new-task-btn');
-    const modal = window.locator('#new-task-modal');
+    await page.click('#new-task-btn');
+    const modal = page.locator('#new-task-modal');
     await expect(modal).toBeVisible();
 
     // Select a service (e.g., Jules)
-    await window.click('#service-jules');
+    await page.click('#service-jules');
 
     // Wait for repos to load (mock is instant, but good to wait for UI update)
-    const repoSearch = window.locator('#task-repo-search');
+    const repoSearch = page.locator('#task-repo-search');
     await expect(repoSearch).toBeEnabled();
 
     // Type to search (optional, but good to test filtering/dropdown trigger)
@@ -61,15 +47,13 @@ test.describe('Repository Dropdown Navigation', () => {
     await repoSearch.fill('repo');
 
     // Dropdown should be visible
-    const dropdown = window.locator('#repo-dropdown');
+    const dropdown = page.locator('#repo-dropdown');
     await expect(dropdown).toBeVisible();
 
     // Verify items are present
     const options = dropdown.locator('.repo-option');
     await expect(options).toHaveCount(3);
 
-    // Initial state: no item selected or first item might be auto-selected if logic differs,
-    // but based on code, nothing is selected until interaction.
     // Let's press ArrowDown
     await repoSearch.press('ArrowDown');
 
@@ -100,12 +84,10 @@ test.describe('Repository Dropdown Navigation', () => {
     await expect(repoSearch).toHaveValue('REPO-ONE');
   });
 
-  test('Task Description font is readable', async () => {
-    const window = await electronApp.firstWindow();
-    await window.reload(); // clear state
-    await window.click('#new-task-btn');
+  test('Task Description font is readable', async ({ page }) => {
+    await page.click('#new-task-btn');
 
-    const textarea = window.locator('#task-prompt');
+    const textarea = page.locator('#task-prompt');
 
     // Check for font-sans class and text-sm
     await expect(textarea).toHaveClass(/font-sans/);

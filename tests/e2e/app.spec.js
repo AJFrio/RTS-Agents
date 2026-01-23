@@ -1,73 +1,78 @@
-const { _electron: electron } = require('playwright');
-const path = require('path');
-const fs = require('fs');
-
 const { test, expect } = require('@playwright/test');
 
 test.describe('E2E Tests', () => {
-  let electronApp;
-
-  test.beforeAll(async () => {
-    // Launch Electron app
-    electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+  test.beforeEach(async ({ page }) => {
+    // Inject mock API before navigation
+    await page.addInitScript(() => {
+      window.__electronAPI = {
+        getAgents: async () => ({ agents: [], counts: { total: 0 }, errors: [] }),
+        getSettings: async () => ({
+          settings: { theme: 'dark', pollingInterval: 30000, autoPolling: false },
+          githubPaths: [],
+          apiKeys: { github: true, jules: true, cursor: true, codex: true, claude: true },
+          geminiInstalled: true,
+          claudeCliInstalled: true
+        }),
+        getConnectionStatus: async () => ({
+          github: { connected: true },
+          cursor: { connected: true },
+          jules: { connected: true },
+          codex: { connected: true },
+          'claude-cli': { connected: true },
+          'claude-cloud': { connected: true }
+        }),
+        onRefreshTick: () => {},
+        setApiKey: async () => {},
+        testApiKey: async () => ({ success: true }),
+        setTheme: async () => {},
+        openExternal: async () => {}
+      };
     });
+
+    await page.goto('http://localhost:3333');
+    await page.waitForLoadState('domcontentloaded');
   });
 
-  test.afterAll(async () => {
-    await electronApp.close();
+  test('Window should have correct title', async ({ page }) => {
+    const title = await page.title();
+    expect(title).toContain('RTS Agents');
   });
 
-  test('Window should open with correct title', async () => {
-    const window = await electronApp.firstWindow();
-    const title = await window.title();
-    // Default title is typically "RTS Agents Dashboard" or what's in index.html/main.js
-    // Checking index.html to be sure
+  test('Dashboard should load', async ({ page }) => {
+    // Check for main container or specific elements
+    const app = page.locator('#app');
+    await expect(app).toBeVisible();
+
+    // Check sidebar exists
+    const sidebar = page.locator('#sidebar');
+    await expect(sidebar).toBeVisible();
   });
 
-  test('Dashboard should load', async () => {
-      const window = await electronApp.firstWindow();
-      // Wait for the app to load
-      await window.waitForLoadState('domcontentloaded');
+  test('Should navigate to Settings', async ({ page }) => {
+    // Click on settings button
+    const settingsBtn = page.locator('button[data-view="settings"]');
+    await settingsBtn.click();
 
-      // Check for main container or specific elements
-      const app = await window.locator('#app');
-      await expect(app).toBeVisible();
+    // Check if settings view is visible
+    const settingsView = page.locator('#view-settings');
+    await expect(settingsView).toBeVisible();
 
-      // Check sidebar exists
-      const sidebar = await window.locator('#sidebar');
-      await expect(sidebar).toBeVisible();
+    // Check for API key inputs
+    const julesKeyInput = page.locator('#jules-api-key');
+    await expect(julesKeyInput).toBeVisible();
+
+    // Check for Cloudflare KV inputs
+    const cloudflareAccountId = page.locator('#cloudflare-account-id');
+    await expect(cloudflareAccountId).toBeVisible();
+    const cloudflareApiToken = page.locator('#cloudflare-api-token');
+    await expect(cloudflareApiToken).toBeVisible();
   });
 
-  test('Should navigate to Settings', async () => {
-      const window = await electronApp.firstWindow();
+  test('Should navigate to Computers view', async ({ page }) => {
+    const computersBtn = page.locator('button[data-view="computers"]');
+    await computersBtn.click();
 
-      // Click on settings button
-      const settingsBtn = await window.locator('button[data-view="settings"]');
-      await settingsBtn.click();
-
-      // Check if settings view is visible
-      const settingsView = await window.locator('#view-settings');
-      await expect(settingsView).toBeVisible();
-
-      // Check for API key inputs
-      const julesKeyInput = await window.locator('#jules-api-key');
-      await expect(julesKeyInput).toBeVisible();
-
-      // Check for Cloudflare KV inputs
-      const cloudflareAccountId = await window.locator('#cloudflare-account-id');
-      await expect(cloudflareAccountId).toBeVisible();
-      const cloudflareApiToken = await window.locator('#cloudflare-api-token');
-      await expect(cloudflareApiToken).toBeVisible();
-  });
-
-  test('Should navigate to Computers view', async () => {
-      const window = await electronApp.firstWindow();
-
-      const computersBtn = await window.locator('button[data-view="computers"]');
-      await computersBtn.click();
-
-      const computersView = await window.locator('#view-computers');
-      await expect(computersView).toBeVisible();
+    const computersView = page.locator('#view-computers');
+    await expect(computersView).toBeVisible();
   });
 });

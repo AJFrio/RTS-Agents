@@ -127,29 +127,23 @@ const state = {
   localDeviceId: null
 };
 
-// Platform detection: Tauri vs Electron
-// In Tauri, window.__TAURI_INTERNALS__ is defined
-// In Electron, window.electronAPI is provided by preload.js
-const isTauri = typeof window.__TAURI_INTERNALS__ !== 'undefined';
-
-// API bridge - provides unified access to platform APIs
+// API bridge - Tauri API (for testing, allow mock via __electronAPI)
 let platformAPI = null;
 
 async function initPlatformAPI() {
-  if (isTauri) {
-    // Dynamically import Tauri API bridge
+  // Allow mock API for testing
+  if (window.__electronAPI) {
+    platformAPI = window.__electronAPI;
+  } else {
     const { tauriAPI } = await import('./tauri-api.js');
     platformAPI = tauriAPI;
-  } else {
-    // Use Electron API (for testing, allow mock via __electronAPI)
-    platformAPI = window.__electronAPI || window.electronAPI;
   }
   return platformAPI;
 }
 
-// For backward compatibility, getElectronAPI now returns the platform API
+// Returns the platform API (name kept for compatibility with existing code)
 function getElectronAPI() {
-  return platformAPI || window.__electronAPI || window.electronAPI;
+  return platformAPI || window.__electronAPI;
 }
 
 // ============================================ 

@@ -51,6 +51,7 @@ export default function NewTaskModal() {
     if (selectedService && (selectedService === 'jules' || selectedService === 'cursor')) {
       const cacheKey = `rts_repo_cache_${selectedService}`;
       const cached = localStorage.getItem(cacheKey);
+      let hasCached = false;
 
       if (cached) {
         try {
@@ -58,14 +59,15 @@ export default function NewTaskModal() {
           setRepositories(parsed);
           if (parsed.length > 0) {
             setSelectedRepo(parsed[0].id);
+            hasCached = true;
           }
         } catch (e) {
           // Ignore cache errors
         }
       }
 
-      setLoadingRepos(true);
-      if (!cached) {
+      if (!hasCached) {
+        setLoadingRepos(true);
         setRepositories([]);
         setSelectedRepo('');
       }
@@ -75,9 +77,12 @@ export default function NewTaskModal() {
           setRepositories(repos);
           localStorage.setItem(cacheKey, JSON.stringify(repos));
           // Update selection only if not already set (or valid)
-          if (repos.length > 0 && (!selectedRepo || !repos.find(r => r.id === selectedRepo))) {
-            setSelectedRepo(repos[0].id);
-          }
+          setSelectedRepo(current => {
+            if (repos.length > 0 && (!current || !repos.find(r => r.id === current))) {
+              return repos[0].id;
+            }
+            return current;
+          });
         })
         .catch(err => {
           setError(`Failed to load repositories: ${err.message}`);
@@ -178,7 +183,7 @@ export default function NewTaskModal() {
   const canSubmit = prompt.trim() && (selectedService || targetDevice !== 'local');
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90">
+    <div className="fixed inset-0 z-50 bg-black">
       {/* Header */}
       <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top shadow-sm">
         <button

@@ -48,7 +48,7 @@ export default function NewTaskModal() {
 
   // Load repositories when service is selected
   useEffect(() => {
-    if (selectedService && (selectedService === 'jules' || selectedService === 'cursor')) {
+    if (selectedService) {
       const cacheKey = `rts_repo_cache_${selectedService}`;
       const cached = localStorage.getItem(cacheKey);
       let hasCached = false;
@@ -292,7 +292,7 @@ export default function NewTaskModal() {
         )}
 
         {/* Repository Selection */}
-        {(selectedService === 'jules' || selectedService === 'cursor') && (
+        {selectedService && (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <span className="flex items-center justify-center w-5 h-5 border border-slate-600 text-xs font-medium text-slate-400 rounded">
@@ -392,7 +392,7 @@ export default function NewTaskModal() {
                 {(() => {
                   let step = 2;
                   if (configuredServices.cloudflare && onlineComputers.length > 0) step++;
-                  if ((selectedService === 'jules' || selectedService === 'cursor') && targetDevice === 'local') step++;
+                  if (selectedService && targetDevice === 'local') step++;
                   if (targetDevice !== 'local') step++;
                   return step.toString().padStart(2, '0');
                 })()}

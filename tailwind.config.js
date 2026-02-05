@@ -34,6 +34,7 @@ module.exports = {
         "background-light": "#F5F5F0",
         "background-dark": "#121212", // Matte Charcoal
         "sidebar-dark": "#0D0D0D",
+        "modal-dark": "#16181d",
         "card-dark": "#1A1A1A",
         "border-dark": "#2A2A2A",
       },

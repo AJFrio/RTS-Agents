@@ -78,7 +78,6 @@ const state = {
     repositories: [],
     loadingRepos: false,
     creating: false,
-    promptMode: 'write', // 'write' | 'preview'
     pastedImages: [] // [{ id, name, mimeType, size, dataUrl }]
   },
   // Create repo modal state
@@ -248,9 +247,6 @@ const elements = {
 
   // Task Prompt & Attachments
   taskPrompt: document.getElementById('task-prompt'),
-  taskPromptPreview: document.getElementById('task-prompt-preview'),
-  taskPromptTabWrite: document.getElementById('task-prompt-tab-write'),
-  taskPromptTabPreview: document.getElementById('task-prompt-tab-preview'),
   taskSpeechBtn: document.getElementById('task-speech-btn'),
   taskAttachmentInput: document.getElementById('task-attachment-input'),
   taskPromptImages: document.getElementById('task-prompt-images'),
@@ -716,9 +712,6 @@ function setupEventListeners() {
 
   elements.taskPrompt.addEventListener('input', () => {
     validateNewTaskForm();
-    if (state.newTask.promptMode === 'preview') {
-      renderTaskPromptPreview();
-    }
   });
   elements.taskPrompt.addEventListener('paste', handleTaskPromptPaste);
   elements.taskPrompt.addEventListener('keydown', (e) => {
@@ -2831,7 +2824,6 @@ function openNewTaskModal() {
     repositories: [],
     loadingRepos: false,
     creating: false,
-    promptMode: 'write',
     pastedImages: []
   };
 
@@ -3109,40 +3101,6 @@ function sanitizeMarkdownToHtml(markdown) {
   }
 }
 
-function setTaskPromptMode(mode) {
-  state.newTask.promptMode = mode === 'preview' ? 'preview' : 'write';
-
-  const isPreview = state.newTask.promptMode === 'preview';
-  elements.taskPrompt.classList.toggle('hidden', isPreview);
-  elements.taskPromptPreview.classList.toggle('hidden', !isPreview);
-  elements.taskSpeechBtn?.classList.toggle('hidden', isPreview);
-
-  // Simple active styling
-  if (elements.taskPromptTabWrite && elements.taskPromptTabPreview) {
-    const activeClasses = ['bg-primary', 'text-black'];
-    const inactiveClasses = ['text-slate-400'];
-
-    elements.taskPromptTabWrite.classList.toggle(activeClasses[0], !isPreview);
-    elements.taskPromptTabWrite.classList.toggle(activeClasses[1], !isPreview);
-    elements.taskPromptTabWrite.classList.toggle(inactiveClasses[0], isPreview);
-
-    elements.taskPromptTabPreview.classList.toggle(activeClasses[0], isPreview);
-    elements.taskPromptTabPreview.classList.toggle(activeClasses[1], isPreview);
-    elements.taskPromptTabPreview.classList.toggle(inactiveClasses[0], !isPreview);
-  }
-
-  if (isPreview) {
-    renderTaskPromptPreview();
-  }
-}
-
-window.setTaskPromptMode = setTaskPromptMode;
-
-function renderTaskPromptPreview() {
-  if (!elements.taskPromptPreview) return;
-  const prompt = elements.taskPrompt?.value || '';
-  elements.taskPromptPreview.innerHTML = sanitizeMarkdownToHtml(prompt);
-}
 
 function renderAttachments() {
   if (!elements.taskPromptImages || !elements.taskPromptImagesCount) return;
@@ -3257,9 +3215,7 @@ function resetNewTaskForm(options = {}) {
 
   if (!options.keepInput) {
     elements.taskPrompt.value = '';
-    state.newTask.promptMode = 'write';
     state.newTask.pastedImages = [];
-    setTaskPromptMode('write');
     renderAttachments();
   }
 

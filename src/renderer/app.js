@@ -1513,88 +1513,95 @@ function goToNextPage() {
 window.goToPrevPage = goToPrevPage;
 window.goToNextPage = goToNextPage;
 
+// Filter tabs logic
+window.filterByStatusTab = function(tab) {
+  // Update active state
+  document.querySelectorAll('.status-tab').forEach(el => {
+    el.classList.remove('border-primary', 'text-primary', 'active');
+    el.classList.add('border-transparent', 'text-slate-500');
+  });
+  
+  const activeTab = document.getElementById(`tab-${tab}`);
+  if (activeTab) {
+    activeTab.classList.remove('border-transparent', 'text-slate-500');
+    activeTab.classList.add('border-primary', 'text-primary', 'active');
+  }
+
+  // Update filters
+  // Reset all
+  Object.keys(state.filters.statuses).forEach(k => state.filters.statuses[k] = false);
+
+  if (tab === 'all') {
+    Object.keys(state.filters.statuses).forEach(k => state.filters.statuses[k] = true);
+  } else if (tab === 'running') {
+    state.filters.statuses.running = true;
+    state.filters.statuses.pending = true;
+  } else if (tab === 'completed') {
+    state.filters.statuses.completed = true;
+  } else if (tab === 'failed') {
+    state.filters.statuses.failed = true;
+    state.filters.statuses.stopped = true;
+  }
+
+  applyFilters();
+  saveFilters();
+};
+
 function createAgentCard(agent) {
-  const providerStyle = getProviderStyle(agent.provider);
-  const statusStyle = getStatusStyle(agent.status);
-  const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
-  const tacticalStatus = getTacticalStatus(agent.status);
-  
-  // Provider dot color matching mobile webapp
-  const providerDotColors = {
-    'jules': 'bg-primary',
-    'cursor': 'bg-blue-500',
-    'codex': 'bg-cyan-500',
-    'claude-cloud': 'bg-amber-500',
-    'gemini': 'bg-emerald-500',
-    'claude-cli': 'bg-orange-500'
-  };
-  const providerDot = providerDotColors[agent.provider] || 'bg-primary';
-  
-  // Status labels matching mobile webapp
-  const statusLabels = {
-    'running': 'RUNNING',
-    'completed': 'COMPLETE',
-    'pending': 'PENDING',
-    'failed': 'FAILED',
-    'stopped': 'STOPPED'
-  };
-  const statusLabel = statusLabels[agent.status] || tacticalStatus;
-  
   // Provider display name
   const providerName = agent.provider === 'claude-cloud' ? 'Claude' : 
+                       agent.provider === 'claude-cli' ? 'Claude Dev' :
                        agent.provider.charAt(0).toUpperCase() + agent.provider.slice(1);
 
+  const envInfo = agent.provider === 'gemini' || agent.provider === 'claude-cli' ? 'Local Environment' :
+                  agent.provider === 'cursor' ? 'Claude-3.5 • Cloud' :
+                  agent.provider === 'jules' ? 'Cloud Instance' :
+                  'Remote Instance';
+
+  // Status mapping
+  const statusMap = {
+    'running': { label: 'In Progress', class: 'bg-primary/10 text-primary border border-primary/20', percent: 65, barColor: 'bg-primary' },
+    'pending': { label: 'Queued', class: 'bg-slate-500/10 text-slate-500 border border-slate-500/20', percent: 0, barColor: 'bg-slate-400' },
+    'completed': { label: 'Completed', class: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20', percent: 100, barColor: 'bg-emerald-500' },
+    'failed': { label: 'Error', class: 'bg-red-500/10 text-red-600 dark:text-red-500 border border-red-500/20', percent: 100, barColor: 'bg-red-500' },
+    'stopped': { label: 'Stopped', class: 'bg-slate-500/10 text-slate-500 border border-slate-500/20', percent: 0, barColor: 'bg-slate-400' },
+    'analyzing': { label: 'Analyzing', class: 'bg-amber-500/10 text-amber-600 dark:text-amber-500 border border-amber-500/20', percent: 12, barColor: 'bg-amber-500' }
+  };
+
+  const statusInfo = statusMap[agent.status] || statusMap['pending'];
+  const progress = statusInfo.percent;
+  const promptText = agent.summary || agent.prompt || 'No description';
+
   return `
-    <button class="w-full text-left agent-card rounded-xl shadow-sm hover:shadow-md active:scale-[0.98] p-4 transition-all duration-200"
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col gap-4 hover:border-primary/50 transition-all cursor-pointer group"
          onclick="openAgentDetails('${agent.provider}', '${escapeJsString(agent.rawId || '')}', '${escapeJsString(agent.filePath || '')}')">
-      <!-- Header -->
-      <div class="flex items-start justify-between mb-3">
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full ${providerDot}"></span>
-          <span class="text-xs font-medium ${providerStyle.text}">
-            ${providerName}
-          </span>
+      <div class="flex justify-between items-start">
+        <div class="flex flex-col">
+          <p class="text-slate-900 dark:text-white text-lg font-bold leading-tight">${escapeHtml(providerName)}</p>
+          <p class="text-slate-500 text-xs font-semibold uppercase tracking-tight">${envInfo}</p>
         </div>
-        <span class="px-2.5 py-1 text-xs font-medium rounded-md ${statusStyle.bg} ${statusStyle.text}">
-          ${statusLabel}
-        </span>
+        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${statusInfo.class}">${statusInfo.label}</span>
       </div>
-
-      <!-- Title -->
-      <h3 class="font-bold text-sm mb-2 line-clamp-2 text-slate-800 dark:text-white">
-        ${escapeHtml(agent.name)}
-      </h3>
-
-      <!-- Metadata -->
-      <div class="flex items-center gap-4 text-xs text-slate-500">
-        ${agent.repository ? `
-          <div class="flex items-center gap-1 truncate max-w-[140px]">
-            <span class="material-symbols-outlined text-xs">folder</span>
-            <span class="truncate">${extractRepoName(agent.repository)}</span>
-          </div>
-        ` : ''}
-        ${agent.branch ? `
-          <div class="flex items-center gap-1">
-            <span class="material-symbols-outlined text-xs">fork_right</span>
-            <span>${escapeHtml(agent.branch)}</span>
-          </div>
-        ` : ''}
-        <div class="flex items-center gap-1 ml-auto">
-          <span class="material-symbols-outlined text-xs">schedule</span>
-          <span>${timeAgo}</span>
+      <div>
+        <p class="text-slate-700 dark:text-slate-300 text-sm font-medium line-clamp-2 leading-relaxed">${escapeHtml(promptText)}</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        <div class="flex justify-between items-end">
+          <span class="text-slate-500 text-[11px] font-medium">Progress</span>
+          <span class="text-slate-900 dark:text-white text-xs font-bold">${progress}%</span>
+        </div>
+        <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+          <div class="${statusInfo.barColor} h-full" style="width: ${progress}%"></div>
         </div>
       </div>
-
-      <!-- PR Link -->
-      ${agent.prUrl ? `
-        <div class="mt-2 pt-2 border-t border-slate-200 dark:border-border-dark">
-          <div class="flex items-center gap-1.5 text-xs text-emerald-500">
-            <span class="material-symbols-outlined text-sm">merge</span>
-            <span>PR Available</span>
-          </div>
+      <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-1.5 text-slate-500">
+          <span class="material-symbols-outlined text-sm">account_tree</span>
+          <span class="text-[11px] font-mono">${escapeHtml(agent.branch || 'main')}</span>
         </div>
-      ` : ''}
-    </button>
+        <span class="text-primary text-[11px] font-bold group-hover:underline">To Task</span>
+      </div>
+    </div>
   `;
 }
 
@@ -1659,13 +1666,13 @@ function showView(view) {
 
   // Update title
   const titles = {
-    dashboard: 'Agent Dashboard',
+    dashboard: 'Running Tasks',
     settings: 'Settings',
     branches: 'Repositories',
     computers: 'Computers',
-    jira: 'Jira'
+    jira: 'Jira Tickets'
   };
-  elements.viewTitle.textContent = titles[view] || 'Dashboard';
+  elements.viewTitle.textContent = titles[view] || 'Running Tasks';
 
   // Show/hide views
   elements.viewDashboard.classList.toggle('hidden', view !== 'dashboard');

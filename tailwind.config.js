@@ -29,11 +29,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#93b8c5", // Light Blue/Cyan
-        "primary-hover": "#7aa5b3",
-        "background-light": "#F5F5F0",
-        "background-dark": "#121212", // Matte Charcoal
-        "sidebar-dark": "#0D0D0D",
+        primary: "#798b9d",
+        "primary-hover": "#687a8b",
+        "background-light": "#f7f7f7",
+        "background-dark": "#17191b",
+        "sidebar-dark": "#111318",
         "card-dark": "#1A1A1A",
         "border-dark": "#2A2A2A",
       },

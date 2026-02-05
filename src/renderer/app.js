@@ -3109,40 +3109,6 @@ function sanitizeMarkdownToHtml(markdown) {
   }
 }
 
-function setTaskPromptMode(mode) {
-  state.newTask.promptMode = mode === 'preview' ? 'preview' : 'write';
-
-  const isPreview = state.newTask.promptMode === 'preview';
-  elements.taskPrompt.classList.toggle('hidden', isPreview);
-  elements.taskPromptPreview.classList.toggle('hidden', !isPreview);
-  elements.taskSpeechBtn?.classList.toggle('hidden', isPreview);
-
-  // Simple active styling
-  if (elements.taskPromptTabWrite && elements.taskPromptTabPreview) {
-    const activeClasses = ['bg-primary', 'text-black'];
-    const inactiveClasses = ['text-slate-400'];
-
-    elements.taskPromptTabWrite.classList.toggle(activeClasses[0], !isPreview);
-    elements.taskPromptTabWrite.classList.toggle(activeClasses[1], !isPreview);
-    elements.taskPromptTabWrite.classList.toggle(inactiveClasses[0], isPreview);
-
-    elements.taskPromptTabPreview.classList.toggle(activeClasses[0], isPreview);
-    elements.taskPromptTabPreview.classList.toggle(activeClasses[1], isPreview);
-    elements.taskPromptTabPreview.classList.toggle(inactiveClasses[0], !isPreview);
-  }
-
-  if (isPreview) {
-    renderTaskPromptPreview();
-  }
-}
-
-window.setTaskPromptMode = setTaskPromptMode;
-
-function renderTaskPromptPreview() {
-  if (!elements.taskPromptPreview) return;
-  const prompt = elements.taskPrompt?.value || '';
-  elements.taskPromptPreview.innerHTML = sanitizeMarkdownToHtml(prompt);
-}
 
 function renderAttachments() {
   if (!elements.taskPromptImages || !elements.taskPromptImagesCount) return;
@@ -3259,7 +3225,6 @@ function resetNewTaskForm(options = {}) {
     elements.taskPrompt.value = '';
     state.newTask.promptMode = 'write';
     state.newTask.pastedImages = [];
-    setTaskPromptMode('write');
     renderAttachments();
   }
 
@@ -3421,6 +3386,7 @@ async function loadRepositoriesForService(service) {
         populateRepoDropdown([], service);
       } else {
         console.warn('Background repo refresh failed', err);
+        showToast('Failed to refresh repositories: ' + err.message, 'error');
       }
     } finally {
       state.newTask.loadingRepos = false;

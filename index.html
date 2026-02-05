@@ -898,7 +898,7 @@
           </aside>
 
           <!-- Main Content -->
-          <main class="flex-1 flex flex-col bg-white dark:bg-modal-dark overflow-hidden">
+          <main class="flex-1 flex flex-col bg-slate-50 dark:bg-[#0d0e11] overflow-hidden">
             <div class="flex-1 p-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
 
               <!-- Task Definition -->
@@ -908,22 +908,10 @@
                       <span class="material-symbols-outlined text-sm">edit_note</span>
                       Task Definition & Instructions
                     </label>
-                    <!-- Mode Toggle -->
-                     <div class="flex items-center gap-1 border border-border-dark bg-black rounded-lg overflow-hidden">
-                      <button id="task-prompt-tab-write" type="button" onclick="setTaskPromptMode('write')"
-                        class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                        Write
-                      </button>
-                      <button id="task-prompt-tab-preview" type="button" onclick="setTaskPromptMode('preview')"
-                        class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                        Preview
-                      </button>
-                    </div>
                 </div>
 
                 <div class="relative flex-1 flex flex-col">
                      <textarea id="task-prompt" class="w-full flex-1 bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base font-medium leading-relaxed focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none placeholder:text-slate-600" placeholder="Describe the task in detail. Example: 'Refactor the authentication middleware to support multi-tenant JWT validation and update the documentation...'"></textarea>
-                     <div id="task-prompt-preview" class="hidden w-full flex-1 bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base font-medium leading-relaxed overflow-y-auto"></div>
 
                      <button id="task-speech-btn" class="absolute bottom-3 right-3 text-slate-500 hover:text-primary transition-colors p-1 rounded-full hover:bg-white/5" title="Speech to text">
                       <span class="material-symbols-outlined">mic</span>

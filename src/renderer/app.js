@@ -2259,7 +2259,7 @@ window.removeGithubPath = async function(path) {
 
 async function updateApplication() {
   const electronAPI = getElectronAPI();
-  if (!await showConfirmModal('Are you sure you want to update and restart the application? This will stop all running tasks.', 'UPDATE APPLICATION')) {
+  if (!await showConfirmModal('Are you sure you want to update and restart the application?', 'UPDATE APPLICATION')) {
     return;
   }
 

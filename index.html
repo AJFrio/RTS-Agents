@@ -799,197 +799,176 @@
     <div id="new-task-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div class="fixed inset-0 bg-black/80 backdrop-blur-sm" onclick="closeNewTaskModal()"></div>
       
-      <div class="relative bg-sidebar-dark border border-border-dark w-full max-w-3xl flex flex-col shadow-2xl rounded-xl overflow-hidden">
-        <!-- Modal Header -->
-        <div class="border-b border-border-dark p-6 flex justify-between items-center bg-black/40">
-          <div class="flex items-center gap-4">
-            <span class="material-symbols-outlined text-primary text-2xl">rocket_launch</span>
+      <div class="relative bg-white dark:bg-sidebar-dark w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-border-dark">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-[#16181d]">
+          <div class="flex items-center gap-3">
+            <div class="bg-primary/20 p-1.5 rounded-lg">
+              <span class="material-symbols-outlined text-primary text-xl">add_task</span>
+            </div>
             <div>
-              <h2 class="text-lg font-semibold text-white tracking-tight">New Task</h2>
-              <p class="text-xs text-slate-500 font-normal">Configure and launch an AI agent</p>
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">Create New Agent Task</h2>
+              <p class="text-xs text-slate-500 font-medium">Configure and deploy a new coding agent</p>
             </div>
           </div>
-          <button onclick="closeNewTaskModal()" class="text-slate-500 hover:text-primary transition-colors rounded-lg p-1 hover:bg-white/5">
+          <button onclick="closeNewTaskModal()" class="text-slate-400 hover:text-white transition-colors">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
-        
-        <!-- Modal Content -->
-        <div class="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
-          <!-- Step 1: Service Selection -->
-          <section>
-            <div class="flex items-center gap-3 mb-4">
-              <span class="flex items-center justify-center w-6 h-6 border border-primary text-xs font-medium text-primary rounded-md">01</span>
-              <h3 class="font-semibold text-slate-300">Choose Service</h3>
-            </div>
 
-            <!-- Target Device Selector -->
-            <div class="mb-6">
-                <label class="text-xs text-slate-500 mb-2 block font-medium">Target Device</label>
-               <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm">devices</span>
-                  <select id="new-task-target-device"
-                     class="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 pl-10 pr-4 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer hover:border-slate-600">
-                     <option value="">This Computer (Local)</option>
-                  </select>
-                  <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 text-sm pointer-events-none">expand_more</span>
-               </div>
-            </div>
+        <div class="flex flex-1 overflow-hidden">
+          <!-- Sidebar -->
+          <aside class="w-80 border-r border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-[#0d0e11] overflow-y-auto custom-scrollbar p-6">
+            <div class="flex flex-col gap-8">
 
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <!-- Gemini CLI -->
-              <button type="button" id="service-gemini" onclick="selectService('gemini')" 
-                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
-                <span class="material-symbols-outlined text-slate-400 mb-3">terminal</span>
-                <div class="text-sm font-semibold text-slate-300 mb-1">Gemini CLI</div>
-                <div class="text-xs text-slate-500 leading-tight">Local projects via Google API</div>
-              </button>
-              <!-- Jules -->
-              <button type="button" id="service-jules" onclick="selectService('jules')"
-                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
-                <span class="material-symbols-outlined text-slate-400 mb-3">code</span>
-                <div class="text-sm font-semibold text-slate-300 mb-1">Jules</div>
-                <div class="text-xs text-slate-500 leading-tight">GitHub repos via Jules API</div>
-              </button>
-              <!-- Cursor Bot -->
-              <button type="button" id="service-cursor" onclick="selectService('cursor')"
-                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
-                <span class="material-symbols-outlined text-slate-400 mb-3">near_me</span>
-                <div class="text-sm font-semibold text-slate-300 mb-1">Cursor</div>
-                <div class="text-xs text-slate-500 leading-tight">Cloud-based via Cursor API</div>
-              </button>
-              <!-- OpenAI Codex -->
-              <button type="button" id="service-codex" onclick="selectService('codex')"
-                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
-                <span class="material-symbols-outlined text-slate-400 mb-3">psychology</span>
-                <div class="text-sm font-semibold text-slate-300 mb-1">Codex</div>
-                <div class="text-xs text-slate-500 leading-tight">Cloud tasks via OpenAI</div>
-              </button>
-              <!-- Claude CLI (Local) -->
-              <button type="button" id="service-claude-cli" onclick="selectService('claude-cli')"
-                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
-                <span class="material-symbols-outlined text-slate-400 mb-3">terminal</span>
-                <div class="text-sm font-semibold text-slate-300 mb-1">Claude CLI</div>
-                <div class="text-xs text-slate-500 leading-tight">Local projects via CLI</div>
-              </button>
-              <!-- Claude Cloud (API) -->
-              <button type="button" id="service-claude-cloud" onclick="selectService('claude-cloud')"
-                class="service-btn border border-border-dark p-4 text-left hover:border-primary/50 transition-all">
-                <span class="material-symbols-outlined text-slate-400 mb-3">cloud</span>
-                <div class="text-sm font-semibold text-slate-300 mb-1">Claude Cloud</div>
-                <div class="text-xs text-slate-500 leading-tight">Anthropic API</div>
-              </button>
-            </div>
-            <p id="service-status" class="mt-3 text-xs technical-font text-slate-500"></p>
-          </section>
+              <!-- 1. Environment -->
+              <section>
+                <label class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3 block">1. Environment</label>
+                <div class="grid grid-cols-1 gap-2">
+                  <button id="env-cloud-btn" onclick="selectEnvironment('cloud')" class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark hover:bg-slate-800 transition-all text-left text-slate-400">
+                    <span class="material-symbols-outlined">cloud</span>
+                    <div class="flex flex-col">
+                      <span class="text-sm font-bold text-slate-300">Cloud</span>
+                    </div>
+                  </button>
+                  <button id="env-local-btn" onclick="selectEnvironment('local')" class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark hover:bg-slate-800 transition-all text-left text-slate-400">
+                    <span class="material-symbols-outlined">terminal</span>
+                    <div class="flex flex-col">
+                      <span class="text-sm font-bold text-slate-300">Local</span>
+                    </div>
+                  </button>
+                  <button id="env-remote-btn" onclick="selectEnvironment('remote')" class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 dark:border-border-dark hover:bg-slate-800 transition-all text-left text-slate-400">
+                    <span class="material-symbols-outlined">dns</span>
+                    <div class="flex flex-col">
+                      <span class="text-sm font-bold text-slate-300">Remote</span>
+                    </div>
+                  </button>
+                  <!-- Hidden Dropdown for Remote Device Selection -->
+                  <div id="remote-device-selector" class="hidden mt-2">
+                     <select id="new-task-remote-device-select" class="w-full bg-black border border-border-dark text-slate-300 text-xs py-2 px-3 rounded-lg focus:ring-1 focus:ring-primary outline-none">
+                        <option value="">Select Device...</option>
+                     </select>
+                  </div>
+                </div>
+              </section>
 
-          <!-- Step 2: Repository & Branch Configuration -->
-          <section>
-            <div class="flex items-center gap-3 mb-4">
-              <span class="flex items-center justify-center w-6 h-6 border border-slate-600 text-xs font-medium text-slate-400 rounded-md">02</span>
-              <h3 class="font-semibold text-slate-300">Configure Target</h3>
-            </div>
-            
-            <div class="space-y-4">
-              <!-- Repository Selection -->
-              <div>
-                <label class="text-xs text-slate-500 mb-2 block font-medium">Repository</label>
-                <div class="relative" id="repo-search-container">
-                  <input type="text" id="task-repo-search" disabled autocomplete="off"
-                    placeholder="Select service first..."
-                    class="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              <!-- 2. Select Agent -->
+              <section>
+                <label class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3 block">2. Select Agent</label>
+                <div class="relative mb-3">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+                  <input id="agent-search-input" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg pl-9 pr-4 py-2 text-xs focus:ring-1 focus:ring-primary outline-none text-slate-200" placeholder="Filter agents..." type="text"/>
+                </div>
+                <div id="agent-list" class="flex flex-col gap-1">
+                   <!-- Agent Radio Buttons Injected Here -->
+                </div>
+              </section>
+
+              <!-- 3. Target Repository -->
+              <section>
+                <label class="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3 block">3. Target Repository</label>
+                <div class="relative group" id="repo-search-container">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span class="material-symbols-outlined text-slate-500 text-sm">search</span>
+                  </div>
+                  <input id="task-repo-search" class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg pl-9 pr-10 py-2.5 text-sm text-slate-200 focus:ring-1 focus:ring-primary outline-none appearance-none" placeholder="Search and select repo..." type="text" autocomplete="off" disabled />
                   <input type="hidden" id="task-repo" value="">
-                  <div id="repo-loading" class="hidden absolute right-3 top-1/2 -translate-y-1/2">
+
+                  <div id="repo-loading" class="hidden absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                     <span class="material-symbols-outlined text-primary text-sm animate-spin">sync</span>
                   </div>
-                  <span id="repo-chevron" class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 cursor-pointer">expand_more</span>
-                  <!-- Dropdown list -->
-                  <div id="repo-dropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-black border border-border-dark shadow-lg rounded-lg overflow-hidden">
-                    <!-- Repo options will be populated here -->
+                  <div id="repo-chevron" class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <span class="material-symbols-outlined text-slate-500 text-base">expand_more</span>
                   </div>
+
+                   <!-- Repo Dropdown -->
+                   <div id="repo-dropdown" class="hidden absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-black border border-border-dark shadow-lg rounded-lg overflow-hidden">
+                   </div>
                 </div>
-                <p id="repo-error" class="mt-1 text-xs text-red-400 hidden"></p>
+                 <p id="repo-error" class="mt-1 text-xs text-red-400 hidden"></p>
+                 <!-- Branch Selector (Hidden by default, shown if needed) -->
+                 <div id="branch-input-container" class="mt-3 hidden">
+                    <label class="text-[10px] text-slate-500 mb-1 block">Branch</label>
+                    <select id="task-branch" class="w-full bg-black border border-border-dark text-slate-300 text-xs py-2 px-3 rounded-lg focus:ring-1 focus:ring-primary outline-none">
+                       <option value="main">main</option>
+                    </select>
+                 </div>
+              </section>
+            </div>
+          </aside>
+
+          <!-- Main Content -->
+          <main class="flex-1 flex flex-col bg-white dark:bg-modal-dark overflow-hidden">
+            <div class="flex-1 p-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+
+              <!-- Task Definition -->
+              <div class="flex flex-col gap-3 flex-1">
+                <div class="flex justify-between items-center">
+                     <label class="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                      <span class="material-symbols-outlined text-sm">edit_note</span>
+                      Task Definition & Instructions
+                    </label>
+                    <!-- Mode Toggle -->
+                     <div class="flex items-center gap-1 border border-border-dark bg-black rounded-lg overflow-hidden">
+                      <button id="task-prompt-tab-write" type="button" onclick="setTaskPromptMode('write')"
+                        class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                        Write
+                      </button>
+                      <button id="task-prompt-tab-preview" type="button" onclick="setTaskPromptMode('preview')"
+                        class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                        Preview
+                      </button>
+                    </div>
+                </div>
+
+                <div class="relative flex-1 flex flex-col">
+                     <textarea id="task-prompt" class="w-full flex-1 bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base font-medium leading-relaxed focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none placeholder:text-slate-600" placeholder="Describe the task in detail. Example: 'Refactor the authentication middleware to support multi-tenant JWT validation and update the documentation...'"></textarea>
+                     <div id="task-prompt-preview" class="hidden w-full flex-1 bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base font-medium leading-relaxed overflow-y-auto"></div>
+
+                     <button id="task-speech-btn" class="absolute bottom-3 right-3 text-slate-500 hover:text-primary transition-colors p-1 rounded-full hover:bg-white/5" title="Speech to text">
+                      <span class="material-symbols-outlined">mic</span>
+                    </button>
+                </div>
               </div>
 
-              <!-- Branch Input -->
-              <div id="branch-input-container" class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="text-xs text-slate-500 mb-2 block font-medium">Branch</label>
-                  <select id="task-branch"
-                    class="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 px-4 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
-                    <option value="main">main</option>
-                  </select>
+              <!-- Attachments -->
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">image</span>
+                    Attached Context (<span id="task-prompt-images-count">0</span>)
+                  </label>
+                  <button onclick="document.getElementById('task-attachment-input').click()" class="text-[11px] font-bold text-primary hover:underline">Add More</button>
+                  <input type="file" id="task-attachment-input" class="hidden" multiple accept="image/*" />
                 </div>
-                <div>
-                  <label class="text-xs text-slate-500 mb-2 block font-medium">Auto PR</label>
-                  <div class="flex items-center gap-3 h-[46px]">
-                    <input type="checkbox" id="task-auto-pr" checked class="form-checkbox h-4 w-4 bg-transparent border-primary text-primary focus:ring-0 rounded">
-                    <label class="text-xs text-slate-400 cursor-pointer font-normal" for="task-auto-pr">Enabled</label>
-                  </div>
+                <div id="task-prompt-images" class="grid grid-cols-4 gap-3">
+                   <!-- Images injected here -->
+                   <button onclick="document.getElementById('task-attachment-input').click()" class="aspect-video rounded-lg border-2 border-dashed border-slate-800 flex flex-col items-center justify-center gap-1 hover:border-slate-600 transition-colors text-slate-500">
+                    <span class="material-symbols-outlined">add_photo_alternate</span>
+                    <span class="text-[10px] font-bold">Upload</span>
+                  </button>
                 </div>
               </div>
             </div>
-          </section>
 
-          <!-- Step 3: Task Details -->
-          <section>
-            <div class="flex items-center gap-3 mb-4">
-              <span class="flex items-center justify-center w-6 h-6 border border-slate-600 text-xs font-medium text-slate-400 rounded-md">03</span>
-              <h3 class="font-semibold text-slate-300">Describe Task</h3>
-            </div>
-            
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label class="text-xs text-slate-500 block font-medium">Task Description</label>
-                <div class="flex items-center gap-1 border border-border-dark bg-black rounded-lg overflow-hidden">
-                  <button id="task-prompt-tab-write" type="button" onclick="setTaskPromptMode('write')"
-                    class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                    Write
-                  </button>
-                  <button id="task-prompt-tab-preview" type="button" onclick="setTaskPromptMode('preview')"
-                    class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-                    Preview
-                  </button>
+            <!-- Footer -->
+            <div class="px-8 py-6 border-t border-slate-200 dark:border-border-dark flex items-center justify-between bg-slate-50 dark:bg-[#16181d]">
+              <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                  <input id="task-auto-pr" type="checkbox" checked class="rounded bg-slate-900 border-slate-700 text-primary focus:ring-0"/>
+                  <label class="text-xs font-semibold text-slate-400" for="task-auto-pr">Auto-commit changes</label>
                 </div>
               </div>
-
-              <div class="relative">
-                <textarea id="task-prompt" rows="7" placeholder="Write Description... (paste images directly here)"
-                  class="w-full bg-black border border-border-dark text-slate-300 font-sans text-sm p-4 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"></textarea>
-                <div id="task-prompt-preview"
-                  class="hidden w-full bg-black border border-border-dark text-slate-200 font-sans text-sm p-4 rounded-lg leading-relaxed max-h-64 overflow-y-auto"></div>
-
-                <button id="task-speech-btn" class="absolute bottom-3 right-3 text-slate-500 hover:text-primary transition-colors p-1 rounded-full hover:bg-white/5" title="Speech to text">
-                  <span class="material-symbols-outlined">mic</span>
+              <div class="flex items-center gap-3">
+                <button onclick="closeNewTaskModal()" class="px-5 py-2.5 text-sm font-bold text-slate-400 hover:text-white transition-colors">Cancel</button>
+                <button id="create-task-btn" onclick="submitNewTask()" disabled class="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-lg shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span id="create-task-loading" class="hidden material-symbols-outlined text-sm animate-spin">sync</span>
+                  <span>Initialize Agent</span>
+                  <span class="material-symbols-outlined text-sm">rocket_launch</span>
                 </button>
               </div>
-
-              <div id="task-prompt-images-container" class="hidden mt-3 bg-black border border-border-dark p-3 rounded-lg">
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs text-slate-500 font-medium">Pasted Images</span>
-                  <span id="task-prompt-images-count" class="text-xs text-slate-600 font-medium">0</span>
-                </div>
-                <div id="task-prompt-images" class="flex flex-wrap gap-3"></div>
-              </div>
             </div>
-          </section>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="border-t border-border-dark p-6 flex justify-between items-center bg-black/20">
-          <div class="flex items-center gap-2 text-[10px] technical-font text-slate-600">
-            <span class="material-symbols-outlined text-xs">info</span>
-            All fields required
-          </div>
-          <div class="flex gap-4">
-            <button onclick="closeNewTaskModal()" class="px-6 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors duration-200">CANCEL</button>
-            <button id="create-task-btn" onclick="submitNewTask()" disabled
-              class="bg-primary text-black px-8 py-3 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] flex items-center gap-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-              <span id="create-task-loading" class="hidden material-symbols-outlined text-sm animate-spin">sync</span>
-              <span class="material-symbols-outlined text-sm">bolt</span>
-              Create Task
-            </button>
-          </div>
+          </main>
         </div>
       </div>
     </div>

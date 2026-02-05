@@ -73,7 +73,8 @@ const state = {
   // New task modal state
   newTask: {
     selectedService: null,
-    targetDevice: null, // null = local, object = remote device
+    environment: 'local', // 'cloud' | 'local' | 'remote'
+    targetDevice: 'local', // 'cloud' | 'local' | object (remote device)
     repositories: [],
     loadingRepos: false,
     creating: false,
@@ -222,28 +223,43 @@ const elements = {
   // New Task Modal
   newTaskModal: document.getElementById('new-task-modal'),
   newTaskBtn: document.getElementById('new-task-btn'),
-  newTaskTargetDevice: document.getElementById('new-task-target-device'),
-  serviceStatus: document.getElementById('service-status'),
+
+  // Environment
+  envCloudBtn: document.getElementById('env-cloud-btn'),
+  envLocalBtn: document.getElementById('env-local-btn'),
+  envRemoteBtn: document.getElementById('env-remote-btn'),
+  remoteDeviceSelector: document.getElementById('remote-device-selector'),
+  newTaskRemoteDeviceSelect: document.getElementById('new-task-remote-device-select'),
+
+  // Agent Selection
+  agentSearchInput: document.getElementById('agent-search-input'),
+  agentList: document.getElementById('agent-list'),
+
+  // Target Repo
   taskRepo: document.getElementById('task-repo'),
   taskRepoSearch: document.getElementById('task-repo-search'),
   repoDropdown: document.getElementById('repo-dropdown'),
   repoSearchContainer: document.getElementById('repo-search-container'),
   taskBranch: document.getElementById('task-branch'),
+  repoLoading: document.getElementById('repo-loading'),
+  repoChevron: document.getElementById('repo-chevron'),
+  repoError: document.getElementById('repo-error'),
+  branchInputContainer: document.getElementById('branch-input-container'),
+
+  // Task Prompt & Attachments
   taskPrompt: document.getElementById('task-prompt'),
   taskPromptPreview: document.getElementById('task-prompt-preview'),
   taskPromptTabWrite: document.getElementById('task-prompt-tab-write'),
   taskPromptTabPreview: document.getElementById('task-prompt-tab-preview'),
-  taskPromptImagesContainer: document.getElementById('task-prompt-images-container'),
-  taskPromptImagesCount: document.getElementById('task-prompt-images-count'),
-  taskPromptImages: document.getElementById('task-prompt-images'),
   taskSpeechBtn: document.getElementById('task-speech-btn'),
+  taskAttachmentInput: document.getElementById('task-attachment-input'),
+  taskPromptImages: document.getElementById('task-prompt-images'),
+  taskPromptImagesCount: document.getElementById('task-prompt-images-count'),
+
+  // Footer
   taskAutoPr: document.getElementById('task-auto-pr'),
   createTaskBtn: document.getElementById('create-task-btn'),
-  repoLoading: document.getElementById('repo-loading'),
-  repoChevron: document.getElementById('repo-chevron'),
-  repoError: document.getElementById('repo-error'),
   createTaskLoading: document.getElementById('create-task-loading'),
-  branchInputContainer: document.getElementById('branch-input-container'),
 
   // Create Repo Modal
   createRepoModal: document.getElementById('create-repo-modal'),
@@ -673,9 +689,31 @@ function setupEventListeners() {
 
   // New Task Modal
   elements.newTaskBtn.addEventListener('click', openNewTaskModal);
-  if (elements.newTaskTargetDevice) {
-    elements.newTaskTargetDevice.addEventListener('change', handleTargetDeviceChange);
+
+  if (elements.newTaskRemoteDeviceSelect) {
+    elements.newTaskRemoteDeviceSelect.addEventListener('change', (e) => {
+      const deviceId = e.target.value;
+      if (deviceId) {
+        state.newTask.targetDevice = state.computers.list.find(d => d.id === deviceId) || null;
+      } else {
+        state.newTask.targetDevice = null;
+      }
+      updateAgentList();
+      state.newTask.selectedService = null;
+      resetNewTaskForm({ keepInput: true, keepEnvironment: true });
+    });
   }
+
+  if (elements.agentSearchInput) {
+    elements.agentSearchInput.addEventListener('input', (e) => {
+      updateAgentList(e.target.value);
+    });
+  }
+
+  if (elements.taskAttachmentInput) {
+    elements.taskAttachmentInput.addEventListener('change', handleTaskAttachmentUpload);
+  }
+
   elements.taskPrompt.addEventListener('input', () => {
     validateNewTaskForm();
     if (state.newTask.promptMode === 'preview') {
@@ -2658,130 +2696,138 @@ function setNewTaskBranchOptions(branchNames, preferred = 'main') {
 }
 
 function resetNewTaskBranchDropdown() {
-  // Provide a sane default even when we can't fetch branches.
   setNewTaskBranchOptions(['main', 'master'], 'main');
 }
 
-function populateTargetDeviceDropdown() {
-  const select = elements.newTaskTargetDevice;
-  if (!select) return;
+window.selectEnvironment = function(envType) {
+  state.newTask.environment = envType;
 
-  select.innerHTML = '';
-
-  // Option 1: Cloud Provider
-  const cloudOption = document.createElement('option');
-  cloudOption.value = 'cloud';
-  cloudOption.textContent = 'CLOUD PROVIDER (JULES, CURSOR, CLAUDE)';
-  select.appendChild(cloudOption);
-
-  // Option 2: Local Device
-  const localOption = document.createElement('option');
-  localOption.value = 'local';
-  localOption.textContent = 'THIS COMPUTER (LOCAL)';
-  select.appendChild(localOption);
-
-  // Option 3: Remote Computers
-  // Filter out the local computer from remote list
-  state.computers.list.forEach(device => {
-    if (device.id === state.localDeviceId) return;
-
-    // Only show devices that are ON or have recent heartbeat
-    const lastHeartbeat = device.lastHeartbeat || device.heartbeatAt || device.updatedAt;
-    const isOnline = device.status === 'on' || (lastHeartbeat && (Date.now() - new Date(lastHeartbeat).getTime() < 1000 * 60 * 6)); // 6 mins
-
-    // Only show devices that have local CLI tools (Gemini/Claude)
-    // New structure: tools[0]['CLI tools'] is array of strings
-    let hasTools = false;
-    if (Array.isArray(device.tools) && device.tools.length > 0 && Array.isArray(device.tools[0]['CLI tools'])) {
-      const cliTools = device.tools[0]['CLI tools'];
-      // Check for Gemini CLI, Codex CLI, or claude CLI as these are the remote-capable tools
-      hasTools = cliTools.includes('Gemini CLI') || cliTools.includes('claude CLI') || cliTools.includes('Codex CLI');
+  // Visual state
+  ['cloud', 'local', 'remote'].forEach(t => {
+    const btn = document.getElementById(`env-${t}-btn`);
+    if (t === envType) {
+      btn.classList.remove('border-slate-200', 'dark:border-border-dark', 'text-slate-400', 'hover:bg-slate-800');
+      btn.classList.add('border-primary', 'bg-primary/5', 'text-white');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-slate-400');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-primary');
     } else {
-      // Fallback for old structure (object with boolean values)
-      hasTools = device.tools && !Array.isArray(device.tools) && Object.values(device.tools).some(t => t);
-    }
-
-    if (isOnline && hasTools) {
-       const option = document.createElement('option');
-       option.value = device.id;
-       option.textContent = `REMOTE: ${(device.name || device.id).toUpperCase()}`;
-       select.appendChild(option);
+      btn.classList.add('border-slate-200', 'dark:border-border-dark', 'text-slate-400', 'hover:bg-slate-800');
+      btn.classList.remove('border-primary', 'bg-primary/5', 'text-white');
+      btn.querySelector('.material-symbols-outlined').classList.add('text-slate-400');
+      btn.querySelector('.material-symbols-outlined').classList.remove('text-primary');
     }
   });
-}
 
-function handleTargetDeviceChange(e) {
-  const value = e.target.value;
+  // Handle Remote Device Selection
+  if (envType === 'remote') {
+    elements.remoteDeviceSelector.classList.remove('hidden');
+    elements.newTaskRemoteDeviceSelect.innerHTML = '<option value="">Select Device...</option>';
 
-  if (value === 'cloud') {
-    state.newTask.targetDevice = 'cloud';
-  } else if (value === 'local') {
-    state.newTask.targetDevice = 'local';
+    // Populate devices
+    const devices = state.computers.list.filter(d => {
+        if (d.id === state.localDeviceId) return false;
+        // Check online/recent
+        const lastHeartbeat = d.lastHeartbeat || d.heartbeatAt || d.updatedAt;
+        const isOnline = d.status === 'on' || (lastHeartbeat && (Date.now() - new Date(lastHeartbeat).getTime() < 1000 * 60 * 6));
+        return isOnline;
+    });
+
+    devices.forEach(d => {
+       const opt = document.createElement('option');
+       opt.value = d.id;
+       opt.textContent = (d.name || d.id).toUpperCase();
+       elements.newTaskRemoteDeviceSelect.appendChild(opt);
+    });
+
+    // Wait for selection
+    state.newTask.targetDevice = null;
   } else {
-    state.newTask.targetDevice = state.computers.list.find(d => d.id === value) || null;
+    elements.remoteDeviceSelector.classList.add('hidden');
+    state.newTask.targetDevice = envType;
   }
 
-  // Reset service selection as available services might change
+  // Reset service selection
   state.newTask.selectedService = null;
-  resetNewTaskForm({ keepInput: true });
+  resetNewTaskForm({ keepInput: true, keepEnvironment: true });
+  updateAgentList();
+};
 
-  updateServiceButtonVisibility();
-}
+function updateAgentList(filter = '') {
+  if (!elements.agentList) return;
 
-function tryParseGithubOwnerRepo(repoData) {
-  if (!repoData) return null;
+  elements.agentList.innerHTML = '';
+  const filterText = filter.toLowerCase();
 
-  // Jules sources include explicit owner/repo.
-  if (repoData.owner && repoData.repo) {
-    return { owner: repoData.owner, repo: repoData.repo };
-  }
+  const providers = [
+    { id: 'jules', name: 'Jules', type: 'cloud', description: 'GitHub Agent' },
+    { id: 'cursor', name: 'Cursor', type: 'cloud', description: 'Code Editor Agent' },
+    { id: 'claude-cloud', name: 'Claude Cloud', type: 'cloud', description: 'Anthropic API' },
+    { id: 'gemini', name: 'Gemini CLI', type: 'cli', description: 'Google CLI' },
+    { id: 'claude-cli', name: 'Claude CLI', type: 'cli', description: 'Anthropic CLI' },
+    { id: 'codex', name: 'Codex', type: 'cli', description: 'OpenAI CLI' }
+  ];
 
-  // Cursor repos usually provide a GitHub URL.
-  const url = repoData.url || repoData.repository || '';
-  const match = typeof url === 'string' ? url.match(/github\.com\/([^\/]+)\/([^\/]+)/) : null;
-  if (match) {
-    return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
-  }
+  let availableCount = 0;
+  const targetDevice = state.newTask.targetDevice;
 
-  return null;
-}
+  providers.forEach(p => {
+    let visible = false;
 
-async function refreshNewTaskBranchesFromSelectedRepo() {
-  // Only relevant when branch input is visible (Jules/Cursor).
-  if (elements.branchInputContainer.classList.contains('hidden')) return;
+    if (targetDevice === 'cloud') {
+       if (p.type === 'cloud' && state.configuredServices[p.id]) visible = true;
+    } else if (targetDevice === 'local') {
+       if (p.type === 'cli' && state.capabilities[p.id]?.local) visible = true;
+    } else if (targetDevice && typeof targetDevice === 'object') {
+       // Remote logic
+       const cliTools = (Array.isArray(targetDevice.tools) && targetDevice.tools.length > 0 && targetDevice.tools[0]['CLI tools'])
+          ? targetDevice.tools[0]['CLI tools']
+          : [];
 
-  const repoDataStr = elements.taskRepo.dataset.repoData;
-  const repoData = repoDataStr ? JSON.parse(repoDataStr) : null;
+       if (p.id === 'gemini' && cliTools.includes('Gemini CLI')) visible = true;
+       if (p.id === 'claude-cli' && cliTools.includes('claude CLI')) visible = true;
+       if (p.id === 'codex' && cliTools.includes('Codex CLI')) visible = true;
+    }
 
-  // Always fall back to main (+ default branch if known).
-  const fallback = ['main', 'master'];
-  if (repoData?.defaultBranch) fallback.unshift(repoData.defaultBranch);
+    if (visible && (p.name.toLowerCase().includes(filterText) || p.description.toLowerCase().includes(filterText))) {
+       availableCount++;
+       const isSelected = state.newTask.selectedService === p.id;
 
-  const electronAPI = getElectronAPI();
-  const canFetch = !!(electronAPI?.github?.getBranches && state.configuredServices.github);
-  const gh = canFetch ? tryParseGithubOwnerRepo(repoData) : null;
+       const btn = document.createElement('label');
+       btn.className = `flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'bg-slate-800/50 border-primary' : 'border-slate-700 hover:bg-slate-800 text-slate-400'}`;
 
-  if (!canFetch || !gh) {
-    setNewTaskBranchOptions(fallback, 'main');
-    return;
-  }
+       // Provider dot color
+       const dotColors = {
+         'jules': 'bg-primary',
+         'cursor': 'bg-blue-500',
+         'claude-cloud': 'bg-amber-500',
+         'gemini': 'bg-emerald-500',
+         'claude-cli': 'bg-orange-500',
+         'codex': 'bg-cyan-500'
+       };
 
-  try {
-    const result = await electronAPI.github.getBranches(gh.owner, gh.repo);
-    const branches = (result?.success ? result.branches : null) || [];
-    const names = branches.map(b => b?.name).filter(Boolean);
+       btn.innerHTML = `
+         <div class="flex items-center gap-3">
+           <div class="w-2 h-2 rounded-full ${dotColors[p.id] || 'bg-slate-500'}"></div>
+           <span class="text-sm font-semibold ${isSelected ? 'text-white' : ''}">${escapeHtml(p.name)}</span>
+         </div>
+         <input type="radio" name="agent" class="text-primary focus:ring-0 bg-slate-900 border-slate-700"
+           ${isSelected ? 'checked' : ''} onchange="selectService('${p.id}')"/>
+       `;
+       elements.agentList.appendChild(btn);
+    }
+  });
 
-    setNewTaskBranchOptions([...fallback, ...names], 'main');
-  } catch (err) {
-    console.warn('Failed to load branches for new task:', err);
-    setNewTaskBranchOptions(fallback, 'main');
+  if (availableCount === 0) {
+     elements.agentList.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">No compatible agents found for this environment.</div>`;
   }
 }
 
 function openNewTaskModal() {
-  // Reset state
+  // Defaults
   state.newTask = {
     selectedService: null,
+    environment: 'local',
+    targetDevice: 'local',
     repositories: [],
     loadingRepos: false,
     creating: false,
@@ -2789,21 +2835,11 @@ function openNewTaskModal() {
     pastedImages: []
   };
 
-  // Populate devices
-  populateTargetDeviceDropdown();
-  // Default to Local CLI if available, else Cloud
-  if (elements.newTaskTargetDevice) {
-     // Check if we have options (populateTargetDeviceDropdown creates groups)
-     // Try to select 'local' by default
-     elements.newTaskTargetDevice.value = 'local';
-     state.newTask.targetDevice = 'local';
-  }
-
-  // Reset form
+  // Reset UI
   resetNewTaskForm();
   
-  // Update service button visibility based on configured services
-  updateServiceButtonVisibility();
+  // Set default environment
+  window.selectEnvironment('local');
   
   // Show modal
   elements.newTaskModal.classList.remove('hidden');
@@ -3108,29 +3144,37 @@ function renderTaskPromptPreview() {
   elements.taskPromptPreview.innerHTML = sanitizeMarkdownToHtml(prompt);
 }
 
-function renderNewTaskPastedImages() {
-  if (!elements.taskPromptImages || !elements.taskPromptImagesContainer) return;
+function renderAttachments() {
+  if (!elements.taskPromptImages || !elements.taskPromptImagesCount) return;
 
   const imgs = state.newTask.pastedImages || [];
-  elements.taskPromptImagesContainer.classList.toggle('hidden', imgs.length === 0);
-  if (elements.taskPromptImagesCount) {
-    elements.taskPromptImagesCount.textContent = `${imgs.length}`;
-  }
+  elements.taskPromptImagesCount.textContent = `${imgs.length}`;
 
-  elements.taskPromptImages.innerHTML = imgs.map(img => `
-    <div class="relative w-20 h-20 border border-border-dark bg-black overflow-hidden group cursor-pointer"
+  // Keep upload button as the last element
+  const uploadButtonHtml = `
+    <button onclick="document.getElementById('task-attachment-input').click()"
+            class="aspect-video rounded-lg border-2 border-dashed border-slate-800 flex flex-col items-center justify-center gap-1 hover:border-slate-600 transition-colors text-slate-500">
+      <span class="material-symbols-outlined">add_photo_alternate</span>
+      <span class="text-[10px] font-bold">Upload</span>
+    </button>
+  `;
+
+  const imagesHtml = imgs.map(img => `
+    <div class="relative aspect-video rounded-lg overflow-hidden border border-slate-700 group cursor-pointer"
          onclick="openPastedImageModal('${escapeJsString(img.id)}')"
          title="${escapeHtml(img.name || 'pasted image')}">
-      <img src="${escapeHtml(img.dataUrl)}" alt="${escapeHtml(img.name || 'pasted image')}"
-           class="w-full h-full object-cover" />
-      <button type="button"
-              onclick="event.stopPropagation(); removePastedImage('${escapeJsString(img.id)}')"
-              class="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-black/70 text-slate-200 hover:text-red-300 border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Remove">
-        <span class="material-symbols-outlined text-sm">close</span>
-      </button>
+      <img src="${escapeHtml(img.dataUrl)}" alt="attachment" class="w-full h-full object-cover" />
+      <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <button type="button"
+                onclick="event.stopPropagation(); removePastedImage('${escapeJsString(img.id)}')"
+                class="bg-red-500 text-white p-1 rounded-full hover:bg-red-600">
+          <span class="material-symbols-outlined text-xs">close</span>
+        </button>
+      </div>
     </div>
   `).join('');
+
+  elements.taskPromptImages.innerHTML = imagesHtml + uploadButtonHtml;
 }
 
 function openPastedImageModal(imageId) {
@@ -3148,7 +3192,7 @@ function closePastedImageModal() {
 
 function removePastedImage(imageId) {
   state.newTask.pastedImages = (state.newTask.pastedImages || []).filter(i => i.id !== imageId);
-  renderNewTaskPastedImages();
+  renderAttachments();
 }
 
 window.openPastedImageModal = openPastedImageModal;
@@ -3160,47 +3204,55 @@ async function handleTaskPromptPaste(event) {
   const imageItems = items.filter(i => i.kind === 'file' && typeof i.type === 'string' && i.type.startsWith('image/'));
   if (imageItems.length === 0) return;
 
-  // Avoid inserting the image as text (some browsers paste a filename/placeholder).
   event.preventDefault();
 
   const files = imageItems.map(i => i.getAsFile()).filter(Boolean);
+  await processFiles(files);
+}
+
+async function handleTaskAttachmentUpload(event) {
+  const files = Array.from(event.target.files);
+  if (files.length === 0) return;
+
+  await processFiles(files);
+  event.target.value = ''; // Reset input
+}
+
+async function processFiles(files) {
   for (const file of files) {
     const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('Failed to read pasted image'));
-      reader.onload = () => resolve(reader.result);
-      reader.readAsDataURL(file);
-    });
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
 
-    state.newTask.pastedImages.push({
-      id,
-      name: file.name || `pasted-${id}.png`,
-      mimeType: file.type || 'image/png',
-      size: file.size || 0,
-      dataUrl: typeof dataUrl === 'string' ? dataUrl : ''
-    });
+      state.newTask.pastedImages.push({
+        id,
+        name: file.name || `attachment-${id}.png`,
+        mimeType: file.type || 'image/png',
+        size: file.size || 0,
+        dataUrl: typeof dataUrl === 'string' ? dataUrl : ''
+      });
+    } catch (err) {
+      console.error('Failed to process file:', err);
+      showToast('Failed to attach image', 'error');
+    }
   }
-
-  renderNewTaskPastedImages();
+  renderAttachments();
 }
 
 function resetNewTaskForm(options = {}) {
-  // Reset service selection
-  document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-primary', 'bg-primary/5');
-    btn.classList.add('border-border-dark');
-  });
-
-  // Reset form fields - searchable dropdown
+  // Clear repo elements
   elements.taskRepo.value = '';
   elements.taskRepo.dataset.repoData = '';
   elements.taskRepoSearch.value = '';
+  elements.taskRepoSearch.disabled = true; // Disabled until service selected
   elements.taskRepoSearch.placeholder = 'Select service first...';
-  elements.taskRepoSearch.disabled = true;
   elements.repoDropdown.innerHTML = '';
   hideRepoDropdown();
-  
   resetNewTaskBranchDropdown();
 
   if (!options.keepInput) {
@@ -3208,42 +3260,38 @@ function resetNewTaskForm(options = {}) {
     state.newTask.promptMode = 'write';
     state.newTask.pastedImages = [];
     setTaskPromptMode('write');
-    renderNewTaskPastedImages();
+    renderAttachments();
   }
 
-  elements.taskAutoPr.checked = true;
+  // Environment reset
+  if (!options.keepEnvironment) {
+     // No op here if we rely on window.selectEnvironment being called elsewhere or defaulted
+  }
+
+  if (elements.taskAutoPr) elements.taskAutoPr.checked = true;
   elements.createTaskBtn.disabled = true;
-  elements.serviceStatus.textContent = '';
-  elements.repoError.classList.add('hidden');
-  elements.repoLoading.classList.add('hidden');
-  elements.repoChevron.classList.remove('hidden');
-  elements.createTaskLoading.classList.add('hidden');
-  elements.branchInputContainer.classList.remove('hidden');
+  if (elements.repoError) elements.repoError.classList.add('hidden');
+  if (elements.repoLoading) elements.repoLoading.classList.add('hidden');
+  if (elements.repoChevron) elements.repoChevron.classList.remove('hidden');
+  if (elements.createTaskLoading) elements.createTaskLoading.classList.add('hidden');
+  if (elements.branchInputContainer) elements.branchInputContainer.classList.add('hidden');
 }
 
 window.selectService = async function(service) {
   state.newTask.selectedService = service;
 
-  // Update UI for selected service
-  document.querySelectorAll('.service-btn').forEach(btn => {
-    btn.classList.remove('border-primary', 'bg-primary/5');
-    btn.classList.add('border-border-dark');
-  });
+  // Highlight UI
+  updateAgentList(elements.agentSearchInput?.value || '');
 
-  const selectedBtn = document.getElementById(`service-${service}`);
-  selectedBtn.classList.remove('border-border-dark');
-  selectedBtn.classList.add('border-primary', 'bg-primary/5');
-
-  // Show/hide branch input - hide for local CLI tools and cloud-only services
-  if (service === 'gemini' || service === 'codex' || service === 'claude-cli' || service === 'claude-cloud') {
+  // Handle branch input visibility
+  if (['gemini', 'codex', 'claude-cli', 'claude-cloud'].includes(service)) {
     elements.branchInputContainer.classList.add('hidden');
   } else {
     elements.branchInputContainer.classList.remove('hidden');
-    // If a repo is already selected (e.g., user switches services), refresh branches.
     void refreshNewTaskBranchesFromSelectedRepo();
   }
 
-  // Load repositories for this service
+  // Trigger repo load
   await loadRepositoriesForService(service);
 };
 
@@ -3278,15 +3326,13 @@ async function loadRepositoriesForService(service) {
     state.newTask.repositories = cachedRepos;
     populateRepoDropdown(cachedRepos, service);
 
-    elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
+    elements.taskRepoSearch.placeholder = 'Search and select repo...';
     elements.taskRepoSearch.disabled = false;
 
     // Subtle loading state
     state.newTask.loadingRepos = true; // Still "loading" in background
     elements.repoLoading.classList.remove('hidden');
-    elements.repoChevron.classList.add('hidden'); // Show spinner instead of chevron
-    elements.serviceStatus.textContent = `${cachedRepos.length} repositories (refreshing...)`;
-    elements.serviceStatus.className = 'mt-3 text-xs technical-font text-slate-500 animate-pulse';
+    elements.repoChevron.classList.add('hidden');
 
     validateNewTaskForm();
   } else {
@@ -3296,7 +3342,6 @@ async function loadRepositoriesForService(service) {
     elements.taskRepoSearch.placeholder = 'Loading repositories...';
     elements.repoLoading.classList.remove('hidden');
     elements.repoChevron.classList.add('hidden');
-    elements.serviceStatus.textContent = '';
   }
 
   // Define fetch operation
@@ -3355,12 +3400,8 @@ async function loadRepositoriesForService(service) {
 
       if (finalRepos.length === 0) {
         elements.taskRepoSearch.placeholder = 'No repositories found';
-        elements.serviceStatus.textContent = 'No repositories available for this service';
-        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-400';
       } else {
-        elements.taskRepoSearch.placeholder = 'Type to search or click to select...';
-        elements.serviceStatus.textContent = `${finalRepos.length} repositories available`;
-        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-emerald-400';
+        elements.taskRepoSearch.placeholder = 'Search and select repo...';
       }
 
       // Clear any error
@@ -3375,15 +3416,10 @@ async function loadRepositoriesForService(service) {
         elements.repoError.textContent = err.message;
         elements.repoError.classList.remove('hidden');
         elements.taskRepoSearch.placeholder = 'Error loading repositories';
-        elements.serviceStatus.textContent = err.message;
-        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-red-400';
 
         state.newTask.repositories = [];
         populateRepoDropdown([], service);
       } else {
-        // We have cache, just show a toast or small error in status
-        elements.serviceStatus.textContent = `${cachedRepos.length} repositories (offline/cached)`;
-        elements.serviceStatus.className = 'mt-3 text-xs technical-font text-yellow-500';
         console.warn('Background repo refresh failed', err);
       }
     } finally {

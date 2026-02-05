@@ -311,6 +311,28 @@ export default function BranchesView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
 
+  const handleViewPR = async (pr: PullRequest) => {
+    setSelectedPR(pr);
+    if (selectedRepo) {
+      try {
+        const fullPr = await githubService.getPullRequestDetails(
+          selectedRepo.owner.login,
+          selectedRepo.name,
+          pr.number
+        );
+
+        setSelectedPR((current) => {
+          if (current && current.number === pr.number) {
+            return fullPr;
+          }
+          return current;
+        });
+      } catch (err) {
+        console.error('Failed to load PR details:', err);
+      }
+    }
+  };
+
   const handleMergePr = async (pr: PullRequest) => {
     if (!selectedRepo) return;
     if (!window.confirm(`Are you sure you want to merge pull request #${pr.number}?`)) return;
@@ -510,7 +532,7 @@ export default function BranchesView() {
                   <PRCard
                     key={pr.id}
                     pr={pr}
-                    onView={() => setSelectedPR(pr)}
+                    onView={() => handleViewPR(pr)}
                   />
                 ))}
               </div>

@@ -314,13 +314,18 @@ class JulesService {
     const allSources = [];
     let pageToken = null;
 
-    do {
-      const response = await this.listSources(50, pageToken);
-      if (response.sources) {
-        allSources.push(...response.sources);
-      }
-      pageToken = response.nextPageToken || null;
-    } while (pageToken);
+    try {
+      do {
+        const response = await this.listSources(50, pageToken);
+        if (response.sources) {
+          allSources.push(...response.sources);
+        }
+        pageToken = response.nextPageToken || null;
+      } while (pageToken);
+    } catch (err) {
+      console.warn('Error fetching Jules sources:', err.message);
+      // Return whatever we managed to fetch (or empty array)
+    }
 
     return allSources.map(source => ({
       id: source.name,

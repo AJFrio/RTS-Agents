@@ -291,7 +291,7 @@ class CursorService {
       }
     } catch (err) {
       console.warn('Error fetching Cursor cloud repositories:', err.message);
-      throw err;
+      // Continue to fetch local repos even if cloud fails
     }
 
     const localRepos = await this.getAvailableLocalRepositories(localPaths);

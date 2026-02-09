@@ -49,7 +49,7 @@ const Repositories: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full">
       <div className="flex items-center justify-between mb-6">
          <div className="flex items-center gap-4">
             <h3 className="text-lg font-semibold dark:text-white tracking-tight">Repositories</h3>
@@ -73,7 +73,7 @@ const Repositories: React.FC = () => {
          </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full w-full overflow-hidden">
          {/* Repo List */}
          <div className="lg:col-span-1 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-[calc(100vh-200px)] overflow-hidden">
             <div className="p-4 border-b border-slate-200 dark:border-border-dark">
@@ -116,7 +116,7 @@ const Repositories: React.FC = () => {
                  <span className="text-sm font-medium">Select a repository</span>
               </div>
             ) : (
-              <div className="flex flex-col h-full">
+              <div className="flex flex-col h-full w-full">
                  <div className="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center bg-slate-50 dark:bg-black/20">
                     <div>
                        <h2 className="text-xl font-semibold text-slate-800 dark:text-white tracking-tight">{github.selectedRepo.name}</h2>
@@ -152,7 +152,7 @@ const Repositories: React.FC = () => {
                     </div>
                  </div>
 
-                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                 <div className="flex-1 overflow-y-auto p-6 space-y-4 w-full">
                     {github.loadingPrs ? (
                       <div className="flex flex-col items-center justify-center h-32">
                          <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>

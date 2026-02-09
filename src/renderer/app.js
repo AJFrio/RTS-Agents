@@ -424,6 +424,7 @@ async function init() {
   setupEventListeners();
   setupSpeechRecognition();
   setupPollingListener();
+  setupRepoSearchDropdown();
   await loadSettings();
   await loadAgents();
   await checkConnectionStatus();
@@ -538,23 +539,11 @@ function setupEventListeners() {
     return loadAgents();
   });
 
-  // Provider filters
-  document.querySelectorAll('.provider-filter').forEach(checkbox => {
-    checkbox.addEventListener('change', (e) => {
-      const provider = e.target.id.replace('filter-', '');
-      state.filters.providers[provider] = e.target.checked;
-      applyFilters();
-      saveFilters();
-    });
-  });
-
-  // Status filters
-  document.querySelectorAll('.status-filter').forEach(checkbox => {
-    checkbox.addEventListener('change', (e) => {
-      const status = e.target.id.replace('filter-', '');
-      state.filters.statuses[status] = e.target.checked;
-      applyFilters();
-      saveFilters();
+  // Tab Switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const status = btn.dataset.status;
+      setTab(status);
     });
   });
 
@@ -819,6 +808,31 @@ function setupEventListeners() {
       applyTheme('system');
     }
   });
+}
+
+function setTab(status) {
+  state.currentTab = status;
+
+  // Update Tab UI
+  ['all', 'running', 'completed', 'failed'].forEach(s => {
+    const btn = document.getElementById(`tab-${s}`);
+    if (s === status) {
+      btn.classList.add('border-primary', 'text-primary');
+      btn.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-700', 'dark:hover:text-slate-300', 'hover:text-red-500', 'dark:hover:text-red-400');
+    } else {
+      btn.classList.remove('border-primary', 'text-primary');
+      btn.classList.add('border-transparent', 'text-slate-500');
+
+      // Hover states based on tab type
+      if (s === 'failed') {
+        btn.classList.add('hover:text-red-500', 'dark:hover:text-red-400');
+      } else {
+        btn.classList.add('hover:text-slate-700', 'dark:hover:text-slate-300');
+      }
+    }
+  });
+
+  applyFilters();
 }
 
 function setupPollingListener() {
@@ -1397,34 +1411,17 @@ async function saveFilters() {
 }
 
 function updateFilterUI() {
-  // Update provider checkboxes
-  Object.keys(state.filters.providers).forEach(provider => {
-    const checkbox = document.getElementById(`filter-${provider}`);
-    if (checkbox) {
-      checkbox.checked = state.filters.providers[provider];
-    }
-  });
-
-  // Update status checkboxes
-  Object.keys(state.filters.statuses).forEach(status => {
-    const checkbox = document.getElementById(`filter-${status}`);
-    if (checkbox) {
-      checkbox.checked = state.filters.statuses[status];
-    }
-  });
+  // Update search input if it exists
+  if (elements.searchInput) {
+    elements.searchInput.value = state.filters.search || '';
+  }
 }
 
 function applyFilters() {
-  const { providers, statuses, search } = state.filters;
+  const { search } = state.filters;
+  const tab = state.currentTab;
 
   state.filteredAgents = state.agents.filter(agent => {
-    // Provider filter
-    if (!providers[agent.provider]) return false;
-
-    // Status filter
-    const statusKey = agent.status === 'stopped' ? 'failed' : agent.status;
-    if (!statuses[statusKey]) return false;
-
     // Search filter
     if (search) {
       const searchFields = [
@@ -1437,7 +1434,16 @@ function applyFilters() {
       if (!searchFields.includes(search)) return false;
     }
 
-    return true;
+    // Tab Filter
+    if (tab === 'running') {
+      return agent.status === 'running' || agent.status === 'pending' || agent.status === 'analyzing';
+    } else if (tab === 'completed') {
+      return agent.status === 'completed';
+    } else if (tab === 'failed') {
+      return agent.status === 'failed' || agent.status === 'stopped' || agent.status === 'error';
+    }
+
+    return true; // 'all'
   });
 
   // Reset to page 1 when filters change

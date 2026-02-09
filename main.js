@@ -46,7 +46,9 @@ function createWindow() {
     show: false
   });
 
-  mainWindow.loadFile('index.html');
+  // In production (or when built), load from dist
+  // In development, you might load from localhost, but for this setup we build first
+  mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   
   // Show window when ready to prevent flash
   mainWindow.once('ready-to-show', () => {

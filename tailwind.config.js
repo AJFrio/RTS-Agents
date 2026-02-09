@@ -2,11 +2,9 @@
 module.exports = {
   darkMode: 'class',
   content: [
-    "./index.html",
-    "./src/**/*.{js,html}",
-    "./*.{js,html}"
+    "./src/renderer/index.html",
+    "./src/renderer/**/*.{js,ts,jsx,tsx}"
   ],
-  // Safelist dynamic classes used in JavaScript
   safelist: [
     // Provider colors - borders and backgrounds
     'border-emerald-500', 'bg-emerald-500/5', 'text-emerald-500',

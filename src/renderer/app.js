@@ -2667,6 +2667,75 @@ window.closeModal = function() {
 // New Task Modal
 // ============================================ 
 
+function tryParseGithubOwnerRepo(repo) {
+  if (!repo) return null;
+  // If it's a GitHub API object
+  if (repo.owner && repo.name) {
+    const owner = (typeof repo.owner === 'object') ? (repo.owner.login || repo.owner.name) : repo.owner;
+    return { owner, repo: repo.name };
+  }
+  // If it has full_name "owner/repo"
+  if (repo.full_name) {
+    const parts = repo.full_name.split('/');
+    if (parts.length === 2) return { owner: parts[0], repo: parts[1] };
+  }
+  // If it has a URL
+  const url = repo.url || repo.html_url || repo.clone_url;
+  if (url) {
+    // Match github.com/owner/repo or github.com/owner/repo.git
+    const match = url.match(/github\.com\/([^\/]+)\/([^\/]+?)(\.git)?$/);
+    if (match) return { owner: match[1], repo: match[2] };
+  }
+  return null;
+}
+
+async function refreshNewTaskBranchesFromSelectedRepo() {
+  const electronAPI = getElectronAPI();
+  if (!electronAPI || !electronAPI.github || !electronAPI.github.getBranches) return;
+
+  const repoDataStr = elements.taskRepo.dataset.repoData;
+  if (!repoDataStr) {
+    resetNewTaskBranchDropdown();
+    return;
+  }
+
+  let repoData;
+  try {
+    repoData = JSON.parse(repoDataStr);
+  } catch (e) {
+    resetNewTaskBranchDropdown();
+    return;
+  }
+
+  const gh = tryParseGithubOwnerRepo(repoData);
+  if (!gh) {
+    // Not a GitHub repo, or couldn't parse.
+    // Fallback to default branches.
+    resetNewTaskBranchDropdown();
+    return;
+  }
+
+  // Show loading state
+  const previousValue = elements.taskBranch.value;
+  elements.taskBranch.innerHTML = '<option>Loading...</option>';
+  elements.taskBranch.disabled = true;
+
+  try {
+    const result = await electronAPI.github.getBranches(gh.owner, gh.repo);
+    if (result.success && Array.isArray(result.branches)) {
+      const names = result.branches.map(b => b.name);
+      setNewTaskBranchOptions(names, previousValue);
+    } else {
+      resetNewTaskBranchDropdown();
+    }
+  } catch (err) {
+    console.warn('Failed to fetch branches:', err);
+    resetNewTaskBranchDropdown();
+  } finally {
+    elements.taskBranch.disabled = false;
+  }
+}
+
 function setNewTaskBranchOptions(branchNames, preferred = 'main') {
   const unique = Array.from(new Set((branchNames || []).filter(Boolean)));
 

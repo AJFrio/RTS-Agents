@@ -22,8 +22,8 @@ const PROVIDERS = [
 
 const STATUS_FILTERS = [
   { id: 'running', label: 'RUNNING' },
-  { id: 'completed', label: 'OP-COMPLETE' },
-  { id: 'pending', label: 'PENDING_QUEUE', muted: true },
+  { id: 'completed', label: 'Completed' },
+  { id: 'pending', label: 'Pending' },
   { id: 'failed', label: 'FAILED/STOPPED', muted: true },
 ];
 

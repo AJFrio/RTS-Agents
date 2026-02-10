@@ -7,6 +7,10 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
 const CLAUDE_PROJECTS_DIR = path.join(CLAUDE_HOME, 'projects');
 
+const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const ANTHROPIC_API_VERSION = '2023-06-01';
+const CLAUDE_DEFAULT_TOOLS = 'Read,Edit,Bash';
+
 // Store for tracking cloud conversations (since Anthropic doesn't have a list conversations endpoint)
 let trackedConversations = [];
 
@@ -192,7 +196,7 @@ class ClaudeService {
         method: method,
         headers: {
           'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
+          'anthropic-version': ANTHROPIC_API_VERSION,
           'Content-Type': 'application/json'
         }
       };
@@ -238,7 +242,7 @@ class ClaudeService {
    */
   async createMessage(messages, options = {}) {
     const body = {
-      model: options.model || 'claude-sonnet-4-20250514',
+      model: options.model || CLAUDE_DEFAULT_MODEL,
       max_tokens: options.max_tokens || 4096,
       messages: messages,
       ...options
@@ -559,7 +563,7 @@ class ClaudeService {
     try {
       // Make the API request
       const response = await this.createMessage(messages, {
-        model: 'claude-sonnet-4-20250514',
+        model: CLAUDE_DEFAULT_MODEL,
         max_tokens: 4096
       });
 
@@ -609,7 +613,7 @@ class ClaudeService {
    */
   async startLocalSession(options) {
     const { spawn } = require('child_process');
-    const { prompt, projectPath, allowedTools = 'Read,Edit,Bash', command } = options;
+    const { prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');

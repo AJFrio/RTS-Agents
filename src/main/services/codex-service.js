@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE_URL = 'https://api.openai.com/v1';
+const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
 
 // Store for tracking created thread IDs (since OpenAI doesn't have a list threads endpoint)
 let trackedThreads = [];
@@ -141,7 +142,7 @@ class CodexService {
    */
   async createRun(threadId, options = {}) {
     const body = {
-      assistant_id: options.assistantId || 'asst_codex', // Default Codex assistant
+      assistant_id: options.assistantId || CODEX_DEFAULT_ASSISTANT_ID, // Default Codex assistant
       ...options
     };
 

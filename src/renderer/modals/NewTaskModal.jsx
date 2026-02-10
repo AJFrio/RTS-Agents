@@ -57,6 +57,7 @@ export default function NewTaskModal({ open, onClose, api }) {
   const [selectedRepo, setSelectedRepo] = useState('');
   const [repoSearch, setRepoSearch] = useState('');
   const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [branch, setBranch] = useState('main');
@@ -86,6 +87,55 @@ export default function NewTaskModal({ open, onClose, api }) {
     const r = repos.find((x) => (x.id ?? x.path) === selectedRepo);
     return r ? (r.name || r.displayName || r.id || r.path || selectedRepo) : selectedRepo;
   }, [repos, selectedRepo]);
+
+  const repoListRef = React.useRef(null);
+
+  useEffect(() => {
+    if (repoDropdownOpen) {
+      setHighlightedIndex(-1);
+    }
+  }, [repoDropdownOpen, repoSearch]);
+
+  useEffect(() => {
+    if (highlightedIndex >= 0 && repoListRef.current) {
+      const list = repoListRef.current;
+      const element = list.children[highlightedIndex];
+      if (element) {
+        element.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [highlightedIndex]);
+
+  const handleRepoKeyDown = (e) => {
+    if (!repoDropdownOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        setRepoDropdownOpen(true);
+      }
+      return;
+    }
+
+    if (filteredRepos.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % filteredRepos.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev <= 0 ? filteredRepos.length - 1 : prev - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < filteredRepos.length) {
+        const repo = filteredRepos[highlightedIndex];
+        const value = repo.id ?? repo.path;
+        setSelectedRepo(value);
+        setRepoSearch('');
+        setRepoDropdownOpen(false);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setRepoDropdownOpen(false);
+    }
+  };
 
   // When modal opens, ensure environment is synced; when Remote, refresh computers
   useEffect(() => {
@@ -320,11 +370,13 @@ export default function NewTaskModal({ open, onClose, api }) {
                           setRepoDropdownOpen(true);
                         }}
                         onFocus={() => setRepoDropdownOpen(true)}
+                        onKeyDown={handleRepoKeyDown}
                         placeholder={loadingRepos && repos.length === 0 ? 'Loading...' : 'Select repository'}
                         className="flex-1 py-2.5 pl-4 pr-2 text-sm text-slate-800 dark:text-slate-200 bg-transparent border-0 rounded-l-lg focus:ring-0"
                         aria-label="Search or select repository"
                         aria-expanded={repoDropdownOpen}
                         aria-haspopup="listbox"
+                        aria-activedescendant={highlightedIndex >= 0 ? `repo-option-${highlightedIndex}` : undefined}
                       />
                       <div className="flex items-center justify-end shrink-0">
                         {loadingRepos && (
@@ -351,29 +403,32 @@ export default function NewTaskModal({ open, onClose, api }) {
                           onClick={() => setRepoDropdownOpen(false)}
                         />
                         <ul
+                          ref={repoListRef}
                           className="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg shadow-lg py-1"
                           role="listbox"
                         >
                           {filteredRepos.length === 0 ? (
                             <li className="px-3 py-2 text-sm text-slate-500">No repositories found</li>
                           ) : (
-                            filteredRepos.map((r) => {
+                            filteredRepos.map((r, index) => {
                               const value = r.id ?? r.path;
                               const label = r.name || r.displayName || r.id || r.path || value;
+                              const isHighlighted = index === highlightedIndex;
+                              const isSelected = selectedRepo === value;
                               return (
-                                <li key={value}>
+                                <li key={value} id={`repo-option-${index}`}>
                                   <button
                                     type="button"
                                     role="option"
-                                    aria-selected={selectedRepo === value}
+                                    aria-selected={isSelected}
                                     onClick={() => {
                                       setSelectedRepo(value);
                                       setRepoSearch('');
                                       setRepoDropdownOpen(false);
                                     }}
                                     className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                                      selectedRepo === value ? 'bg-primary/10 text-primary' : ''
-                                    }`}
+                                      isHighlighted ? 'bg-slate-100 dark:bg-slate-800' : ''
+                                    } ${isSelected ? 'text-primary font-medium' : ''}`}
                                   >
                                     {label}
                                   </button>
@@ -437,20 +492,13 @@ export default function NewTaskModal({ open, onClose, api }) {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  ATTACHED CONTEXT (2)
+                  ATTACHED CONTEXT
                 </label>
                 <button type="button" className="text-primary text-xs font-medium hover:underline">
                   Add More
                 </button>
               </div>
               <div className="flex gap-3 flex-wrap">
-                {/* Placeholder thumbnails for attached context */}
-                <div className="w-20 h-20 rounded-lg bg-slate-700 dark:bg-slate-600 border border-slate-600 dark:border-slate-500 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-slate-400 text-2xl">code</span>
-                </div>
-                <div className="w-20 h-20 rounded-lg bg-slate-700 dark:bg-slate-600 border border-slate-600 dark:border-slate-500 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-slate-400 text-2xl">devices</span>
-                </div>
                 <button
                   type="button"
                   className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-500 dark:border-slate-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:border-slate-400 hover:text-slate-300 transition-colors shrink-0"

@@ -100,7 +100,6 @@ export default function PullRequestsPage() {
                         </span>
                         <span>#{pr.number}</span>
                         <div className="flex items-center gap-2 ml-auto lg:ml-0">
-                           <img src={pr.user?.avatar_url} alt={pr.user?.login} className="w-5 h-5 rounded-full" />
                            <span>{pr.user?.login}</span>
                         </div>
                       </div>

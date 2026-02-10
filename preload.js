@@ -291,10 +291,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /**
    * Create a new task/session
-   * @param {string} provider - 'gemini', 'jules', or 'cursor'
+   * @param {string} provider - 'gemini', 'jules', 'cursor', 'codex', 'claude-cli', 'claude-cloud'
    * @param {object} options - Provider-specific options
    * @param {string} options.prompt - Task description
-   * @param {string} options.repository - Repository URL or source name
+   * @param {string} [options.repository] - Repository URL, source name, or path
+   * @param {string} [options.projectPath] - For remote tasks, repository path
+   * @param {string} [options.targetDeviceId] - For remote execution, target device ID
    * @param {string} [options.branch] - Branch name (defaults to 'main')
    * @param {boolean} [options.autoCreatePr] - Auto-create PR (defaults to true)
    */

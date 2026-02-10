@@ -4,14 +4,15 @@
   "description": "RTS Agents Dashboard - Monitor Gemini CLI, Jules, and Cursor Cloud Agents",
   "main": "main.js",
   "scripts": {
-    "start": "npm run build:css:prod && electron .",
-    "dev": "npm run build:css:once && electron .",
+    "start": "npm run build && electron .",
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "build": "vite build && npm run build:css:prod",
     "dev:headless": "node headless.js",
     "build:css": "tailwindcss -i ./src/input.css -o ./styles/output.css --watch",
     "build:css:once": "tailwindcss -i ./src/input.css -o ./styles/output.css",
     "build:css:prod": "tailwindcss -i ./src/input.css -o ./styles/output.css --minify",
     "test": "jest",
-    "test:e2e": "npm run build:css:prod && env -u DISPLAY xvfb-maybe playwright test"
+    "test:e2e": "npm run build && env -u DISPLAY xvfb-maybe playwright test"
   },
   "keywords": [
     "electron",
@@ -28,6 +29,14 @@
     "electron-store": "^8.1.0"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "cross-env": "^7.0.3",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "vite": "^5.1.0",
+    "wait-on": "^7.2.0",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.19",
     "@types/jest": "^29.5.14",

@@ -46,8 +46,13 @@ function createWindow() {
     show: false
   });
 
-  mainWindow.loadFile('index.html');
-  
+  const rendererUrl = process.env.VITE_DEV_SERVER_URL;
+  if (rendererUrl) {
+    mainWindow.loadURL(rendererUrl);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'dist/renderer/index.html'));
+  }
+
   // Show window when ready to prevent flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();

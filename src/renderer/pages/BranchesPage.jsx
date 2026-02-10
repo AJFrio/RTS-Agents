@@ -2,11 +2,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
-import Button from '../components/ui/Button.jsx';
 import { formatTimeAgo } from '../utils/format.js';
 
 export default function BranchesPage() {
-  const { state, dispatch, setView, api, openCreateRepoModal, openPrModal } = useApp();
+  const { state, dispatch, setView, api, openPrModal } = useApp();
   const { github, configuredServices, currentView } = state;
   const [repoFilter, setRepoFilter] = useState('');
   const [prFilter, setPrFilter] = useState('open');
@@ -112,27 +111,6 @@ export default function BranchesPage() {
 
   return (
     <div id="view-branches" className="view-content">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold dark:text-white tracking-tight">Repositories</h3>
-          <span id="repo-count" className="text-slate-500 text-xs font-medium">
-            {(github.repos || []).length} repos
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="primary" id="create-repo-btn" onClick={openCreateRepoModal}>
-            <span className="material-symbols-outlined text-sm">add</span>
-            New Repo
-          </Button>
-          <Button variant="secondary" id="refresh-branches-btn" onClick={loadBranches} disabled={github.loadingRepos}>
-            <span className={`material-symbols-outlined text-sm ${github.loadingRepos ? 'animate-spin' : ''}`}>
-              refresh
-            </span>
-            Refresh
-          </Button>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
         <div className="lg:col-span-1 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-[calc(100vh-200px)] overflow-hidden">
           <div className="p-4 border-b border-slate-200 dark:border-border-dark">

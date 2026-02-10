@@ -58,17 +58,6 @@ export default function PullRequestsPage() {
   return (
     <div id="view-pull-requests" className="view-content p-6">
       <div className="max-w-5xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-slate-800 dark:text-white tracking-tight">Pull Requests</h1>
-          <button
-            onClick={() => loadAllPrs()}
-            className="p-2 text-slate-500 hover:text-primary transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-            title="Refresh"
-          >
-            <span className={`material-symbols-outlined ${loadingAllPrs ? 'animate-spin' : ''}`}>refresh</span>
-          </button>
-        </div>
-
         {allPrs.length === 0 ? (
            <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
             <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>

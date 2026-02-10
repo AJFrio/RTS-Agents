@@ -5,13 +5,14 @@ import { debounce } from '../../utils/debounce.js';
 const VIEW_TITLES = {
   dashboard: 'Agent Dashboard',
   branches: 'Repositories',
+  'pull-requests': 'PULL REQUESTS',
   computers: 'Computers',
   jira: 'Jira',
   settings: 'Settings',
 };
 
 export default function Header() {
-  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, openCreateRepoModal } = useApp();
+  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, loadAllPrs, openCreateRepoModal } = useApp();
   const { currentView, counts, filters, refreshing, github } = state;
 
   const handleSearch = useMemo(
@@ -25,19 +26,27 @@ export default function Header() {
   const handleRefresh = useCallback(() => {
     if (currentView === 'dashboard') loadAgents(false);
     else if (currentView === 'branches') loadBranches();
+    else if (currentView === 'pull-requests') loadAllPrs();
     else if (currentView === 'computers') fetchComputers();
     else if (currentView === 'jira') setView('jira');
-  }, [currentView, loadAgents, setView, fetchComputers, loadBranches]);
+  }, [currentView, loadAgents, setView, fetchComputers, loadBranches, loadAllPrs]);
 
   const showHeaderActions = currentView !== 'settings';
 
-  const isRefreshing = currentView === 'branches' ? (github?.loadingRepos || false) : refreshing;
+  const isRefreshing =
+    currentView === 'branches'
+      ? github?.loadingRepos || false
+      : currentView === 'pull-requests'
+      ? github?.loadingAllPrs || false
+      : refreshing;
 
   const taskCount =
     currentView === 'computers'
       ? `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`
       : currentView === 'branches'
       ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
+      : currentView === 'pull-requests'
+      ? `${github?.allPrs?.length || 0} PR${(github?.allPrs?.length || 0) !== 1 ? 's' : ''}`
       : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
 
   return (

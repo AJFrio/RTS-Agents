@@ -32,3 +32,6 @@ desktop.ini
 *.asar
 test-results/
 styles/output.css
+
+# Coverage
+coverage/

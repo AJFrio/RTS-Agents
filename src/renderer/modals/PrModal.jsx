@@ -14,10 +14,18 @@ export default function PrModal({ pr, onClose, api }) {
 
   useEffect(() => {
     if (!pr || !api?.github?.getPrDetails || !owner || !repoName) return;
-    api.github
-      .getPrDetails(owner, repoName, prNumber)
-      .then((res) => res?.pr && setDetails(res.pr))
-      .catch(console.error);
+
+    const fetchDetails = () => {
+      api.github
+        .getPrDetails(owner, repoName, prNumber)
+        .then((res) => res?.pr && setDetails(res.pr))
+        .catch(console.error);
+    };
+
+    fetchDetails();
+    const interval = setInterval(fetchDetails, 1000);
+
+    return () => clearInterval(interval);
   }, [pr?.id, owner, repoName, prNumber, api]);
 
   const data = details || pr;

@@ -78,7 +78,7 @@ export default function Header() {
                 onClick={openCreateRepoModal}
               >
                 <span className="material-symbols-outlined text-sm">add</span>
-                NEW REPO
+                New Repo
               </button>
               <button
                 type="button"
@@ -93,7 +93,7 @@ export default function Header() {
                 >
                   refresh
                 </span>
-                REFRESH
+                Refresh
               </button>
             </>
           ) : (

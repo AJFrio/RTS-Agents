@@ -3,6 +3,7 @@ import { useApp } from './context/AppContext.jsx';
 import Layout from './components/layout/Layout.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import BranchesPage from './pages/BranchesPage.jsx';
+import PullRequestsPage from './pages/PullRequestsPage.jsx';
 import ComputersPage from './pages/ComputersPage.jsx';
 import JiraPage from './pages/JiraPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
@@ -32,6 +33,7 @@ function App() {
   const Page =
     view === 'dashboard' ? DashboardPage
     : view === 'branches' ? BranchesPage
+    : view === 'pull-requests' ? PullRequestsPage
     : view === 'computers' ? ComputersPage
     : view === 'jira' ? JiraPage
     : view === 'settings' ? SettingsPage

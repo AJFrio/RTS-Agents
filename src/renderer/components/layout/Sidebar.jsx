@@ -5,6 +5,7 @@ import { formatCount } from '../../utils/format.js';
 const NAV_ITEMS = [
   { view: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { view: 'branches', icon: 'source', label: 'Repositories' },
+  { view: 'pull-requests', icon: 'merge_type', label: 'Pull Requests' },
   { view: 'computers', icon: 'computer', label: 'Computers' },
   { view: 'jira', icon: 'assignment', label: 'Jira' },
   { view: 'settings', icon: 'settings', label: 'Settings' },

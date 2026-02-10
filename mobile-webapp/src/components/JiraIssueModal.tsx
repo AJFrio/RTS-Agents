@@ -92,18 +92,18 @@ export default function JiraIssueModal({
   console.log('Rendering modal with:', { issueKey, loading, error: !!error, hasIssue: !!issue });
 
   return (
-    <div className="fixed inset-0 z-[100] bg-background-dark">
-      <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top">
+    <div className="fixed inset-0 z-[100] bg-background-light dark:bg-background-dark">
+      <header className="h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark safe-top">
         <button
           onClick={onClose}
-          className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors"
+          className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
           aria-label="Close"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
         <div className="flex items-center gap-2">
           {issueKey && (
-            <span className="font-display text-[10px] text-slate-400 uppercase tracking-wider">
+            <span className="font-display text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               {issueKey}
             </span>
           )}
@@ -118,8 +118,8 @@ export default function JiraIssueModal({
           </div>
         ) : error ? (
           <div className="p-4">
-            <div className="bg-red-900/20 border border-red-500/50 p-4">
-              <p className="text-sm text-red-300">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/50 p-4">
+              <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
             </div>
           </div>
         ) : issue ? (
@@ -129,15 +129,15 @@ export default function JiraIssueModal({
                 <span className="px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary">
                   {fields?.issuetype?.name || 'Issue'}
                 </span>
-                <span className="px-2 py-0.5 font-display text-[10px] font-bold bg-slate-700 text-slate-200">
+                <span className="px-2 py-0.5 font-display text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200">
                   {fields?.status?.name || 'Unknown'}
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
                 {fields?.summary || issue.key}
               </h2>
 
-              <div className="space-y-1 text-xs text-slate-400">
+              <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-sm">person</span>
                   <span>Assignee: {assignee}</span>
@@ -160,16 +160,16 @@ export default function JiraIssueModal({
             </div>
 
             {descriptionText && (
-              <div className="bg-card-dark border border-border-dark p-4">
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4">
                 <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Description
                 </h3>
-                <p className="text-sm text-slate-300 whitespace-pre-wrap">{descriptionText}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{descriptionText}</p>
               </div>
             )}
 
             {Array.isArray(fields?.labels) && fields.labels.length > 0 && (
-              <div className="bg-card-dark border border-border-dark p-4">
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4">
                 <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Labels
                 </h3>
@@ -177,7 +177,7 @@ export default function JiraIssueModal({
                   {fields.labels.map((label) => (
                     <span
                       key={label}
-                      className="px-2 py-1 text-[10px] font-display uppercase tracking-wider bg-slate-800 text-slate-300 border border-border-dark"
+                      className="px-2 py-1 text-[10px] font-display uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-border-dark"
                     >
                       {label}
                     </span>

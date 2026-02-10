@@ -59,7 +59,7 @@ function ApiKeyInput({
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-medium text-slate-400">
+      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
         {label}
       </label>
       
@@ -69,7 +69,7 @@ function ApiKeyInput({
           value={key}
           onChange={(e) => setKey(e.target.value)}
           placeholder={isConfigured ? '••••••••' : placeholder}
-          className="flex-1 bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
+          className="flex-1 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
         />
         
         <button
@@ -85,7 +85,7 @@ function ApiKeyInput({
         <button
           onClick={handleTest}
           disabled={!isConfigured || testing}
-          className="border border-border-dark text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-all duration-200"
+          className="border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
         >
           {testing ? 'Testing...' : 'Test'}
         </button>
@@ -226,7 +226,7 @@ export default function Settings() {
   return (
     <div className="p-4 space-y-6">
       {/* API Keys Section */}
-      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">key</span>
           <h3 className="text-base font-semibold">API Keys</h3>
@@ -234,7 +234,7 @@ export default function Settings() {
 
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="block text-xs font-medium text-slate-400">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
               Jira Base URL
             </label>
             <div className="flex gap-2">
@@ -243,7 +243,7 @@ export default function Settings() {
                 value={jiraBaseUrl}
                 onChange={(e) => setJiraBaseUrl(e.target.value)}
                 placeholder="https://your-domain.atlassian.net"
-                className="flex-1 bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
+                className="flex-1 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
               />
               <button
                 onClick={handleSaveJiraBaseUrl}
@@ -319,7 +319,7 @@ export default function Settings() {
       </section>
 
       {/* Cloudflare KV Section */}
-      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">cloud</span>
           <h3 className="text-base font-semibold">Cloudflare KV</h3>
@@ -331,7 +331,7 @@ export default function Settings() {
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
               Account ID
             </label>
             <input
@@ -339,12 +339,12 @@ export default function Settings() {
               value={cfAccountId}
               onChange={(e) => setCfAccountId(e.target.value)}
               placeholder={configuredServices.cloudflare ? '••••••••' : 'Enter Cloudflare Account ID'}
-              className="w-full bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
+              className="w-full bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
               API Token
             </label>
             <input
@@ -352,7 +352,7 @@ export default function Settings() {
               value={cfApiToken}
               onChange={(e) => setCfApiToken(e.target.value)}
               placeholder={configuredServices.cloudflare ? '••••••••' : 'Enter Cloudflare API token'}
-              className="w-full bg-black/40 border border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-white placeholder:text-slate-500 transition-all duration-200"
+              className="w-full bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
             />
           </div>
 
@@ -368,7 +368,7 @@ export default function Settings() {
             <button
               onClick={handleTestCloudflare}
               disabled={!configuredServices.cloudflare || cfTesting}
-              className="border border-border-dark text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-all duration-200"
+              className="border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
             >
               {cfTesting ? 'Testing...' : 'Test'}
             </button>
@@ -393,7 +393,7 @@ export default function Settings() {
 
       {/* Sync Keys from Cloud */}
       {configuredServices.cloudflare && (
-        <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+        <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <span className="material-symbols-outlined text-primary text-lg">sync</span>
             <h3 className="text-base font-semibold">Sync Keys from Cloud</h3>
@@ -430,17 +430,17 @@ export default function Settings() {
             </button>
 
             {syncResult && (
-              <div className={`p-3 rounded-lg ${syncResult.success ? 'bg-emerald-900/20 border border-emerald-500/50' : 'bg-red-900/20 border border-red-500/50'}`}>
+              <div className={`p-3 rounded-lg ${syncResult.success ? 'bg-emerald-500/10 dark:bg-emerald-900/20 border border-emerald-500/50' : 'bg-red-500/10 dark:bg-red-900/20 border border-red-500/50'}`}>
                 <div className="flex items-start gap-2">
-                  <span className={`material-symbols-outlined text-sm ${syncResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <span className={`material-symbols-outlined text-sm ${syncResult.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                     {syncResult.success ? 'check_circle' : 'error'}
                   </span>
                   <div>
                     {syncResult.success ? (
                       <>
-                        <p className="text-xs text-emerald-300 font-bold">Keys synced successfully!</p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">Keys synced successfully!</p>
                         {syncResult.keysImported && syncResult.keysImported.length > 0 ? (
-                          <p className="text-xs text-emerald-400 mt-1">
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
                             Imported: {syncResult.keysImported.join(', ')}
                           </p>
                         ) : (
@@ -465,7 +465,7 @@ export default function Settings() {
       )}
 
       {/* Notifications */}
-      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">notifications</span>
           <h3 className="text-base font-semibold">Notifications</h3>
@@ -479,7 +479,7 @@ export default function Settings() {
       </section>
 
       {/* Display Settings */}
-      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">palette</span>
           <h3 className="text-base font-semibold">Display</h3>
@@ -487,7 +487,7 @@ export default function Settings() {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
               Theme
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -498,7 +498,7 @@ export default function Settings() {
                   className={`flex flex-col items-center gap-2 p-3 border rounded-lg transition-all duration-200 ${
                     settings.theme === theme
                       ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                      : 'border-border-dark text-slate-400 hover:border-slate-600'
+                      : 'border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
                   }`}
                 >
                   <span className="material-symbols-outlined text-lg">
@@ -513,7 +513,7 @@ export default function Settings() {
       </section>
 
       {/* Polling Settings */}
-      <section className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-symbols-outlined text-primary text-lg">schedule</span>
           <h3 className="text-base font-semibold">Data Polling</h3>
@@ -527,12 +527,12 @@ export default function Settings() {
               onChange={handlePollingToggle}
               className="w-4 h-4 bg-transparent border-primary text-primary focus:ring-0 focus:ring-offset-0"
             />
-            <span className="text-sm text-slate-300">Enable auto refresh</span>
+            <span className="text-sm text-slate-600 dark:text-slate-300">Enable auto refresh</span>
           </label>
 
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-medium text-slate-400">
+              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Refresh interval
               </label>
               <span className="text-primary font-semibold text-sm">
@@ -547,7 +547,7 @@ export default function Settings() {
               value={Math.round(settings.pollingInterval / 1000)}
               onChange={handleIntervalChange}
               disabled={!settings.autoPolling}
-              className="w-full h-1 bg-border-dark appearance-none cursor-pointer disabled:opacity-50"
+              className="w-full h-1 bg-slate-200 dark:bg-border-dark appearance-none cursor-pointer disabled:opacity-50"
             />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>5s</span>

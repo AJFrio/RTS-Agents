@@ -21,9 +21,9 @@ const providerStyles: Record<string, { border: string; text: string; dot: string
 const statusStyles: Record<string, { bg: string; text: string }> = {
   running: { bg: 'bg-yellow-500/20', text: 'text-yellow-500' },
   completed: { bg: 'bg-primary', text: 'text-black' },
-  pending: { bg: 'bg-slate-700', text: 'text-slate-400' },
+  pending: { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-500 dark:text-slate-400' },
   failed: { bg: 'bg-red-500/20', text: 'text-red-500' },
-  stopped: { bg: 'bg-slate-700', text: 'text-slate-400' },
+  stopped: { bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-500 dark:text-slate-400' },
 };
 
 const statusLabels: Record<string, string> = {
@@ -79,7 +79,7 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
       </div>
 
       {/* Title */}
-      <h3 className="font-bold text-sm mb-2 line-clamp-2 text-slate-800 dark:text-white">
+      <h3 className="font-bold text-sm mb-2 line-clamp-2 text-slate-900 dark:text-white">
         {agent.name}
       </h3>
 

@@ -51,18 +51,18 @@ export default function JiraFilterModal({
   const hasActiveFilters = selectedAssignee !== null || selectedStatus !== null || showAllTickets;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90">
+    <div className="fixed inset-0 z-50 bg-white dark:bg-black/90">
       {/* Header */}
-      <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top">
+      <header className="h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark safe-top">
         <button
           onClick={onClose}
-          className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors"
+          className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
           aria-label="Close"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
 
-        <h2 className="font-display text-sm font-bold uppercase tracking-tight">Filter Tickets</h2>
+        <h2 className="font-display text-sm font-bold uppercase tracking-tight text-slate-900 dark:text-white">Filter Tickets</h2>
 
         {hasActiveFilters && (
           <button
@@ -80,13 +80,13 @@ export default function JiraFilterModal({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="material-symbols-outlined text-primary text-sm">visibility</span>
-            <h3 className="font-display text-xs font-bold text-slate-300 uppercase tracking-wider">Show Tickets</h3>
+            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Show Tickets</h3>
           </div>
 
           <select
             value={showAllTickets ? 'all' : 'active'}
             onChange={(e) => handleShowAllChange(e.target.value)}
-            className="w-full bg-black border border-border-dark text-sm py-3 px-3 text-slate-300 font-display text-xs focus:outline-none focus:border-primary"
+            className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-border-dark text-sm py-3 px-3 text-slate-600 dark:text-slate-300 font-display text-xs focus:outline-none focus:border-primary"
           >
             <option value="active">Active Only</option>
             <option value="all">All Tickets (Including Closed)</option>
@@ -97,13 +97,13 @@ export default function JiraFilterModal({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="material-symbols-outlined text-primary text-sm">person</span>
-            <h3 className="font-display text-xs font-bold text-slate-300 uppercase tracking-wider">Assignee</h3>
+            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Assignee</h3>
           </div>
 
           <select
             value={selectedAssignee || ''}
             onChange={(e) => handleAssigneeChange(e.target.value)}
-            className="w-full bg-black border border-border-dark text-sm py-3 px-3 text-slate-300 font-display text-xs focus:outline-none focus:border-primary"
+            className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-border-dark text-sm py-3 px-3 text-slate-600 dark:text-slate-300 font-display text-xs focus:outline-none focus:border-primary"
           >
             <option value="">All Assignees</option>
             {availableAssignees.map((assignee) => (
@@ -118,13 +118,13 @@ export default function JiraFilterModal({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="material-symbols-outlined text-primary text-sm">flag</span>
-            <h3 className="font-display text-xs font-bold text-slate-300 uppercase tracking-wider">Status</h3>
+            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Status</h3>
           </div>
 
           <select
             value={selectedStatus || ''}
             onChange={(e) => handleStatusChange(e.target.value)}
-            className="w-full bg-black border border-border-dark text-sm py-3 px-3 text-slate-300 font-display text-xs focus:outline-none focus:border-primary"
+            className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-border-dark text-sm py-3 px-3 text-slate-600 dark:text-slate-300 font-display text-xs focus:outline-none focus:border-primary"
           >
             <option value="">All Statuses</option>
             {availableStatuses.map((status) => (
@@ -137,27 +137,27 @@ export default function JiraFilterModal({
 
         {/* Active Filters Summary */}
         {hasActiveFilters && (
-          <div className="bg-card-dark border border-border-dark p-4">
+          <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4">
             <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Active Filters
             </h3>
             <div className="space-y-2">
               {showAllTickets && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Show:</span>
-                  <span className="text-xs text-white font-semibold">All Tickets</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Show:</span>
+                  <span className="text-xs text-slate-900 dark:text-white font-semibold">All Tickets</span>
                 </div>
               )}
               {selectedAssignee && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Assignee:</span>
-                  <span className="text-xs text-white font-semibold">{selectedAssignee}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Assignee:</span>
+                  <span className="text-xs text-slate-900 dark:text-white font-semibold">{selectedAssignee}</span>
                 </div>
               )}
               {selectedStatus && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Status:</span>
-                  <span className="text-xs text-white font-semibold">{selectedStatus}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
+                  <span className="text-xs text-slate-900 dark:text-white font-semibold">{selectedStatus}</span>
                 </div>
               )}
             </div>

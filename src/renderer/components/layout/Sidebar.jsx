@@ -28,7 +28,7 @@ const STATUS_FILTERS = [
 
 
 export default function Sidebar() {
-  const { state, dispatch, setView, api } = useApp();
+  const { state, dispatch, setView, api, openNewTaskModal } = useApp();
   const { currentView, filters, counts, configuredServices } = state;
 
   const handleFilterChange = (kind, key, checked) => {
@@ -129,6 +129,18 @@ export default function Sidebar() {
           </div>
         )}
       </nav>
+
+      <div className="p-4 border-t border-slate-200 dark:border-border-dark">
+        <button
+          type="button"
+          id="new-task-btn"
+          className="w-full bg-primary text-black flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium tracking-wide rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200"
+          onClick={openNewTaskModal}
+        >
+          <span className="material-symbols-outlined text-sm">add</span>
+          New Task
+        </button>
+      </div>
 
     </aside>
   );

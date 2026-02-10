@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, MenuItem, dialog } = require('electron');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const fs = require('fs');
 const fsp = require('fs/promises');
 
@@ -1039,13 +1039,14 @@ ipcMain.handle('app:update', async () => {
 });
 
 function performUpdate() {
-  console.log('Update requested. Executing git stash, git pull, npm install, and build...');
+  console.log('Update requested. Executing git stash, git pull, npm install...');
 
   return new Promise((resolve) => {
-    // Execute git stash (to save local changes), git pull, npm install, and build css
+    // Execute git stash (to save local changes), git pull, npm install
+    // We don't need to build here because 'npm start' will run 'npm run build'
     // Using stash --include-untracked ensures we stash user changes but NOT ignored files (like node_modules)
     // Using cwd: __dirname to ensure we run in the project root
-    const command = 'git stash --include-untracked && git pull && npm install && npm run build:css:prod';
+    const command = 'git stash --include-untracked && git pull && npm install';
 
     exec(command, { cwd: __dirname }, (error, stdout, stderr) => {
       if (error) {
@@ -1059,9 +1060,17 @@ function performUpdate() {
 
       resolve({ success: true });
 
-      // If successful, restart the app
-      console.log('Update successful. Restarting application...');
-      app.relaunch();
+      // If successful, restart the app using npm start
+      console.log('Update successful. Restarting application with npm start...');
+
+      const subprocess = spawn('npm', ['start'], {
+        detached: true,
+        stdio: 'ignore',
+        cwd: __dirname,
+        shell: true
+      });
+      subprocess.unref();
+
       app.quit();
     });
   });

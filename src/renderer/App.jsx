@@ -41,7 +41,7 @@ function App() {
 
   return (
     <>
-      <Layout>
+      <Layout fixedHeight={view === 'branches'}>
         <Page />
       </Layout>
       <AgentModal agent={state.agentModal} onClose={closeAgentModal} api={api} />

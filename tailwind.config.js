@@ -38,7 +38,7 @@ module.exports = {
         "border-dark": "#2A2A2A",
       },
       fontFamily: {
-        display: ["JetBrains Mono", "monospace"],
+        display: ["Plus Jakarta Sans", "Inter", "system-ui", "-apple-system", "sans-serif"],
         sans: ["Plus Jakarta Sans", "Inter", "system-ui", "-apple-system", "sans-serif"],
       },
       borderRadius: {

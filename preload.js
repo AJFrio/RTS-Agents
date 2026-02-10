@@ -335,6 +335,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   github: {
     getRepos: () => ipcRenderer.invoke('github:get-repos'),
+    getAllPrs: () => ipcRenderer.invoke('github:get-all-prs'),
     getPrs: (owner, repo, state) => ipcRenderer.invoke('github:get-prs', { owner, repo, state }),
     getBranches: (owner, repo) => ipcRenderer.invoke('github:get-branches', { owner, repo }),
     getOwners: () => ipcRenderer.invoke('github:get-owners'),

@@ -88,4 +88,77 @@ describe('GitHub Service', () => {
     );
     expect(mockRequest.write).toHaveBeenCalledWith(JSON.stringify({ state: 'closed' }));
   });
+
+  describe('getAllPullRequests', () => {
+    test('fetches repos and then PRs, returning sorted list', async () => {
+      const mockRepo1 = { name: 'repo1', full_name: 'user/repo1', owner: { login: 'user' } };
+      const mockRepo2 = { name: 'repo2', full_name: 'user/repo2', owner: { login: 'user' } };
+      const mockPr1 = { id: 1, title: 'PR 1', created_at: '2023-01-01T10:00:00Z', base: { repo: mockRepo1 } };
+      const mockPr2 = { id: 2, title: 'PR 2', created_at: '2023-01-02T10:00:00Z', base: { repo: mockRepo2 } };
+
+      requestSpy.mockImplementation((options, callback) => {
+        const res = new EventEmitter();
+        res.statusCode = 200;
+
+        let data = '';
+        if (options.path.includes('/user/repos')) {
+          data = JSON.stringify([mockRepo1, mockRepo2]);
+        } else if (options.path.includes('/repos/user/repo1/pulls')) {
+          data = JSON.stringify([mockPr1]);
+        } else if (options.path.includes('/repos/user/repo2/pulls')) {
+          data = JSON.stringify([mockPr2]);
+        }
+
+        process.nextTick(() => {
+          callback(res);
+          res.emit('data', data);
+          res.emit('end');
+        });
+
+        return { on: jest.fn(), write: jest.fn(), end: jest.fn() };
+      });
+
+      const allPrs = await githubService.getAllPullRequests();
+
+      expect(allPrs).toHaveLength(2);
+      // PR 2 is newer
+      expect(allPrs[0].id).toBe(2);
+      expect(allPrs[1].id).toBe(1);
+    });
+
+    test('handles individual repo PR fetch failure gracefully', async () => {
+      const mockRepo1 = { name: 'repo1', full_name: 'user/repo1', owner: { login: 'user' } };
+      const mockRepo2 = { name: 'repo2', full_name: 'user/repo2', owner: { login: 'user' } };
+      const mockPr1 = { id: 1, title: 'PR 1', created_at: '2023-01-01T10:00:00Z', base: { repo: mockRepo1 } };
+
+      requestSpy.mockImplementation((options, callback) => {
+        const res = new EventEmitter();
+        res.statusCode = 200;
+
+        let data = '';
+        if (options.path.includes('/user/repos')) {
+          data = JSON.stringify([mockRepo1, mockRepo2]);
+        } else if (options.path.includes('/repos/user/repo1/pulls')) {
+          data = JSON.stringify([mockPr1]);
+        } else if (options.path.includes('/repos/user/repo2/pulls')) {
+          res.statusCode = 500;
+          data = JSON.stringify({ message: 'Error' });
+        }
+
+        process.nextTick(() => {
+          callback(res);
+          res.emit('data', data);
+          res.emit('end');
+        });
+
+        return { on: jest.fn(), write: jest.fn(), end: jest.fn() };
+      });
+
+      const allPrs = await githubService.getAllPullRequests();
+
+      // Should only contain PRs from repo1
+      expect(allPrs).toHaveLength(1);
+      expect(allPrs[0].id).toBe(1);
+    });
+  });
 });

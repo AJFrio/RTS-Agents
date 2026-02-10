@@ -539,6 +539,15 @@ ipcMain.handle('github:mark-pr-ready-for-review', async (event, { nodeId }) => {
   }
 });
 
+ipcMain.handle('github:get-all-prs', async () => {
+  try {
+    const prs = await githubService.getAllPullRequests();
+    return { success: true, prs };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('github:close-pr', async (event, { owner, repo, prNumber }) => {
   try {
     const result = await githubService.closePullRequest(owner, repo, prNumber);

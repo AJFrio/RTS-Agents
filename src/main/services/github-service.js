@@ -102,6 +102,27 @@ const getPullRequestDetails = async (owner, repo, pullNumber) => {
     return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
 };
 
+const getAllPullRequests = async () => {
+  const repos = await getUserRepos();
+  if (!Array.isArray(repos)) {
+    return [];
+  }
+
+  // Fetch PRs for all repos in parallel
+  const prPromises = repos.map(repo =>
+    getPullRequests(repo.owner.login, repo.name).catch(err => {
+      console.warn(`Failed to fetch PRs for ${repo.full_name}:`, err.message);
+      return [];
+    })
+  );
+
+  const results = await Promise.all(prPromises);
+  const allPrs = results.flat();
+
+  // Sort by created_at descending (newest first)
+  return allPrs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+};
+
 const mergePullRequest = async (owner, repo, pullNumber, method = 'merge') => {
   return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}/merge`, 'PUT', {
     merge_method: method
@@ -152,6 +173,7 @@ module.exports = {
   getPullRequests,
   getBranches,
   getPullRequestDetails,
+  getAllPullRequests,
   mergePullRequest,
   closePullRequest,
   markPullRequestReadyForReview,

@@ -161,4 +161,51 @@ describe('GitHub Service', () => {
       expect(allPrs[0].id).toBe(1);
     });
   });
+
+  describe('mergePullRequest', () => {
+    test('sends correct PUT request with default method', async () => {
+      const promise = githubService.mergePullRequest('owner', 'repo', 123);
+
+      const requestCallback = requestSpy.mock.calls[0][1];
+      requestCallback(mockResponse);
+      mockResponse.emit('data', JSON.stringify({ merged: true }));
+      mockResponse.emit('end');
+
+      await promise;
+
+      expect(requestSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: '/repos/owner/repo/pulls/123/merge',
+          method: 'PUT'
+        }),
+        expect.any(Function)
+      );
+      expect(mockRequest.write).toHaveBeenCalledWith(JSON.stringify({ merge_method: 'merge' }));
+    });
+
+    test('sends correct PUT request with squash method', async () => {
+      const promise = githubService.mergePullRequest('owner', 'repo', 123, 'squash');
+
+      const requestCallback = requestSpy.mock.calls[0][1];
+      requestCallback(mockResponse);
+      mockResponse.emit('data', JSON.stringify({ merged: true }));
+      mockResponse.emit('end');
+
+      await promise;
+
+      expect(mockRequest.write).toHaveBeenCalledWith(JSON.stringify({ merge_method: 'squash' }));
+    });
+
+    test('handles 405 error from GitHub', async () => {
+      mockResponse.statusCode = 405;
+      const promise = githubService.mergePullRequest('owner', 'repo', 123);
+
+      const requestCallback = requestSpy.mock.calls[0][1];
+      requestCallback(mockResponse);
+      mockResponse.emit('data', 'Method Not Allowed'); // Non-JSON error
+      mockResponse.emit('end');
+
+      await expect(promise).rejects.toThrow('GitHub API Error: 405');
+    });
+  });
 });

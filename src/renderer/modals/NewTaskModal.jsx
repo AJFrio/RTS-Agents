@@ -313,13 +313,12 @@ export default function NewTaskModal({ open, onClose, api }) {
                 2. SELECT AGENT
               </label>
               <div className="relative mb-2">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
                 <input
                   type="text"
                   value={agentFilter}
                   onChange={(e) => setAgentFilter(e.target.value)}
                   placeholder="Filter agents..."
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg pl-9 pr-3 py-2 text-sm text-slate-800 dark:text-slate-200"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg pl-3 pr-3 py-2 text-sm text-slate-800 dark:text-slate-200"
                   aria-label="Filter agents"
                 />
               </div>
@@ -382,7 +381,6 @@ export default function NewTaskModal({ open, onClose, api }) {
                         {loadingRepos && (
                           <span className="material-symbols-outlined text-slate-400 px-1 animate-spin text-lg">sync</span>
                         )}
-                        <span className="material-symbols-outlined text-slate-400 px-2 text-lg">search</span>
                         <button
                           type="button"
                           onClick={() => setRepoDropdownOpen(!repoDropdownOpen)}

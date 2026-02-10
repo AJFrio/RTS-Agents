@@ -26,25 +26,10 @@ const STATUS_FILTERS = [
   { id: 'failed', label: 'FAILED/STOPPED', muted: true },
 ];
 
-const STATUS_KEYS = ['gemini', 'jules', 'cursor', 'codex', 'claude-cli', 'claude-cloud', 'github'];
-
-function statusText(s) {
-  if (!s) return 'STBY';
-  if (s.success || s.connected) return 'Connected';
-  if (s.error === 'Not configured') return 'Offline';
-  return 'Error';
-}
-
-function statusClass(s) {
-  if (!s) return 'font-semibold text-slate-500';
-  if (s.success || s.connected) return 'font-bold text-emerald-500';
-  if (s.error === 'Not configured') return 'font-bold text-slate-500';
-  return 'font-bold text-red-500';
-}
 
 export default function Sidebar() {
   const { state, dispatch, setView, api } = useApp();
-  const { currentView, filters, counts, configuredServices, connectionStatus } = state;
+  const { currentView, filters, counts, configuredServices } = state;
 
   const handleFilterChange = (kind, key, checked) => {
     const next =
@@ -145,21 +130,6 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div id="connection-status" className="p-6 border-t border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-black/20">
-        <div className="text-xs text-slate-400 mb-3 font-medium">Links</div>
-        <div className="space-y-2">
-          {STATUS_KEYS.map((key) => (
-            <div key={key} className="flex justify-between items-center text-[10px]">
-              <span className="text-slate-500 font-medium">
-                {key === 'claude-cli' ? 'Claude CLI' : key === 'claude-cloud' ? 'Claude Cloud' : key.charAt(0).toUpperCase() + key.slice(1)}
-              </span>
-              <span id={`status-${key}`} className={statusClass(connectionStatus[key])} title={connectionStatus[key]?.error}>
-                {statusText(connectionStatus[key])}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
     </aside>
   );
 }

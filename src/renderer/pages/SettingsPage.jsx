@@ -13,9 +13,25 @@ const API_KEYS = [
   { id: 'github', label: 'GitHub Personal Access Token', placeholder: 'Enter GitHub PAT (repo scope)', hint: 'Get from github.com/settings/tokens (classic)' },
 ];
 
+const STATUS_KEYS = ['gemini', 'jules', 'cursor', 'codex', 'claude-cli', 'claude-cloud', 'github'];
+
+function statusText(s) {
+  if (!s) return 'STBY';
+  if (s.success || s.connected) return 'Connected';
+  if (s.error === 'Not configured') return 'Offline';
+  return 'Error';
+}
+
+function statusClass(s) {
+  if (!s) return 'font-semibold text-slate-500';
+  if (s.success || s.connected) return 'font-bold text-emerald-500';
+  if (s.error === 'Not configured') return 'font-bold text-slate-500';
+  return 'font-bold text-red-500';
+}
+
 export default function SettingsPage() {
   const { state, dispatch, api, loadSettings } = useApp();
-  const { settings, configuredServices } = state;
+  const { settings, configuredServices, connectionStatus } = state;
   const [jiraBaseUrl, setJiraBaseUrl] = useState(settings.jiraBaseUrl || '');
   const [keyValues, setKeyValues] = useState({});
   const [saving, setSaving] = useState(false);
@@ -281,6 +297,25 @@ export default function SettingsPage() {
             }
           }}
         />
+      </section>
+
+      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
+        <div className="flex items-center gap-3 mb-8">
+          <span className="material-symbols-outlined text-primary">monitor_heart</span>
+          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Health Check</h3>
+        </div>
+        <div className="space-y-4">
+          {STATUS_KEYS.map((key) => (
+            <div key={key} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-border-dark py-3 last:border-0">
+              <span className="text-slate-600 dark:text-slate-400 font-medium">
+                {key === 'claude-cli' ? 'Claude CLI' : key === 'claude-cloud' ? 'Claude Cloud' : key.charAt(0).toUpperCase() + key.slice(1)}
+              </span>
+              <span className={statusClass(connectionStatus[key])} title={connectionStatus[key]?.error}>
+                {statusText(connectionStatus[key])}
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">

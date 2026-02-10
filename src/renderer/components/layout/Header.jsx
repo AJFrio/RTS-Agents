@@ -11,8 +11,8 @@ const VIEW_TITLES = {
 };
 
 export default function Header() {
-  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, openNewTaskModal } = useApp();
-  const { currentView, counts, filters, refreshing } = state;
+  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, openNewTaskModal, openCreateRepoModal } = useApp();
+  const { currentView, counts, filters, refreshing, github } = state;
 
   const handleSearch = useMemo(
     () =>
@@ -30,9 +30,14 @@ export default function Header() {
   }, [currentView, loadAgents, setView, fetchComputers, loadBranches]);
 
   const showHeaderActions = currentView !== 'settings';
+
+  const isRefreshing = currentView === 'branches' ? (github?.loadingRepos || false) : refreshing;
+
   const taskCount =
     currentView === 'computers'
       ? `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`
+      : currentView === 'branches'
+      ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
       : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
 
   return (
@@ -63,30 +68,62 @@ export default function Header() {
               />
             </div>
           )}
-          <button
-            type="button"
-            id="new-task-btn"
-            className="bg-primary text-black flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200"
-            onClick={openNewTaskModal}
-          >
-            <span className="material-symbols-outlined text-sm">add</span>
-            NEW_TASK
-          </button>
-          <button
-            type="button"
-            id="refresh-btn"
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400 disabled:opacity-60"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <span
-              id="refresh-icon"
-              className={`material-symbols-outlined text-sm ${refreshing ? 'animate-spin' : ''}`}
-            >
-              refresh
-            </span>
-            SYNC
-          </button>
+
+          {currentView === 'branches' ? (
+            <>
+              <button
+                type="button"
+                id="create-repo-btn"
+                className="bg-primary text-black flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200"
+                onClick={openCreateRepoModal}
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                NEW REPO
+              </button>
+              <button
+                type="button"
+                id="refresh-branches-btn"
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400 disabled:opacity-60"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <span
+                  id="refresh-icon"
+                  className={`material-symbols-outlined text-sm ${isRefreshing ? 'animate-spin' : ''}`}
+                >
+                  refresh
+                </span>
+                REFRESH
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                id="new-task-btn"
+                className="bg-primary text-black flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200"
+                onClick={openNewTaskModal}
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                NEW_TASK
+              </button>
+              <button
+                type="button"
+                id="refresh-btn"
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400 disabled:opacity-60"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <span
+                  id="refresh-icon"
+                  className={`material-symbols-outlined text-sm ${isRefreshing ? 'animate-spin' : ''}`}
+                >
+                  refresh
+                </span>
+                SYNC
+              </button>
+            </>
+          )}
         </div>
       )}
     </header>

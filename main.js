@@ -1310,7 +1310,12 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
         if (!configStore.hasApiKey('jules')) {
           throw new Error('Jules API key not configured');
         }
-        const julesSession = await julesService.createSession(options);
+        // Jules API expects "source" (e.g. sources/github/owner/repo); UI sends "repository" (repo id)
+        const julesOptions = {
+          ...options,
+          source: options.source || options.repository
+        };
+        const julesSession = await julesService.createSession(julesOptions);
         return { success: true, task: julesSession };
 
       case 'cursor':

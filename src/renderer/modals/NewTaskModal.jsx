@@ -49,7 +49,7 @@ function getAgentsForEnvironment(state, environment) {
 }
 
 export default function NewTaskModal({ open, onClose, api }) {
-  const { state, fetchComputers } = useApp();
+  const { state, fetchComputers, loadAgents } = useApp();
   const [environment, setEnvironment] = useState(state.newTask?.environment ?? 'cloud');
   const [selectedService, setSelectedService] = useState(null);
   const [agentFilter, setAgentFilter] = useState('');
@@ -161,6 +161,12 @@ export default function NewTaskModal({ open, onClose, api }) {
       setTimeout(() => setToast(null), 3000);
       return;
     }
+    const needsRepo = p === 'jules' || p === 'cursor';
+    if (needsRepo && !selectedRepo) {
+      setToast('Please select a repository for this agent');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
 
     setCreating(true);
     try {
@@ -175,7 +181,10 @@ export default function NewTaskModal({ open, onClose, api }) {
       }
       if (isRemote) options.targetDeviceId = targetDeviceId;
 
-      await api.createTask(p, options);
+      const result = await api.createTask(p, options);
+      if (result?.success !== false && loadAgents) {
+        loadAgents(false);
+      }
       setPrompt('');
       setSelectedService(null);
       setSelectedRepo('');

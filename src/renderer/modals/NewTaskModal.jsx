@@ -65,6 +65,63 @@ export default function NewTaskModal({ open, onClose, api }) {
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState(null);
   const [targetDeviceId, setTargetDeviceId] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const fileInputRef = React.useRef(null);
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    files.forEach((file) => {
+      if (!file.type.startsWith('image/')) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: Math.random().toString(36).substr(2, 9),
+            file,
+            dataUrl: ev.target.result,
+            name: file.name,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id: Math.random().toString(36).substr(2, 9),
+              file,
+              dataUrl: ev.target.result,
+              name: 'Pasted Image',
+            },
+          ]);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const removeAttachment = (id) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
 
   const agentsForEnv = useMemo(() => getAgentsForEnvironment(state, environment), [state.capabilities, environment]);
   const filteredAgents = useMemo(() => {
@@ -224,6 +281,7 @@ export default function NewTaskModal({ open, onClose, api }) {
         prompt: prompt.trim(),
         branch: branch || 'main',
         autoCreatePr: autoPr,
+        attachments: attachments.map((a) => ({ dataUrl: a.dataUrl })),
       };
       if (selectedRepo) {
         options.repository = selectedRepo;
@@ -476,6 +534,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                 id="task-prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
+                onPaste={handlePaste}
                 onKeyDown={(e) => {
                   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
@@ -492,13 +551,41 @@ export default function NewTaskModal({ open, onClose, api }) {
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                   ATTACHED CONTEXT
                 </label>
-                <button type="button" className="text-primary text-xs font-medium hover:underline">
+                <button
+                  type="button"
+                  className="text-primary text-xs font-medium hover:underline"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   Add More
                 </button>
               </div>
               <div className="flex gap-3 flex-wrap">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                />
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="relative w-20 h-20 rounded-lg border border-slate-200 dark:border-border-dark overflow-hidden group"
+                  >
+                    <img src={att.dataUrl} alt="Attachment" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="material-symbols-outlined text-sm block">close</span>
+                    </button>
+                  </div>
+                ))}
                 <button
                   type="button"
+                  onClick={() => fileInputRef.current?.click()}
                   className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-500 dark:border-slate-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:border-slate-400 hover:text-slate-300 transition-colors shrink-0"
                 >
                   <span className="material-symbols-outlined text-2xl">cloud_upload</span>

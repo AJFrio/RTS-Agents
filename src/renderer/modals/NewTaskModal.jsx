@@ -200,19 +200,19 @@ export default function NewTaskModal({ open, onClose, api }) {
     <Modal open={open} onClose={onClose}>
       <div
         id="new-task-modal"
-        className="relative bg-white dark:bg-sidebar-dark w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-border-dark"
+        className="relative bg-white dark:bg-sidebar-dark w-[90vw] h-[90vh] min-w-0 min-h-0 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-border-dark"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-[#16181d]">
           <div className="flex items-center gap-3">
             <div className="bg-primary/20 p-1.5 rounded-lg">
-              <span className="material-symbols-outlined text-primary text-xl">add_task</span>
+              <span className="material-symbols-outlined text-primary text-xl">bolt</span>
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">Create New Agent Task</h2>
               <p className="text-xs text-slate-500 font-medium">Configure and deploy a new coding agent</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -220,10 +220,10 @@ export default function NewTaskModal({ open, onClose, api }) {
         <div className="flex-1 overflow-y-auto p-6 flex gap-6 min-h-0">
           {/* Left column */}
           <div className="flex flex-col gap-6 w-[42%] min-w-0 shrink-0">
-            {/* ENVIRONMENT */}
+            {/* 1. ENVIRONMENT */}
             <div>
               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3 block">
-                Environment
+                1. ENVIRONMENT
               </label>
               <div className="flex gap-2">
                 {[
@@ -237,8 +237,8 @@ export default function NewTaskModal({ open, onClose, api }) {
                     onClick={() => handleEnvironmentChange(id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
                       environment === id
-                        ? 'border-primary bg-primary/10 text-primary dark:bg-primary/20'
-                        : 'border-slate-200 dark:border-border-dark text-slate-400 hover:border-slate-300'
+                        ? 'border-slate-500 dark:border-slate-400 bg-slate-700 dark:bg-slate-600 text-white'
+                        : 'border-slate-200 dark:border-border-dark text-slate-400 hover:border-slate-300 dark:hover:border-slate-500'
                     }`}
                   >
                     <span className="material-symbols-outlined text-lg">{icon}</span>
@@ -248,56 +248,61 @@ export default function NewTaskModal({ open, onClose, api }) {
               </div>
             </div>
 
-            {/* SELECT AGENT */}
+            {/* 2. SELECT AGENT */}
             <div>
               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">
-                Select Agent
+                2. SELECT AGENT
               </label>
-              <input
-                type="text"
-                value={agentFilter}
-                onChange={(e) => setAgentFilter(e.target.value)}
-                placeholder="Filter agents..."
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 mb-2"
-                aria-label="Filter agents"
-              />
+              <div className="relative mb-2">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
+                <input
+                  type="text"
+                  value={agentFilter}
+                  onChange={(e) => setAgentFilter(e.target.value)}
+                  placeholder="Filter agents..."
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg pl-9 pr-3 py-2 text-sm text-slate-800 dark:text-slate-200"
+                  aria-label="Filter agents"
+                />
+              </div>
               <div className="border border-slate-200 dark:border-border-dark rounded-lg divide-y divide-slate-200 dark:divide-border-dark max-h-40 overflow-y-auto">
                 {filteredAgents.length === 0 ? (
                   <div className="px-3 py-4 text-sm text-slate-500">No agents available for this environment.</div>
                 ) : (
-                  filteredAgents.map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setSelectedService({ provider: id })}
-                      className="w-full flex items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
-                      aria-pressed={selectedService?.provider === id}
-                    >
-                      <span className="text-slate-800 dark:text-slate-200">{getProviderDisplayName(id)}</span>
-                      {selectedService?.provider === id && (
-                        <span className="material-symbols-outlined text-primary text-lg">radio_button_checked</span>
-                      )}
-                      {selectedService?.provider !== id && (
-                        <span className="material-symbols-outlined text-slate-400 text-lg">radio_button_unchecked</span>
-                      )}
-                    </button>
-                  ))
+                  filteredAgents.map((id) => {
+                    const isSelected = selectedService?.provider === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setSelectedService({ provider: id })}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                        aria-pressed={isSelected}
+                      >
+                        <span className={`shrink-0 w-2 h-2 rounded-full ${isSelected ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-500'}`} aria-hidden />
+                        <span className="flex-1 text-slate-800 dark:text-slate-200">{getProviderDisplayName(id)}</span>
+                        {isSelected ? (
+                          <span className="material-symbols-outlined text-primary text-lg shrink-0">radio_button_checked</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">radio_button_unchecked</span>
+                        )}
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>
 
-            {/* TARGET REPOSITORY */}
+            {/* 3. TARGET REPOSITORY */}
             {showRepoSection && (
               <div>
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">
-                  Target Repository {needsRepo ? '' : '(optional)'}
+                  3. TARGET REPOSITORY{needsRepo ? '' : ' (optional)'}
                 </label>
                 {selectedService?.provider === 'claude-cloud' ? (
                   <div className="text-sm text-slate-500 py-2">Cloud prompt-only; no repository required.</div>
                 ) : (
                   <div className="relative">
-                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg">
-                      <span className="material-symbols-outlined text-slate-400 pl-3 text-lg">search</span>
+                    <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg">
                       <input
                         type="text"
                         value={repoDropdownOpen ? repoSearch : selectedRepoDisplay}
@@ -307,24 +312,27 @@ export default function NewTaskModal({ open, onClose, api }) {
                         }}
                         onFocus={() => setRepoDropdownOpen(true)}
                         placeholder={loadingRepos && repos.length === 0 ? 'Loading...' : 'Select repository'}
-                        className="flex-1 py-2.5 pr-8 pl-1 text-sm text-slate-800 dark:text-slate-200 bg-transparent border-0 rounded-r-lg focus:ring-0"
+                        className="flex-1 py-2.5 pl-4 pr-2 text-sm text-slate-800 dark:text-slate-200 bg-transparent border-0 rounded-l-lg focus:ring-0"
                         aria-label="Search or select repository"
                         aria-expanded={repoDropdownOpen}
                         aria-haspopup="listbox"
                       />
-                      {loadingRepos && (
-                        <span className="material-symbols-outlined text-slate-400 pr-2 animate-spin text-lg">sync</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setRepoDropdownOpen(!repoDropdownOpen)}
-                        className="p-2 text-slate-400 hover:text-slate-600"
-                        aria-label="Toggle repository list"
-                      >
-                        <span className="material-symbols-outlined text-lg">
-                          {repoDropdownOpen ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
+                      <div className="flex items-center justify-end shrink-0">
+                        {loadingRepos && (
+                          <span className="material-symbols-outlined text-slate-400 px-1 animate-spin text-lg">sync</span>
+                        )}
+                        <span className="material-symbols-outlined text-slate-400 px-2 text-lg">search</span>
+                        <button
+                          type="button"
+                          onClick={() => setRepoDropdownOpen(!repoDropdownOpen)}
+                          className="p-2 text-slate-400 hover:text-slate-600"
+                          aria-label="Toggle repository list"
+                        >
+                          <span className="material-symbols-outlined text-lg">
+                            {repoDropdownOpen ? 'expand_less' : 'expand_more'}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                     {repoDropdownOpen && (
                       <>
@@ -398,8 +406,9 @@ export default function NewTaskModal({ open, onClose, api }) {
           {/* Right column */}
           <div className="flex-1 flex flex-col gap-6 min-w-0">
             <div>
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">
-                Task Definition & Instructions
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-2">
+                <span className="material-symbols-outlined text-slate-400 text-base">drag_indicator</span>
+                TASK DEFINITION & INSTRUCTIONS
               </label>
               <textarea
                 id="task-prompt"
@@ -411,20 +420,34 @@ export default function NewTaskModal({ open, onClose, api }) {
                     handleSubmit();
                   }
                 }}
-                placeholder="e.g. Refactor the authentication middleware to support multi-tenant JWT validation and update the documentation..."
-                className="w-full min-h-[140px] bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base resize-y"
+                placeholder="'Refactor the authentication middleware to support multi-tenant JWT validation and update the documentation...'"
+                className="w-full min-h-[420px] bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base resize-y"
                 aria-label="Task description"
               />
             </div>
             <div>
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">
-                Attached Context
-              </label>
-              <div className="border-2 border-dashed border-slate-200 dark:border-border-dark rounded-xl p-6 flex flex-col items-center justify-center gap-2 min-h-[80px] text-slate-500 dark:text-slate-400 text-sm">
-                <span className="material-symbols-outlined text-2xl">upload_file</span>
-                <span>Upload or add context (optional)</span>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  ATTACHED CONTEXT (2)
+                </label>
                 <button type="button" className="text-primary text-xs font-medium hover:underline">
                   Add More
+                </button>
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                {/* Placeholder thumbnails for attached context */}
+                <div className="w-20 h-20 rounded-lg bg-slate-700 dark:bg-slate-600 border border-slate-600 dark:border-slate-500 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-slate-400 text-2xl">code</span>
+                </div>
+                <div className="w-20 h-20 rounded-lg bg-slate-700 dark:bg-slate-600 border border-slate-600 dark:border-slate-500 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-slate-400 text-2xl">devices</span>
+                </div>
+                <button
+                  type="button"
+                  className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-500 dark:border-slate-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:border-slate-400 hover:text-slate-300 transition-colors shrink-0"
+                >
+                  <span className="material-symbols-outlined text-2xl">cloud_upload</span>
+                  <span className="text-[10px] font-medium uppercase">Upload</span>
                 </button>
               </div>
             </div>
@@ -449,10 +472,11 @@ export default function NewTaskModal({ open, onClose, api }) {
               variant="primary"
               onClick={handleSubmit}
               disabled={!selectedService || !prompt.trim() || creating || (environment === 'remote' && !targetDeviceId)}
+              className="inline-flex items-center gap-2"
             >
               {creating ? <span className="material-symbols-outlined text-sm animate-spin">sync</span> : null}
+              <span>Initialize Agent</span>
               <span className="material-symbols-outlined text-lg">rocket_launch</span>
-              Initialize Agent
             </Button>
           </div>
         </div>

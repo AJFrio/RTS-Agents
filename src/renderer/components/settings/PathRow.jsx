@@ -49,11 +49,11 @@ export default function PathRow({
               key={path}
               className="flex items-center justify-between p-3 bg-slate-700/20 dark:bg-slate-800/20 border border-border-dark rounded-lg"
             >
-              <span className="text-sm text-slate-300 font-mono truncate">{path}</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300 font-mono truncate">{path}</span>
               <button
                 type="button"
                 onClick={() => onRemove?.(path)}
-                className="text-slate-400 hover:text-red-400 transition-colors p-1"
+                className="text-slate-500 dark:text-slate-400 hover:text-red-400 transition-colors p-1"
               >
                 <span className="material-symbols-outlined text-sm">close</span>
               </button>

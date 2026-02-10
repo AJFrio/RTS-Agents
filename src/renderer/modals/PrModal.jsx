@@ -4,7 +4,7 @@ import Button from '../components/ui/Button.jsx';
 import { useApp } from '../context/AppContext.jsx';
 
 export default function PrModal({ pr, onClose, api }) {
-  const { loadAgents } = useApp();
+  const { loadAgents, removePr } = useApp();
   const [details, setDetails] = useState(null);
   const [merging, setMerging] = useState(false);
 
@@ -30,6 +30,7 @@ export default function PrModal({ pr, onClose, api }) {
     setMerging(true);
     try {
       await api.github.mergePr(owner, repoName, prNumber, 'merge');
+      removePr(pr.id);
       onClose();
       loadAgents();
     } finally {
@@ -42,6 +43,7 @@ export default function PrModal({ pr, onClose, api }) {
     setMerging(true);
     try {
       await api.github.closePr(owner, repoName, prNumber);
+      removePr(pr.id);
       onClose();
       loadAgents();
     } finally {

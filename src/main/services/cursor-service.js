@@ -233,39 +233,59 @@ class CursorService {
    * @param {string[]} paths - Paths to scan
    */
   async getAvailableLocalRepositories(paths = []) {
-    const projects = [];
     const scannedPaths = new Set();
+    const uniquePaths = [...new Set(paths)];
 
-    for (const basePath of paths) {
-      if (!fs.existsSync(basePath)) continue;
-
+    const pathResults = await Promise.all(uniquePaths.map(async (basePath) => {
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        // Check if path exists and is a directory
+        const stats = await fs.promises.stat(basePath).catch(() => null);
+        if (!stats || !stats.isDirectory()) return [];
 
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+        const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
 
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
+        const entryResults = await Promise.all(entries.map(async (entry) => {
+          if (!entry.isDirectory()) return null;
+          if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
 
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: dirPath, // Use path as ID for local
-                name: entry.name,
-                url: dirPath, // Use path as URL
-                path: dirPath,
-                defaultBranch: 'main',
-                displayName: entry.name
-              });
-            }
+          const dirPath = path.join(basePath, entry.name);
+          const gitPath = path.join(dirPath, '.git');
+
+          try {
+            // Use access() as it's more efficient than stat() for just checking existence
+            await fs.promises.access(gitPath);
+            return {
+              id: dirPath, // Use path as ID for local
+              name: entry.name,
+              url: dirPath, // Use path as URL
+              path: dirPath,
+              defaultBranch: 'main',
+              displayName: entry.name
+            };
+          } catch (e) {
+            // .git doesn't exist or not accessible
+            return null;
           }
-        }
+        }));
+
+        return entryResults.filter(Boolean);
       } catch (err) {
         console.error(`Error scanning ${basePath}:`, err);
+        return [];
+      }
+    }));
+
+    // Flatten results and deduplicate while preserving order
+    const projects = [];
+    const flattened = pathResults.flat();
+
+    for (const project of flattened) {
+      if (!scannedPaths.has(project.path)) {
+        scannedPaths.add(project.path);
+        projects.push(project);
       }
     }
+
     return projects;
   }
 

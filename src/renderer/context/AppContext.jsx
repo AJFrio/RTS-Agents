@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { useElectronAPI } from './ElectronAPI.jsx';
 
-const VIEWS = ['dashboard', 'branches', 'computers', 'jira', 'settings'];
+const VIEWS = ['dashboard', 'branches', 'pull-requests', 'computers', 'jira', 'settings'];
 
 const initialState = {
   currentView: 'dashboard',
@@ -99,8 +99,11 @@ const initialState = {
     filteredRepos: [],
     selectedRepo: null,
     prs: [],
+    allPrs: [],
     loadingRepos: false,
     loadingPrs: false,
+    loadingAllPrs: false,
+    allPrsError: null,
     currentPr: null,
     prFilter: 'open',
   },
@@ -154,6 +157,14 @@ function appReducer(state, action) {
       return { ...state, computers: { ...state.computers, ...action.payload } };
     case 'SET_GITHUB':
       return { ...state, github: { ...state.github, ...action.payload } };
+    case 'SET_ALL_PRS':
+      return { ...state, github: { ...state.github, allPrs: action.payload, loadingAllPrs: false, allPrsError: null } };
+    case 'SET_ALL_PRS_LOADING':
+      return { ...state, github: { ...state.github, loadingAllPrs: action.payload } };
+    case 'SET_ALL_PRS_ERROR':
+      return { ...state, github: { ...state.github, loadingAllPrs: false, allPrsError: action.payload } };
+    case 'REMOVE_PR':
+      return { ...state, github: { ...state.github, allPrs: state.github.allPrs.filter(pr => pr.id !== action.payload) } };
     case 'SET_JIRA':
       return { ...state, jira: { ...state.jira, ...action.payload } };
     case 'SET_PAGINATION':
@@ -333,6 +344,25 @@ export function AppProvider({ children }) {
     }
   }, [api]);
 
+  const loadAllPrs = useCallback(async () => {
+    if (!api?.github?.getAllPrs) return;
+    dispatch({ type: 'SET_ALL_PRS_LOADING', payload: true });
+    try {
+      const result = await api.github.getAllPrs();
+      if (result?.success) {
+        dispatch({ type: 'SET_ALL_PRS', payload: result.prs || [] });
+      } else {
+        dispatch({ type: 'SET_ALL_PRS_ERROR', payload: result?.error || 'Failed to fetch PRs' });
+      }
+    } catch (err) {
+      dispatch({ type: 'SET_ALL_PRS_ERROR', payload: err.message });
+    }
+  }, [api]);
+
+  const removePr = useCallback((id) => {
+    dispatch({ type: 'REMOVE_PR', payload: id });
+  }, []);
+
   useEffect(() => {
     if (!api) return;
     let mounted = true;
@@ -377,6 +407,8 @@ export function AppProvider({ children }) {
     checkConnectionStatus,
     fetchComputers,
     loadBranches,
+    loadAllPrs,
+    removePr,
     setView: (view) => dispatch({ type: 'SET_VIEW', payload: view }),
     openAgentModal: (agent) => dispatch({ type: 'OPEN_AGENT_MODAL', payload: agent }),
     closeAgentModal: () => dispatch({ type: 'CLOSE_AGENT_MODAL' }),

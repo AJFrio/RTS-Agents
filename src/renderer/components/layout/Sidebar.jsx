@@ -46,14 +46,8 @@ export default function Sidebar() {
 
   return (
     <aside id="sidebar" className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark flex flex-col">
-      <div className="p-6 border-b border-slate-200 dark:border-border-dark">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-primary">grid_view</span>
-          <div>
-            <h1 className="font-semibold text-lg tracking-tight dark:text-white">RTS Agents</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">v1.0.0</p>
-          </div>
-        </div>
+      <div className="p-4 border-b border-slate-200 dark:border-border-dark">
+        <h1 className="font-semibold text-lg tracking-tight dark:text-white">RTS Agents</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-8">

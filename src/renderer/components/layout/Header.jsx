@@ -11,7 +11,7 @@ const VIEW_TITLES = {
 };
 
 export default function Header() {
-  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, openNewTaskModal, openCreateRepoModal } = useApp();
+  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, openCreateRepoModal } = useApp();
   const { currentView, counts, filters, refreshing, github } = state;
 
   const handleSearch = useMemo(
@@ -98,15 +98,6 @@ export default function Header() {
             </>
           ) : (
             <>
-              <button
-                type="button"
-                id="new-task-btn"
-                className="bg-primary text-black flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200"
-                onClick={openNewTaskModal}
-              >
-                <span className="material-symbols-outlined text-sm">add</span>
-                NEW_TASK
-              </button>
               <button
                 type="button"
                 id="refresh-btn"

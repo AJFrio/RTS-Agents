@@ -80,50 +80,52 @@ export default function CreateRepoModal({ open, onClose, api }) {
 
   return (
     <Modal open={open} onClose={handleClose}>
-      <div className="bg-sidebar-dark border border-border-dark w-full max-w-2xl flex flex-col shadow-2xl">
-        <div className="border-b border-border-dark p-6 flex justify-between items-center bg-black/40">
+      <div className="bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark w-full max-w-2xl flex flex-col shadow-2xl rounded-2xl overflow-hidden">
+        <div className="border-b border-slate-200 dark:border-border-dark p-6 flex justify-between items-center bg-slate-50 dark:bg-black/40">
           <div className="flex items-center gap-4">
-            <span className="material-symbols-outlined text-primary text-2xl">source</span>
+            <div className="bg-primary/10 p-2 rounded-lg">
+              <span className="material-symbols-outlined text-primary text-2xl">source</span>
+            </div>
             <div>
-              <h2 className="technical-font text-lg font-bold text-white tracking-widest">Create Repository</h2>
-              <p className="text-[10px] technical-font text-slate-500">GitHub, local, or remote computer</p>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Create Repository</h2>
+              <p className="text-xs text-slate-500 font-medium">GitHub, local, or remote computer</p>
             </div>
           </div>
-          <button type="button" onClick={handleClose} className="text-slate-500 hover:text-primary transition-colors">
+          <button type="button" onClick={handleClose} className="text-slate-400 hover:text-primary transition-colors">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           <div>
-            <label className="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Where to create</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Where to create</label>
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full bg-black border border-border-dark text-slate-300 technical-font text-xs py-3 px-4 rounded-lg"
+              className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
             >
-              <option value="github">GITHUB</option>
-              <option value="local">THIS COMPUTER (LOCAL)</option>
-              <option value="remote">REMOTE COMPUTER</option>
+              <option value="github">GitHub</option>
+              <option value="local">This Computer (Local)</option>
+              <option value="remote">Remote Computer</option>
             </select>
           </div>
           <div>
-            <label className="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Repository name</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Repository name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="my-new-repo"
-              className="w-full bg-black border border-border-dark text-slate-300 technical-font text-xs py-3 px-4 rounded-lg"
+              className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
             />
           </div>
           {location === 'github' && (
             <>
               <div>
-                <label className="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Owner</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Owner</label>
                 <select
                   value={githubOwner}
                   onChange={(e) => setGithubOwner(e.target.value)}
-                  className="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 px-4 rounded-lg"
+                  className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
                 >
                   <option value="">Select...</option>
                   {owners.map((o) => (
@@ -135,56 +137,58 @@ export default function CreateRepoModal({ open, onClose, api }) {
                 <button
                   type="button"
                   onClick={() => setGithubPrivate(false)}
-                  className={`flex-1 p-4 border rounded-lg text-left ${!githubPrivate ? 'border-primary bg-primary/10' : 'border-border-dark'}`}
+                  className={`flex-1 p-4 border rounded-lg text-left transition-colors ${!githubPrivate ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary/50'}`}
                 >
-                  <span className="text-xs font-bold text-slate-300">PUBLIC</span>
+                  <span className={`text-sm font-bold ${!githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>Public</span>
+                  <p className="text-xs text-slate-400 mt-1">Anyone can see this repository</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setGithubPrivate(true)}
-                  className={`flex-1 p-4 border rounded-lg text-left ${githubPrivate ? 'border-primary bg-primary/10' : 'border-border-dark'}`}
+                  className={`flex-1 p-4 border rounded-lg text-left transition-colors ${githubPrivate ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary/50'}`}
                 >
-                  <span className="text-xs font-bold text-slate-300">PRIVATE</span>
+                  <span className={`text-sm font-bold ${githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>Private</span>
+                  <p className="text-xs text-slate-400 mt-1">You choose who can see this repository</p>
                 </button>
               </div>
             </>
           )}
           {location === 'local' && (
             <div>
-              <label className="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Directory</label>
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Directory</label>
               <input
                 type="text"
                 value={localDir}
                 onChange={(e) => setLocalDir(e.target.value)}
                 placeholder={(state.settings.githubPaths || [])[0] || 'e.g., ~/GitHub'}
-                className="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 px-4 rounded-lg"
+                className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
               />
             </div>
           )}
           {location === 'remote' && (
             <div>
-              <label className="technical-font text-[10px] text-slate-500 mb-2 block uppercase">Target device</label>
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Target device</label>
               <select
                 value={remoteDeviceId}
                 onChange={(e) => setRemoteDeviceId(e.target.value)}
-                className="w-full bg-black border border-border-dark text-slate-300 text-xs py-3 px-4 rounded-lg"
+                className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
               >
-                <option value="">SELECT A COMPUTER...</option>
+                <option value="">Select a computer...</option>
                 {(state.computers?.list || []).map((d) => (
                   <option key={d.id} value={d.id}>{d.name || d.id}</option>
                 ))}
               </select>
             </div>
           )}
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
-        <div className="border-t border-border-dark p-6 flex justify-between items-center bg-black/20">
-          <span className="text-[10px] technical-font text-slate-600">Name required</span>
+        <div className="border-t border-slate-200 dark:border-border-dark p-6 flex justify-between items-center bg-slate-50 dark:bg-black/20">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Name required</span>
           <div className="flex gap-4">
-            <Button variant="secondary" onClick={handleClose}>CANCEL</Button>
+            <Button variant="secondary" onClick={handleClose}>Cancel</Button>
             <Button variant="primary" onClick={handleSubmit} disabled={loading}>
               {loading ? <span className="material-symbols-outlined text-sm animate-spin">sync</span> : null}
-              CREATE
+              Create
             </Button>
           </div>
         </div>

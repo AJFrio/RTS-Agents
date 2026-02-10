@@ -110,9 +110,9 @@ export default function BranchesPage() {
   const prs = github.prs || [];
 
   return (
-    <div id="view-branches" className="view-content">
+    <div id="view-branches" className="view-content h-full">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
-        <div className="lg:col-span-1 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-[calc(100vh-200px)] overflow-hidden">
+        <div className="lg:col-span-1 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-full overflow-hidden">
           <div className="p-4 border-b border-slate-200 dark:border-border-dark">
             <input
               type="text"
@@ -158,7 +158,7 @@ export default function BranchesPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-[calc(100vh-200px)] overflow-hidden">
+        <div className="lg:col-span-2 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-full overflow-hidden">
           {!selectedRepo ? (
             <div id="repo-details-placeholder" className="flex flex-col items-center justify-center h-full text-slate-500">
               <span className="material-symbols-outlined text-4xl mb-2">arrow_back</span>

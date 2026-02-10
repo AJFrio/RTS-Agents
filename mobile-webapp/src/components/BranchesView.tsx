@@ -48,12 +48,12 @@ function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
       className={`w-full text-left p-3 border rounded-xl transition-all duration-200 shadow-sm ${
         isSelected
           ? 'border-primary bg-primary/10 shadow-md'
-          : 'border-border-dark hover:border-slate-600 hover:shadow-md'
+          : 'border-slate-200 dark:border-border-dark hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
       }`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-sm text-white truncate">{repo.name}</h4>
+          <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{repo.name}</h4>
           <p className="text-xs text-slate-500 truncate">{repo.full_name}</p>
         </div>
         {repo.private && (
@@ -61,7 +61,7 @@ function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
         )}
       </div>
       {repo.description && (
-        <p className="text-xs text-slate-400 mt-1 line-clamp-2">{repo.description}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{repo.description}</p>
       )}
       <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-500">
         <span className="material-symbols-outlined text-xs">schedule</span>
@@ -82,15 +82,15 @@ function PRCard({ pr, onView }: PRCardProps) {
   return (
     <button
       onClick={onView}
-      className="w-full text-left p-4 bg-card-dark border border-border-dark rounded-xl hover:border-slate-600 hover:shadow-md transition-all duration-200 shadow-sm"
+      className="w-full text-left p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 shadow-sm"
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">#{pr.number}</span>
           <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${
             isDraft
-              ? 'bg-slate-700 text-slate-400'
-              : 'bg-emerald-500/20 text-emerald-500'
+              ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+              : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500'
           }`}>
             {isDraft ? 'Draft' : 'Open'}
           </span>
@@ -98,7 +98,7 @@ function PRCard({ pr, onView }: PRCardProps) {
         <span className="material-symbols-outlined text-slate-500 text-sm">chevron_right</span>
       </div>
 
-      <h4 className="font-bold text-sm text-white mb-2 line-clamp-2">{pr.title}</h4>
+      <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-2 line-clamp-2">{pr.title}</h4>
 
       <div className="flex items-center gap-3 text-[10px] text-slate-500">
         <span className="flex items-center gap-1">
@@ -109,7 +109,7 @@ function PRCard({ pr, onView }: PRCardProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-2 mt-2 text-xs text-slate-600">
+      <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-600">
         <img
           src={pr.user.avatar_url}
           alt={pr.user.login}
@@ -158,13 +158,13 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background-dark">
+    <div className="fixed inset-0 z-50 bg-background-light dark:bg-background-dark">
       {/* Header */}
-      <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top">
+      <header className="h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark safe-top">
         <button
           onClick={onClose}
           disabled={isActionLoading}
-          className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+          className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-50"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
@@ -172,7 +172,7 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
         <button
           onClick={handleOpenInGitHub}
           disabled={isActionLoading}
-          className="p-2 text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+          className="p-2 text-slate-500 dark:text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
         >
           <span className="material-symbols-outlined">open_in_new</span>
         </button>
@@ -186,40 +186,40 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
             <span className="text-sm text-slate-500">#{pr.number}</span>
             <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${
               pr.draft
-                ? 'bg-slate-700 text-slate-400'
-                : 'bg-emerald-500/20 text-emerald-500'
+                ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500'
             }`}>
               {pr.draft ? 'Draft' : 'Open'}
             </span>
           </div>
-          <h2 className="text-lg font-bold text-white">{pr.title}</h2>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{pr.title}</h2>
         </div>
 
         {/* Branch Info */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-card-dark border border-border-dark p-3">
+          <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-3">
             <p className="font-display text-[9px] text-slate-500 uppercase mb-1">Source</p>
             <p className="font-mono text-xs text-primary truncate">{pr.head.ref}</p>
           </div>
-          <div className="bg-card-dark border border-border-dark p-3">
+          <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-3">
             <p className="font-display text-[9px] text-slate-500 uppercase mb-1">Target</p>
-            <p className="font-mono text-xs text-slate-300 truncate">{pr.base.ref}</p>
+            <p className="font-mono text-xs text-slate-600 dark:text-slate-300 truncate">{pr.base.ref}</p>
           </div>
         </div>
 
         {/* Description */}
         {pr.body && (
-          <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
-            <h3 className="text-xs font-semibold text-slate-400 mb-2">Description</h3>
+          <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Description</h3>
             <div
-              className="prose prose-sm prose-invert max-w-none text-slate-300"
+              className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300"
               dangerouslySetInnerHTML={{ __html: renderMarkdown(pr.body) }}
             />
           </div>
         )}
 
         {/* Merge Status */}
-        <div className="bg-card-dark border border-border-dark p-4">
+        <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4">
           <div className="flex items-center gap-3">
             <span className={`material-symbols-outlined ${
               pr.mergeable === false
@@ -231,7 +231,7 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
               {pr.mergeable === false ? 'error' : pr.mergeable === true ? 'check_circle' : 'pending'}
             </span>
             <div>
-              <p className="text-sm font-bold text-white">
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
                 {pr.draft
                   ? 'This is a draft pull request'
                   : pr.mergeable === false
@@ -287,7 +287,7 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
           <button
             onClick={handleOpenInGitHub}
             disabled={isActionLoading}
-            className="w-full flex items-center justify-center gap-2 border border-border-dark text-slate-300 py-3 text-sm font-semibold rounded-lg hover:bg-card-dark disabled:opacity-50 transition-all duration-200"
+            className="w-full flex items-center justify-center gap-2 border border-slate-200 dark:border-border-dark text-slate-600 dark:text-slate-300 py-3 text-sm font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-card-dark disabled:opacity-50 transition-all duration-200"
           >
             <span className="material-symbols-outlined text-sm">open_in_new</span>
             Open in GitHub
@@ -295,7 +295,7 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
         </div>
 
         {/* Meta */}
-        <div className="flex items-center justify-between text-[10px] text-slate-600 pt-2">
+        <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-600 pt-2">
           <span>Updated {formatTimeAgo(pr.updated_at)}</span>
           <span>Created {formatTimeAgo(pr.created_at)}</span>
         </div>
@@ -459,7 +459,7 @@ export default function BranchesView() {
     <>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex-shrink-0 p-4 border-b border-border-dark">
+        <div className="flex-shrink-0 p-4 border-b border-slate-200 dark:border-border-dark">
           <div className="flex items-center justify-between mb-3">
             <span className="font-display text-xs text-slate-500">
               {githubRepos.length} Repositories
@@ -485,7 +485,7 @@ export default function BranchesView() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search repositories..."
-              className="w-full bg-black border border-border-dark text-sm py-2.5 pl-10 pr-4 rounded-lg placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 shadow-sm"
+              className="w-full bg-slate-50 dark:bg-black border border-slate-200 dark:border-border-dark text-sm py-2.5 pl-10 pr-4 rounded-lg placeholder:text-slate-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 shadow-sm"
             />
           </div>
         </div>
@@ -493,7 +493,7 @@ export default function BranchesView() {
         {/* Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Repo List */}
-          <div className="w-2/5 border-r border-border-dark overflow-y-auto p-2 space-y-2">
+          <div className="w-2/5 border-r border-slate-200 dark:border-border-dark overflow-y-auto p-2 space-y-2">
             {filteredRepos.map(repo => (
               <RepoCard
                 key={repo.id}
@@ -524,7 +524,7 @@ export default function BranchesView() {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold text-slate-400">
+                  <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     Open Pull Requests ({pullRequests.length})
                   </h3>
                 </div>

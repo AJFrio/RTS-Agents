@@ -149,7 +149,7 @@ export default function JiraView() {
   return (
     <div className="p-4 space-y-4">
       {!isReady && (
-        <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
+        <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <span className="material-symbols-outlined text-primary text-lg">assignment</span>
             <h3 className="text-base font-semibold">Jira</h3>
@@ -167,7 +167,7 @@ export default function JiraView() {
       )}
 
       {isReady && (
-        <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm space-y-3">
+        <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-lg">assignment</span>
@@ -176,7 +176,7 @@ export default function JiraView() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowFilterModal(true)}
-                className="border border-border-dark text-slate-400 px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider hover:text-white hover:border-slate-600 transition-colors flex items-center gap-1.5"
+                className="border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 px-3 py-1.5 font-display text-[10px] font-bold uppercase tracking-wider hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-colors flex items-center gap-1.5"
               >
                 <span className="material-symbols-outlined text-sm">filter_list</span>
                 Filter
@@ -189,7 +189,7 @@ export default function JiraView() {
               <button
                 onClick={loadJira}
                 disabled={loading}
-                className="border border-border-dark text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-white hover:border-slate-600 transition-all duration-200"
+                className="border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </button>
@@ -198,11 +198,11 @@ export default function JiraView() {
 
           {boards.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-400">Board</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Board</span>
               <select
                 value={selectedBoardId ?? boards[0]?.id ?? ''}
                 onChange={(e) => setSelectedBoardId(parseInt(e.target.value, 10))}
-                className="flex-1 bg-black/40 border border-border-dark text-sm py-2 px-3 text-white rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
+                className="flex-1 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark text-sm py-2 px-3 text-slate-900 dark:text-white rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
               >
                 {boards.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -214,8 +214,8 @@ export default function JiraView() {
           )}
 
           {error && (
-            <div className="bg-red-900/20 border border-red-500/50 p-3 rounded-lg shadow-sm">
-              <p className="text-sm text-red-300">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/50 p-3 rounded-lg shadow-sm">
+              <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
             </div>
           )}
         </div>
@@ -223,13 +223,13 @@ export default function JiraView() {
 
       {isReady && !error && (
         <div className="space-y-4">
-          <section className="bg-card-dark border border-border-dark rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-border-dark flex items-center justify-between bg-black/20">
+          <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-border-dark flex items-center justify-between bg-slate-50 dark:bg-black/20">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-slate-400 text-sm">
+                <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-sm">
                   list
                 </span>
-                <span className="text-sm font-semibold text-white">
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">
                   All Tickets
                 </span>
               </div>
@@ -238,7 +238,7 @@ export default function JiraView() {
               </span>
             </div>
 
-            <div className="divide-y divide-border-dark">
+            <div className="divide-y divide-slate-200 dark:divide-border-dark">
               {filteredTickets.length === 0 ? (
                 <div className="p-4 text-xs text-slate-500">No tickets found</div>
               ) : (
@@ -254,7 +254,7 @@ export default function JiraView() {
                         openIssue(issue);
                       }
                     }}
-                    className="w-full text-left p-4 hover:bg-black/20 active:scale-[0.99] transition cursor-pointer"
+                    className="w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-black/20 active:scale-[0.99] transition cursor-pointer"
                     style={{ pointerEvents: 'auto', WebkitTapHighlightColor: 'transparent' }}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -262,13 +262,13 @@ export default function JiraView() {
                         <div className="font-display text-[10px] text-slate-500 uppercase tracking-wider">
                           {issue.key}
                         </div>
-                        <div className="text-sm font-semibold text-white line-clamp-2">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">
                           {issue.fields?.summary || '(no summary)'}
                         </div>
                               <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
                                 <span>Assignee: {getAssignee(issue)}</span>
                                 {issue.fields?.status?.name && (
-                                  <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-xs">
+                                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-xs">
                                     {issue.fields.status.name}
                                   </span>
                                 )}

@@ -119,12 +119,12 @@ export default function AgentModal() {
   const status = selectedAgent ? statusStyles[selectedAgent.status] || statusStyles.pending : statusStyles.pending;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background-dark">
+    <div className="fixed inset-0 z-50 bg-background-light dark:bg-background-dark">
       {/* Header */}
-      <header className="h-14 flex items-center justify-between px-4 border-b border-border-dark bg-sidebar-dark safe-top shadow-sm">
+      <header className="h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark safe-top shadow-sm">
         <button
           onClick={handleClose}
-          className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors"
+          className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
@@ -133,7 +133,7 @@ export default function AgentModal() {
           {selectedAgent?.webUrl && (
             <button
               onClick={handleOpenExternal}
-              className="p-2 text-slate-400 hover:text-primary transition-colors"
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined">open_in_new</span>
             </button>
@@ -160,10 +160,10 @@ export default function AgentModal() {
                   {selectedAgent.status.charAt(0).toUpperCase() + selectedAgent.status.slice(1)}
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">{selectedAgent.name}</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{selectedAgent.name}</h2>
               
               {/* Metadata */}
-              <div className="space-y-1 text-xs text-slate-400">
+              <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
                 {selectedAgent.repository && (
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm">folder</span>
@@ -202,18 +202,18 @@ export default function AgentModal() {
 
             {/* Prompt */}
             {selectedAgent.prompt && (
-              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-400 mb-2">Prompt</h3>
-                <p className="text-sm text-slate-300 whitespace-pre-wrap">{selectedAgent.prompt}</p>
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Prompt</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{selectedAgent.prompt}</p>
               </div>
             )}
 
             {/* Summary */}
             {selectedAgent.summary && (
-              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-400 mb-2">Summary</h3>
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Summary</h3>
                 <div
-                  className="prose prose-sm prose-invert max-w-none text-slate-300"
+                  className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300"
                   dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedAgent.summary) }}
                 />
               </div>
@@ -221,11 +221,11 @@ export default function AgentModal() {
 
             {/* Activities (Jules) */}
             {selectedAgent.activities && selectedAgent.activities.length > 0 && (
-              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-400 mb-3">Activities</h3>
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">Activities</h3>
                 <div className="space-y-3">
                   {selectedAgent.activities.map((activity: Activity) => (
-                    <div key={activity.id} className="border-l-2 border-border-dark pl-3">
+                    <div key={activity.id} className="border-l-2 border-slate-200 dark:border-border-dark pl-3">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs text-primary font-medium">
                           {activity.type.replace('_', ' ')}
@@ -237,10 +237,10 @@ export default function AgentModal() {
                         )}
                       </div>
                       {activity.title && (
-                        <p className="text-sm font-medium text-slate-300">{activity.title}</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-300">{activity.title}</p>
                       )}
                       {activity.description && (
-                        <p className="text-xs text-slate-400 mt-1">{activity.description}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{activity.description}</p>
                       )}
                     </div>
                   ))}
@@ -250,19 +250,19 @@ export default function AgentModal() {
 
             {/* Conversation (Cursor) */}
             {selectedAgent.conversation && selectedAgent.conversation.length > 0 && (
-              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-400 mb-3">Conversation</h3>
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">Conversation</h3>
                 <div className="space-y-3">
                   {selectedAgent.conversation.map((msg: ConversationMessage) => (
                     <div
                       key={msg.id}
-                      className={`p-3 rounded-lg ${msg.isUser ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-800'}`}
+                      className={`p-3 rounded-lg ${msg.isUser ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-100 dark:bg-slate-800'}`}
                     >
-                      <span className="text-xs font-semibold text-slate-400 mb-1 block">
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">
                         {msg.isUser ? 'You' : 'Agent'}
                       </span>
                       <div
-                        className="prose prose-sm prose-invert max-w-none text-slate-300"
+                        className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300"
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.text) }}
                       />
                     </div>
@@ -273,19 +273,19 @@ export default function AgentModal() {
 
             {/* Messages (Codex/Claude) */}
             {selectedAgent.messages && selectedAgent.messages.length > 0 && (
-              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-400 mb-3">Messages</h3>
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">Messages</h3>
                 <div className="space-y-3">
                   {selectedAgent.messages.map((msg: Message) => (
                     <div
                       key={msg.id}
-                      className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-800'}`}
+                      className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary/10 border-l-2 border-primary' : 'bg-slate-100 dark:bg-slate-800'}`}
                     >
-                      <span className="text-xs font-semibold text-slate-400 mb-1 block">
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">
                         {msg.role === 'user' ? 'You' : 'Assistant'}
                       </span>
                       <div
-                        className="prose prose-sm prose-invert max-w-none text-slate-300"
+                        className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300"
                         dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
                       />
                     </div>
@@ -296,14 +296,14 @@ export default function AgentModal() {
 
             {/* Follow-up Prompt */}
             {(selectedAgent.status === 'completed' || selectedAgent.status === 'failed') && (
-              <div className="bg-card-dark border border-border-dark p-4 rounded-xl shadow-sm mt-6">
-                <h3 className="text-xs font-semibold text-slate-400 mb-2">Follow-up</h3>
+              <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm mt-6">
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Follow-up</h3>
                 <div className="space-y-3">
                   <textarea
                     value={followupPrompt}
                     onChange={(e) => setFollowupPrompt(e.target.value)}
                     placeholder="Enter your follow-up prompt here..."
-                    className="w-full bg-slate-900 border border-border-dark rounded-lg p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-y min-h-[80px] transition-all duration-200"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg p-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-y min-h-[80px] transition-all duration-200"
                     disabled={sendingFollowup}
                   />
                   <div className="flex justify-end">

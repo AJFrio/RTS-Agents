@@ -3,7 +3,7 @@ module.exports = {
   darkMode: 'class',
   content: [
     "./index.html",
-    "./src/**/*.{js,html}",
+    "./src/**/*.{js,jsx,html}",
     "./*.{js,html}"
   ],
   // Safelist dynamic classes used in JavaScript

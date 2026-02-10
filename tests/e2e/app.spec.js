@@ -27,11 +27,12 @@ test.describe('E2E Tests', () => {
 
   test('Dashboard should load', async () => {
       const window = await electronApp.firstWindow();
-      // Wait for the app to load
+      // Wait for the app to load (React mounts into #root then renders #app)
       await window.waitForLoadState('domcontentloaded');
+      await window.waitForSelector('#app', { state: 'visible', timeout: 15000 });
 
       // Check for main container or specific elements
-      const app = await window.locator('#app');
+      const app = window.locator('#app');
       await expect(app).toBeVisible();
 
       // Check sidebar exists

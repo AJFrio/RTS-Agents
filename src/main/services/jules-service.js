@@ -253,16 +253,21 @@ class JulesService {
           .map(a => this.extractFilesFromPatch(a.changeSet.gitPatch.unidiffPatch))
           .flat();
 
+        const type = this.getActivityType(activity);
+        const { title, description, message, planSteps } = this.getActivityTitleDescriptionMessage(activity, type, commands, fileChanges);
+
         return {
           id: activity.id,
-          type: this.getActivityType(activity),
+          type,
           originator: activity.originator,
-          title: activity.progressUpdated?.title || activity.planGenerated?.plan?.steps?.[0]?.title || (commands.length > 0 ? 'Executed Command' : null) || (fileChanges.length > 0 ? 'Code Changes' : null),
-          description: activity.progressUpdated?.description || null,
+          title,
+          description,
+          message,
+          planSteps,
           timestamp: activity.createTime,
-          commands: commands,
-          fileChanges: fileChanges,
-          artifacts: artifacts
+          commands,
+          fileChanges,
+          artifacts
         };
       })
     };
@@ -284,13 +289,59 @@ class JulesService {
   }
 
   /**
-   * Determine activity type
+   * Get title, description, message, and planSteps for an activity for UI display.
+   * @param {object} activity - Raw API activity
+   * @param {string} type - Result of getActivityType(activity)
+   * @param {string[]} commands - Extracted bash commands from artifacts
+   * @param {string[]} fileChanges - Extracted file paths from changeSet artifacts
+   */
+  getActivityTitleDescriptionMessage(activity, type, commands, fileChanges) {
+    let title = activity.description || null;
+    let description = null;
+    let message = null;
+    let planSteps = null;
+
+    if (activity.planGenerated?.plan?.steps?.length) {
+      const steps = activity.planGenerated.plan.steps;
+      planSteps = steps.map(s => ({ title: s.title || '', description: s.description || '' }));
+      if (!title) title = steps[0]?.title || 'Plan generated';
+      if (!description && steps[0]?.description) description = steps[0].description;
+    } else if (activity.planApproved) {
+      if (!title) title = 'Plan approved';
+    } else if (activity.userMessaged?.userMessage) {
+      if (!title) title = 'User message';
+      message = activity.userMessaged.userMessage;
+    } else if (activity.agentMessaged?.agentMessage) {
+      if (!title) title = 'Agent message';
+      message = activity.agentMessaged.agentMessage;
+    } else if (activity.progressUpdated) {
+      title = activity.progressUpdated.title || title || 'Progress';
+      description = activity.progressUpdated.description || description;
+    } else if (activity.sessionCompleted) {
+      if (!title) title = 'Session completed';
+    } else if (activity.sessionFailed?.reason) {
+      if (!title) title = 'Session failed';
+      message = activity.sessionFailed.reason;
+    } else {
+      if (commands.length > 0 && !title) title = 'Executed Command';
+      if (fileChanges.length > 0 && !title) title = 'Code Changes';
+    }
+
+    return { title, description, message, planSteps };
+  }
+
+  /**
+   * Determine activity type (per Jules Activities API: planGenerated, planApproved,
+   * userMessaged, agentMessaged, progressUpdated, sessionCompleted, sessionFailed)
    */
   getActivityType(activity) {
     if (activity.planGenerated) return 'plan_generated';
     if (activity.planApproved) return 'plan_approved';
+    if (activity.userMessaged) return 'user_messaged';
+    if (activity.agentMessaged) return 'agent_messaged';
     if (activity.progressUpdated) return 'progress';
     if (activity.sessionCompleted) return 'completed';
+    if (activity.sessionFailed) return 'session_failed';
     return 'unknown';
   }
 

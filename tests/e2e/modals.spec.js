@@ -108,7 +108,6 @@ test.describe('Modal Tests', () => {
     // Check if modal opens
     const modal = page.locator('#agent-modal');
     await expect(modal).toBeVisible();
-    await expect(modal).not.toHaveClass(/hidden/);
 
     // Verify modal content from mocked getAgentDetails
     await expect(page.locator('#modal-title')).toHaveText('Test Agent Details');
@@ -123,8 +122,8 @@ test.describe('Modal Tests', () => {
     const closeIcon = modal.locator('.material-symbols-outlined', { hasText: 'close' });
     await closeIcon.click();
 
-    // Verify modal is closed/hidden
-    await expect(modal).toHaveClass(/hidden/);
+    // Verify modal is closed (unmounted, so no longer visible)
+    await expect(modal).not.toBeVisible();
   });
 
   test('New Task Modal should work correctly', async () => {

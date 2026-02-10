@@ -141,4 +141,110 @@ describe('JulesService', () => {
       );
     });
   });
+
+  describe('Activity mapping', () => {
+    test('getActivityType returns correct type for all event kinds', () => {
+      expect(julesService.getActivityType({ planGenerated: {} })).toBe('plan_generated');
+      expect(julesService.getActivityType({ planApproved: {} })).toBe('plan_approved');
+      expect(julesService.getActivityType({ userMessaged: { userMessage: 'Hi' } })).toBe('user_messaged');
+      expect(julesService.getActivityType({ agentMessaged: { agentMessage: 'Hello' } })).toBe('agent_messaged');
+      expect(julesService.getActivityType({ progressUpdated: { title: 'x' } })).toBe('progress');
+      expect(julesService.getActivityType({ sessionCompleted: {} })).toBe('completed');
+      expect(julesService.getActivityType({ sessionFailed: { reason: 'err' } })).toBe('session_failed');
+      expect(julesService.getActivityType({})).toBe('unknown');
+    });
+
+    test('getAgentDetails maps activities with type, title, message, and planSteps', async () => {
+      julesService.setApiKey('test-key');
+
+      const https = require('https');
+      https.request.mockImplementation((options, cb) => {
+        const path = options.path || '';
+        let data;
+        if (path.includes('/activities')) {
+          data = JSON.stringify({
+            activities: [
+              {
+                id: 'a1',
+                createTime: '2024-01-15T10:00:00Z',
+                originator: 'user',
+                userMessaged: { userMessage: 'Please add tests' }
+              },
+              {
+                id: 'a2',
+                createTime: '2024-01-15T10:01:00Z',
+                originator: 'agent',
+                agentMessaged: { agentMessage: 'I will add unit tests.' }
+              },
+              {
+                id: 'a3',
+                createTime: '2024-01-15T10:02:00Z',
+                originator: 'system',
+                sessionFailed: { reason: 'Unable to install dependencies' }
+              },
+              {
+                id: 'a4',
+                createTime: '2024-01-15T10:03:00Z',
+                originator: 'agent',
+                planGenerated: {
+                  plan: {
+                    id: 'plan1',
+                    steps: [
+                      { id: 's1', index: 0, title: 'Analyze code', description: 'Review structure' },
+                      { id: 's2', index: 1, title: 'Write tests', description: 'Add coverage' }
+                    ],
+                    createTime: '2024-01-15T10:03:00Z'
+                  }
+                }
+              }
+            ]
+          });
+        } else {
+          data = JSON.stringify({
+            id: 'sess1',
+            state: 'FAILED',
+            title: 'Test Session',
+            prompt: 'Task',
+            sourceContext: { source: 'sources/github/o/r' }
+          });
+        }
+        const mockRes = {
+          statusCode: 200,
+          on: (event, handler) => {
+            if (event === 'data') handler(data);
+            if (event === 'end') handler();
+          }
+        };
+        setImmediate(() => cb(mockRes));
+        return httpsRequestMock;
+      });
+
+      const result = await julesService.getAgentDetails('sess1');
+
+      expect(result.activities).toHaveLength(4);
+
+      const userMsg = result.activities.find((a) => a.type === 'user_messaged');
+      expect(userMsg).toBeDefined();
+      expect(userMsg.title).toBe('User message');
+      expect(userMsg.message).toBe('Please add tests');
+
+      const agentMsg = result.activities.find((a) => a.type === 'agent_messaged');
+      expect(agentMsg).toBeDefined();
+      expect(agentMsg.title).toBe('Agent message');
+      expect(agentMsg.message).toBe('I will add unit tests.');
+
+      const failed = result.activities.find((a) => a.type === 'session_failed');
+      expect(failed).toBeDefined();
+      expect(failed.title).toBe('Session failed');
+      expect(failed.message).toBe('Unable to install dependencies');
+
+      const planGen = result.activities.find((a) => a.type === 'plan_generated');
+      expect(planGen).toBeDefined();
+      expect(planGen.title).toBe('Analyze code');
+      expect(planGen.planSteps).toEqual([
+        { title: 'Analyze code', description: 'Review structure' },
+        { title: 'Write tests', description: 'Add coverage' }
+      ]);
+    });
+  });
 });

@@ -51,6 +51,16 @@ export default function AgentModal({ agent, onClose, api }) {
               <span id="modal-status-badge">
                 <StatusBadge status={agent.status}>{statusLabel}</StatusBadge>
               </span>
+              {(details?.webUrl || agent.webUrl) && (
+                <button
+                  onClick={() => api.openExternal(details?.webUrl || agent.webUrl)}
+                  className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 ml-2 transition-colors"
+                  title="Open task in browser"
+                >
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                  Go To Task
+                </button>
+              )}
             </div>
             <h2 id="modal-title" className="text-xl font-display font-bold text-slate-900 dark:text-white truncate">
               {details?.name ?? agent.name ?? 'Agent Details'}

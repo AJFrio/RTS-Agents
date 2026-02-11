@@ -31,13 +31,22 @@ function statusClass(s) {
 
 export default function SettingsPage() {
   const { state, dispatch, api, loadSettings } = useApp();
-  const { settings, configuredServices, connectionStatus } = state;
+  const { settings, configuredServices, connectionStatus, computers } = state;
   const [jiraBaseUrl, setJiraBaseUrl] = useState(settings.jiraBaseUrl || '');
   const [keyValues, setKeyValues] = useState({});
   const [saving, setSaving] = useState(false);
   const [cloudflareAccountId, setCloudflareAccountId] = useState('');
   const [cloudflareToken, setCloudflareToken] = useState('');
   const [newGithubPath, setNewGithubPath] = useState('');
+
+  // Cloudflare state
+  const [pushingKeys, setPushingKeys] = useState(false);
+  const [pullingKeys, setPullingKeys] = useState(false);
+  const [saveButtonText, setSaveButtonText] = useState('SAVE');
+  const [pushButtonText, setPushButtonText] = useState('PUSH KEYS');
+  const [pullButtonText, setPullButtonText] = useState('PULL KEYS');
+
+  const isCloudflareConfigured = computers?.configured;
 
   const saveJiraBaseUrl = useCallback(async () => {
     const url = jiraBaseUrl.trim();
@@ -101,6 +110,74 @@ export default function SettingsPage() {
     dispatch({ type: 'SET_SETTINGS', payload: { autoPolling, pollingInterval: intervalMs } });
   }, [api, dispatch]);
 
+  const saveCloudflare = useCallback(async () => {
+    if (!api?.setCloudflareConfig) return;
+    setSaving(true);
+    setSaveButtonText('SAVING...');
+    try {
+      await api.setCloudflareConfig(cloudflareAccountId, cloudflareToken);
+      await loadSettings();
+      setSaveButtonText('SAVED!');
+      setCloudflareAccountId('');
+      setCloudflareToken('');
+      setTimeout(() => setSaveButtonText('SAVE'), 2000);
+    } catch (err) {
+      console.error(err);
+      setSaveButtonText('ERROR');
+      setTimeout(() => setSaveButtonText('SAVE'), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }, [api, cloudflareAccountId, cloudflareToken, loadSettings]);
+
+  const unlinkCloudflare = useCallback(async () => {
+    if (!api?.clearCloudflareConfig) return;
+    setSaving(true);
+    try {
+      await api.clearCloudflareConfig();
+      await loadSettings();
+      setCloudflareAccountId('');
+      setCloudflareToken('');
+    } finally {
+      setSaving(false);
+    }
+  }, [api, loadSettings]);
+
+  const pushKeys = useCallback(async () => {
+    if (!api?.pushKeysToCloudflare) return;
+    setPushingKeys(true);
+    setPushButtonText('PUSHING...');
+    try {
+      await api.pushKeysToCloudflare();
+      setPushButtonText('PUSHED!');
+      setTimeout(() => setPushButtonText('PUSH KEYS'), 2000);
+    } catch (err) {
+      console.error(err);
+      setPushButtonText('ERROR');
+      setTimeout(() => setPushButtonText('PUSH KEYS'), 2000);
+    } finally {
+      setPushingKeys(false);
+    }
+  }, [api]);
+
+  const pullKeys = useCallback(async () => {
+    if (!api?.pullKeysFromCloudflare) return;
+    setPullingKeys(true);
+    setPullButtonText('PULLING...');
+    try {
+      await api.pullKeysFromCloudflare();
+      await loadSettings();
+      setPullButtonText('PULLED!');
+      setTimeout(() => setPullButtonText('PULL KEYS'), 2000);
+    } catch (err) {
+      console.error(err);
+      setPullButtonText('ERROR');
+      setTimeout(() => setPullButtonText('PULL KEYS'), 2000);
+    } finally {
+      setPullingKeys(false);
+    }
+  }, [api, loadSettings]);
+
   const updateApp = useCallback(() => {
     api?.updateApp?.();
   }, [api]);
@@ -150,7 +227,7 @@ export default function SettingsPage() {
               type="text"
               value={cloudflareAccountId}
               onChange={(e) => setCloudflareAccountId(e.target.value)}
-              placeholder="Enter Cloudflare Account ID"
+              placeholder={isCloudflareConfigured ? '••••••••••••••••' : "Enter Cloudflare Account ID"}
               className="flex-1 w-full bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white"
             />
             <p className="text-[10px] technical-font text-slate-500 opacity-60">Used for Cloudflare KV (computers registry)</p>
@@ -163,21 +240,40 @@ export default function SettingsPage() {
                 type="password"
                 value={cloudflareToken}
                 onChange={(e) => setCloudflareToken(e.target.value)}
-                placeholder="Enter Cloudflare API token"
+                placeholder={isCloudflareConfigured ? '••••••••••••••••' : "Enter Cloudflare API token"}
                 className="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white"
               />
-              <Button variant="primary" onClick={async () => {
-                if (!api?.setCloudflareConfig) return;
-                setSaving(true);
-                try {
-                  await api.setCloudflareConfig(cloudflareAccountId, cloudflareToken);
-                  await loadSettings();
-                } finally { setSaving(false); }
-              }} disabled={saving}>SAVE</Button>
+              <Button variant="primary" onClick={saveCloudflare} disabled={saving}>{saveButtonText}</Button>
               <Button variant="secondary" onClick={async () => { if (api?.testCloudflare) await api.testCloudflare(); }} disabled={saving}>TEST</Button>
+              {isCloudflareConfigured && (
+                <button
+                  type="button"
+                  onClick={unlinkCloudflare}
+                  className="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 flex items-center gap-1 rounded-lg transition-all"
+                >
+                  <span className="material-symbols-outlined text-sm">link_off</span>
+                </button>
+              )}
             </div>
             <p className="text-[10px] technical-font text-slate-500 opacity-60">Create an API token with KV permissions</p>
           </div>
+
+          {isCloudflareConfigured && (
+            <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-border-dark">
+              <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Key Synchronization (KV Store)</label>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={pushKeys} disabled={pushingKeys}>
+                  <span className="material-symbols-outlined text-sm mr-1">cloud_upload</span>
+                  {pushButtonText}
+                </Button>
+                <Button variant="secondary" onClick={pullKeys} disabled={pullingKeys}>
+                  <span className="material-symbols-outlined text-sm mr-1">cloud_download</span>
+                  {pullButtonText}
+                </Button>
+              </div>
+              <p className="text-[10px] technical-font text-slate-500 opacity-60">Sync API keys across devices using Cloudflare KV.</p>
+            </div>
+          )}
         </div>
       </section>
 

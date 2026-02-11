@@ -68,6 +68,73 @@ export default function NewTaskModal({ open, onClose, api }) {
   const [attachments, setAttachments] = useState([]);
   const fileInputRef = React.useRef(null);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = React.useRef(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        let newTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            newTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (newTranscript) {
+          setPrompt((prev) => {
+            const prefix = prev.trim().length > 0 ? ' ' : '';
+            return prev + prefix + newTranscript.trim();
+          });
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        if (event.error === 'not-allowed') {
+          setToast('Microphone access denied');
+          setTimeout(() => setToast(null), 3000);
+        }
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  const toggleRecording = () => {
+    if (!recognitionRef.current) {
+      setToast('Speech recognition not supported');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current.stop();
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsRecording(true);
+      } catch (err) {
+        console.error('Failed to start recording:', err);
+      }
+    }
+  };
+
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -530,21 +597,37 @@ export default function NewTaskModal({ open, onClose, api }) {
                 <span className="material-symbols-outlined text-slate-400 text-base">drag_indicator</span>
                 TASK DEFINITION & INSTRUCTIONS
               </label>
-              <textarea
-                id="task-prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onPaste={handlePaste}
-                onKeyDown={(e) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-                placeholder="'Refactor the authentication middleware to support multi-tenant JWT validation and update the documentation...'"
-                className="w-full min-h-[420px] bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base resize-y"
-                aria-label="Task description"
-              />
+              <div className="relative w-full">
+                <textarea
+                  id="task-prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onPaste={handlePaste}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSubmit();
+                    }
+                  }}
+                  placeholder="'Refactor the authentication middleware to support multi-tenant JWT validation and update the documentation...'"
+                  className="w-full min-h-[420px] bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base resize-y pb-12"
+                  aria-label="Task description"
+                />
+                <button
+                  type="button"
+                  onClick={toggleRecording}
+                  className={`absolute bottom-4 right-4 p-3 rounded-full transition-all shadow-lg hover:scale-105 active:scale-95 ${
+                    isRecording
+                      ? 'bg-red-500 text-white animate-pulse ring-4 ring-red-500/20'
+                      : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 border border-slate-200 dark:border-border-dark'
+                  }`}
+                  title={isRecording ? 'Stop recording' : 'Start voice input'}
+                >
+                  <span className="material-symbols-outlined text-xl leading-none">
+                    {isRecording ? 'mic_off' : 'mic'}
+                  </span>
+                </button>
+              </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">

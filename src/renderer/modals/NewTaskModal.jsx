@@ -624,7 +624,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                   title={isRecording ? 'Stop recording' : 'Start voice input'}
                 >
                   <span className="material-symbols-outlined text-xl leading-none">
-                    {isRecording ? 'mic_off' : 'mic'}
+                    {isRecording ? 'stop_circle' : 'mic'}
                   </span>
                 </button>
               </div>

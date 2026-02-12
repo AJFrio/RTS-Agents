@@ -340,6 +340,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getBranches: (owner, repo) => ipcRenderer.invoke('github:get-branches', { owner, repo }),
     getOwners: () => ipcRenderer.invoke('github:get-owners'),
     getPrDetails: (owner, repo, prNumber) => ipcRenderer.invoke('github:get-pr-details', { owner, repo, prNumber }),
+    getRepoFile: (owner, repo, path) => ipcRenderer.invoke('github:get-repo-file', { owner, repo, path }),
     mergePr: (owner, repo, prNumber, method) => ipcRenderer.invoke('github:merge-pr', { owner, repo, prNumber, method }),
     closePr: (owner, repo, prNumber) => ipcRenderer.invoke('github:close-pr', { owner, repo, prNumber }),
     markPrReadyForReview: (nodeId) => ipcRenderer.invoke('github:mark-pr-ready-for-review', { nodeId }),
@@ -368,6 +369,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     enqueueCreateRepo: ({ deviceId, name }) =>
       ipcRenderer.invoke('projects:enqueue-create-repo', { deviceId, name }),
     getLocalRepos: () => ipcRenderer.invoke('projects:get-local'),
+    getRepoFile: (path, fileName) => ipcRenderer.invoke('projects:get-repo-file', { path, fileName }),
     pullRepo: (path) => ipcRenderer.invoke('projects:pull-repo', { path })
   }
 });

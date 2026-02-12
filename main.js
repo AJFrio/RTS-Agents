@@ -1480,10 +1480,28 @@ ipcMain.handle('github:get-pr-details', async (event, { owner, repo, prNumber })
   }
 });
 
+ipcMain.handle('github:get-repo-file', async (event, { owner, repo, path }) => {
+  try {
+    const content = await githubService.getRepoFile(owner, repo, path);
+    return { success: true, content };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('github:merge-pr', async (event, { owner, repo, prNumber, method }) => {
   try {
     const result = await githubService.mergePullRequest(owner, repo, prNumber, method);
     return { success: true, result };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('projects:get-repo-file', async (event, { path, fileName }) => {
+  try {
+    const content = await projectService.getRepoFile(path, fileName);
+    return { success: true, content };
   } catch (err) {
     return { success: false, error: err.message };
   }

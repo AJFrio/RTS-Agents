@@ -3,10 +3,10 @@ import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
-import '../marked.cjs';
+import * as markedModule from '../marked.cjs';
 import '../purify.cjs';
 
-const parseMarkdown = window.marked?.parse || window.marked;
+const parseMarkdown = markedModule.parse || markedModule.default?.parse;
 const DOMPurify = window.DOMPurify;
 
 export default function BranchesPage() {

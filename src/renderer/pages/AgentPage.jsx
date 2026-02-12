@@ -1,13 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const MOCK_MESSAGES = [
-  { id: 1, sender: 'agent', text: 'Hello! How can I assist you today?' },
-  { id: 2, sender: 'user', text: 'I need help with a new project.' },
-  { id: 3, sender: 'agent', text: 'Sure, tell me more about it.' },
-];
-
 export default function AgentPage() {
-  const [messages, setMessages] = useState(MOCK_MESSAGES);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
 

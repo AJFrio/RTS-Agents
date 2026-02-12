@@ -102,6 +102,23 @@ const getPullRequestDetails = async (owner, repo, pullNumber) => {
     return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
 };
 
+const getRepoFile = async (owner, repo, path) => {
+  try {
+    const result = await makeRequest(`/repos/${owner}/${repo}/contents/${path}`);
+    if (result && result.content && result.encoding === 'base64') {
+      return Buffer.from(result.content, 'base64').toString('utf8');
+    }
+    return null;
+  } catch (err) {
+    // If file not found (404), return null instead of throwing
+    if (err.message.includes('404')) {
+      return null;
+    }
+    console.warn(`Failed to fetch file ${path} from ${owner}/${repo}:`, err.message);
+    return null;
+  }
+};
+
 const getAllPullRequests = async () => {
   const repos = await getUserRepos();
   if (!Array.isArray(repos)) {
@@ -173,6 +190,7 @@ module.exports = {
   getPullRequests,
   getBranches,
   getPullRequestDetails,
+  getRepoFile,
   getAllPullRequests,
   mergePullRequest,
   closePullRequest,

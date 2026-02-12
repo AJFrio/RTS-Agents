@@ -82,6 +82,29 @@ class ProjectService {
     return projects;
   }
 
+  async getRepoFile(repoPath, fileName) {
+    if (!repoPath || typeof repoPath !== 'string') throw new Error('Missing repository path');
+    if (!fileName || typeof fileName !== 'string') throw new Error('Missing file name');
+
+    // Security check: ensure fileName doesn't contain directory traversal
+    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      throw new Error('Invalid file name');
+    }
+
+    const filePath = path.join(repoPath, fileName);
+    if (!fs.existsSync(filePath)) {
+      return null;
+    }
+
+    try {
+      const content = await fsp.readFile(filePath, 'utf8');
+      return content;
+    } catch (err) {
+      console.error(`Error reading file ${filePath}:`, err);
+      return null;
+    }
+  }
+
   async pullRepo(repoPath) {
     if (!repoPath || typeof repoPath !== 'string') throw new Error('Missing repository path');
     if (!fs.existsSync(repoPath)) throw new Error(`Repository path does not exist: ${repoPath}`);

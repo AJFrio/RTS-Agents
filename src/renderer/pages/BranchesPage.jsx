@@ -3,6 +3,11 @@ import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
+import '../marked.js';
+import '../purify.js';
+
+const marked = window.marked;
+const DOMPurify = window.DOMPurify;
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal } = useApp();
@@ -11,6 +16,7 @@ export default function BranchesPage() {
   const [prFilter, setPrFilter] = useState('open');
   const [loadingPrs, setLoadingPrs] = useState(false);
   const [prError, setPrError] = useState(null);
+  const [updatesContent, setUpdatesContent] = useState(null);
 
   const loadBranches = async () => {
     if (!api?.github?.getRepos || !configuredServices.github) return;
@@ -65,6 +71,9 @@ export default function BranchesPage() {
     dispatch({ type: 'SET_GITHUB', payload: { selectedRepo: repo, prs: [], loadingPrs: true } });
     setPrError(null);
     setLoadingPrs(true);
+    setUpdatesContent(null);
+
+    // Fetch PRs
     try {
       const owner = repo.owner?.login || repo.owner;
       const result = await api.github.getPrs(owner, repo.name, prState);
@@ -76,6 +85,30 @@ export default function BranchesPage() {
       dispatch({ type: 'SET_GITHUB', payload: { prs: [], loadingPrs: false } });
     } finally {
       setLoadingPrs(false);
+    }
+
+    // Fetch UPDATES.md
+    try {
+      let content = null;
+      if (repo.path) {
+        // Local repo
+        const result = await api.projects.getRepoFile(repo.path, 'UPDATES.md');
+        if (result?.success && result.content) {
+          content = result.content;
+        }
+      } else {
+        // Remote repo
+        const owner = repo.owner?.login || repo.owner;
+        const result = await api.github.getRepoFile(owner, repo.name, 'UPDATES.md');
+        if (result?.success && result.content) {
+          content = result.content;
+        }
+      }
+      if (content) {
+        setUpdatesContent(content);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch UPDATES.md:', err);
     }
   };
 
@@ -212,53 +245,67 @@ export default function BranchesPage() {
                   </span>
                 </div>
               </div>
-              <div id="pr-list" className="flex-1 overflow-y-auto p-6 space-y-4">
-                {loadingPrs && prs.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-32">
-                    <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
-                    <span className="text-sm text-slate-500 mt-2">Loading PRs...</span>
-                  </div>
-                )}
-                {prError && (
-                  <div className="p-4 border border-red-500/50 bg-red-500/10 text-red-500 text-sm font-medium text-center rounded-lg">
-                    Failed to load PRs: {prError}
-                  </div>
-                )}
-                {!loadingPrs && !prError && prs.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-                    <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
-                    <span className="text-sm font-medium">No {prFilter} pull requests</span>
-                  </div>
-                )}
-                {!loadingPrs && prs.length > 0 &&
-                  prs.map((pr) => (
-                    <div
-                      key={pr.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => openPrModal(pr)}
-                      className="p-4 border border-slate-200 dark:border-border-dark rounded-xl hover:border-primary/50 cursor-pointer transition-all"
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-slate-500 technical-font text-sm">#{pr.number}</span>
-                        <span
-                          className={`px-2.5 py-1 text-xs font-medium rounded-md ${
-                            pr.state === 'open'
-                              ? 'bg-emerald-500/20 text-emerald-500'
-                              : pr.merged_at
-                                ? 'bg-purple-500/20 text-purple-500'
-                                : 'bg-red-500/20 text-red-500'
-                          }`}
-                        >
-                          {pr.state === 'open' ? 'Open' : pr.merged_at ? 'Merged' : 'Closed'}
-                        </span>
-                      </div>
-                      <h4 className="font-semibold text-slate-800 dark:text-white line-clamp-2">{pr.title}</h4>
-                      <div className="mt-2 text-xs text-slate-500">
-                        {pr.head?.ref} → {pr.base?.ref} · {formatTimeAgo(pr.updated_at)}
-                      </div>
+              <div className="flex-1 flex flex-col overflow-hidden relative">
+                <div id="pr-list" className={`${updatesContent ? 'h-1/2 border-b border-slate-200 dark:border-border-dark' : 'h-full'} overflow-y-auto p-6 space-y-4 transition-all duration-300`}>
+                  {loadingPrs && prs.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-32">
+                      <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
+                      <span className="text-sm text-slate-500 mt-2">Loading PRs...</span>
                     </div>
-                  ))}
+                  )}
+                  {prError && (
+                    <div className="p-4 border border-red-500/50 bg-red-500/10 text-red-500 text-sm font-medium text-center rounded-lg">
+                      Failed to load PRs: {prError}
+                    </div>
+                  )}
+                  {!loadingPrs && !prError && prs.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+                      <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
+                      <span className="text-sm font-medium">No {prFilter} pull requests</span>
+                    </div>
+                  )}
+                  {!loadingPrs && prs.length > 0 &&
+                    prs.map((pr) => (
+                      <div
+                        key={pr.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openPrModal(pr)}
+                        className="p-4 border border-slate-200 dark:border-border-dark rounded-xl hover:border-primary/50 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-slate-500 technical-font text-sm">#{pr.number}</span>
+                          <span
+                            className={`px-2.5 py-1 text-xs font-medium rounded-md ${
+                              pr.state === 'open'
+                                ? 'bg-emerald-500/20 text-emerald-500'
+                                : pr.merged_at
+                                  ? 'bg-purple-500/20 text-purple-500'
+                                  : 'bg-red-500/20 text-red-500'
+                            }`}
+                          >
+                            {pr.state === 'open' ? 'Open' : pr.merged_at ? 'Merged' : 'Closed'}
+                          </span>
+                        </div>
+                        <h4 className="font-semibold text-slate-800 dark:text-white line-clamp-2">{pr.title}</h4>
+                        <div className="mt-2 text-xs text-slate-500">
+                          {pr.head?.ref} → {pr.base?.ref} · {formatTimeAgo(pr.updated_at)}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+                {updatesContent && (
+                  <div id="updates-section" className="h-1/2 flex flex-col overflow-hidden bg-slate-50 dark:bg-black/20 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="p-4 border-b border-slate-200 dark:border-border-dark flex items-center gap-2 bg-white dark:bg-[#1A1A1A]">
+                      <span className="material-symbols-outlined text-primary">campaign</span>
+                      <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Project Updates</span>
+                    </div>
+                    <div
+                      className="flex-1 overflow-y-auto p-6 prose dark:prose-invert max-w-none prose-sm prose-headings:font-display prose-a:text-primary hover:prose-a:text-primary/80"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(updatesContent)) }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

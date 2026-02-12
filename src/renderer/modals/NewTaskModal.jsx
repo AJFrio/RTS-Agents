@@ -613,7 +613,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                       handleSubmit();
                     }
                   }}
-                  placeholder={`Ask ${selectedService ? getProviderDisplayName(selectedService.provider) : 'Agent'}...`}
+                  placeholder="Describe the Task..."
                   className="w-full min-h-[360px] bg-transparent border-none p-6 text-slate-900 dark:text-slate-100 text-base resize-none focus:ring-0 placeholder:text-slate-400"
                   aria-label="Task description"
                 />

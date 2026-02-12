@@ -3,8 +3,11 @@ import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
-import marked from '../marked.cjs';
-import DOMPurify from '../purify.cjs';
+import * as markedModule from '../marked.cjs';
+import * as DOMPurifyModule from '../purify.cjs';
+
+const marked = markedModule.default || markedModule;
+const DOMPurify = DOMPurifyModule.default || DOMPurifyModule;
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal } = useApp();

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useApp } from './context/AppContext.jsx';
 import Layout from './components/layout/Layout.jsx';
+import AgentPage from './pages/AgentPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import BranchesPage from './pages/BranchesPage.jsx';
 import PullRequestsPage from './pages/PullRequestsPage.jsx';
@@ -31,7 +32,8 @@ function App() {
   }, [state.settings?.theme]);
 
   const Page =
-    view === 'dashboard' ? DashboardPage
+    view === 'agent' ? AgentPage
+    : view === 'dashboard' ? DashboardPage
     : view === 'branches' ? BranchesPage
     : view === 'pull-requests' ? PullRequestsPage
     : view === 'computers' ? ComputersPage
@@ -41,7 +43,7 @@ function App() {
 
   return (
     <>
-      <Layout fixedHeight={view === 'branches'}>
+      <Layout fixedHeight={view === 'branches' || view === 'agent'}>
         <Page />
       </Layout>
       <AgentModal agent={state.agentModal} onClose={closeAgentModal} api={api} />

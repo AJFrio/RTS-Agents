@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { useElectronAPI } from './ElectronAPI.jsx';
 
-const VIEWS = ['dashboard', 'branches', 'pull-requests', 'computers', 'jira', 'settings'];
+const VIEWS = ['agent', 'dashboard', 'branches', 'pull-requests', 'computers', 'jira', 'settings'];
 
 const initialState = {
   currentView: 'dashboard',

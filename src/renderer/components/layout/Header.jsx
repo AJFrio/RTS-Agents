@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext.jsx';
 import { debounce } from '../../utils/debounce.js';
 
 const VIEW_TITLES = {
+  agent: 'Agent Chat',
   dashboard: 'Agent Dashboard',
   branches: 'Repositories',
   'pull-requests': 'PULL REQUESTS',

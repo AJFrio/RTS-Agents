@@ -72,9 +72,12 @@ export default function NewTaskModal({ open, onClose, api }) {
   const recognitionRef = React.useRef(null);
 
   useEffect(() => {
+    if (!open) return;
+
+    let recognition = null;
     if (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+      recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
 
@@ -110,11 +113,12 @@ export default function NewTaskModal({ open, onClose, api }) {
     }
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
+      if (recognition) {
+        recognition.abort();
       }
+      setIsRecording(false);
     };
-  }, []);
+  }, [open]);
 
   const toggleRecording = () => {
     if (!recognitionRef.current) {

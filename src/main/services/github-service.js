@@ -111,7 +111,7 @@ const getRepoFile = async (owner, repo, path) => {
     return null;
   } catch (err) {
     // If file not found (404), return null instead of throwing
-    if (err.message.includes('404')) {
+    if (err.message.includes('404') || err.message.includes('Not Found')) {
       return null;
     }
     console.warn(`Failed to fetch file ${path} from ${owner}/${repo}:`, err.message);

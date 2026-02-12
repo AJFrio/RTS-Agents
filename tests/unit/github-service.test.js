@@ -208,4 +208,61 @@ describe('GitHub Service', () => {
       await expect(promise).rejects.toThrow('GitHub API Error: 405');
     });
   });
+
+  describe('getRepoFile', () => {
+    test('fetches file content and decodes base64', async () => {
+      const content = 'Hello World';
+      const base64Content = Buffer.from(content).toString('base64');
+      const mockResponseData = {
+        content: base64Content,
+        encoding: 'base64'
+      };
+
+      const promise = githubService.getRepoFile('owner', 'repo', 'README.md');
+
+      const requestCallback = requestSpy.mock.calls[0][1];
+      requestCallback(mockResponse);
+      mockResponse.emit('data', JSON.stringify(mockResponseData));
+      mockResponse.emit('end');
+
+      const result = await promise;
+      expect(result).toBe(content);
+      expect(requestSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: '/repos/owner/repo/contents/README.md'
+        }),
+        expect.any(Function)
+      );
+    });
+
+    test('returns null for 404 Not Found error', async () => {
+      mockResponse.statusCode = 404;
+      const promise = githubService.getRepoFile('owner', 'repo', 'missing.md');
+
+      const requestCallback = requestSpy.mock.calls[0][1];
+      requestCallback(mockResponse);
+      mockResponse.emit('data', JSON.stringify({ message: 'Not Found' }));
+      mockResponse.emit('end');
+
+      const result = await promise;
+      expect(result).toBeNull();
+    });
+
+    test('returns null for non-base64 encoding', async () => {
+      const mockResponseData = {
+        content: 'some content',
+        encoding: 'utf-8' // unexpected encoding
+      };
+
+      const promise = githubService.getRepoFile('owner', 'repo', 'file.txt');
+
+      const requestCallback = requestSpy.mock.calls[0][1];
+      requestCallback(mockResponse);
+      mockResponse.emit('data', JSON.stringify(mockResponseData));
+      mockResponse.emit('end');
+
+      const result = await promise;
+      expect(result).toBeNull();
+    });
+  });
 });

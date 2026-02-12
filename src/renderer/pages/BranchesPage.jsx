@@ -243,7 +243,7 @@ export default function BranchesPage() {
                 </div>
               </div>
               <div className="flex-1 flex flex-col overflow-hidden relative">
-                <div id="pr-list" className={`${updatesContent ? 'h-1/2 border-b border-slate-200 dark:border-border-dark' : 'h-full'} overflow-y-auto p-6 space-y-4 transition-all duration-300`}>
+                <div id="pr-list" className={`${updatesContent ? 'flex-1 min-h-0 border-b border-slate-200 dark:border-border-dark' : 'flex-1 min-h-0'} overflow-y-auto p-6 space-y-4 transition-all duration-300`}>
                   {loadingPrs && prs.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-32">
                       <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
@@ -292,7 +292,7 @@ export default function BranchesPage() {
                     ))}
                 </div>
                 {updatesContent && (
-                  <div id="updates-section" className="h-1/2 flex flex-col overflow-hidden bg-slate-50 dark:bg-black/20 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div id="updates-section" className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-black/20 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="p-4 border-b border-slate-200 dark:border-border-dark flex items-center gap-2 bg-white dark:bg-[#1A1A1A]">
                       <span className="material-symbols-outlined text-primary">campaign</span>
                       <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Project Updates</span>

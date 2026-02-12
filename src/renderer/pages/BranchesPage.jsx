@@ -3,11 +3,11 @@ import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
-import * as markedModule from '../marked.cjs';
-import * as DOMPurifyModule from '../purify.cjs';
+import '../marked.cjs';
+import '../purify.cjs';
 
-const marked = markedModule.default || markedModule;
-const DOMPurify = DOMPurifyModule.default || DOMPurifyModule;
+const marked = window.marked;
+const DOMPurify = window.DOMPurify;
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal } = useApp();
@@ -87,23 +87,31 @@ export default function BranchesPage() {
       setLoadingPrs(false);
     }
 
-    // Fetch UPDATES.md
+    // Fetch UPDATES.md or UPDATE.md
     try {
       let content = null;
-      if (repo.path) {
-        // Local repo
-        const result = await api.projects.getRepoFile(repo.path, 'UPDATES.md');
-        if (result?.success && result.content) {
-          content = result.content;
+
+      const fetchFile = async (filename) => {
+        if (repo.path) {
+          // Local repo
+          return await api.projects.getRepoFile(repo.path, filename);
+        } else {
+          // Remote repo
+          const owner = repo.owner?.login || repo.owner;
+          return await api.github.getRepoFile(owner, repo.name, filename);
         }
+      };
+
+      let result = await fetchFile('UPDATES.md');
+      if (result?.success && result.content) {
+        content = result.content;
       } else {
-        // Remote repo
-        const owner = repo.owner?.login || repo.owner;
-        const result = await api.github.getRepoFile(owner, repo.name, 'UPDATES.md');
+        result = await fetchFile('UPDATE.md');
         if (result?.success && result.content) {
           content = result.content;
         }
       }
+
       if (content) {
         setUpdatesContent(content);
       }
@@ -156,7 +164,7 @@ export default function BranchesPage() {
               className="w-full bg-white dark:bg-black border border-slate-200 dark:border-border-dark text-slate-800 dark:text-slate-300 text-xs py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
           </div>
-          <div id="repo-list" className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div id="repo-list" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
             {filteredRepos.length === 0 ? (
               <div className="px-4 py-6 text-center text-slate-500 text-sm font-medium">No repositories found</div>
             ) : (

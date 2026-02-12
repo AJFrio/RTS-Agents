@@ -140,6 +140,37 @@ describe('JulesService', () => {
         expect.stringContaining('"automationMode":"AUTO_CREATE_PR"') // Default
       );
     });
+
+    test('createSession appends attachments to prompt', async () => {
+      julesService.setApiKey('test-key');
+
+      const options = {
+        prompt: 'test prompt',
+        source: 'sources/github/owner/repo',
+        attachments: [
+          { name: 'screen.png', dataUrl: 'data:image/png;base64,12345' }
+        ]
+      };
+
+      const promise = julesService.createSession(options);
+
+      // Simulate response
+      const https = require('https');
+      const mockRes = {
+        statusCode: 200,
+        on: (event, handler) => {
+          if (event === 'data') handler(JSON.stringify({ id: '123', state: 'QUEUED' }));
+          if (event === 'end') handler();
+        }
+      };
+      https.request.callback(mockRes);
+
+      await promise;
+
+      expect(httpsRequestMock.write).toHaveBeenCalledWith(
+        expect.stringContaining('"prompt":"test prompt\\n\\n![screen.png](data:image/png;base64,12345)"')
+      );
+    });
   });
 
   describe('Activity mapping', () => {

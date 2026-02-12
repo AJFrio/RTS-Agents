@@ -48,10 +48,10 @@ export default function AgentPage() {
             className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+              className={`max-w-[70%] text-sm ${
                 msg.sender === 'user'
-                  ? 'bg-blue-500 text-white rounded-br-none'
-                  : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-bl-none'
+                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl rounded-br-none px-4 py-3 shadow-sm'
+                  : 'text-slate-800 dark:text-slate-200 pl-2'
               }`}
             >
               {msg.text}
@@ -61,16 +61,16 @@ export default function AgentPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark">
+      <div className="p-4">
         <div className="w-full max-w-4xl mx-auto">
-          <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-[2rem] p-4 flex flex-col gap-2 shadow-sm transition-colors duration-200">
+          <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-[2rem] p-2 flex flex-col gap-1 shadow-sm transition-colors duration-200">
             <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask Agent"
               rows={1}
-              className="w-full bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-base min-h-[40px] px-0 focus:!ring-0 focus:outline-none"
+              className="w-full bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-sm min-h-[24px] px-0 focus:!ring-0 focus:outline-none"
             />
             <div className="flex items-center justify-between mt-1">
               <div className="flex items-center gap-2">

@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext.jsx';
 import { formatCount } from '../../utils/format.js';
 
 const NAV_ITEMS = [
+  { view: 'agent', icon: 'smart_toy', label: 'Agent' },
   { view: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { view: 'branches', icon: 'source', label: 'Repositories' },
   { view: 'pull-requests', icon: 'merge_type', label: 'Pull Requests' },

@@ -3,11 +3,12 @@ import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
-import '../marked.cjs';
-import '../purify.cjs';
+import * as markedModule from '../marked.cjs';
+import * as DOMPurifyModule from '../purify.cjs';
 
-const marked = window.marked;
-const DOMPurify = window.DOMPurify;
+const parseMarkdown = markedModule.parse || markedModule.default?.parse;
+const createDOMPurify = DOMPurifyModule.default || DOMPurifyModule;
+const DOMPurify = createDOMPurify(window);
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal } = useApp();
@@ -310,7 +311,7 @@ export default function BranchesPage() {
                     </div>
                     <div
                       className="flex-1 overflow-y-auto p-6 prose dark:prose-invert max-w-none prose-sm prose-headings:font-display prose-a:text-primary hover:prose-a:text-primary/80"
-                      dangerouslySetInnerHTML={{ __html: window.DOMPurify.sanitize(window.marked.parse(updatesContent)) }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseMarkdown(updatesContent)) }}
                     />
                   </div>
                 )}

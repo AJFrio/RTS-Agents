@@ -4,11 +4,10 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
 import * as markedModule from '../marked.cjs';
-import * as DOMPurifyModule from '../purify.cjs';
+import '../purify.cjs';
 
 const parseMarkdown = markedModule.parse || markedModule.default?.parse;
-const createDOMPurify = DOMPurifyModule.default || DOMPurifyModule;
-const DOMPurify = createDOMPurify(window);
+const DOMPurify = window.DOMPurify;
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal } = useApp();

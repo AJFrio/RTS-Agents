@@ -377,6 +377,15 @@ export function AppProvider({ children }) {
     return () => { mounted = false; };
   }, [api]);
 
+  // Listen for background refresh ticks (polling)
+  useEffect(() => {
+    if (!api?.onRefreshTick) return;
+    const unsubscribe = api.onRefreshTick(() => {
+      loadAgents(true);
+    });
+    return unsubscribe;
+  }, [api, loadAgents]);
+
   // Recompute filtered agents when agents or filters change
   useEffect(() => {
     const { agents, filters } = state;

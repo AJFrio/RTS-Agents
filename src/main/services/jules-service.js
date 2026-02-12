@@ -398,9 +398,10 @@ class JulesService {
    * @param {string} [options.title] - Session title
    * @param {boolean} [options.autoCreatePr] - Whether to auto-create PR (defaults to true)
    * @param {boolean} [options.requirePlanApproval] - Whether to require plan approval (defaults to false)
+   * @param {Array} [options.attachments] - Array of attachments with dataUrl
    */
   async createSession(options) {
-    const { prompt, source, branch = 'main', title, autoCreatePr = true, requirePlanApproval = false } = options;
+    const { prompt, source, branch = 'main', title, autoCreatePr = true, requirePlanApproval = false, attachments } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -409,8 +410,20 @@ class JulesService {
       throw new Error('Source is required');
     }
 
+    let fullPrompt = prompt;
+
+    // Append attachments to prompt if present
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      for (const attachment of attachments) {
+        if (attachment?.dataUrl) {
+          const name = attachment.name || 'Image';
+          fullPrompt += `\n\n![${name}](${attachment.dataUrl})`;
+        }
+      }
+    }
+
     const body = {
-      prompt: prompt,
+      prompt: fullPrompt,
       sourceContext: {
         source: source,
         githubRepoContext: {

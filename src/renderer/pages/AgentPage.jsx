@@ -62,24 +62,48 @@ export default function AgentPage() {
       </div>
 
       <div className="p-4 border-t border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark">
-        <div className="relative flex items-end gap-2">
-          <div className="relative flex-1">
+        <div className="w-full max-w-4xl mx-auto">
+          <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-[2rem] p-4 flex flex-col gap-2 shadow-sm transition-colors duration-200">
             <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm rounded-xl py-3 pl-4 pr-12 focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none min-h-[50px] max-h-[150px]"
+              placeholder="Ask Agent"
               rows={1}
+              className="w-full bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-base min-h-[40px] px-0 focus:!ring-0 focus:outline-none"
             />
+            <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center gap-2">
+                <button
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  title="Add attachment"
+                >
+                  <span className="material-symbols-outlined text-xl">add</span>
+                </button>
+                <button className="flex items-center gap-1 px-3 py-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-sm font-medium">
+                  <span className="material-symbols-outlined text-lg">construction</span>
+                  <span>Tools</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="flex items-center gap-1 px-3 py-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-sm font-medium">
+                  <span>Thinking</span>
+                  <span className="material-symbols-outlined text-lg">expand_more</span>
+                </button>
+                <button
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  title={inputValue.trim() ? 'Send' : 'Start voice input'}
+                  onClick={() => {
+                    if (inputValue.trim()) handleSendMessage();
+                  }}
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {inputValue.trim() ? 'send' : 'mic'}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={handleSendMessage}
-            disabled={!inputValue.trim()}
-            className="p-3 bg-primary text-black rounded-xl hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            <span className="material-symbols-outlined">send</span>
-          </button>
         </div>
       </div>
     </div>

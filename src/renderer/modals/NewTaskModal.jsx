@@ -628,24 +628,9 @@ export default function NewTaskModal({ open, onClose, api }) {
                     >
                       <span className="material-symbols-outlined text-xl">add</span>
                     </button>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors text-sm font-medium"
-                      title="Tools"
-                    >
-                      <span className="material-symbols-outlined text-lg">construction</span>
-                      <span>Tools</span>
-                    </button>
                   </div>
 
                   <div className="flex items-center gap-3">
-                     <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500 text-sm font-medium select-none">
-                        <span>Thinking</span>
-                        <span className="material-symbols-outlined text-lg">expand_more</span>
-                     </div>
-
-                     <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
                      <button
                       type="button"
                       onClick={toggleRecording}
@@ -669,13 +654,6 @@ export default function NewTaskModal({ open, onClose, api }) {
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                   ATTACHED CONTEXT
                 </label>
-                <button
-                  type="button"
-                  className="text-primary text-xs font-medium hover:underline"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Add More
-                </button>
               </div>
               <div className="flex gap-3 flex-wrap">
                 <input
@@ -701,14 +679,6 @@ export default function NewTaskModal({ open, onClose, api }) {
                     </button>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-500 dark:border-slate-500 flex flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500 hover:border-slate-400 hover:text-slate-300 transition-colors shrink-0"
-                >
-                  <span className="material-symbols-outlined text-2xl">cloud_upload</span>
-                  <span className="text-[10px] font-medium uppercase">Upload</span>
-                </button>
               </div>
             </div>
           </div>

@@ -310,7 +310,7 @@ export default function BranchesPage() {
                     </div>
                     <div
                       className="flex-1 overflow-y-auto p-6 prose dark:prose-invert max-w-none prose-sm prose-headings:font-display prose-a:text-primary hover:prose-a:text-primary/80"
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(updatesContent)) }}
+                      dangerouslySetInnerHTML={{ __html: window.DOMPurify.sanitize(window.marked.parse(updatesContent)) }}
                     />
                   </div>
                 )}

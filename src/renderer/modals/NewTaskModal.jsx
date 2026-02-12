@@ -601,7 +601,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                 <span className="material-symbols-outlined text-slate-400 text-base">drag_indicator</span>
                 TASK DEFINITION & INSTRUCTIONS
               </label>
-              <div className="relative w-full">
+              <div className="relative w-full bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-[2rem] flex flex-col overflow-hidden transition-all focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20">
                 <textarea
                   id="task-prompt"
                   value={prompt}
@@ -613,24 +613,55 @@ export default function NewTaskModal({ open, onClose, api }) {
                       handleSubmit();
                     }
                   }}
-                  placeholder="'Refactor the authentication middleware to support multi-tenant JWT validation and update the documentation...'"
-                  className="w-full min-h-[420px] bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-xl p-5 text-slate-900 dark:text-slate-100 text-base resize-y pb-12"
+                  placeholder="Describe the Task..."
+                  className="w-full min-h-[360px] bg-transparent border-none p-6 text-slate-900 dark:text-slate-100 text-base resize-none focus:ring-0 placeholder:text-slate-400"
                   aria-label="Task description"
                 />
-                <button
-                  type="button"
-                  onClick={toggleRecording}
-                  className={`absolute bottom-4 right-4 p-3 rounded-full transition-all shadow-lg hover:scale-105 active:scale-95 ${
-                    isRecording
-                      ? 'bg-red-500 text-white animate-pulse ring-4 ring-red-500/20'
-                      : 'bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 border border-slate-200 dark:border-border-dark'
-                  }`}
-                  title={isRecording ? 'Stop recording' : 'Start voice input'}
-                >
-                  <span className="material-symbols-outlined text-xl leading-none">
-                    {isRecording ? 'stop_circle' : 'mic'}
-                  </span>
-                </button>
+
+                <div className="flex items-center justify-between px-4 py-3 bg-transparent">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+                      title="Add attachment"
+                    >
+                      <span className="material-symbols-outlined text-xl">add</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors text-sm font-medium"
+                      title="Tools"
+                    >
+                      <span className="material-symbols-outlined text-lg">construction</span>
+                      <span>Tools</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                     <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500 text-sm font-medium select-none">
+                        <span>Thinking</span>
+                        <span className="material-symbols-outlined text-lg">expand_more</span>
+                     </div>
+
+                     <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+                     <button
+                      type="button"
+                      onClick={toggleRecording}
+                      className={`p-2 rounded-full transition-all ${
+                        isRecording
+                          ? 'bg-red-500 text-white animate-pulse'
+                          : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}
+                      title={isRecording ? 'Stop recording' : 'Start voice input'}
+                    >
+                      <span className="material-symbols-outlined text-xl">
+                        {isRecording ? 'stop_circle' : 'mic'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div>

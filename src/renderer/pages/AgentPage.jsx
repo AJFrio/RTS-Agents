@@ -64,7 +64,7 @@ export default function AgentPage() {
               onKeyDown={handleKeyDown}
               placeholder="Ask Agent"
               rows={1}
-              className="w-full bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-sm min-h-[24px] px-0 focus:!ring-0 focus:outline-none"
+              className="w-full !bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-sm min-h-[24px] px-0 focus:!ring-0 focus:outline-none"
             />
             <div className="flex items-center justify-between mt-1">
               <div className="flex items-center gap-2">

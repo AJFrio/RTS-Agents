@@ -3,11 +3,7 @@ import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
-import * as markedModule from '../marked.cjs';
-import '../purify.cjs';
-
-const parseMarkdown = markedModule.parse || markedModule.default?.parse;
-const DOMPurify = window.DOMPurify;
+import { parseMarkdown } from '../utils/markdown.js';
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal } = useApp();
@@ -310,7 +306,7 @@ export default function BranchesPage() {
                     </div>
                     <div
                       className="flex-1 overflow-y-auto p-6 prose dark:prose-invert max-w-none prose-sm prose-headings:font-display prose-a:text-primary hover:prose-a:text-primary/80"
-                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseMarkdown(updatesContent)) }}
+                      dangerouslySetInnerHTML={{ __html: parseMarkdown(updatesContent) }}
                     />
                   </div>
                 )}

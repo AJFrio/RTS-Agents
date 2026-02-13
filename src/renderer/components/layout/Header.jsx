@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import FilterDropdown from '../ui/FilterDropdown.jsx';
 import { debounce } from '../../utils/debounce.js';
 
 const VIEW_TITLES = {
@@ -63,20 +64,23 @@ export default function Header() {
       {showHeaderActions && (
         <div className="flex items-center gap-4">
           {currentView === 'dashboard' && (
-            <div className="relative">
-              <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
-                <span className="material-symbols-outlined text-sm">search</span>
-              </span>
-              <input
-                type="text"
-                id="search-input"
-                placeholder="SEARCH TASKS"
-                defaultValue={filters.search}
-                className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs technical-font py-2 pl-10 pr-4 w-64 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-500 transition-all duration-200"
-                style={{ paddingLeft: '2.5rem', textAlign: 'right' }}
-                onChange={handleSearch}
-              />
-            </div>
+            <>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
+                  <span className="material-symbols-outlined text-sm">search</span>
+                </span>
+                <input
+                  type="text"
+                  id="search-input"
+                  placeholder="SEARCH TASKS"
+                  defaultValue={filters.search}
+                  className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs technical-font py-2 pl-10 pr-4 w-64 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-500 transition-all duration-200"
+                  style={{ paddingLeft: '2.5rem', textAlign: 'right' }}
+                  onChange={handleSearch}
+                />
+              </div>
+              <FilterDropdown />
+            </>
           )}
 
           {currentView === 'branches' ? (

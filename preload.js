@@ -312,6 +312,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendMessage: (provider, rawId, message) =>
     ipcRenderer.invoke('tasks:send-message', { provider, rawId, message }),
 
+  /**
+   * Send a message to the Agent Orchestrator
+   * @param {Array} messages - Chat history
+   * @param {string} selectedModel - Selected model identifier
+   */
+  orchestratorChat: (messages, selectedModel) =>
+    ipcRenderer.invoke('orchestrator:chat', { messages, selectedModel }),
+
   // ============================================
   // Events API
   // ============================================

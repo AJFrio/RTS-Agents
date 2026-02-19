@@ -11,6 +11,8 @@ const julesService = require('./src/main/services/jules-service');
 const cursorService = require('./src/main/services/cursor-service');
 const codexService = require('./src/main/services/codex-service');
 const claudeService = require('./src/main/services/claude-service');
+const openRouterService = require('./src/main/services/openrouter-service');
+const agentOrchestrator = require('./src/main/services/agent-orchestrator');
 const githubService = require('./src/main/services/github-service');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
 const jiraService = require('./src/main/services/jira-service');
@@ -105,6 +107,8 @@ function initializeServices() {
   const cursorKey = configStore.getApiKey('cursor');
   const codexKey = configStore.getApiKey('codex');
   const claudeKey = configStore.getApiKey('claude');
+  const openRouterKey = configStore.getApiKey('openrouter');
+  const geminiKey = configStore.getApiKey('gemini');
   
   if (julesKey) {
     julesService.setApiKey(julesKey);
@@ -123,6 +127,12 @@ function initializeServices() {
     // Restore tracked conversations from config
     const trackedConversations = configStore.getClaudeConversations();
     claudeService.setTrackedConversations(trackedConversations);
+  }
+  if (openRouterKey) {
+    openRouterService.setApiKey(openRouterKey);
+  }
+  if (geminiKey) {
+    geminiService.setApiKey(geminiKey);
   }
 
   const githubKey = configStore.getApiKey('github');
@@ -571,6 +581,9 @@ ipcMain.handle('settings:get', async () => {
       jules: configStore.hasApiKey('jules'),
       cursor: configStore.hasApiKey('cursor'),
       codex: configStore.hasApiKey('codex'),
+      openai: configStore.hasApiKey('openai'),
+      openrouter: configStore.hasApiKey('openrouter'),
+      gemini: configStore.hasApiKey('gemini'),
       claude: configStore.hasApiKey('claude'),
       github: configStore.hasApiKey('github'),
       jira: configStore.hasApiKey('jira'),
@@ -622,6 +635,10 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     claudeService.setTrackedConversations(trackedConversations);
   } else if (provider === 'github') {
     githubService.setApiKey(key);
+  } else if (provider === 'openrouter') {
+    openRouterService.setApiKey(key);
+  } else if (provider === 'gemini') {
+    geminiService.setApiKey(key);
   }
   
   return { success: true };
@@ -742,6 +759,10 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
       return await githubService.testConnection();
     } else if (provider === 'jira') {
       return await jiraService.testConnection();
+    } else if (provider === 'openrouter') {
+      return await openRouterService.testConnection();
+    } else if (provider === 'gemini') {
+      return { success: true };
     }
     return { success: false, error: 'Unknown provider' };
   } catch (err) {
@@ -772,6 +793,10 @@ ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
     claudeService.setTrackedConversations([]);
   } else if (provider === 'github') {
     githubService.setApiKey(null);
+  } else if (provider === 'openrouter') {
+    openRouterService.setApiKey(null);
+  } else if (provider === 'gemini') {
+    geminiService.setApiKey(null);
   }
   
   return { success: true };
@@ -1126,8 +1151,16 @@ ipcMain.handle('utils:get-status', async () => {
   
   return {
     gemini: {
-      connected: geminiService.isGeminiInstalled(),
-      error: geminiService.isGeminiInstalled() ? null : 'Gemini CLI not found'
+      connected: geminiService.isGeminiInstalled() || configStore.hasApiKey('gemini'),
+      error: (geminiService.isGeminiInstalled() || configStore.hasApiKey('gemini')) ? null : 'Gemini CLI not found & API Key missing'
+    },
+    openrouter: {
+      connected: configStore.hasApiKey('openrouter'),
+      error: configStore.hasApiKey('openrouter') ? null : 'Not configured'
+    },
+    openai: {
+      connected: configStore.hasApiKey('openai'),
+      error: configStore.hasApiKey('openai') ? null : 'Not configured'
     },
     jules: julesStatus.status === 'fulfilled' ? julesStatus.value : { success: false, error: julesStatus.reason?.message },
     cursor: cursorStatus.status === 'fulfilled' ? cursorStatus.value : { success: false, error: cursorStatus.reason?.message },
@@ -1279,9 +1312,9 @@ ipcMain.handle('repos:get-all', async () => {
 });
 
 /**
- * Create a new task/session
+ * Create a new task/session (Shared Logic)
  */
-ipcMain.handle('tasks:create', async (event, { provider, options }) => {
+async function createTask({ provider, options }) {
   try {
     // Handle remote task execution
     if (options && options.targetDeviceId) {
@@ -1344,8 +1377,9 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
         return { success: true, task: cursorAgent };
 
       case 'gemini':
-        if (!geminiService.isGeminiInstalled()) {
-          throw new Error('Gemini CLI not installed');
+        // Ensure Gemini is installed OR we have an API key
+        if (!geminiService.isGeminiInstalled() && !configStore.hasApiKey('gemini')) {
+             throw new Error('Gemini CLI not installed and API key not configured');
         }
         const geminiSession = await geminiService.startSession(options);
         return { success: true, task: geminiSession };
@@ -1385,6 +1419,24 @@ ipcMain.handle('tasks:create', async (event, { provider, options }) => {
     console.error(`Error creating task for ${provider}:`, err);
     return { success: false, error: err.message };
   }
+}
+
+// Initialize Orchestrator Callback
+agentOrchestrator.setCreateTaskCallback(createTask);
+
+// ============================================
+// IPC Handlers - Orchestrator
+// ============================================
+
+ipcMain.handle('orchestrator:chat', async (event, { messages, selectedModel }) => {
+  return await agentOrchestrator.chat(messages, selectedModel);
+});
+
+/**
+ * Create a new task/session
+ */
+ipcMain.handle('tasks:create', async (event, args) => {
+  return createTask(args);
 });
 
 /**

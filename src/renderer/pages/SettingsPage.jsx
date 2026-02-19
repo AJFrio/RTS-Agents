@@ -8,12 +8,15 @@ const API_KEYS = [
   { id: 'jira', label: 'Jira API Token / PAT', placeholder: "Enter 'email:token' (Cloud) or PAT (Server)", hint: 'Cloud: email:token. Data Center: Personal Access Token.' },
   { id: 'jules', label: 'Jules API Key', placeholder: 'Enter Jules API key', hint: 'Get from Jules console settings' },
   { id: 'cursor', label: 'Cursor Cloud API Key', placeholder: 'Enter Cursor API key', hint: 'Get from cursor.com/settings' },
-  { id: 'codex', label: 'OpenAI Codex API Key', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
+  { id: 'codex', label: 'OpenAI Codex API Key (Legacy)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
+  { id: 'openai', label: 'OpenAI API Key (Orchestrator)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
+  { id: 'openrouter', label: 'OpenRouter API Key', placeholder: 'Enter OpenRouter API key', hint: 'Get from openrouter.ai/keys' },
   { id: 'claude', label: 'Anthropic Claude API Key', placeholder: 'Enter Anthropic API key', hint: 'Get from console.anthropic.com' },
+  { id: 'gemini', label: 'Google Gemini API Key', placeholder: 'Enter Gemini API key', hint: 'Get from aistudio.google.com' },
   { id: 'github', label: 'GitHub Personal Access Token', placeholder: 'Enter GitHub PAT (repo scope)', hint: 'Get from github.com/settings/tokens (classic)' },
 ];
 
-const STATUS_KEYS = ['gemini', 'jules', 'cursor', 'codex', 'claude-cli', 'claude-cloud', 'github'];
+const STATUS_KEYS = ['gemini', 'jules', 'cursor', 'codex', 'openai', 'openrouter', 'claude-cli', 'claude-cloud', 'github'];
 
 function statusText(s) {
   if (!s) return 'STBY';

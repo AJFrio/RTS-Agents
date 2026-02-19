@@ -18,6 +18,18 @@ const schema = {
         type: 'string',
         default: ''
       },
+      openai: {
+        type: 'string',
+        default: ''
+      },
+      openrouter: {
+        type: 'string',
+        default: ''
+      },
+      gemini: {
+        type: 'string',
+        default: ''
+      },
       claude: {
         type: 'string',
         default: ''

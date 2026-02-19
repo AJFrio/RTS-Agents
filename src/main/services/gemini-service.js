@@ -6,6 +6,15 @@ class GeminiService {
   constructor() {
     this.baseDir = path.join(os.homedir(), '.gemini', 'tmp');
     this.historyDir = path.join(os.homedir(), '.gemini', 'history');
+    this.apiKey = null;
+  }
+
+  /**
+   * Set the Gemini API key
+   * @param {string} apiKey
+   */
+  setApiKey(apiKey) {
+    this.apiKey = apiKey;
   }
 
   /**
@@ -422,11 +431,17 @@ class GeminiService {
         ? String(command).trim()
         : (process.platform === 'win32' ? 'gemini.cmd' : 'gemini');
       
+      const env = { ...process.env };
+      if (this.apiKey) {
+        env.GEMINI_API_KEY = this.apiKey;
+      }
+
       const child = spawn(geminiCmd, args, {
         cwd: projectPath,
         shell: true,
         detached: true,
         stdio: 'ignore',
+        env: env,
         windowsHide: true
       });
 

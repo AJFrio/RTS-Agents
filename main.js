@@ -608,6 +608,7 @@ ipcMain.handle('settings:get', async () => {
     codexPaths: configStore.getCodexPaths(),
     githubPaths: configStore.getGithubPaths(),
     filters: configStore.getFilters(),
+    selectedModel: configStore.getSelectedModel(),
     localDeviceId: configStore.getOrCreateDeviceIdentity().id
   };
 });
@@ -905,6 +906,14 @@ ipcMain.handle('settings:set-display-mode', async (event, { mode }) => {
  */
 ipcMain.handle('settings:save-filters', async (event, { filters }) => {
   configStore.setFilters(filters);
+  return { success: true };
+});
+
+/**
+ * Set selected model
+ */
+ipcMain.handle('settings:set-model', async (event, { model }) => {
+  configStore.setSelectedModel(model);
   return { success: true };
 });
 
@@ -1427,6 +1436,10 @@ agentOrchestrator.setCreateTaskCallback(createTask);
 // ============================================
 // IPC Handlers - Orchestrator
 // ============================================
+
+ipcMain.handle('orchestrator:get-models', async () => {
+  return await agentOrchestrator.getAvailableModels();
+});
 
 ipcMain.handle('orchestrator:chat', async (event, { messages, selectedModel }) => {
   return await agentOrchestrator.chat(messages, selectedModel);

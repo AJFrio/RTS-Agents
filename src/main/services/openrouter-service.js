@@ -96,6 +96,27 @@ class OpenRouterService {
         return { success: false, error: err.message };
     }
   }
+
+  async getModels() {
+    if (!this.apiKey) {
+      return [];
+    }
+
+    try {
+      const response = await this.request('/models');
+      if (response && Array.isArray(response.data)) {
+        return response.data.map(m => ({
+          id: 'openrouter/' + m.id,
+          name: m.name || m.id,
+          provider: 'openrouter'
+        }));
+      }
+      return [];
+    } catch (err) {
+      console.error('OpenRouter getModels error:', err);
+      return [];
+    }
+  }
 }
 
 module.exports = new OpenRouterService();

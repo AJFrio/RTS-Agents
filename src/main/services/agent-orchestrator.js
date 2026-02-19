@@ -1,6 +1,9 @@
 const openRouterService = require('./openrouter-service');
 const cloudflareKvService = require('./cloudflare-kv-service');
 const configStore = require('./config-store');
+const codexService = require('./codex-service');
+const claudeService = require('./claude-service');
+const geminiService = require('./gemini-service');
 
 class AgentOrchestrator {
   constructor() {
@@ -9,6 +12,55 @@ class AgentOrchestrator {
 
   setCreateTaskCallback(callback) {
     this.createTaskCallback = callback;
+  }
+
+  async getAvailableModels() {
+    const models = [];
+    const errors = [];
+
+    // Check configuration and fetch models in parallel
+    const promises = [];
+
+    // OpenRouter
+    if (configStore.hasApiKey('openrouter')) {
+      promises.push(
+        openRouterService.getModels()
+          .then(list => models.push(...list))
+          .catch(err => errors.push({ provider: 'openrouter', error: err.message }))
+      );
+    }
+
+    // OpenAI (Codex)
+    if (configStore.hasApiKey('openai') || configStore.hasApiKey('codex')) {
+      promises.push(
+        codexService.getModels()
+          .then(list => models.push(...list))
+          .catch(err => errors.push({ provider: 'openai', error: err.message }))
+      );
+    }
+
+    // Anthropic (Claude)
+    if (configStore.hasApiKey('claude')) {
+      promises.push(
+        claudeService.getModels()
+          .then(list => models.push(...list))
+          .catch(err => errors.push({ provider: 'anthropic', error: err.message }))
+      );
+    }
+
+    // Gemini
+    if (configStore.hasApiKey('gemini')) {
+      promises.push(
+        geminiService.getModels()
+          .then(list => models.push(...list))
+          .catch(err => errors.push({ provider: 'gemini', error: err.message }))
+      );
+    }
+
+    await Promise.all(promises);
+
+    // If no keys configured, return empty list
+    return { models, errors };
   }
 
   async chat(messages, selectedModel) {

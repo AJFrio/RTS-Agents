@@ -138,6 +138,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('settings:save-filters', { filters }),
 
   /**
+   * Set selected model
+   * @param {string} model
+   */
+  setModel: (model) =>
+    ipcRenderer.invoke('settings:set-model', { model }),
+
+  /**
    * Add a Gemini project path to scan
    * @param {string} path 
    */
@@ -311,6 +318,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   sendMessage: (provider, rawId, message) =>
     ipcRenderer.invoke('tasks:send-message', { provider, rawId, message }),
+
+  /**
+   * Get available models for the Orchestrator
+   */
+  orchestratorGetModels: () =>
+    ipcRenderer.invoke('orchestrator:get-models'),
 
   /**
    * Send a message to the Agent Orchestrator

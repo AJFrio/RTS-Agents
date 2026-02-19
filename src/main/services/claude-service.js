@@ -271,6 +271,33 @@ class ClaudeService {
     }
   }
 
+  async getModels() {
+    if (!this.apiKey) {
+      return [];
+    }
+
+    try {
+      const response = await this.request('/models');
+      if (response && Array.isArray(response.data)) {
+        return response.data.map(m => ({
+          id: 'anthropic/' + m.id,
+          name: m.display_name || m.id,
+          provider: 'anthropic'
+        }));
+      }
+      return [];
+    } catch (err) {
+      console.error('Anthropic getModels error:', err);
+      // Fallback
+      return [
+        { id: 'anthropic/claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet', provider: 'anthropic' },
+        { id: 'anthropic/claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic' },
+        { id: 'anthropic/claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'anthropic' },
+        { id: 'anthropic/claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic' }
+      ];
+    }
+  }
+
   // ============================================
   // Conversation Tracking (Cloud Mode)
   // ============================================

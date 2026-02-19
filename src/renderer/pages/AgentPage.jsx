@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 
 export default function AgentPage() {
-  const { api } = useApp();
+  const { api, state } = useApp();
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
-  const [selectedModel, setSelectedModel] = useState('openrouter/openai/gpt-4o');
+  const selectedModel = state.settings?.selectedModel || 'openrouter/openai/gpt-4o';
   const [thinking, setThinking] = useState(false);
   const messagesEndRef = useRef(null);
 
@@ -72,30 +72,8 @@ export default function AgentPage() {
     }
   };
 
-  const models = [
-    { id: 'openrouter/openai/gpt-4o', name: 'OpenAI GPT-4o (via OpenRouter)' },
-    { id: 'openrouter/anthropic/claude-3.5-sonnet', name: 'Anthropic Claude 3.5 Sonnet (via OpenRouter)' },
-    { id: 'openrouter/google/gemini-pro-1.5', name: 'Google Gemini Pro 1.5 (via OpenRouter)' },
-    { id: 'openai/gpt-4o', name: 'OpenAI GPT-4o (Direct)' },
-    { id: 'anthropic/claude-3-5-sonnet-20240620', name: 'Anthropic Claude 3.5 Sonnet (Direct)' },
-    { id: 'gemini/gemini-1.5-pro', name: 'Google Gemini 1.5 Pro (Direct)' }
-  ];
-
   return (
     <div id="view-agent" className="view-content h-full flex flex-col relative">
-      {/* Header / Model Selector */}
-      <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-end">
-        <select
-          value={selectedModel}
-          onChange={(e) => setSelectedModel(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-        >
-          {models.map(m => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
-        </select>
-      </div>
-
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg) => (
           <div

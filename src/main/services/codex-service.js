@@ -367,6 +367,29 @@ class CodexService {
     }
   }
 
+  async getModels() {
+    if (!this.apiKey) {
+      return [];
+    }
+
+    try {
+      const response = await this.request('/models');
+      if (response && Array.isArray(response.data)) {
+        return response.data
+          .filter(m => m.id.includes('gpt')) // Filter for GPT models mostly
+          .map(m => ({
+            id: 'openai/' + m.id,
+            name: m.id,
+            provider: 'openai'
+          }));
+      }
+      return [];
+    } catch (err) {
+      console.error('OpenAI getModels error:', err);
+      return [];
+    }
+  }
+
   /**
    * Get available local projects from configured paths
    * @param {string[]} paths - Paths to scan

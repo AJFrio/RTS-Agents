@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import ApiKeyRow from '../components/settings/ApiKeyRow.jsx';
 import PathRow from '../components/settings/PathRow.jsx';
+import ModelSelector from '../components/settings/ModelSelector.jsx';
 import Button from '../components/ui/Button.jsx';
 
 const API_KEYS = [
@@ -41,6 +42,21 @@ export default function SettingsPage() {
   const [cloudflareAccountId, setCloudflareAccountId] = useState('');
   const [cloudflareToken, setCloudflareToken] = useState('');
   const [newGithubPath, setNewGithubPath] = useState('');
+  const [selectedModel, setSelectedModel] = useState(settings.selectedModel || 'openrouter/openai/gpt-4o');
+
+  useEffect(() => {
+    if (settings.selectedModel) {
+      setSelectedModel(settings.selectedModel);
+    }
+  }, [settings.selectedModel]);
+
+  const saveModel = useCallback(async (model) => {
+    setSelectedModel(model);
+    if (api?.setModel) {
+      await api.setModel(model);
+      dispatch({ type: 'SET_SETTINGS', payload: { selectedModel: model } });
+    }
+  }, [api, dispatch]);
 
   // Cloudflare state
   const [pushingKeys, setPushingKeys] = useState(false);
@@ -277,6 +293,18 @@ export default function SettingsPage() {
               <p className="text-[10px] technical-font text-slate-500 opacity-60">Sync API keys across devices using Cloudflare KV.</p>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
+        <div className="flex items-center gap-3 mb-8">
+          <span className="material-symbols-outlined text-primary">smart_toy</span>
+          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Agent Model</h3>
+        </div>
+        <div className="space-y-2">
+          <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Orchestrator Model</label>
+          <ModelSelector value={selectedModel} onChange={saveModel} />
+          <p className="text-[10px] technical-font text-slate-500 opacity-60">The AI model used for the main agent chat.</p>
         </div>
       </section>
 

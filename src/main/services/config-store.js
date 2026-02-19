@@ -175,6 +175,10 @@ const schema = {
           }
         },
         default: {}
+      },
+      selectedModel: {
+        type: 'string',
+        default: 'openrouter/openai/gpt-4o'
       }
     },
     default: {}
@@ -276,6 +280,14 @@ class ConfigStore {
 
   setFilters(filters) {
     this.store.set('settings.filters', filters);
+  }
+
+  getSelectedModel() {
+    return this.store.get('settings.selectedModel', 'openrouter/openai/gpt-4o');
+  }
+
+  setSelectedModel(model) {
+    this.store.set('settings.selectedModel', model);
   }
 
   getJiraBaseUrl() {

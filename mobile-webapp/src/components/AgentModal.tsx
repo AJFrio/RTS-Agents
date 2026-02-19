@@ -160,7 +160,12 @@ export default function AgentModal() {
                   {selectedAgent.status.charAt(0).toUpperCase() + selectedAgent.status.slice(1)}
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{selectedAgent.name}</h2>
+              <h2
+                className="text-xl font-bold text-slate-900 dark:text-white mb-2 line-clamp-2"
+                title={selectedAgent.name}
+              >
+                {selectedAgent.name}
+              </h2>
               
               {/* Metadata */}
               <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">

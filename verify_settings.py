@@ -60,8 +60,16 @@ def verify_settings_page(page: Page):
         # Wait for page load
         page.wait_for_timeout(2000)
 
-        # Check for "Agent Model" section
-        expect(page.get_by_text("Agent Model")).to_be_visible()
+        # Check for "Cloud Service Keys" section
+        expect(page.get_by_role("heading", name="Cloud Service Keys")).to_be_visible()
+        expect(page.get_by_text("Jules API Key")).to_be_visible()
+
+        # Check for "Agent Model Keys" section
+        expect(page.get_by_role("heading", name="Agent Model Keys")).to_be_visible()
+        expect(page.get_by_text("Anthropic Claude API Key")).to_be_visible()
+
+        # Check for "Agent Model" section (exact match)
+        expect(page.get_by_role("heading", name="Agent Model", exact=True)).to_be_visible()
         expect(page.get_by_text("Orchestrator Model")).to_be_visible()
 
         # Wait for models to load and value to populate

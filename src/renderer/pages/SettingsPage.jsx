@@ -5,16 +5,19 @@ import PathRow from '../components/settings/PathRow.jsx';
 import ModelSelector from '../components/settings/ModelSelector.jsx';
 import Button from '../components/ui/Button.jsx';
 
-const API_KEYS = [
-  { id: 'jira', label: 'Jira API Token / PAT', placeholder: "Enter 'email:token' (Cloud) or PAT (Server)", hint: 'Cloud: email:token. Data Center: Personal Access Token.' },
+const CLOUD_KEYS = [
   { id: 'jules', label: 'Jules API Key', placeholder: 'Enter Jules API key', hint: 'Get from Jules console settings' },
   { id: 'cursor', label: 'Cursor Cloud API Key', placeholder: 'Enter Cursor API key', hint: 'Get from cursor.com/settings' },
-  { id: 'codex', label: 'OpenAI Codex API Key (Legacy)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
-  { id: 'openai', label: 'OpenAI API Key (Orchestrator)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
+  { id: 'github', label: 'GitHub Personal Access Token', placeholder: 'Enter GitHub PAT (repo scope)', hint: 'Get from github.com/settings/tokens (classic)' },
+  { id: 'jira', label: 'Jira API Token / PAT', placeholder: "Enter 'email:token' (Cloud) or PAT (Server)", hint: 'Cloud: email:token. Data Center: Personal Access Token.' },
+];
+
+const MODEL_KEYS = [
   { id: 'openrouter', label: 'OpenRouter API Key', placeholder: 'Enter OpenRouter API key', hint: 'Get from openrouter.ai/keys' },
   { id: 'claude', label: 'Anthropic Claude API Key', placeholder: 'Enter Anthropic API key', hint: 'Get from console.anthropic.com' },
+  { id: 'openai', label: 'OpenAI API Key (Orchestrator)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
   { id: 'gemini', label: 'Google Gemini API Key', placeholder: 'Enter Gemini API key', hint: 'Get from aistudio.google.com' },
-  { id: 'github', label: 'GitHub Personal Access Token', placeholder: 'Enter GitHub PAT (repo scope)', hint: 'Get from github.com/settings/tokens (classic)' },
+  { id: 'codex', label: 'OpenAI Codex API Key (Legacy)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
 ];
 
 const STATUS_KEYS = ['gemini', 'jules', 'cursor', 'codex', 'openai', 'openrouter', 'claude-cli', 'claude-cloud', 'github'];
@@ -206,7 +209,7 @@ export default function SettingsPage() {
       <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
         <div className="flex items-center gap-3 mb-8">
           <span className="material-symbols-outlined text-primary">key</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">API Command Keys</h3>
+          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Cloud Service Keys</h3>
         </div>
         <div className="space-y-8">
           <div className="space-y-2">
@@ -223,7 +226,7 @@ export default function SettingsPage() {
             </div>
             <p className="text-[10px] technical-font text-slate-500 opacity-60">Your Jira site URL (no trailing slash)</p>
           </div>
-          {API_KEYS.map(({ id, label, placeholder, hint }) => (
+          {CLOUD_KEYS.map(({ id, label, placeholder, hint }) => (
             <ApiKeyRow
               key={id}
               id={`${id}-api-key`}
@@ -293,6 +296,31 @@ export default function SettingsPage() {
               <p className="text-[10px] technical-font text-slate-500 opacity-60">Sync API keys across devices using Cloudflare KV.</p>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
+        <div className="flex items-center gap-3 mb-8">
+          <span className="material-symbols-outlined text-primary">smart_toy</span>
+          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Agent Model Keys</h3>
+        </div>
+        <div className="space-y-8">
+          {MODEL_KEYS.map(({ id, label, placeholder, hint }) => (
+            <ApiKeyRow
+              key={id}
+              id={`${id}-api-key`}
+              label={label}
+              placeholder={placeholder}
+              hint={hint}
+              value={keyValues[id] ?? ''}
+              onChange={(v) => setKeyValues((prev) => ({ ...prev, [id]: v }))}
+              onSave={() => saveApiKey(id)}
+              onTest={() => testApiKey(id)}
+              onDisconnect={() => disconnectApiKey(id)}
+              configured={configuredServices[id]}
+              saving={saving}
+            />
+          ))}
         </div>
       </section>
 

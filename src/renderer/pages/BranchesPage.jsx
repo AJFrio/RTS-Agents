@@ -357,7 +357,7 @@ export default function BranchesPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openNewTaskModal({
-                                  initialPrompt: `${task.description} When finished, remove the task from the UPDATES.md file`,
+                                  initialPrompt: `${task.description}\n\nWhen finished, remove the task from the UPDATES.md file`,
                                 });
                               }}
                             >
@@ -375,7 +375,7 @@ export default function BranchesPage() {
                   onBuild={(task) => {
                     setSelectedTask(null);
                     openNewTaskModal({
-                      initialPrompt: `${task.description} When finished, remove the task from the UPDATES.md file`,
+                      initialPrompt: `${task.description}\n\nWhen finished, remove the task from the UPDATES.md file`,
                     });
                   }}
                 />

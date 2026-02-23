@@ -6,7 +6,7 @@ import { formatTimeAgo } from '../utils/format.js';
 import { parseMarkdown } from '../utils/markdown.js';
 
 export default function BranchesPage() {
-  const { state, dispatch, setView, api, openPrModal } = useApp();
+  const { state, dispatch, setView, api, openPrModal, openNewTaskModal } = useApp();
   const { github, configuredServices, currentView } = state;
   const [repoFilter, setRepoFilter] = useState('');
   const [prFilter, setPrFilter] = useState('open');
@@ -304,10 +304,59 @@ export default function BranchesPage() {
                       <span className="material-symbols-outlined text-primary">campaign</span>
                       <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Project Updates</span>
                     </div>
-                    <div
-                      className="flex-1 overflow-y-auto p-6 prose dark:prose-invert max-w-none prose-sm prose-headings:font-display prose-a:text-primary hover:prose-a:text-primary/80"
-                      dangerouslySetInnerHTML={{ __html: parseMarkdown(updatesContent) }}
-                    />
+                    <div className="flex-1 overflow-y-auto p-6">
+                      {(() => {
+                        const lines = updatesContent.split('\n');
+                        const elements = [];
+                        let buffer = [];
+
+                        const flushBuffer = () => {
+                          if (buffer.length > 0) {
+                            elements.push(
+                              <div
+                                key={`md-${elements.length}`}
+                                className="prose dark:prose-invert max-w-none prose-sm prose-headings:font-display prose-a:text-primary hover:prose-a:text-primary/80 mb-4"
+                                dangerouslySetInnerHTML={{ __html: parseMarkdown(buffer.join('\n')) }}
+                              />
+                            );
+                            buffer = [];
+                          }
+                        };
+
+                        lines.forEach((line, index) => {
+                          const listMatch = line.match(/^(\s*)(?:-|\*|\d+\.)\s+(.*)/);
+                          if (listMatch) {
+                            flushBuffer();
+                            const content = listMatch[2];
+                            elements.push(
+                              <div
+                                key={`task-${index}`}
+                                className="p-4 border border-slate-200 dark:border-border-dark rounded-xl bg-white dark:bg-[#1A1A1A] flex justify-between items-start gap-4 mb-2"
+                              >
+                                <div
+                                  className="prose dark:prose-invert prose-sm max-w-none flex-1 mr-4"
+                                  dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
+                                />
+                                <button
+                                  className="px-3 py-1.5 text-xs font-semibold bg-primary text-black rounded hover:bg-primary/90 transition-colors shrink-0"
+                                  onClick={() =>
+                                    openNewTaskModal({
+                                      initialPrompt: `${content} When finished, remove the task from the UPDATES.md file`,
+                                    })
+                                  }
+                                >
+                                  Build
+                                </button>
+                              </div>
+                            );
+                          } else {
+                            buffer.push(line);
+                          }
+                        });
+                        flushBuffer();
+                        return elements;
+                      })()}
+                    </div>
                   </div>
                 )}
               </div>

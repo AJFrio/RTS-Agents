@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
-import { parseMarkdown } from '../utils/markdown.js';
+import TaskInfoModal from '../modals/TaskInfoModal.jsx';
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal, openNewTaskModal } = useApp();
@@ -13,6 +13,7 @@ export default function BranchesPage() {
   const [loadingPrs, setLoadingPrs] = useState(false);
   const [prError, setPrError] = useState(null);
   const [updatesContent, setUpdatesContent] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
 
   const loadBranches = async () => {
     if (!api?.github?.getRepos || !configuredServices.github) return;
@@ -108,13 +109,47 @@ export default function BranchesPage() {
         }
       }
 
-      if (content) {
-        setUpdatesContent(content);
-      }
+      setUpdatesContent(content || null);
     } catch (err) {
       console.warn('Failed to fetch UPDATES.md:', err);
     }
   };
+
+  const parsedTasks = useMemo(() => {
+    if (!updatesContent) return [];
+
+    const lines = updatesContent.split('\n');
+    const tasks = [];
+    let currentTask = null;
+
+    lines.forEach(line => {
+      // Level 1 bullet: * Title or - Title or 1. Title
+      // We look for lines starting with optional space (0-1), then a bullet marker, then space
+      const titleMatch = line.match(/^(\s{0,1})(?:-|\*|\d+\.)\s+(.*)/);
+      // Level 2 bullet:   * Description or   - Description (2+ spaces)
+      const descMatch = line.match(/^(\s{2,})(?:-|\*|\d+\.)\s+(.*)/);
+
+      if (titleMatch && !descMatch) {
+        if (currentTask) tasks.push(currentTask);
+        currentTask = {
+          title: titleMatch[2].trim(),
+          descriptionLines: []
+        };
+      } else if (currentTask) {
+        if (descMatch) {
+            currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
+        } else if (line.trim()) {
+            currentTask.descriptionLines.push(line.trim());
+        }
+      }
+    });
+    if (currentTask) tasks.push(currentTask);
+
+    return tasks.map(t => ({
+      title: t.title,
+      description: t.descriptionLines.join('\n')
+    }));
+  }, [updatesContent]);
 
   const setPrFilterAndReload = (filter) => {
     setPrFilter(filter);
@@ -305,60 +340,45 @@ export default function BranchesPage() {
                       <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Project Updates</span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6">
-                      {(() => {
-                        const lines = updatesContent.split('\n');
-                        const elements = [];
-                        let buffer = [];
-
-                        const flushBuffer = () => {
-                          if (buffer.length > 0) {
-                            elements.push(
-                              <div
-                                key={`md-${elements.length}`}
-                                className="prose dark:prose-invert max-w-none prose-sm prose-headings:font-display prose-a:text-primary hover:prose-a:text-primary/80 mb-4"
-                                dangerouslySetInnerHTML={{ __html: parseMarkdown(buffer.join('\n')) }}
-                              />
-                            );
-                            buffer = [];
-                          }
-                        };
-
-                        lines.forEach((line, index) => {
-                          const listMatch = line.match(/^(\s*)(?:-|\*|\d+\.)\s+(.*)/);
-                          if (listMatch) {
-                            flushBuffer();
-                            const content = listMatch[2];
-                            elements.push(
-                              <div
-                                key={`task-${index}`}
-                                className="p-4 border border-slate-200 dark:border-border-dark rounded-xl bg-white dark:bg-[#1A1A1A] flex justify-between items-start gap-4 mb-2"
-                              >
-                                <div
-                                  className="prose dark:prose-invert prose-sm max-w-none flex-1 mr-4"
-                                  dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
-                                />
-                                <button
-                                  className="px-3 py-1.5 text-xs font-semibold bg-primary text-black rounded hover:bg-primary/90 transition-colors shrink-0"
-                                  onClick={() =>
-                                    openNewTaskModal({
-                                      initialPrompt: `${content} When finished, remove the task from the UPDATES.md file`,
-                                    })
-                                  }
-                                >
-                                  Build
-                                </button>
-                              </div>
-                            );
-                          } else {
-                            buffer.push(line);
-                          }
-                        });
-                        flushBuffer();
-                        return elements;
-                      })()}
+                      {parsedTasks.length === 0 ? (
+                        <div className="text-slate-500 text-sm italic">No tasks found in UPDATES.md</div>
+                      ) : (
+                        parsedTasks.map((task, index) => (
+                          <div
+                            key={`task-${index}`}
+                            className="p-4 border border-slate-200 dark:border-border-dark rounded-xl bg-white dark:bg-[#1A1A1A] flex justify-between items-center gap-4 mb-2 cursor-pointer hover:border-primary/50 transition-all"
+                            onClick={() => setSelectedTask(task)}
+                          >
+                            <div className="flex-1 font-medium text-slate-800 dark:text-slate-200 text-sm">
+                              {task.title}
+                            </div>
+                            <button
+                              className="px-3 py-1.5 text-xs font-semibold bg-primary text-black rounded hover:bg-primary/90 transition-colors shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openNewTaskModal({
+                                  initialPrompt: `${task.description} When finished, remove the task from the UPDATES.md file`,
+                                });
+                              }}
+                            >
+                              Build
+                            </button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
+                <TaskInfoModal
+                  task={selectedTask}
+                  onClose={() => setSelectedTask(null)}
+                  onBuild={(task) => {
+                    setSelectedTask(null);
+                    openNewTaskModal({
+                      initialPrompt: `${task.description} When finished, remove the task from the UPDATES.md file`,
+                    });
+                  }}
+                />
               </div>
             </div>
           )}

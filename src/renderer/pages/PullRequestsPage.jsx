@@ -6,14 +6,25 @@ import { formatTimeAgo } from '../utils/format.js';
 
 export default function PullRequestsPage() {
   const { state, dispatch, loadAllPrs, openPrModal, setView } = useApp();
-  const { github, configuredServices } = state;
+  const { github, configuredServices, settings } = state;
   const { allPrs, loadingAllPrs, allPrsError } = github;
+  const { autoPolling, pollingInterval } = settings;
 
   useEffect(() => {
     if (configuredServices.github) {
       loadAllPrs();
     }
   }, [configuredServices.github, loadAllPrs]);
+
+  useEffect(() => {
+    if (!configuredServices.github || !autoPolling) return;
+
+    const intervalId = setInterval(() => {
+      loadAllPrs();
+    }, pollingInterval || 30000);
+
+    return () => clearInterval(intervalId);
+  }, [configuredServices.github, autoPolling, pollingInterval, loadAllPrs]);
 
   if (!configuredServices.github) {
     return (

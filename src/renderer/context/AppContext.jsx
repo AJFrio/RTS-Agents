@@ -180,7 +180,14 @@ function appReducer(state, action) {
     case 'CLOSE_AGENT_MODAL':
       return { ...state, agentModal: null };
     case 'OPEN_NEW_TASK_MODAL':
-      return { ...state, newTaskModalOpen: true };
+      return {
+        ...state,
+        newTaskModalOpen: true,
+        newTask: {
+          ...state.newTask,
+          initialPrompt: action.payload?.initialPrompt || '',
+        },
+      };
     case 'CLOSE_NEW_TASK_MODAL':
       return { ...state, newTaskModalOpen: false };
     case 'OPEN_CREATE_REPO_MODAL':
@@ -421,7 +428,7 @@ export function AppProvider({ children }) {
     setView: (view) => dispatch({ type: 'SET_VIEW', payload: view }),
     openAgentModal: (agent) => dispatch({ type: 'OPEN_AGENT_MODAL', payload: agent }),
     closeAgentModal: () => dispatch({ type: 'CLOSE_AGENT_MODAL' }),
-    openNewTaskModal: () => dispatch({ type: 'OPEN_NEW_TASK_MODAL' }),
+    openNewTaskModal: (options) => dispatch({ type: 'OPEN_NEW_TASK_MODAL', payload: options }),
     closeNewTaskModal: () => dispatch({ type: 'CLOSE_NEW_TASK_MODAL' }),
     openCreateRepoModal: () => dispatch({ type: 'OPEN_CREATE_REPO_MODAL' }),
     closeCreateRepoModal: () => dispatch({ type: 'CLOSE_CREATE_REPO_MODAL' }),

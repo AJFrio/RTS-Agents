@@ -50,6 +50,7 @@ function getAgentsForEnvironment(state, environment) {
 
 export default function NewTaskModal({ open, onClose, api }) {
   const { state, fetchComputers, loadAgents } = useApp();
+  const { initialPrompt } = state.newTask || {};
   const [environment, setEnvironment] = useState(state.newTask?.environment ?? 'cloud');
   const [selectedService, setSelectedService] = useState(null);
   const [agentFilter, setAgentFilter] = useState('');
@@ -70,6 +71,12 @@ export default function NewTaskModal({ open, onClose, api }) {
 
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = React.useRef(null);
+
+  useEffect(() => {
+    if (open && initialPrompt) {
+      setPrompt(initialPrompt);
+    }
+  }, [open, initialPrompt]);
 
   useEffect(() => {
     if (!open) return;

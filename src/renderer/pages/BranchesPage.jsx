@@ -302,7 +302,7 @@ export default function BranchesPage() {
                   <div id="updates-section" className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-black/20 animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="p-4 border-b border-slate-200 dark:border-border-dark flex items-center gap-2 bg-white dark:bg-[#1A1A1A]">
                       <span className="material-symbols-outlined text-primary">campaign</span>
-                      <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Project Updates</span>
+                      <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Tasks</span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6">
                       {(() => {

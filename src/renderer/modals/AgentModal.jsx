@@ -5,13 +5,6 @@ import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { getProviderDisplayName, getStatusLabel } from '../utils/format.js';
 import DOMPurify from 'dompurify';
 
-function escapeHtml(s) {
-  if (!s) return '';
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
-}
-
 function getActivityTypeLabel(type) {
   if (!type) return 'Activity';
   return type

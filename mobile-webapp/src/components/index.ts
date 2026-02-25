@@ -15,3 +15,6 @@ export { default as JiraView } from './JiraView';
 export { default as JiraTicketItem } from './JiraTicketItem';
 export { default as JiraIssueModal } from './JiraIssueModal';
 export { default as JiraFilterModal } from './JiraFilterModal';
+export { default as PRCard } from './PRCard';
+export { default as PRDetailModal } from './PRDetailModal';
+export { default as PullRequestsView } from './PullRequestsView';

@@ -68,11 +68,13 @@ interface AppState {
   githubRepos: GithubRepo[];
   selectedRepo: GithubRepo | null;
   pullRequests: PullRequest[];
+  allPullRequests: PullRequest[];
   loadingRepos: boolean;
   loadingPRs: boolean;
+  loadingAllPRs: boolean;
   
   // UI State
-  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings';
+  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings' | 'pull-requests';
   showNewTaskModal: boolean;
   newTaskInitialPrompt: string | null;
   showAgentModal: boolean;
@@ -96,8 +98,10 @@ type AppAction =
   | { type: 'SET_GITHUB_REPOS'; payload: GithubRepo[] }
   | { type: 'SET_SELECTED_REPO'; payload: GithubRepo | null }
   | { type: 'SET_PULL_REQUESTS'; payload: PullRequest[] }
+  | { type: 'SET_ALL_PULL_REQUESTS'; payload: PullRequest[] }
   | { type: 'SET_LOADING_REPOS'; payload: boolean }
   | { type: 'SET_LOADING_PRS'; payload: boolean }
+  | { type: 'SET_LOADING_ALL_PRS'; payload: boolean }
   | { type: 'SET_VIEW'; payload: AppState['currentView'] }
   | { type: 'SET_SHOW_NEW_TASK_MODAL'; payload: boolean }
   | { type: 'SET_NEW_TASK_INITIAL_PROMPT'; payload: string | null }
@@ -129,8 +133,10 @@ const initialState: AppState = {
   githubRepos: [],
   selectedRepo: null,
   pullRequests: [],
+  allPullRequests: [],
   loadingRepos: false,
   loadingPRs: false,
+  loadingAllPRs: false,
   currentView: 'dashboard',
   showNewTaskModal: false,
   newTaskInitialPrompt: null,
@@ -183,10 +189,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, selectedRepo: action.payload };
     case 'SET_PULL_REQUESTS':
       return { ...state, pullRequests: action.payload };
+    case 'SET_ALL_PULL_REQUESTS':
+      return { ...state, allPullRequests: action.payload };
     case 'SET_LOADING_REPOS':
       return { ...state, loadingRepos: action.payload };
     case 'SET_LOADING_PRS':
       return { ...state, loadingPRs: action.payload };
+    case 'SET_LOADING_ALL_PRS':
+      return { ...state, loadingAllPRs: action.payload };
     case 'SET_VIEW':
       return { ...state, currentView: action.payload };
     case 'SET_SHOW_NEW_TASK_MODAL':
@@ -214,6 +224,7 @@ interface AppContextType {
   loadComputers: () => Promise<void>;
   loadGithubRepos: () => Promise<void>;
   loadPullRequests: (owner: string, repo: string) => Promise<void>;
+  loadAllPullRequests: () => Promise<void>;
   createTask: (provider: Provider, options: {
     prompt: string;
     repository: string;
@@ -629,6 +640,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Load ALL pull requests
+  const loadAllPullRequests = useCallback(async () => {
+    if (!githubService.isConfigured()) return;
+
+    dispatch({ type: 'SET_LOADING_ALL_PRS', payload: true });
+
+    try {
+      const prs = await githubService.getAllPullRequests();
+      dispatch({ type: 'SET_ALL_PULL_REQUESTS', payload: prs });
+    } catch (err) {
+      dispatch({ type: 'ADD_ERROR', payload: `Failed to load all pull requests: ${err instanceof Error ? err.message : 'Unknown error'}` });
+    } finally {
+      dispatch({ type: 'SET_LOADING_ALL_PRS', payload: false });
+    }
+  }, []);
+
   // Create a new task
   const createTask = useCallback(async (
     provider: Provider,
@@ -748,6 +775,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     loadComputers,
     loadGithubRepos,
     loadPullRequests,
+    loadAllPullRequests,
     createTask,
     dispatchRemoteTask,
     setApiKey,

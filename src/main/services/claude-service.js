@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const https = require('https');
-const { upsertItem } = require('../utils/collection-utils');
+const BaseTrackingService = require('./base-tracking-service');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -12,11 +12,9 @@ const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_VERSION = '2023-06-01';
 const CLAUDE_DEFAULT_TOOLS = 'Read,Edit,Bash';
 
-// Store for tracking cloud conversations (since Anthropic doesn't have a list conversations endpoint)
-let trackedConversations = [];
-
-class ClaudeService {
+class ClaudeService extends BaseTrackingService {
   constructor() {
+    super();
     this.apiKey = null;
   }
 
@@ -320,7 +318,7 @@ class ClaudeService {
       ...metadata
     };
 
-    trackedConversations = upsertItem(trackedConversations, conversationInfo, { limit: 100 });
+    this.trackItem(conversationInfo, { limit: 100 });
   }
 
   /**
@@ -328,7 +326,7 @@ class ClaudeService {
    * @param {Array} conversations 
    */
   setTrackedConversations(conversations) {
-    trackedConversations = conversations || [];
+    this.setTrackedItems(conversations);
   }
 
   /**
@@ -336,7 +334,7 @@ class ClaudeService {
    * @returns {Array}
    */
   getTrackedConversations() {
-    return trackedConversations;
+    return this.getTrackedItems();
   }
 
   /**
@@ -344,7 +342,7 @@ class ClaudeService {
    */
   async getAllCloudConversations() {
     // Return tracked conversations normalized to AgentTask format
-    return trackedConversations.map(conv => this.normalizeCloudConversation(conv));
+    return this.getTrackedItems().map(conv => this.normalizeCloudConversation(conv));
   }
 
   /**
@@ -495,7 +493,7 @@ class ClaudeService {
    * @param {string} conversationId - The conversation ID
    */
   async getCloudConversationDetails(conversationId) {
-    const conversation = trackedConversations.find(c => c.id === conversationId);
+    const conversation = this.getTrackedItems().find(c => c.id === conversationId);
     
     if (!conversation) {
       throw new Error(`Conversation not found: ${conversationId}`);

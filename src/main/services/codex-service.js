@@ -1,16 +1,14 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { upsertItem } = require('../utils/collection-utils');
+const BaseTrackingService = require('./base-tracking-service');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
 
-// Store for tracking created thread IDs (since OpenAI doesn't have a list threads endpoint)
-let trackedThreads = [];
-
-class CodexService {
+class CodexService extends BaseTrackingService {
   constructor() {
+    super();
     this.apiKey = null;
   }
 
@@ -182,7 +180,7 @@ class CodexService {
       ...metadata
     };
 
-    trackedThreads = upsertItem(trackedThreads, threadInfo, { limit: 100 });
+    this.trackItem(threadInfo, { limit: 100 });
   }
 
   /**
@@ -190,7 +188,7 @@ class CodexService {
    * @param {Array} threads 
    */
   setTrackedThreads(threads) {
-    trackedThreads = threads || [];
+    this.setTrackedItems(threads);
   }
 
   /**
@@ -198,7 +196,7 @@ class CodexService {
    * @returns {Array}
    */
   getTrackedThreads() {
-    return trackedThreads;
+    return this.getTrackedItems();
   }
 
   /**
@@ -209,7 +207,7 @@ class CodexService {
     try {
       // Fetch details for all tracked threads in parallel
       const results = await Promise.allSettled(
-        trackedThreads.map(async (tracked) => {
+        this.getTrackedItems().map(async (tracked) => {
           // Fetch thread and runs in parallel for each thread
           const [thread, runsResponse] = await Promise.all([
             this.getThread(tracked.id),
@@ -310,7 +308,7 @@ class CodexService {
       this.listRuns(threadId, 10)
     ]);
 
-    const tracked = trackedThreads.find(t => t.id === threadId) || {};
+    const tracked = this.getTrackedItems().find(t => t.id === threadId) || {};
     const latestRun = runsResponse.data?.[0];
 
     return {
@@ -430,7 +428,7 @@ class CodexService {
     // Return unique repositories from tracked threads
     const repos = new Map();
     
-    for (const thread of trackedThreads) {
+    for (const thread of this.getTrackedItems()) {
       if (thread.repository) {
         repos.set(thread.repository, {
           id: thread.repository,

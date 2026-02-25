@@ -3,6 +3,7 @@ import Modal from '../components/ui/Modal.jsx';
 import { ProviderBadge, StatusBadge } from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { getProviderDisplayName, getStatusLabel } from '../utils/format.js';
+import DOMPurify from 'dompurify';
 
 function escapeHtml(s) {
   if (!s) return '';
@@ -83,7 +84,7 @@ export default function AgentModal({ agent, onClose, api }) {
               return (
                 <div
                   className="markdown-content prose dark:prose-invert prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: details.content }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(details.content) }}
                 />
               );
             }

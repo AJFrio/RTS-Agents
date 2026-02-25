@@ -1,4 +1,4 @@
-const https = require('https');
+const { request } = require('./http-service');
 const fs = require('fs');
 const path = require('path');
 const { upsertItem } = require('../utils/collection-utils');
@@ -35,49 +35,15 @@ class CodexService {
 
     const url = new URL(`${BASE_URL}${endpoint}`);
     
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'assistants=v2'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', chunk => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`OpenAI API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(30000, () => {
-        req.destroy();
-        reject(new Error('OpenAI API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
+    return request(url.toString(), {
+      method,
+      body,
+      timeout: 30000,
+      errorMessagePrefix: 'OpenAI API error',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'OpenAI-Beta': 'assistants=v2'
       }
-      
-      req.end();
     });
   }
 

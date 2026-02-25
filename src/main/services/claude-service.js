@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const https = require('https');
+const { request } = require('./http-service');
 const { upsertItem } = require('../utils/collection-utils');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
@@ -190,49 +190,15 @@ class ClaudeService {
 
     const url = new URL(`${ANTHROPIC_API_URL}${endpoint}`);
 
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'x-api-key': this.apiKey,
-          'anthropic-version': ANTHROPIC_API_VERSION,
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-
-        res.on('data', chunk => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`Anthropic API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(60000, () => {
-        req.destroy();
-        reject(new Error('Anthropic API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
+    return request(url.toString(), {
+      method,
+      body,
+      timeout: 60000,
+      errorMessagePrefix: 'Anthropic API error',
+      headers: {
+        'x-api-key': this.apiKey,
+        'anthropic-version': ANTHROPIC_API_VERSION
       }
-
-      req.end();
     });
   }
 

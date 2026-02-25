@@ -1,8 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, MenuItem, dialog } = require('electron');
 const path = require('path');
 const { exec, spawn } = require('child_process');
-const fs = require('fs');
-const fsp = require('fs/promises');
 
 // Services
 const configStore = require('./src/main/services/config-store');
@@ -17,13 +15,13 @@ const githubService = require('./src/main/services/github-service');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
 const jiraService = require('./src/main/services/jira-service');
 const projectService = require('./src/main/services/project-service');
+const queueProcessorService = require('./src/main/services/queue-processor-service');
 
 let mainWindow;
 let pollingInterval = null;
 let cloudflareHeartbeatInterval = null;
 let updateInterval = null;
 let isQuitting = false;
-let isProcessingCloudflareQueue = false;
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
 const UPDATE_INTERVAL_MS = 21600000; // 6 hours
@@ -212,127 +210,9 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   // On each heartbeat, opportunistically pull and execute queued remote tasks for this device.
   // Intentionally skipped while shutting down or when marking the device offline.
   if (!isQuitting && nextStatus === 'on') {
-    void processCloudflareQueue(namespaceId).catch(err => {
+    void queueProcessorService.processQueue(namespaceId).catch(err => {
       console.warn('Cloudflare queue processing failed:', err?.message || err);
     });
-  }
-}
-
-async function processCloudflareQueue(namespaceId) {
-  if (!namespaceId) return;
-  if (!configStore.hasCloudflareConfig()) return;
-  if (isProcessingCloudflareQueue) return;
-
-  isProcessingCloudflareQueue = true;
-  const identity = configStore.getOrCreateDeviceIdentity();
-  const nowIso = new Date().toISOString();
-
-  try {
-    const queue = await cloudflareKvService.getDeviceQueue(namespaceId, identity.id);
-    if (!Array.isArray(queue) || queue.length === 0) return;
-
-    // Process a single item per heartbeat to avoid long blocking work.
-    const item = queue[0];
-    const rest = queue.slice(1);
-
-    // Remove from queue first to avoid re-processing on crashes/retries.
-    await cloudflareKvService.putDeviceQueue(namespaceId, identity.id, rest);
-
-    const baseStatus = {
-      status: 'starting',
-      tool: item?.tool || null,
-      repo: item?.repo || null,
-      prompt: item?.prompt || null,
-      requestedBy: item?.requestedBy || null,
-      taskRequestId: item?.id || null,
-      device: { id: identity.id, name: identity.name },
-      updatedAt: nowIso
-    };
-
-    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, baseStatus);
-
-    const tool = item?.tool;
-    if (!tool) throw new Error('Queued task missing tool');
-
-    // Project/repo creation tasks (no prompt/repo.path required)
-    if (tool === 'project:create') {
-      const repoName = item?.repo?.name || item?.repoName || item?.name;
-      if (!repoName) throw new Error('Queued task missing repo.name');
-
-      const githubPaths = configStore.getGithubPaths();
-      const baseDir = Array.isArray(githubPaths) && githubPaths.length > 0 ? githubPaths[0] : null;
-      if (!baseDir) {
-        throw new Error('No GitHub repository paths configured on target device (Settings → GitHub Repository Paths)');
-      }
-
-      await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-        ...baseStatus,
-        status: 'running',
-        startedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      const createdPath = await projectService.createLocalRepo({ directory: baseDir, name: String(repoName) });
-
-      await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-        ...baseStatus,
-        status: 'completed',
-        result: { path: createdPath, directory: baseDir, name: String(repoName) },
-        completedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      return;
-    }
-
-    const repoPath = item?.repo?.path;
-    const prompt = item?.prompt;
-    const attachments = item?.attachments || [];
-    if (!prompt) throw new Error('Queued task missing prompt');
-    if (!repoPath) throw new Error('Queued task missing repo.path');
-
-    let started;
-    if (tool === 'gemini') {
-      if (!geminiService.isGeminiInstalled()) throw new Error('Gemini CLI not installed on target device');
-      started = await geminiService.startSession({ prompt, projectPath: repoPath });
-    } else if (tool === 'claude-cli') {
-      if (!claudeService.isClaudeInstalled()) throw new Error('Claude CLI not installed on target device');
-      started = await claudeService.startLocalSession({ prompt, projectPath: repoPath });
-    } else if (tool === 'codex') {
-      // Codex uses API, but we verify we have configuration.
-      // Note: checkConnection() would verify API key validity, but here we just attempt creation.
-      if (!configStore.hasApiKey('codex')) throw new Error('Codex API key not configured on target device');
-
-      // Codex service createTask takes { prompt, repository, title, ... }
-      // We map repoPath to 'repository' which is how local projects are identified in CodexService
-      started = await codexService.createTask({
-        prompt,
-        repository: repoPath,
-        title: prompt.substring(0, 50),
-        attachments: attachments
-      });
-      // Persist threads
-      configStore.setCodexThreads(codexService.getTrackedThreads());
-    } else {
-      throw new Error(`Unsupported queued tool: ${tool}`);
-    }
-
-    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-      ...baseStatus,
-      status: 'running',
-      startedAt: new Date().toISOString(),
-      startedTask: started || null,
-      updatedAt: new Date().toISOString()
-    });
-  } catch (err) {
-    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-      status: 'error',
-      error: err?.message || String(err),
-      device: { id: identity.id, name: identity.name },
-      updatedAt: new Date().toISOString()
-    });
-  } finally {
-    isProcessingCloudflareQueue = false;
   }
 }
 

@@ -88,6 +88,13 @@ export interface PullRequest {
   base: {
     ref: string;
     sha: string;
+    repo?: {
+      name: string;
+      full_name: string;
+      owner: {
+        login: string;
+      };
+    };
   };
   created_at: string;
   updated_at: string;

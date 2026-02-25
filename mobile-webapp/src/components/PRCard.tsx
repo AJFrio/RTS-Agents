@@ -1,4 +1,3 @@
-import React from 'react';
 import type { PullRequest } from '../store/types';
 import { formatTimeAgo } from '../utils/format';
 

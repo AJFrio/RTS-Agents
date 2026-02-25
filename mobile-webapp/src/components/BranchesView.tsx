@@ -157,7 +157,7 @@ export default function BranchesView() {
     const tasks: { title: string; description: string }[] = [];
     let currentTask: { title: string; descriptionLines: string[] } | null = null;
 
-    lines.forEach(line => {
+    for (const line of lines) {
       // Level 1 bullet: * Title or - Title or 1. Title
       // We look for lines starting with optional space (0-1), then a bullet marker, then space
       const titleMatch = line.match(/^(\s{0,1})(?:-|\*|\d+\.)\s+(.*)/);
@@ -166,10 +166,10 @@ export default function BranchesView() {
 
       if (titleMatch && !descMatch) {
         if (currentTask) {
-            tasks.push({
-                title: currentTask.title,
-                description: currentTask.descriptionLines.join('\n')
-            });
+          tasks.push({
+            title: currentTask.title,
+            description: currentTask.descriptionLines.join('\n')
+          });
         }
         currentTask = {
           title: titleMatch[2].trim(),
@@ -177,12 +177,12 @@ export default function BranchesView() {
         };
       } else if (currentTask) {
         if (descMatch) {
-            currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
+          currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
         } else if (line.trim()) {
-            currentTask.descriptionLines.push(line.trim());
+          currentTask.descriptionLines.push(line.trim());
         }
       }
-    });
+    }
     if (currentTask) {
         tasks.push({
             title: currentTask.title,

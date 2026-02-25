@@ -31,7 +31,6 @@ desktop.ini
 # Electron
 *.asar
 test-results/
-styles/output.css
 
 # Coverage
 coverage/

@@ -59,10 +59,9 @@ The repository is organized into three main areas:
     *   **Crucial**: When a task is completed, **remove it** from `UPDATES.md` to signal completion.
 *   **Git**:
     *   Commit messages should be descriptive.
-    *   Do not commit build artifacts (e.g., `dist/`, `styles/output.css`).
+    *   Do not commit build artifacts (e.g., `dist/`).
 *   **Environment**:
     *   Ensure `node_modules` are installed (`npm install`).
-    *   The app requires a build step for CSS (`npm run build:css` or similar) before running in some modes.
 
 ## Specific Gotchas
 

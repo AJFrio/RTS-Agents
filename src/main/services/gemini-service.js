@@ -1,13 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const https = require('https');
+const HttpService = require('./http-service');
 
 class GeminiService {
   constructor() {
     this.baseDir = path.join(os.homedir(), '.gemini', 'tmp');
     this.historyDir = path.join(os.homedir(), '.gemini', 'history');
     this.apiKey = null;
+    this.http = new HttpService('https://generativelanguage.googleapis.com', {
+      'Content-Type': 'application/json'
+    }, 'Gemini API');
   }
 
   /**
@@ -23,48 +26,12 @@ class GeminiService {
       throw new Error('Gemini API key not configured');
     }
 
-    // endpoint example: /v1beta/models
-    // We need to append key query param
-    const url = new URL(`https://generativelanguage.googleapis.com${endpoint}`);
-    url.searchParams.append('key', this.apiKey);
-
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-
-        res.on('data', chunk => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`Gemini API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(30000, () => {
-        req.destroy();
-        reject(new Error('Gemini API request timeout'));
-      });
-
-      req.end();
+    return this.http.request(endpoint, {
+      method,
+      query: {
+        key: this.apiKey
+      },
+      timeout: 30000
     });
   }
 

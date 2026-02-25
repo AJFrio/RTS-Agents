@@ -1,7 +1,7 @@
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { upsertItem } = require('../utils/collection-utils');
+const HttpService = require('./http-service');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
@@ -12,6 +12,10 @@ let trackedThreads = [];
 class CodexService {
   constructor() {
     this.apiKey = null;
+    this.http = new HttpService(BASE_URL, {
+      'Content-Type': 'application/json',
+      'OpenAI-Beta': 'assistants=v2'
+    }, 'OpenAI API');
   }
 
   /**
@@ -33,51 +37,13 @@ class CodexService {
       throw new Error('OpenAI API key not configured');
     }
 
-    const url = new URL(`${BASE_URL}${endpoint}`);
-    
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'assistants=v2'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', chunk => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`OpenAI API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(30000, () => {
-        req.destroy();
-        reject(new Error('OpenAI API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
-      }
-      
-      req.end();
+    return this.http.request(endpoint, {
+      method,
+      body,
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`
+      },
+      timeout: 30000
     });
   }
 

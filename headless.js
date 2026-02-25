@@ -11,7 +11,6 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { exec, spawnSync } = require('child_process');
 const readline = require('readline/promises');
 
 // Services (same ones used by Electron main)
@@ -19,6 +18,7 @@ const configStore = require('./src/main/services/config-store');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
 const geminiService = require('./src/main/services/gemini-service');
 const claudeService = require('./src/main/services/claude-service');
+const queueProcessorService = require('./src/main/services/queue-processor-service');
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
 const CLOUDFLARE_QUEUE_POLL_INTERVAL_MS = 10000; // 10 seconds (faster queue consumption)
@@ -27,59 +27,7 @@ const DEVICE_STALE_OFFLINE_MS = 6 * 60 * 1000; // 6 minutes
 let server = null;
 let heartbeatInterval = null;
 let queueInterval = null;
-let isProcessingCloudflareQueue = false;
 let isShuttingDown = false;
-
-function execAsync(command, options = {}) {
-  return new Promise((resolve, reject) => {
-    exec(command, options, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(stderr || stdout || error.message));
-        return;
-      }
-      resolve({ stdout, stderr });
-    });
-  });
-}
-
-async function createLocalGitRepo({ directory, name }) {
-  if (!name || typeof name !== 'string') throw new Error('Missing repository name');
-  if (!directory || typeof directory !== 'string') throw new Error('Missing base directory');
-
-  const baseDir = directory.trim();
-  const repoName = name.trim();
-  if (!baseDir) throw new Error('Missing base directory');
-  if (!repoName) throw new Error('Missing repository name');
-
-  if (!fs.existsSync(baseDir)) {
-    throw new Error(`Base directory does not exist: ${baseDir}`);
-  }
-
-  const repoPath = path.join(baseDir, repoName);
-  if (fs.existsSync(repoPath)) {
-    throw new Error(`Target path already exists: ${repoPath}`);
-  }
-
-  fs.mkdirSync(repoPath, { recursive: false });
-  await execAsync('git init', { cwd: repoPath });
-  return repoPath;
-}
-
-function isCommandRunnable(cmd) {
-  if (!cmd) return false;
-  try {
-    const res = spawnSync(String(cmd), ['--version'], {
-      shell: true,
-      stdio: 'ignore',
-      timeout: 2000,
-      windowsHide: true
-    });
-    if (res.error) return false;
-    return res.status === 0;
-  } catch {
-    return false;
-  }
-}
 
 async function ensureCloudflareNamespaceId() {
   if (!configStore.hasCloudflareConfig()) return null;
@@ -91,116 +39,6 @@ async function ensureCloudflareNamespaceId() {
   const namespaceId = await cloudflareKvService.ensureNamespace(namespaceTitle);
   configStore.setCloudflareConfig({ namespaceId, namespaceTitle });
   return namespaceId;
-}
-
-async function processCloudflareQueue(namespaceId) {
-  if (!namespaceId) return;
-  if (!configStore.hasCloudflareConfig()) return;
-  if (isProcessingCloudflareQueue) return;
-
-  isProcessingCloudflareQueue = true;
-  const identity = configStore.getOrCreateDeviceIdentity();
-  const nowIso = new Date().toISOString();
-
-  try {
-    const queue = await cloudflareKvService.getDeviceQueue(namespaceId, identity.id);
-    if (!Array.isArray(queue) || queue.length === 0) return;
-
-    // Process a single item per tick to avoid long blocking work.
-    const item = queue[0];
-    const rest = queue.slice(1);
-
-    // Remove from queue first to avoid re-processing on crashes/retries.
-    await cloudflareKvService.putDeviceQueue(namespaceId, identity.id, rest);
-
-    const baseStatus = {
-      status: 'starting',
-      tool: item?.tool || null,
-      repo: item?.repo || null,
-      prompt: item?.prompt || null,
-      requestedBy: item?.requestedBy || null,
-      taskRequestId: item?.id || null,
-      device: { id: identity.id, name: identity.name },
-      updatedAt: nowIso
-    };
-
-    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, baseStatus);
-
-    const tool = item?.tool;
-    if (!tool) throw new Error('Queued task missing tool');
-
-    // Project/repo creation tasks (no prompt/repo.path required)
-    if (tool === 'project:create') {
-      const repoName = item?.repo?.name || item?.repoName || item?.name;
-      if (!repoName) throw new Error('Queued task missing repo.name');
-
-      const githubPaths = configStore.getGithubPaths();
-      const baseDir = Array.isArray(githubPaths) && githubPaths.length > 0 ? githubPaths[0] : null;
-      if (!baseDir) {
-        throw new Error('No GitHub repository paths configured on target device');
-      }
-
-      await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-        ...baseStatus,
-        status: 'running',
-        startedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      const createdPath = await createLocalGitRepo({ directory: baseDir, name: String(repoName) });
-
-      await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-        ...baseStatus,
-        status: 'completed',
-        result: { path: createdPath, directory: baseDir, name: String(repoName) },
-        completedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      return;
-    }
-
-    const repoPath = item?.repo?.path;
-    const prompt = item?.prompt;
-    if (!prompt) throw new Error('Queued task missing prompt');
-    if (!repoPath) throw new Error('Queued task missing repo.path');
-
-    const cliCommands = configStore.getSetting('cliCommands') || {};
-    const geminiCmd = typeof cliCommands?.gemini === 'string' ? cliCommands.gemini : '';
-    const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
-
-    let started;
-    if (tool === 'gemini') {
-      if (!geminiService.isGeminiInstalled() && !isCommandRunnable(geminiCmd || 'gemini')) {
-        throw new Error('Gemini CLI not detected on target device');
-      }
-      started = await geminiService.startSession({ prompt, projectPath: repoPath, command: geminiCmd || undefined });
-    } else if (tool === 'claude-cli') {
-      if (!claudeService.isClaudeInstalled() && !isCommandRunnable(claudeCmd || 'claude')) {
-        throw new Error('Claude CLI not detected on target device');
-      }
-      started = await claudeService.startLocalSession({ prompt, projectPath: repoPath, command: claudeCmd || undefined });
-    } else {
-      throw new Error(`Unsupported queued tool: ${tool}`);
-    }
-
-    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-      ...baseStatus,
-      status: 'running',
-      startedAt: new Date().toISOString(),
-      startedTask: started || null,
-      updatedAt: new Date().toISOString()
-    });
-  } catch (err) {
-    await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
-      status: 'error',
-      error: err?.message || String(err),
-      device: { id: identity.id, name: identity.name },
-      updatedAt: new Date().toISOString()
-    });
-  } finally {
-    isProcessingCloudflareQueue = false;
-  }
 }
 
 async function sendCloudflareHeartbeat({ status } = {}) {
@@ -240,8 +78,8 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     status: nextStatus,
     lastStatusAt: nowIso,
     tools: {
-      gemini: geminiService.isGeminiInstalled() || isCommandRunnable(geminiCmd || 'gemini'),
-      'claude-cli': claudeService.isClaudeInstalled() || isCommandRunnable(claudeCmd || 'claude')
+      gemini: geminiService.isGeminiInstalled() || queueProcessorService.isCommandRunnable(geminiCmd || 'gemini'),
+      'claude-cli': claudeService.isClaudeInstalled() || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')
     },
     repos,
     reposUpdatedAt: nowIso
@@ -300,12 +138,12 @@ async function runSetupPrompts() {
     let geminiCmd = typeof existingCli?.gemini === 'string' ? existingCli.gemini : '';
     let claudeCmd = typeof existingCli?.claude === 'string' ? existingCli.claude : '';
 
-    if (!geminiService.isGeminiInstalled() && !isCommandRunnable(geminiCmd || 'gemini')) {
+    if (!geminiService.isGeminiInstalled() && !queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
       const answer = String(await rl.question('Gemini CLI not detected. Full path to gemini executable (or blank to skip): ')).trim();
       if (answer) geminiCmd = answer;
     }
 
-    if (!claudeService.isClaudeInstalled() && !isCommandRunnable(claudeCmd || 'claude')) {
+    if (!claudeService.isClaudeInstalled() && !queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
       const answer = String(await rl.question('Claude CLI not detected. Full path to claude executable (or blank to skip): ')).trim();
       if (answer) claudeCmd = answer;
     }
@@ -386,7 +224,7 @@ async function main() {
   // Faster queue polling loop.
   queueInterval = setInterval(() => {
     if (isShuttingDown) return;
-    void processCloudflareQueue(namespaceId).catch(() => {});
+    void queueProcessorService.processQueue(namespaceId).catch(() => {});
   }, CLOUDFLARE_QUEUE_POLL_INTERVAL_MS);
 
   process.on('SIGINT', async () => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { PullRequest } from '../store/types';
 import { formatTimeAgo, renderMarkdown } from '../utils/format';
 

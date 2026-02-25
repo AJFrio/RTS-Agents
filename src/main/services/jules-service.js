@@ -1,4 +1,4 @@
-const https = require('https');
+const httpService = require('./http-service');
 
 const BASE_URL = 'https://jules.googleapis.com/v1alpha';
 
@@ -26,51 +26,17 @@ class JulesService {
       throw new Error('Jules API key not configured');
     }
 
-    const url = new URL(`${BASE_URL}${endpoint}`);
+    const url = `${BASE_URL}${endpoint}`;
     
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'X-Goog-Api-Key': this.apiKey,
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', chunk => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`Jules API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(30000, () => {
-        req.destroy();
-        reject(new Error('Jules API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
-      }
-      
-      req.end();
-    });
+    return httpService.request(url, {
+      method,
+      headers: {
+        'X-Goog-Api-Key': this.apiKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000,
+      errorMessagePrefix: 'Jules API error'
+    }, body);
   }
 
   /**

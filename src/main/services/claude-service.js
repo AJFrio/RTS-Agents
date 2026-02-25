@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const https = require('https');
 const { upsertItem } = require('../utils/collection-utils');
+const httpService = require('./http-service');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -188,52 +188,18 @@ class ClaudeService {
       throw new Error('Anthropic API key not configured');
     }
 
-    const url = new URL(`${ANTHROPIC_API_URL}${endpoint}`);
+    const url = `${ANTHROPIC_API_URL}${endpoint}`;
 
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'x-api-key': this.apiKey,
-          'anthropic-version': ANTHROPIC_API_VERSION,
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-
-        res.on('data', chunk => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`Anthropic API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(60000, () => {
-        req.destroy();
-        reject(new Error('Anthropic API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
-      }
-
-      req.end();
-    });
+    return httpService.request(url, {
+      method,
+      headers: {
+        'x-api-key': this.apiKey,
+        'anthropic-version': ANTHROPIC_API_VERSION,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000,
+      errorMessagePrefix: 'Anthropic API error'
+    }, body);
   }
 
   /**

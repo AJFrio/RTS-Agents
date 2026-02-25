@@ -7,6 +7,8 @@ const child_process = require('child_process');
 const mockExistsSync = jest.fn();
 const mockReaddirSync = jest.fn();
 const mockMkdir = jest.fn();
+const mockReaddir = jest.fn();
+const mockAccess = jest.fn();
 const mockExec = jest.fn();
 
 // Mock modules
@@ -16,7 +18,9 @@ jest.mock('fs', () => ({
 }));
 
 jest.mock('fs/promises', () => ({
-  mkdir: mockMkdir
+  mkdir: mockMkdir,
+  readdir: mockReaddir,
+  access: mockAccess
 }));
 
 jest.mock('child_process', () => ({
@@ -63,18 +67,8 @@ describe('ProjectService Unit Tests', () => {
     test('should scan directories and return git repos', async () => {
       const paths = ['/path/1'];
 
-      mockExistsSync.mockImplementation((p) => {
-        if (p === '/path/1') return true;
-        // Construct the expected path for .git check
-        const repo1Git = path.join('/path/1', 'repo1', '.git');
-        const notRepoGit = path.join('/path/1', 'not-repo', '.git');
-
-        if (p === repo1Git) return true; // It's a git repo
-        if (p === notRepoGit) return false; // Not a git repo
-        return false;
-      });
-
-      mockReaddirSync.mockImplementation((p) => {
+      // Mock readdir for finding directories
+      mockReaddir.mockImplementation(async (p) => {
         if (p === '/path/1') {
           return [
             { name: 'repo1', isDirectory: () => true },
@@ -83,7 +77,15 @@ describe('ProjectService Unit Tests', () => {
             { name: '.hidden', isDirectory: () => true }
           ];
         }
-        return [];
+        throw new Error('ENOENT');
+      });
+
+      // Mock access for checking .git existence
+      mockAccess.mockImplementation(async (p) => {
+        const repo1Git = path.join('/path/1', 'repo1', '.git');
+
+        if (p === repo1Git) return Promise.resolve();
+        return Promise.reject(new Error('ENOENT'));
       });
 
       const result = await projectService.getLocalRepos(paths);

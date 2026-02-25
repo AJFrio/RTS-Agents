@@ -1,7 +1,7 @@
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { upsertItem } = require('../utils/collection-utils');
+const httpService = require('./http-service');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
@@ -33,52 +33,20 @@ class CodexService {
       throw new Error('OpenAI API key not configured');
     }
 
-    const url = new URL(`${BASE_URL}${endpoint}`);
+    const url = `${BASE_URL}${endpoint}`;
     
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'assistants=v2'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', chunk => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`OpenAI API error: ${res.statusCode} - ${data}`));
-          }
-        });
+    try {
+      return await httpService.requestJson(url, method, body, {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'OpenAI-Beta': 'assistants=v2'
       });
-
-      req.on('error', reject);
-      req.setTimeout(30000, () => {
-        req.destroy();
-        reject(new Error('OpenAI API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
+    } catch (err) {
+      if (err.statusCode) {
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
       }
-      
-      req.end();
-    });
+      throw err;
+    }
   }
 
   /**

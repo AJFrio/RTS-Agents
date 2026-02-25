@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const https = require('https');
 const { upsertItem } = require('../utils/collection-utils');
+const { scanDirectories } = require('../utils/file-utils');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -43,56 +44,42 @@ class ClaudeService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async discoverProjects(additionalPaths = []) {
-    const projects = [];
     const pathsToScan = [CLAUDE_PROJECTS_DIR, ...additionalPaths];
 
-    for (const basePath of pathsToScan) {
-      if (!fs.existsSync(basePath)) {
-        continue;
+    return scanDirectories(pathsToScan, (entry, projectPath) => {
+      // Skip known non-project directories
+      if (entry.name === 'bin' || entry.name === 'cache' || entry.name === 'tmp') {
+        return null;
       }
 
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+      // Check for sessions directory or session files
+      const sessionsPath = path.join(projectPath, 'sessions');
+      const chatsPath = path.join(projectPath, 'chats');
 
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip known non-project directories
-            if (entry.name === 'bin' || entry.name === 'cache' || entry.name === 'tmp') {
-              continue;
-            }
-
-            const projectPath = path.join(basePath, entry.name);
-            
-            // Check for sessions directory or session files
-            const sessionsPath = path.join(projectPath, 'sessions');
-            const chatsPath = path.join(projectPath, 'chats');
-            
-            if (fs.existsSync(sessionsPath) || fs.existsSync(chatsPath)) {
-              projects.push({
-                hash: entry.name,
-                path: projectPath,
-                sessionsPath: fs.existsSync(sessionsPath) ? sessionsPath : chatsPath
-              });
-            } else {
-              // Check if the directory itself contains session files
-              const files = fs.readdirSync(projectPath);
-              const hasSessionFiles = files.some(f => f.endsWith('.json'));
-              if (hasSessionFiles) {
-                projects.push({
-                  hash: entry.name,
-                  path: projectPath,
-                  sessionsPath: projectPath
-                });
-              }
-            }
+      if (fs.existsSync(sessionsPath) || fs.existsSync(chatsPath)) {
+        return {
+          hash: entry.name,
+          path: projectPath,
+          sessionsPath: fs.existsSync(sessionsPath) ? sessionsPath : chatsPath
+        };
+      } else {
+        // Check if the directory itself contains session files
+        try {
+          const files = fs.readdirSync(projectPath);
+          const hasSessionFiles = files.some(f => f.endsWith('.json'));
+          if (hasSessionFiles) {
+            return {
+              hash: entry.name,
+              path: projectPath,
+              sessionsPath: projectPath
+            };
           }
+        } catch (err) {
+          // Ignore error
         }
-      } catch (err) {
-        // Ignore errors
       }
-    }
-
-    return projects;
+      return null;
+    });
   }
 
   /**
@@ -703,47 +690,30 @@ class ClaudeService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async getAvailableProjects(additionalPaths = []) {
-    const projects = [];
-    const scannedPaths = new Set();
-
     // Only scan the provided paths for git repositories
     // Do NOT include Claude session folders from .claude/projects
-    for (const basePath of additionalPaths) {
-      if (!fs.existsSync(basePath)) continue;
+    const filteredPaths = additionalPaths.filter(p => !p.includes('.claude'));
+    const scannedPaths = new Set();
 
-      // Skip the Claude directories - these are session data, not project repos
-      if (basePath.includes('.claude')) continue;
+    return scanDirectories(filteredPaths, (entry, dirPath) => {
+      // Skip hidden directories and common non-project folders
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
 
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+      const gitPath = path.join(dirPath, '.git');
 
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip hidden directories and common non-project folders
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-            
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                claudePath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
+      if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
+        scannedPaths.add(dirPath);
+        return {
+          id: entry.name,
+          name: entry.name,
+          path: dirPath,
+          claudePath: null,
+          displayName: entry.name,
+          hasExistingSessions: false
+        };
       }
-    }
-
-    return projects;
+      return null;
+    });
   }
 
   // ============================================

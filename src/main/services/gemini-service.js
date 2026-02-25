@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const https = require('https');
+const { scanDirectories } = require('../utils/file-utils');
 
 class GeminiService {
   constructor() {
@@ -107,42 +108,25 @@ class GeminiService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async discoverProjects(additionalPaths = []) {
-    const projects = [];
     const pathsToScan = [this.baseDir, ...additionalPaths];
 
-    for (const basePath of pathsToScan) {
-      if (!fs.existsSync(basePath)) {
-        continue;
+    return scanDirectories(pathsToScan, (entry, projectPath) => {
+      // Skip known non-project directories
+      if (entry.name === 'bin' || entry.name === 'cache') {
+        return null;
       }
 
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-        
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip known non-project directories
-            if (entry.name === 'bin' || entry.name === 'cache') {
-              continue;
-            }
-            
-            const projectPath = path.join(basePath, entry.name);
-            const chatsPath = path.join(projectPath, 'chats');
-            
-            if (fs.existsSync(chatsPath)) {
-              projects.push({
-                hash: entry.name,
-                path: projectPath,
-                chatsPath: chatsPath
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
-      }
-    }
+      const chatsPath = path.join(projectPath, 'chats');
 
-    return projects;
+      if (fs.existsSync(chatsPath)) {
+        return {
+          hash: entry.name,
+          path: projectPath,
+          chatsPath: chatsPath
+        };
+      }
+      return null;
+    });
   }
 
   /**
@@ -423,47 +407,33 @@ class GeminiService {
    * Only returns actual Git repositories, not Gemini session folders
    */
   async getAvailableProjects(additionalPaths = []) {
-    const projects = [];
+    // Filter out .gemini directories from input paths
+    const filteredPaths = additionalPaths.filter(p => !p.includes('.gemini'));
+
+    // Use Set for result deduplication
     const scannedPaths = new Set();
 
-    // Only scan the provided paths for git repositories
-    // Do NOT include Gemini session folders from .gemini/tmp
-    for (const basePath of additionalPaths) {
-      if (!fs.existsSync(basePath)) continue;
-
-      // Skip the Gemini directories - these are session data, not project repos
-      if (basePath.includes('.gemini')) continue;
-
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-        
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip hidden directories and common non-project folders
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-            
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-            
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                geminiPath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
+    return scanDirectories(filteredPaths, (entry, dirPath) => {
+      // Skip hidden directories and common non-project folders
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') {
+        return null;
       }
-    }
 
-    return projects;
+      const gitPath = path.join(dirPath, '.git');
+
+      if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
+        scannedPaths.add(dirPath);
+        return {
+          id: entry.name,
+          name: entry.name,
+          path: dirPath,
+          geminiPath: null,
+          displayName: entry.name,
+          hasExistingSessions: false
+        };
+      }
+      return null;
+    });
   }
 
   /**

@@ -2,6 +2,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { upsertItem } = require('../utils/collection-utils');
+const { scanDirectories } = require('../utils/file-utils');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
@@ -386,39 +387,25 @@ class CodexService {
    * @param {string[]} paths - Paths to scan
    */
   async getAvailableLocalRepositories(paths = []) {
-    const projects = [];
     const scannedPaths = new Set();
 
-    for (const basePath of paths) {
-      if (!fs.existsSync(basePath)) continue;
+    return scanDirectories(paths, (entry, dirPath) => {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
 
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+      const gitPath = path.join(dirPath, '.git');
 
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: dirPath, // Use path as ID for local
-                name: entry.name,
-                url: dirPath, // Use path as URL
-                path: dirPath,
-                displayName: entry.name
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error(`Error scanning ${basePath}:`, err);
+      if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
+        scannedPaths.add(dirPath);
+        return {
+          id: dirPath, // Use path as ID for local
+          name: entry.name,
+          url: dirPath, // Use path as URL
+          path: dirPath,
+          displayName: entry.name
+        };
       }
-    }
-    return projects;
+      return null;
+    });
   }
 
   /**

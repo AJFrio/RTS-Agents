@@ -1,145 +1,153 @@
+const httpService = require('../../src/main/services/http-service');
 const https = require('https');
-
-// Mock https module
-jest.mock('https');
+const http = require('http');
+const { EventEmitter } = require('events');
 
 describe('HttpService', () => {
-  let httpService;
-  let httpsMock;
-  let reqMock;
-  let resMock;
+  let mockRequest;
+  let mockResponse;
+  let httpsRequestSpy;
+  let httpRequestSpy;
 
   beforeEach(() => {
-    jest.resetModules();
     jest.clearAllMocks();
 
-    httpsMock = require('https');
-
-    // Explicitly mock request function to ensure it's a jest mock
-    httpsMock.request = jest.fn();
-
-    httpService = require('../../src/main/services/http-service');
-
-    reqMock = {
+    mockRequest = {
       on: jest.fn(),
-      end: jest.fn(),
       write: jest.fn(),
-      setTimeout: jest.fn(),
-      destroy: jest.fn()
+      end: jest.fn(),
+      destroy: jest.fn(),
+      setTimeout: jest.fn((timeout, callback) => {})
     };
 
-    resMock = {
-      on: jest.fn(),
-      statusCode: 200
-    };
+    mockResponse = new EventEmitter();
+    mockResponse.statusCode = 200;
+    mockResponse.headers = {};
 
-    httpsMock.request.mockReturnValue(reqMock);
-  });
-
-  test('request success with JSON response', async () => {
-    const responseData = { success: true };
-
-    httpsMock.request.mockImplementation((options, callback) => {
-      // Execute callback immediately to simulate response
-      callback(resMock);
-
-      // Simulate data event
-      const dataHandler = resMock.on.mock.calls.find(call => call[0] === 'data');
-      if (dataHandler) dataHandler[1](JSON.stringify(responseData));
-
-      // Simulate end event
-      const endHandler = resMock.on.mock.calls.find(call => call[0] === 'end');
-      if (endHandler) endHandler[1]();
-
-      return reqMock;
+    httpsRequestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
+      if (callback) {
+        callback(mockResponse);
+      }
+      return mockRequest;
     });
 
-    const result = await httpService.request('https://api.example.com/test');
-    expect(result).toEqual(responseData);
-    expect(httpsMock.request).toHaveBeenCalled();
+    httpRequestSpy = jest.spyOn(http, 'request').mockImplementation((options, callback) => {
+        if (callback) {
+          callback(mockResponse);
+        }
+        return mockRequest;
+      });
   });
 
-  test('request failure with error message parsing', async () => {
-    resMock.statusCode = 400;
-    const errorResponse = { error: { message: 'Bad Request' } };
-
-    httpsMock.request.mockImplementation((options, callback) => {
-      callback(resMock);
-
-      const dataHandler = resMock.on.mock.calls.find(call => call[0] === 'data');
-      if (dataHandler) dataHandler[1](JSON.stringify(errorResponse));
-
-      const endHandler = resMock.on.mock.calls.find(call => call[0] === 'end');
-      if (endHandler) endHandler[1]();
-
-      return reqMock;
-    });
-
-    await expect(httpService.request('https://api.example.com/test'))
-      .rejects.toThrow('API request failed: Bad Request');
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  test('request failure with default error message', async () => {
-    resMock.statusCode = 500;
-    const errorText = 'Internal Server Error';
-
-    httpsMock.request.mockImplementation((options, callback) => {
-      callback(resMock);
-
-      const dataHandler = resMock.on.mock.calls.find(call => call[0] === 'data');
-      if (dataHandler) dataHandler[1](errorText);
-
-      const endHandler = resMock.on.mock.calls.find(call => call[0] === 'end');
-      if (endHandler) endHandler[1]();
-
-      return reqMock;
-    });
-
-    await expect(httpService.request('https://api.example.com/test'))
-      .rejects.toThrow(`API request failed: 500 - ${errorText}`);
+  test('should use https for https URLs', async () => {
+    const promise = httpService.request('https://example.com');
+    mockResponse.emit('end');
+    await promise;
+    expect(httpsRequestSpy).toHaveBeenCalled();
+    expect(httpRequestSpy).not.toHaveBeenCalled();
   });
 
-  test('request timeout', async () => {
-    // For timeout, we don't trigger response callback immediately
-    // Instead we rely on setTimeout call from service
-
-    reqMock.setTimeout.mockImplementation((timeout, callback) => {
-      callback(); // Trigger timeout immediately
-    });
-
-    httpsMock.request.mockReturnValue(reqMock);
-
-    await expect(httpService.request('https://api.example.com/test'))
-      .rejects.toThrow('API request failed: Request timeout');
-
-    expect(reqMock.destroy).toHaveBeenCalled();
+  test('should use http for http URLs', async () => {
+    const promise = httpService.request('http://example.com');
+    mockResponse.emit('end');
+    await promise;
+    expect(httpRequestSpy).toHaveBeenCalled();
+    expect(httpsRequestSpy).not.toHaveBeenCalled();
   });
 
-  test('sends body correctly', async () => {
-    const body = { test: 'data' };
+  test('should resolve with parsed JSON when content-type is application/json', async () => {
+    mockResponse.headers['content-type'] = 'application/json';
+    const promise = httpService.request('https://example.com');
 
-    httpsMock.request.mockImplementation((options, callback) => {
-      callback(resMock);
-      const endHandler = resMock.on.mock.calls.find(call => call[0] === 'end');
-      if (endHandler) endHandler[1]();
-      return reqMock;
-    });
+    mockResponse.emit('data', JSON.stringify({ foo: 'bar' }));
+    mockResponse.emit('end');
 
-    await httpService.request('https://api.example.com/test', { method: 'POST' }, body);
-    expect(reqMock.write).toHaveBeenCalledWith(JSON.stringify(body));
+    const result = await promise;
+    expect(result).toEqual({ foo: 'bar' });
   });
 
-  test('handles string body correctly', async () => {
-    const body = 'test string body';
+  test('should resolve with parsed JSON even without content-type if valid JSON', async () => {
+    const promise = httpService.request('https://example.com');
 
-    httpsMock.request.mockImplementation((options, callback) => {
-      callback(resMock);
-      const endHandler = resMock.on.mock.calls.find(call => call[0] === 'end');
-      if (endHandler) endHandler[1]();
-      return reqMock;
+    mockResponse.emit('data', JSON.stringify({ foo: 'bar' }));
+    mockResponse.emit('end');
+
+    const result = await promise;
+    expect(result).toEqual({ foo: 'bar' });
+  });
+
+  test('should resolve with raw data if not JSON', async () => {
+    const promise = httpService.request('https://example.com');
+
+    mockResponse.emit('data', 'plain text');
+    mockResponse.emit('end');
+
+    const result = await promise;
+    expect(result).toBe('plain text');
+  });
+
+  test('should reject on non-2xx status code', async () => {
+    mockResponse.statusCode = 404;
+    const promise = httpService.request('https://example.com');
+
+    mockResponse.emit('data', 'Not Found');
+    mockResponse.emit('end');
+
+    await expect(promise).rejects.toThrow('Request failed with status code 404');
+    try {
+        await promise;
+    } catch (err) {
+        expect(err.statusCode).toBe(404);
+        expect(err.data).toBe('Not Found');
+    }
+  });
+
+  test('should reject on request error', async () => {
+    const handlers = {};
+    // mockRequest.on needs to be hooked up to capture handlers
+    // But we defined mockRequest in beforeEach, and jest.spyOn returns it.
+    // So we can spyOn mockRequest.on or just use the mock function implementation
+
+    mockRequest.on.mockImplementation((event, cb) => {
+        handlers[event] = cb;
     });
 
-    await httpService.request('https://api.example.com/test', { method: 'POST' }, body);
-    expect(reqMock.write).toHaveBeenCalledWith(body);
+    const promise = httpService.request('https://example.com');
+
+    const error = new Error('Network Error');
+    expect(handlers['error']).toBeDefined();
+    handlers['error'](error);
+
+    await expect(promise).rejects.toThrow('Network Error');
+  });
+
+  test('should reject on timeout', async () => {
+    mockRequest.setTimeout.mockImplementation((timeout, callback) => {
+        callback();
+    });
+    const promise = httpService.request('https://example.com', { timeout: 1000 });
+    await expect(promise).rejects.toThrow('Request timeout after 1000ms');
+    expect(mockRequest.destroy).toHaveBeenCalled();
+  });
+
+  test('should write body if provided', async () => {
+    const body = { key: 'value' };
+    const promise = httpService.request('https://example.com', { body });
+    mockResponse.emit('end');
+    await promise;
+    expect(mockRequest.write).toHaveBeenCalledWith(JSON.stringify(body));
+  });
+
+  test('requestJson should set content-type header', async () => {
+    const promise = httpService.requestJson('https://example.com');
+    mockResponse.emit('end');
+    await promise;
+    expect(httpsRequestSpy).toHaveBeenCalledWith(expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' })
+    }), expect.any(Function));
   });
 });

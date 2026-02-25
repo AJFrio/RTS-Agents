@@ -28,14 +28,15 @@ class GeminiService {
     const url = new URL(`https://generativelanguage.googleapis.com${endpoint}`);
     url.searchParams.append('key', this.apiKey);
 
-    return httpService.request(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000,
-      errorMessagePrefix: 'Gemini API error'
-    });
+    try {
+      return await httpService.requestJson(url.toString(), method);
+    } catch (err) {
+      if (err.statusCode) {
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`Gemini API error: ${err.statusCode} - ${dataStr}`);
+      }
+      throw err;
+    }
   }
 
   async getModels() {

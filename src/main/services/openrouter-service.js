@@ -18,17 +18,24 @@ class OpenRouterService {
 
     const url = `${BASE_URL}${endpoint}`;
 
-    return httpService.request(url, {
-      method,
-      headers: {
+    try {
+      return await httpService.requestJson(url, method, body, {
         'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
         'HTTP-Referer': 'https://rts-agents.com', // Required by OpenRouter
         'X-Title': 'RTS Agents'
-      },
-      timeout: 60000,
-      errorMessagePrefix: 'OpenRouter API error'
-    }, body);
+      }, 60000);
+    } catch (err) {
+      if (err.statusCode) {
+        // Try to use specific error message from OpenRouter
+        if (err.data && err.data.error && err.data.error.message) {
+            throw new Error(`OpenRouter API error: ${err.data.error.message}`);
+        }
+
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`OpenRouter API error: ${err.statusCode} - ${dataStr}`);
+      }
+      throw err;
+    }
   }
 
   async chat(messages, model = 'openai/gpt-4o', tools = null) {

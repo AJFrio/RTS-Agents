@@ -35,16 +35,18 @@ class CodexService {
 
     const url = `${BASE_URL}${endpoint}`;
     
-    return httpService.request(url, {
-      method,
-      headers: {
+    try {
+      return await httpService.requestJson(url, method, body, {
         'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
         'OpenAI-Beta': 'assistants=v2'
-      },
-      timeout: 30000,
-      errorMessagePrefix: 'OpenAI API error'
-    }, body);
+      });
+    } catch (err) {
+      if (err.statusCode) {
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
+      }
+      throw err;
+    }
   }
 
   /**

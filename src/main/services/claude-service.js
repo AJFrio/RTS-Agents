@@ -190,16 +190,18 @@ class ClaudeService {
 
     const url = `${ANTHROPIC_API_URL}${endpoint}`;
 
-    return httpService.request(url, {
-      method,
-      headers: {
+    try {
+      return await httpService.requestJson(url, method, body, {
         'x-api-key': this.apiKey,
-        'anthropic-version': ANTHROPIC_API_VERSION,
-        'Content-Type': 'application/json'
-      },
-      timeout: 60000,
-      errorMessagePrefix: 'Anthropic API error'
-    }, body);
+        'anthropic-version': ANTHROPIC_API_VERSION
+      }, 60000);
+    } catch (err) {
+      if (err.statusCode) {
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`Anthropic API error: ${err.statusCode} - ${dataStr}`);
+      }
+      throw err;
+    }
   }
 
   /**

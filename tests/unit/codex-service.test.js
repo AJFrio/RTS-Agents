@@ -40,6 +40,7 @@ describe('Codex Service', () => {
 
     mockResponse = new EventEmitter();
     mockResponse.statusCode = 200;
+    mockResponse.headers = {};
 
     requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
       if (callback) {
@@ -224,6 +225,7 @@ describe('Codex Service', () => {
       requestSpy.mockImplementation((options, callback) => {
         const res = new EventEmitter();
         res.statusCode = 200;
+        res.headers = {};
 
         process.nextTick(() => {
           let data = '{}';
@@ -266,6 +268,7 @@ describe('Codex Service', () => {
       requestSpy.mockImplementation((options, callback) => {
         const res = new EventEmitter();
         res.statusCode = 200;
+        res.headers = {};
 
         process.nextTick(() => {
           let data = '{}';

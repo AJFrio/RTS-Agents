@@ -70,7 +70,8 @@ class GithubService {
       return allPrs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } catch (err) {
       console.error('Failed to load all PRs:', err);
-      return [];
+      // Re-throw so the app can show an error state instead of empty list
+      throw err;
     }
   }
 

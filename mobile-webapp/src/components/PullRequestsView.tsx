@@ -32,7 +32,8 @@ export default function PullRequestsView() {
         );
 
         setSelectedPR((current) => {
-          if (current && current.number === pr.number) {
+          // Use unique ID instead of PR number (which is only unique per repo)
+          if (current && current.id === pr.id) {
             return fullPr;
           }
           return current;

@@ -6,11 +6,8 @@
   "scripts": {
     "start": "npm run build && electron .",
     "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
-    "build": "vite build && npm run build:css:prod",
+    "build": "vite build",
     "dev:headless": "node headless.js",
-    "build:css": "tailwindcss -i ./src/input.css -o ./styles/output.css --watch",
-    "build:css:once": "tailwindcss -i ./src/input.css -o ./styles/output.css",
-    "build:css:prod": "tailwindcss -i ./src/input.css -o ./styles/output.css --minify",
     "test": "jest",
     "test:e2e": "npm run build && env -u DISPLAY xvfb-maybe playwright test"
   },

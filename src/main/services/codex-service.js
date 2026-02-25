@@ -356,36 +356,61 @@ class CodexService {
   async getAvailableLocalRepositories(paths = []) {
     const projects = [];
     const scannedPaths = new Set();
+    const uniquePaths = [...new Set(paths)];
 
-    for (const basePath of paths) {
-      if (!fs.existsSync(basePath)) continue;
-
+    const results = await Promise.all(uniquePaths.map(async (basePath) => {
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: dirPath, // Use path as ID for local
-                name: entry.name,
-                url: dirPath, // Use path as URL
-                path: dirPath,
-                displayName: entry.name
-              });
-            }
-          }
+        try {
+          await fs.promises.access(basePath);
+        } catch {
+          return [];
         }
+
+        const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
+
+        // Filter directories first to avoid creating unnecessary promises
+        const validDirs = entries.filter(entry =>
+          entry.isDirectory() &&
+          !entry.name.startsWith('.') &&
+          entry.name !== 'node_modules'
+        );
+
+        const dirPromises = validDirs.map(async (entry) => {
+          const dirPath = path.join(basePath, entry.name);
+          const gitPath = path.join(dirPath, '.git');
+
+          try {
+            await fs.promises.access(gitPath);
+            return {
+              id: dirPath, // Use path as ID for local
+              name: entry.name,
+              url: dirPath, // Use path as URL
+              path: dirPath,
+              displayName: entry.name
+            };
+          } catch {
+            return null; // Not a git repo or error accessing it
+          }
+        });
+
+        return Promise.all(dirPromises);
       } catch (err) {
         console.error(`Error scanning ${basePath}:`, err);
+        return [];
+      }
+    }));
+
+    // Flatten results and filter nulls
+    const allProjects = results.flat().filter(p => p !== null);
+
+    // Deduplicate based on path while preserving order
+    for (const project of allProjects) {
+      if (!scannedPaths.has(project.path)) {
+        scannedPaths.add(project.path);
+        projects.push(project);
       }
     }
+
     return projects;
   }
 

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const https = require('https');
+const { scanDirectories } = require('../utils/file-utils');
 
 class GeminiService {
   constructor() {
@@ -107,42 +108,20 @@ class GeminiService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async discoverProjects(additionalPaths = []) {
-    const projects = [];
     const pathsToScan = [this.baseDir, ...additionalPaths];
 
-    for (const basePath of pathsToScan) {
-      if (!fs.existsSync(basePath)) {
-        continue;
-      }
-
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-        
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip known non-project directories
-            if (entry.name === 'bin' || entry.name === 'cache') {
-              continue;
-            }
-            
-            const projectPath = path.join(basePath, entry.name);
-            const chatsPath = path.join(projectPath, 'chats');
-            
-            if (fs.existsSync(chatsPath)) {
-              projects.push({
-                hash: entry.name,
-                path: projectPath,
-                chatsPath: chatsPath
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
-      }
-    }
-
-    return projects;
+    return scanDirectories(pathsToScan, {
+      shouldSkip: (name) => ['bin', 'cache'].includes(name),
+      checkFn: (projectPath, entryName) => {
+        const chatsPath = path.join(projectPath, 'chats');
+        return fs.existsSync(chatsPath) ? { chatsPath } : null;
+      },
+      mapFn: (projectPath, entryName, checkResult) => ({
+        hash: entryName,
+        path: projectPath,
+        chatsPath: checkResult.chatsPath
+      })
+    });
   }
 
   /**

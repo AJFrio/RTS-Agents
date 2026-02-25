@@ -2,6 +2,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const { exec } = require('child_process');
+const { scanDirectories } = require('../utils/file-utils');
 
 class ProjectService {
   execAsync(command, options = {}) {
@@ -45,41 +46,21 @@ class ProjectService {
       return [];
     }
 
-    const projects = [];
-    const scannedPaths = new Set();
-
-    for (const basePath of paths) {
-      if (!fs.existsSync(basePath)) continue;
-
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                geminiPath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
-      }
-    }
-
-    return projects;
+    return scanDirectories(paths, {
+      shouldSkip: (name) => name.startsWith('.') || name === 'node_modules',
+      checkFn: (projectPath, entryName) => {
+        const gitPath = path.join(projectPath, '.git');
+        return fs.existsSync(gitPath) ? true : null;
+      },
+      mapFn: (projectPath, entryName) => ({
+        id: entryName,
+        name: entryName,
+        path: projectPath,
+        geminiPath: null,
+        displayName: entryName,
+        hasExistingSessions: false
+      })
+    });
   }
 
   async getRepoFile(repoPath, fileName) {

@@ -1,8 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, MenuItem, dialog } = require('electron');
 const path = require('path');
 const { exec, spawn } = require('child_process');
-const fs = require('fs');
-const fsp = require('fs/promises');
 
 // Services
 const configStore = require('./src/main/services/config-store');

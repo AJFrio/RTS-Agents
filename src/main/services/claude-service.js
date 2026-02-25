@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const https = require('https');
+const { upsertItem } = require('../utils/collection-utils');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -308,7 +309,6 @@ class ClaudeService {
    * @param {object} metadata 
    */
   trackConversation(conversationId, metadata = {}) {
-    const existingIndex = trackedConversations.findIndex(c => c.id === conversationId);
     const conversationInfo = {
       id: conversationId,
       createdAt: new Date().toISOString(),
@@ -320,16 +320,7 @@ class ClaudeService {
       ...metadata
     };
 
-    if (existingIndex >= 0) {
-      trackedConversations[existingIndex] = { ...trackedConversations[existingIndex], ...conversationInfo };
-    } else {
-      trackedConversations.unshift(conversationInfo);
-    }
-
-    // Keep only last 100 conversations in memory
-    if (trackedConversations.length > 100) {
-      trackedConversations = trackedConversations.slice(0, 100);
-    }
+    trackedConversations = upsertItem(trackedConversations, conversationInfo, { limit: 100 });
   }
 
   /**

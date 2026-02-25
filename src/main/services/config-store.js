@@ -1,6 +1,7 @@
 const Store = require('electron-store');
 const os = require('os');
 const crypto = require('crypto');
+const { upsertItem } = require('../utils/collection-utils');
 
 const schema = {
   apiKeys: {
@@ -428,18 +429,9 @@ class ConfigStore {
 
   addCodexThread(thread) {
     const threads = this.getCodexThreads();
-    const existingIndex = threads.findIndex(t => t.id === thread.id);
-    
-    if (existingIndex >= 0) {
-      threads[existingIndex] = { ...threads[existingIndex], ...thread };
-    } else {
-      threads.unshift(thread);
-    }
-
-    // Keep only last 100 threads
-    const trimmedThreads = threads.slice(0, 100);
-    this.setCodexThreads(trimmedThreads);
-    return trimmedThreads;
+    const updatedThreads = upsertItem(threads, thread, { limit: 100 });
+    this.setCodexThreads(updatedThreads);
+    return updatedThreads;
   }
 
   removeCodexThread(threadId) {
@@ -459,18 +451,9 @@ class ConfigStore {
 
   addClaudeConversation(conversation) {
     const conversations = this.getClaudeConversations();
-    const existingIndex = conversations.findIndex(c => c.id === conversation.id);
-    
-    if (existingIndex >= 0) {
-      conversations[existingIndex] = { ...conversations[existingIndex], ...conversation };
-    } else {
-      conversations.unshift(conversation);
-    }
-
-    // Keep only last 100 conversations
-    const trimmedConversations = conversations.slice(0, 100);
-    this.setClaudeConversations(trimmedConversations);
-    return trimmedConversations;
+    const updatedConversations = upsertItem(conversations, conversation, { limit: 100 });
+    this.setClaudeConversations(updatedConversations);
+    return updatedConversations;
   }
 
   removeClaudeConversation(conversationId) {

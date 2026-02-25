@@ -1,6 +1,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { upsertItem } = require('../utils/collection-utils');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
@@ -173,7 +174,6 @@ class CodexService {
    * @param {object} metadata 
    */
   trackThread(threadId, metadata = {}) {
-    const existingIndex = trackedThreads.findIndex(t => t.id === threadId);
     const threadInfo = {
       id: threadId,
       createdAt: new Date().toISOString(),
@@ -182,16 +182,7 @@ class CodexService {
       ...metadata
     };
 
-    if (existingIndex >= 0) {
-      trackedThreads[existingIndex] = { ...trackedThreads[existingIndex], ...threadInfo };
-    } else {
-      trackedThreads.unshift(threadInfo);
-    }
-
-    // Keep only last 100 threads in memory
-    if (trackedThreads.length > 100) {
-      trackedThreads = trackedThreads.slice(0, 100);
-    }
+    trackedThreads = upsertItem(trackedThreads, threadInfo, { limit: 100 });
   }
 
   /**

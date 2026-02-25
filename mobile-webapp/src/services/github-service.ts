@@ -89,6 +89,27 @@ class GithubService {
     });
   }
 
+  async getRepoFileContent(owner: string, repo: string, path: string): Promise<string | null> {
+    try {
+      const response = await this.request<{ content: string; encoding: string }>(
+        `/repos/${owner}/${repo}/contents/${path}`
+      );
+
+      if (response.content && response.encoding === 'base64') {
+        // Base64 decode, handling newlines which GitHub API might include
+        const cleanContent = response.content.replace(/\n/g, '');
+        return atob(cleanContent);
+      }
+      return null;
+    } catch (err) {
+      // 404 means file not found, which is expected
+      if (err instanceof Error && err.message.includes('404')) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
       await this.request('/user');

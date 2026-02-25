@@ -74,6 +74,7 @@ interface AppState {
   // UI State
   currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings';
   showNewTaskModal: boolean;
+  newTaskInitialPrompt: string | null;
   showAgentModal: boolean;
 }
 
@@ -99,6 +100,7 @@ type AppAction =
   | { type: 'SET_LOADING_PRS'; payload: boolean }
   | { type: 'SET_VIEW'; payload: AppState['currentView'] }
   | { type: 'SET_SHOW_NEW_TASK_MODAL'; payload: boolean }
+  | { type: 'SET_NEW_TASK_INITIAL_PROMPT'; payload: string | null }
   | { type: 'SET_SHOW_AGENT_MODAL'; payload: boolean };
 
 // ============================================
@@ -131,6 +133,7 @@ const initialState: AppState = {
   loadingPRs: false,
   currentView: 'dashboard',
   showNewTaskModal: false,
+  newTaskInitialPrompt: null,
   showAgentModal: false,
 };
 
@@ -146,16 +149,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, filteredAgents: action.payload };
     case 'SET_SELECTED_AGENT':
       return { ...state, selectedAgent: action.payload };
-    case 'SET_FILTERS':
+    case 'SET_FILTERS': {
       const newFilters = { ...state.filters, ...action.payload };
       storageService.setFilters(newFilters);
       return { ...state, filters: newFilters };
+    }
     case 'SET_COUNTS':
       return { ...state, counts: action.payload };
-    case 'SET_SETTINGS':
+    case 'SET_SETTINGS': {
       const newSettings = { ...state.settings, ...action.payload };
       storageService.setSettings(newSettings);
       return { ...state, settings: newSettings };
+    }
     case 'SET_CONFIGURED_SERVICES':
       return { ...state, configuredServices: action.payload };
     case 'SET_LOADING':
@@ -186,6 +191,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, currentView: action.payload };
     case 'SET_SHOW_NEW_TASK_MODAL':
       return { ...state, showNewTaskModal: action.payload };
+    case 'SET_NEW_TASK_INITIAL_PROMPT':
+      return { ...state, newTaskInitialPrompt: action.payload };
     case 'SET_SHOW_AGENT_MODAL':
       return { ...state, showAgentModal: action.payload };
     default:
@@ -227,6 +234,7 @@ interface AppContextType {
   applyFilters: () => void;
   getRepositories: (provider: Provider) => Promise<Repository[]>;
   enableNotifications: () => Promise<string>;
+  openNewTaskModal: (options?: { initialPrompt?: string }) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -682,6 +690,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const openNewTaskModal = useCallback((options?: { initialPrompt?: string }) => {
+    if (options?.initialPrompt) {
+      dispatch({ type: 'SET_NEW_TASK_INITIAL_PROMPT', payload: options.initialPrompt });
+    } else {
+      dispatch({ type: 'SET_NEW_TASK_INITIAL_PROMPT', payload: null });
+    }
+    dispatch({ type: 'SET_SHOW_NEW_TASK_MODAL', payload: true });
+  }, []);
+
   // Initialize on mount
   useEffect(() => {
     initializeServices();
@@ -742,6 +759,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     applyFilters,
     getRepositories,
     enableNotifications,
+    openNewTaskModal,
   };
 
   return (

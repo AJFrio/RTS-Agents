@@ -4,7 +4,7 @@
  * View GitHub repositories and their pull requests
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useApp } from '../store/AppContext';
@@ -305,11 +305,12 @@ function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps
 }
 
 export default function BranchesView() {
-  const { state, dispatch, loadGithubRepos, loadPullRequests } = useApp();
+  const { state, dispatch, loadGithubRepos, loadPullRequests, openNewTaskModal } = useApp();
   const { githubRepos, selectedRepo, pullRequests, loadingRepos, loadingPRs, configuredServices } = state;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
+  const [updatesContent, setUpdatesContent] = useState<string | null>(null);
 
   const handleViewPR = async (pr: PullRequest) => {
     setSelectedPR(pr);
@@ -378,12 +379,75 @@ export default function BranchesView() {
     }
   }, [configuredServices.github, loadGithubRepos]);
 
-  // Load PRs when repo is selected
+  // Load PRs and UPDATES.md when repo is selected
   useEffect(() => {
     if (selectedRepo) {
       loadPullRequests(selectedRepo.owner.login, selectedRepo.name);
+
+      // Fetch UPDATES.md
+      const fetchUpdates = async () => {
+        setUpdatesContent(null);
+        try {
+          // Try UPDATES.md first
+          let content = await githubService.getRepoFileContent(selectedRepo.owner.login, selectedRepo.name, 'UPDATES.md');
+
+          // Fallback to UPDATE.md
+          if (!content) {
+            content = await githubService.getRepoFileContent(selectedRepo.owner.login, selectedRepo.name, 'UPDATE.md');
+          }
+
+          setUpdatesContent(content);
+        } catch (err) {
+          console.warn('Failed to fetch UPDATES.md:', err);
+        }
+      };
+
+      fetchUpdates();
     }
   }, [selectedRepo, loadPullRequests]);
+
+  const parsedTasks = useMemo(() => {
+    if (!updatesContent) return [];
+
+    const lines = updatesContent.split('\n');
+    const tasks: { title: string; description: string }[] = [];
+    let currentTask: { title: string; descriptionLines: string[] } | null = null;
+
+    lines.forEach(line => {
+      // Level 1 bullet: * Title or - Title or 1. Title
+      // We look for lines starting with optional space (0-1), then a bullet marker, then space
+      const titleMatch = line.match(/^(\s{0,1})(?:-|\*|\d+\.)\s+(.*)/);
+      // Level 2 bullet:   * Description or   - Description (2+ spaces)
+      const descMatch = line.match(/^(\s{2,})(?:-|\*|\d+\.)\s+(.*)/);
+
+      if (titleMatch && !descMatch) {
+        if (currentTask) {
+            tasks.push({
+                title: currentTask.title,
+                description: currentTask.descriptionLines.join('\n')
+            });
+        }
+        currentTask = {
+          title: titleMatch[2].trim(),
+          descriptionLines: []
+        };
+      } else if (currentTask) {
+        if (descMatch) {
+            currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
+        } else if (line.trim()) {
+            currentTask.descriptionLines.push(line.trim());
+        }
+      }
+    });
+    if (currentTask) {
+        tasks.push({
+            title: currentTask.title,
+            description: currentTask.descriptionLines.join('\n')
+        });
+    }
+
+    return tasks;
+  }, [updatesContent]);
 
   const handleSelectRepo = (repo: GithubRepo) => {
     dispatch({ type: 'SET_SELECTED_REPO', payload: repo });
@@ -535,6 +599,48 @@ export default function BranchesView() {
                     onView={() => handleViewPR(pr)}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* Tasks Section */}
+            {updatesContent && (
+              <div className="mt-6 border-t border-slate-200 dark:border-border-dark pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined text-primary text-sm">campaign</span>
+                  <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Tasks ({parsedTasks.length})
+                  </h3>
+                </div>
+
+                {parsedTasks.length === 0 ? (
+                   <p className="text-xs text-slate-500 italic">No tasks found in UPDATES.md</p>
+                ) : (
+                  <div className="space-y-3">
+                    {parsedTasks.map((task, index) => (
+                      <div
+                        key={`task-${index}`}
+                        className="p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl shadow-sm"
+                      >
+                         <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                               <h4 className="font-semibold text-sm text-slate-900 dark:text-white mb-1">{task.title}</h4>
+                               {task.description && (
+                                 <p className="text-xs text-slate-500 line-clamp-2">{task.description}</p>
+                               )}
+                            </div>
+                            <button
+                              onClick={() => openNewTaskModal({
+                                initialPrompt: `${task.description}\n\nWhen finished, remove the task from the UPDATES.md file`
+                              })}
+                              className="px-3 py-1.5 bg-primary text-black text-xs font-semibold rounded-lg hover:shadow-md transition-all shrink-0"
+                            >
+                              Build
+                            </button>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

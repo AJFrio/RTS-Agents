@@ -11,7 +11,12 @@ jest.mock('fs', () => {
   };
 });
 
+jest.mock('../../src/main/services/project-service', () => ({
+  scanDirectoriesForGitRepos: jest.fn()
+}));
+
 const codexService = require('../../src/main/services/codex-service');
+const projectService = require('../../src/main/services/project-service');
 const https = require('https');
 const fs = require('fs');
 const { EventEmitter } = require('events');
@@ -305,30 +310,16 @@ describe('Codex Service', () => {
 
   describe('Local Repositories', () => {
     test('getAvailableLocalRepositories scans directories correctly', async () => {
-      // Mock fs
-      fs.existsSync.mockImplementation((path) => {
-        if (path === '/projects') return true;
-        if (path === '/projects/repo1/.git') return true;
-        if (path === '/projects/repo2/.git') return false; // Not a git repo
-        return false;
-      });
-
-      fs.readdirSync.mockImplementation((path, options) => {
-        if (path === '/projects') {
-          return [
-            { name: 'repo1', isDirectory: () => true },
-            { name: 'repo2', isDirectory: () => true },
-            { name: 'file.txt', isDirectory: () => false },
-            { name: 'node_modules', isDirectory: () => true } // Should be skipped
-          ];
-        }
-        return [];
-      });
+      projectService.scanDirectoriesForGitRepos.mockResolvedValue([
+        { name: 'repo1', path: '/projects/repo1' }
+      ]);
 
       const repos = await codexService.getAvailableLocalRepositories(['/projects']);
 
+      expect(projectService.scanDirectoriesForGitRepos).toHaveBeenCalledWith(['/projects']);
       expect(repos).toHaveLength(1);
       expect(repos[0].name).toBe('repo1');
+      expect(repos[0].path).toBe('/projects/repo1');
     });
   });
 

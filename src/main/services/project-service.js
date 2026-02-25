@@ -16,6 +16,57 @@ class ProjectService {
     });
   }
 
+  /**
+   * Scan directories for Git repositories
+   * @param {string[]} paths - Paths to scan
+   * @param {object} options - Options
+   * @param {string[]} options.skipPatterns - Patterns to skip (matches directory names or path segments)
+   * @param {boolean} options.skipHidden - Skip hidden directories (starting with .)
+   */
+  async scanDirectoriesForGitRepos(paths = [], options = {}) {
+    const {
+      skipPatterns = ['node_modules'],
+      skipHidden = true
+    } = options;
+
+    const projects = [];
+    const scannedPaths = new Set();
+
+    if (!Array.isArray(paths)) return [];
+
+    for (const basePath of paths) {
+      if (!fs.existsSync(basePath)) continue;
+
+      // Check if basePath itself should be skipped
+      if (skipPatterns.some(pattern => basePath.includes(pattern))) continue;
+
+      try {
+        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            if (skipHidden && entry.name.startsWith('.')) continue;
+            if (skipPatterns.includes(entry.name)) continue;
+
+            const dirPath = path.join(basePath, entry.name);
+            const gitPath = path.join(dirPath, '.git');
+
+            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
+              scannedPaths.add(dirPath);
+              projects.push({
+                name: entry.name,
+                path: dirPath
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Error scanning ${basePath}:`, err);
+      }
+    }
+    return projects;
+  }
+
   async createLocalRepo({ directory, name }) {
     if (!name || typeof name !== 'string') throw new Error('Missing repository name');
     if (!directory || typeof directory !== 'string') throw new Error('Missing base directory');
@@ -45,41 +96,16 @@ class ProjectService {
       return [];
     }
 
-    const projects = [];
-    const scannedPaths = new Set();
+    const repos = await this.scanDirectoriesForGitRepos(paths);
 
-    for (const basePath of paths) {
-      if (!fs.existsSync(basePath)) continue;
-
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                geminiPath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
-      }
-    }
-
-    return projects;
+    return repos.map(repo => ({
+      id: repo.name,
+      name: repo.name,
+      path: repo.path,
+      geminiPath: null,
+      displayName: repo.name,
+      hasExistingSessions: false
+    }));
   }
 
   async getRepoFile(repoPath, fileName) {

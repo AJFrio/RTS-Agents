@@ -3,6 +3,7 @@ const path = require('path');
 const os = require('os');
 const https = require('https');
 const { upsertItem } = require('../utils/collection-utils');
+const projectService = require('./project-service');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -703,47 +704,18 @@ class ClaudeService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async getAvailableProjects(additionalPaths = []) {
-    const projects = [];
-    const scannedPaths = new Set();
+    const repos = await projectService.scanDirectoriesForGitRepos(additionalPaths, {
+       skipPatterns: ['node_modules', '.claude']
+    });
 
-    // Only scan the provided paths for git repositories
-    // Do NOT include Claude session folders from .claude/projects
-    for (const basePath of additionalPaths) {
-      if (!fs.existsSync(basePath)) continue;
-
-      // Skip the Claude directories - these are session data, not project repos
-      if (basePath.includes('.claude')) continue;
-
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip hidden directories and common non-project folders
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-            
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                claudePath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
-      }
-    }
-
-    return projects;
+    return repos.map(repo => ({
+      id: repo.name,
+      name: repo.name,
+      path: repo.path,
+      claudePath: null,
+      displayName: repo.name,
+      hasExistingSessions: false
+    }));
   }
 
   // ============================================

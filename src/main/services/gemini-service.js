@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const https = require('https');
+const projectService = require('./project-service');
 
 class GeminiService {
   constructor() {
@@ -423,47 +424,18 @@ class GeminiService {
    * Only returns actual Git repositories, not Gemini session folders
    */
   async getAvailableProjects(additionalPaths = []) {
-    const projects = [];
-    const scannedPaths = new Set();
+    const repos = await projectService.scanDirectoriesForGitRepos(additionalPaths, {
+       skipPatterns: ['node_modules', '.gemini']
+    });
 
-    // Only scan the provided paths for git repositories
-    // Do NOT include Gemini session folders from .gemini/tmp
-    for (const basePath of additionalPaths) {
-      if (!fs.existsSync(basePath)) continue;
-
-      // Skip the Gemini directories - these are session data, not project repos
-      if (basePath.includes('.gemini')) continue;
-
-      try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-        
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip hidden directories and common non-project folders
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-            
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-            
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                geminiPath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              });
-            }
-          }
-        }
-      } catch (err) {
-        // Ignore error
-      }
-    }
-
-    return projects;
+    return repos.map(repo => ({
+      id: repo.name,
+      name: repo.name,
+      path: repo.path,
+      geminiPath: null,
+      displayName: repo.name,
+      hasExistingSessions: false
+    }));
   }
 
   /**

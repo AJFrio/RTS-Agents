@@ -31,7 +31,6 @@ export default function PrModal({ pr, onClose, api }) {
 
   const data = details || pr;
   const mergeable = data?.mergeable === true;
-  const merged = !!data?.merged_at;
   const state = data?.state || 'open';
 
   const handleMerge = async () => {

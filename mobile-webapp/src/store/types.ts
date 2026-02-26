@@ -153,6 +153,10 @@ export interface ApiKeyStatus {
   jira: boolean;
   github: boolean;
   cloudflare: boolean;
+  openrouter: boolean;
+  openai: boolean;
+  gemini: boolean;
+  [key: string]: boolean;
 }
 
 export interface CloudflareConfig {
@@ -167,6 +171,7 @@ export interface AppSettings {
   autoPolling: boolean;
   theme: 'system' | 'light' | 'dark';
   jiraBaseUrl?: string;
+  selectedModel?: string;
 }
 
 export interface ProviderCounts {

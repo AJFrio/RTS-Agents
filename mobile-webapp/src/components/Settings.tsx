@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { storageService } from '../services/storage-service';
+import ModelSelector from './ModelSelector';
 
 interface ApiKeyInputProps {
   label: string;
@@ -157,7 +158,7 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
 }
 
 export default function Settings() {
-  const { state, dispatch, setApiKey, testApiKey, setCloudflareConfig, testCloudflareConfig, pullKeysFromKV, enableNotifications } = useApp();
+  const { state, dispatch, setApiKey, testApiKey, setCloudflareConfig, testCloudflareConfig, pullKeysFromKV, enableNotifications, setModel } = useApp();
   const { configuredServices, settings } = state;
 
   const [cfAccountId, setCfAccountId] = useState('');
@@ -287,7 +288,7 @@ export default function Settings() {
           />
 
           <ApiKeyInput
-            label="OpenAI Codex API Key"
+            label="OpenAI Codex API Key (Legacy)"
             placeholder="Enter OpenAI API key"
             hint="Get from platform.openai.com/api-keys"
             isConfigured={configuredServices.codex}
@@ -304,6 +305,26 @@ export default function Settings() {
             onSave={(key) => setApiKey('claude', key)}
             onTest={() => testApiKey('claude')}
             onDisconnect={() => handleDisconnect('claude')}
+          />
+
+          <ApiKeyInput
+            label="OpenRouter API Key"
+            placeholder="Enter OpenRouter API key"
+            hint="Get from openrouter.ai/keys"
+            isConfigured={configuredServices.openrouter}
+            onSave={(key) => setApiKey('openrouter', key)}
+            onTest={() => testApiKey('openrouter')}
+            onDisconnect={() => handleDisconnect('openrouter')}
+          />
+
+          <ApiKeyInput
+            label="Google Gemini API Key"
+            placeholder="Enter Gemini API key"
+            hint="Get from aistudio.google.com"
+            isConfigured={configuredServices.gemini}
+            onSave={(key) => setApiKey('gemini', key)}
+            onTest={() => testApiKey('gemini')}
+            onDisconnect={() => handleDisconnect('gemini')}
           />
 
           <ApiKeyInput
@@ -463,6 +484,25 @@ export default function Settings() {
           </div>
         </section>
       )}
+
+      {/* Model Selection */}
+      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="material-symbols-outlined text-primary text-lg">smart_toy</span>
+          <h3 className="text-base font-semibold">Agent Model</h3>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+             Orchestrator Model
+          </label>
+          <ModelSelector
+            value={settings.selectedModel}
+            onChange={(model) => setModel(model)}
+          />
+          <p className="text-xs text-slate-500">The AI model used for the main agent chat.</p>
+        </div>
+      </section>
 
       {/* Notifications */}
       <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">

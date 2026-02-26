@@ -25,6 +25,9 @@ import {
   githubService,
   cloudflareKvService,
   storageService,
+  openRouterService,
+  geminiService,
+  agentOrchestratorService,
 } from '../services';
 
 // ============================================
@@ -74,7 +77,7 @@ interface AppState {
   loadingAllPRs: boolean;
   
   // UI State
-  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings' | 'pull-requests';
+  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings' | 'pull-requests' | 'agent';
   showNewTaskModal: boolean;
   newTaskInitialPrompt: string | null;
   showAgentModal: boolean;
@@ -246,6 +249,8 @@ interface AppContextType {
   getRepositories: (provider: Provider) => Promise<Repository[]>;
   enableNotifications: () => Promise<string>;
   openNewTaskModal: (options?: { initialPrompt?: string }) => void;
+  setModel: (model: string) => void;
+  agentOrchestratorService: typeof agentOrchestratorService;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -277,6 +282,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const claudeKey = storageService.getApiKey('claude');
     const jiraKey = storageService.getApiKey('jira');
     const githubKey = storageService.getApiKey('github');
+    const openRouterKey = storageService.getApiKey('openrouter');
+    const geminiKey = storageService.getApiKey('gemini');
+
     const cfConfig = storageService.getCloudflareConfig();
     const appSettings = storageService.getSettings();
 
@@ -286,6 +294,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (claudeKey) claudeService.setApiKey(claudeKey);
     if (jiraKey) jiraService.setApiKey(jiraKey);
     if (githubKey) githubService.setApiKey(githubKey);
+    if (openRouterKey) openRouterService.setApiKey(openRouterKey);
+    if (geminiKey) geminiService.setApiKey(geminiKey);
+
     if (cfConfig) cloudflareKvService.setConfig(cfConfig);
     jiraService.setBaseUrl(appSettings.jiraBaseUrl || null);
 
@@ -315,6 +326,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       case 'github':
         githubService.setApiKey(key);
         break;
+      case 'openrouter':
+        openRouterService.setApiKey(key);
+        break;
+      case 'gemini':
+        geminiService.setApiKey(key);
+        break;
     }
 
     dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });
@@ -335,6 +352,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return jiraService.testConnection();
       case 'github':
         return githubService.testConnection();
+      case 'openrouter':
+        return openRouterService.testConnection();
+      case 'gemini':
+        return geminiService.testConnection();
       default:
         return { success: false, error: 'Unknown provider' };
     }
@@ -382,6 +403,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         github: 'github',
         githubApiKey: 'github',
         githubToken: 'github',
+        openrouter: 'openrouter',
+        openrouterApiKey: 'openrouter',
+        gemini: 'gemini',
+        geminiApiKey: 'gemini',
       };
 
       for (const [kvKey, value] of Object.entries(keys)) {
@@ -390,7 +415,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const provider = keyMapping[kvKey] || kvKey;
         
         // Only import recognized providers
-        if (['jules', 'cursor', 'codex', 'claude', 'jira', 'github'].includes(provider)) {
+        if (['jules', 'cursor', 'codex', 'claude', 'jira', 'github', 'openrouter', 'gemini'].includes(provider)) {
           storageService.setApiKey(provider, value);
           
           // Update the service
@@ -412,6 +437,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               break;
             case 'github':
               githubService.setApiKey(value);
+              break;
+            case 'openrouter':
+              openRouterService.setApiKey(value);
+              break;
+            case 'gemini':
+              geminiService.setApiKey(value);
               break;
           }
           
@@ -726,6 +757,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_SHOW_NEW_TASK_MODAL', payload: true });
   }, []);
 
+  const setModel = useCallback((model: string) => {
+    dispatch({ type: 'SET_SETTINGS', payload: { selectedModel: model } });
+  }, []);
+
   // Initialize on mount
   useEffect(() => {
     initializeServices();
@@ -788,6 +823,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     getRepositories,
     enableNotifications,
     openNewTaskModal,
+    setModel,
+    agentOrchestratorService,
   };
 
   return (

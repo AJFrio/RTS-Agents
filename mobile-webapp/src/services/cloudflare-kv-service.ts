@@ -53,14 +53,14 @@ class CloudflareKvService {
     return !!(this.config?.accountId && this.config?.apiToken);
   }
 
-  private async request<T>(
+  private async request(
     path: string,
     options: {
       method?: string;
       headers?: Record<string, string>;
       body?: string;
     } = {}
-  ): Promise<T> {
+  ): Promise<any> {
     if (!this.config?.accountId || !this.config?.apiToken) {
       throw new Error('Cloudflare KV not configured');
     }
@@ -86,7 +86,7 @@ class CloudflareKvService {
       return response.json();
     }
 
-    return response.text() as unknown as T;
+    return response.text();
   }
 
   async listNamespaces(page = 1, perPage = 100): Promise<CloudflareApiResponse<Namespace[]>> {
@@ -116,6 +116,10 @@ class CloudflareKvService {
 
     this.namespaceId = namespaceId;
     return namespaceId;
+  }
+
+  async ensureNamespace(title = DEFAULT_NAMESPACE_TITLE): Promise<string> {
+      return this.ensureNamespaceId(title);
   }
 
   async getValueText(namespaceId: string, key: string): Promise<string> {

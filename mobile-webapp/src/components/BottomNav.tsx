@@ -7,17 +7,18 @@
 import { useApp } from '../store/AppContext';
 
 interface NavItem {
-  id: 'dashboard' | 'branches' | 'pull-requests' | 'computers' | 'jira' | 'settings';
+  id: 'dashboard' | 'branches' | 'pull-requests' | 'computers' | 'agent' | 'jira' | 'settings';
   icon: string;
   label: string;
 }
 
 const navItems: NavItem[] = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
+  { id: 'agent', icon: 'smart_toy', label: 'Agent' },
   { id: 'branches', icon: 'fork_right', label: 'Branches' },
-  { id: 'pull-requests', icon: 'merge_type', label: 'Pull Requests' },
+  { id: 'pull-requests', icon: 'merge_type', label: 'PRs' },
   { id: 'computers', icon: 'computer', label: 'Computers' },
-  { id: 'jira', icon: 'assignment', label: 'Jira' },
+  // { id: 'jira', icon: 'assignment', label: 'Jira' }, // Removed to make space, can add back if needed or use 'more' menu
   { id: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
@@ -55,7 +56,7 @@ export default function BottomNav() {
               
               {/* Active indicator */}
               {isActive && (
-                <div className="absolute bottom-0 w-12 h-1 bg-primary rounded-t-full" />
+                <div className="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full" />
               )}
             </button>
           );

@@ -7,7 +7,7 @@
  * using a backend service or the Web Crypto API.
  */
 
-import type { AppSettings, CloudflareConfig } from '../store/types';
+import type { AppSettings, CloudflareConfig, ApiKeyStatus } from '../store/types';
 
 const STORAGE_PREFIX = 'rts_agents_';
 
@@ -55,7 +55,7 @@ class StorageService {
     return !!this.getApiKey(provider);
   }
 
-  getApiKeyStatus(): Record<string, boolean> {
+  getApiKeyStatus(): ApiKeyStatus {
     return {
       jules: this.hasApiKey('jules'),
       cursor: this.hasApiKey('cursor'),
@@ -64,6 +64,9 @@ class StorageService {
       jira: this.hasApiKey('jira'),
       github: this.hasApiKey('github'),
       cloudflare: this.hasCloudflareConfig(),
+      openrouter: this.hasApiKey('openrouter'),
+      openai: this.hasApiKey('openai'),
+      gemini: this.hasApiKey('gemini'),
     };
   }
 
@@ -118,6 +121,7 @@ class StorageService {
       autoPolling: true,
       theme: 'system',
       jiraBaseUrl: '',
+      selectedModel: 'openrouter/openai/gpt-4o',
     };
 
     if (!stored) return defaults;
@@ -168,8 +172,7 @@ class StorageService {
         running: true,
         completed: true,
         pending: true,
-        failed: true,
-        stopped: true,
+        failed: true,        stopped: true,
       },
       search: '',
     };

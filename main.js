@@ -986,11 +986,12 @@ function performUpdate() {
       // If successful, restart the app using npm start
       console.log('Update successful. Restarting application with npm start...');
 
-      const subprocess = spawn('npm', ['start'], {
+      const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      const subprocess = spawn(npmCmd, ['start'], {
         detached: true,
         stdio: 'ignore',
         cwd: __dirname,
-        shell: true
+        shell: false
       });
       subprocess.unref();
 

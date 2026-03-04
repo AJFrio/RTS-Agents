@@ -618,8 +618,7 @@ class ClaudeService {
     // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
     // -p: prompt/headless mode
     // --allowedTools: auto-approve these tools
-    // Wrap prompt in quotes to handle spaces and special characters
-    const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '--allowedTools', allowedTools];
+    const args = ['-p', prompt, '--allowedTools', allowedTools];
 
     return new Promise((resolve, reject) => {
       const claudeCmd = (command && String(command).trim())
@@ -628,7 +627,7 @@ class ClaudeService {
 
       const child = spawn(claudeCmd, args, {
         cwd: projectPath,
-        shell: true,
+        shell: false,
         detached: true,
         stdio: 'ignore',
         windowsHide: true

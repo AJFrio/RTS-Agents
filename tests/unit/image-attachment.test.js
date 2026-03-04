@@ -48,6 +48,7 @@ describe('Image Attachments Support', () => {
 
       const mockRes = {
         statusCode: 200,
+        headers: { 'content-type': 'application/json' },
         on: (event, handler) => {
           if (event === 'data') handler(JSON.stringify({ id: 'mock-id', content: [], object: 'thread', status: 'completed' }));
           if (event === 'end') handler();

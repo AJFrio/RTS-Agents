@@ -465,8 +465,7 @@ class GeminiService {
     // Build command: gemini -p "prompt" -y
     // -p: prompt/headless mode
     // -y: yolo mode (auto-approve all actions)
-    // Wrap prompt in quotes to handle spaces and special characters
-    const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '-y'];
+    const args = ['-p', prompt, '-y'];
 
     return new Promise((resolve, reject) => {
       const geminiCmd = (command && String(command).trim())
@@ -480,7 +479,7 @@ class GeminiService {
 
       const child = spawn(geminiCmd, args, {
         cwd: projectPath,
-        shell: true,
+        shell: false,
         detached: true,
         stdio: 'ignore',
         env: env,

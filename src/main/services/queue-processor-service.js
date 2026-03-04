@@ -15,7 +15,7 @@ class QueueProcessorService {
     if (!cmd) return false;
     try {
       const res = spawnSync(String(cmd), ['--version'], {
-        shell: true,
+        shell: false,
         stdio: 'ignore',
         timeout: 2000,
         windowsHide: true

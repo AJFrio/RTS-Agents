@@ -241,7 +241,7 @@ interface AppContextType {
   }) => Promise<void>;
   setApiKey: (provider: string, key: string) => void;
   testApiKey: (provider: string) => Promise<{ success: boolean; error?: string }>;
-  setCloudflareConfig: (config: { accountId: string; apiToken: string }) => void;
+  setCloudflareConfig: (config: { accountId: string; apiToken: string; namespaceTitle?: string }) => void;
   testCloudflareConfig: () => Promise<{ success: boolean; error?: string }>;
   pullKeysFromKV: () => Promise<{ success: boolean; keysImported: string[]; error?: string }>;
   initializeServices: () => void;
@@ -362,7 +362,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Set Cloudflare config
-  const setCloudflareConfig = useCallback((config: { accountId: string; apiToken: string }) => {
+  const setCloudflareConfig = useCallback((config: { accountId: string; apiToken: string; namespaceTitle?: string }) => {
     storageService.setCloudflareConfig(config);
     cloudflareKvService.setConfig(config);
     dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });

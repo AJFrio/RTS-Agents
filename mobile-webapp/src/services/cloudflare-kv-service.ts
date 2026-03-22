@@ -45,6 +45,11 @@ class CloudflareKvService {
     this.namespaceId = config?.namespaceId || null;
   }
 
+  private getNamespaceTitle(): string {
+    const configuredTitle = this.config?.namespaceTitle?.trim();
+    return configuredTitle || DEFAULT_NAMESPACE_TITLE;
+  }
+
   getConfig(): CloudflareConfig | null {
     return this.config;
   }
@@ -106,7 +111,7 @@ class CloudflareKvService {
     }
   }
 
-  async ensureNamespaceId(title = DEFAULT_NAMESPACE_TITLE): Promise<string> {
+  async ensureNamespaceId(title = this.getNamespaceTitle()): Promise<string> {
     if (this.namespaceId) return this.namespaceId;
 
     const namespaceId = await this.findNamespaceIdByTitle(title);
@@ -118,8 +123,8 @@ class CloudflareKvService {
     return namespaceId;
   }
 
-  async ensureNamespace(title = DEFAULT_NAMESPACE_TITLE): Promise<string> {
-      return this.ensureNamespaceId(title);
+  async ensureNamespace(title = this.getNamespaceTitle()): Promise<string> {
+    return this.ensureNamespaceId(title);
   }
 
   async getValueText(namespaceId: string, key: string): Promise<string> {

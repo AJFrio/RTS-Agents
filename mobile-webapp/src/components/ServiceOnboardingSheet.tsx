@@ -6,7 +6,7 @@ function getInitialValues(serviceId: MobileServiceId, jiraBaseUrl: string): Reco
     return { baseUrl: jiraBaseUrl || '', apiKey: '' };
   }
   if (serviceId === 'cloudflare') {
-    return { accountId: '', apiToken: '' };
+    return { accountId: '', apiToken: '', namespaceTitle: 'rtsa' };
   }
   return { apiKey: '' };
 }

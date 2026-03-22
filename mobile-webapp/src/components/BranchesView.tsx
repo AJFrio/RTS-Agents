@@ -4,36 +4,13 @@
  * View GitHub repositories and their pull requests
  */
 
-import { useEffect, useState } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { useEffect, useState, useMemo } from 'react';
 import { useApp } from '../store/AppContext';
 import { githubService } from '../services/github-service';
 import type { GithubRepo, PullRequest } from '../store/types';
-
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (days > 0) return `${days}d ago`;
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  return 'just now';
-}
-
-function renderMarkdown(content: string): string {
-  try {
-    const html = marked.parse(content, { async: false }) as string;
-    return DOMPurify.sanitize(html);
-  } catch {
-    return DOMPurify.sanitize(content);
-  }
-}
+import { formatTimeAgo } from '../utils/format';
+import PRCard from './PRCard';
+import PRDetailModal from './PRDetailModal';
 
 interface RepoCardProps {
   repo: GithubRepo;
@@ -71,245 +48,13 @@ function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
   );
 }
 
-interface PRCardProps {
-  pr: PullRequest;
-  onView: () => void;
-}
-
-function PRCard({ pr, onView }: PRCardProps) {
-  const isDraft = pr.draft;
-
-  return (
-    <button
-      onClick={onView}
-      className="w-full text-left p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md transition-all duration-200 shadow-sm"
-    >
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">#{pr.number}</span>
-          <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${
-            isDraft
-              ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-              : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500'
-          }`}>
-            {isDraft ? 'Draft' : 'Open'}
-          </span>
-        </div>
-        <span className="material-symbols-outlined text-slate-500 text-sm">chevron_right</span>
-      </div>
-
-      <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-2 line-clamp-2">{pr.title}</h4>
-
-      <div className="flex items-center gap-3 text-[10px] text-slate-500">
-        <span className="flex items-center gap-1">
-          <span className="material-symbols-outlined text-xs text-primary">merge</span>
-          <span className="text-primary">{pr.head.ref}</span>
-          <span className="material-symbols-outlined text-xs">arrow_forward</span>
-          <span>{pr.base.ref}</span>
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-600">
-        <img
-          src={pr.user.avatar_url}
-          alt={pr.user.login}
-          className="w-4 h-4 rounded-full"
-        />
-        <span>{pr.user.login}</span>
-        <span>|</span>
-        <span>{formatTimeAgo(pr.updated_at)}</span>
-      </div>
-    </button>
-  );
-}
-
-interface PRDetailModalProps {
-  pr: PullRequest | null;
-  onClose: () => void;
-  onMerge: (pr: PullRequest) => Promise<void>;
-  onMarkReady: (pr: PullRequest) => Promise<void>;
-}
-
-function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRDetailModalProps) {
-  const [isActionLoading, setIsActionLoading] = useState(false);
-
-  if (!pr) return null;
-
-  const handleOpenInGitHub = () => {
-    window.open(pr.html_url, '_blank');
-  };
-
-  const handleMerge = async () => {
-    setIsActionLoading(true);
-    try {
-      await onMerge(pr);
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const handleMarkReady = async () => {
-    setIsActionLoading(true);
-    try {
-      await onMarkReady(pr);
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-background-light dark:bg-background-dark">
-      {/* Header */}
-      <header className="h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark safe-top">
-        <button
-          onClick={onClose}
-          disabled={isActionLoading}
-          className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-50"
-        >
-          <span className="material-symbols-outlined">arrow_back</span>
-        </button>
-
-        <button
-          onClick={handleOpenInGitHub}
-          disabled={isActionLoading}
-          className="p-2 text-slate-500 dark:text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
-        >
-          <span className="material-symbols-outlined">open_in_new</span>
-        </button>
-      </header>
-
-      {/* Content */}
-      <div className="h-[calc(100vh-56px)] overflow-y-auto p-4 space-y-4 safe-bottom">
-        {/* PR Header */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm text-slate-500">#{pr.number}</span>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${
-              pr.draft
-                ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500'
-            }`}>
-              {pr.draft ? 'Draft' : 'Open'}
-            </span>
-          </div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">{pr.title}</h2>
-        </div>
-
-        {/* Branch Info */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-3">
-            <p className="font-display text-[9px] text-slate-500 uppercase mb-1">Source</p>
-            <p className="font-mono text-xs text-primary truncate">{pr.head.ref}</p>
-          </div>
-          <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-3">
-            <p className="font-display text-[9px] text-slate-500 uppercase mb-1">Target</p>
-            <p className="font-mono text-xs text-slate-600 dark:text-slate-300 truncate">{pr.base.ref}</p>
-          </div>
-        </div>
-
-        {/* Description */}
-        {pr.body && (
-          <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Description</h3>
-            <div
-              className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300"
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(pr.body) }}
-            />
-          </div>
-        )}
-
-        {/* Merge Status */}
-        <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4">
-          <div className="flex items-center gap-3">
-            <span className={`material-symbols-outlined ${
-              pr.mergeable === false
-                ? 'text-red-500'
-                : pr.mergeable === true
-                ? 'text-emerald-500'
-                : 'text-yellow-500'
-            }`}>
-              {pr.mergeable === false ? 'error' : pr.mergeable === true ? 'check_circle' : 'pending'}
-            </span>
-            <div>
-              <p className="text-sm font-bold text-slate-900 dark:text-white">
-                {pr.draft
-                  ? 'This is a draft pull request'
-                  : pr.mergeable === false
-                  ? 'This branch has conflicts'
-                  : pr.mergeable === true
-                  ? 'No conflicts with base branch'
-                  : 'Checking mergeability...'}
-              </p>
-              <p className="text-xs text-slate-500">
-                {pr.draft
-                  ? 'Review and publish to enable merging'
-                  : pr.mergeable === false
-                  ? 'Resolve conflicts before merging'
-                  : pr.mergeable === true
-                  ? 'Merging can be performed automatically'
-                  : 'Please wait'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="space-y-3">
-          {pr.draft ? (
-            <button
-              onClick={handleMarkReady}
-              disabled={isActionLoading}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-black py-3 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            >
-              {isActionLoading ? (
-                <span className="material-symbols-outlined text-sm animate-spin">sync</span>
-              ) : (
-                <span className="material-symbols-outlined text-sm">rate_review</span>
-              )}
-              {isActionLoading ? 'Updating...' : 'Review & Publish'}
-            </button>
-          ) : pr.mergeable === true ? (
-            <button
-              onClick={handleMerge}
-              disabled={isActionLoading}
-              className="w-full flex items-center justify-center gap-2 bg-emerald-500 text-black py-3 text-sm font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            >
-              {isActionLoading ? (
-                <span className="material-symbols-outlined text-sm animate-spin">sync</span>
-              ) : (
-                <span className="material-symbols-outlined text-sm">merge</span>
-              )}
-              {isActionLoading ? 'Merging...' : 'Merge Pull Request'}
-            </button>
-          ) : null}
-
-          {/* Open in GitHub Button */}
-          <button
-            onClick={handleOpenInGitHub}
-            disabled={isActionLoading}
-            className="w-full flex items-center justify-center gap-2 border border-slate-200 dark:border-border-dark text-slate-600 dark:text-slate-300 py-3 text-sm font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-card-dark disabled:opacity-50 transition-all duration-200"
-          >
-            <span className="material-symbols-outlined text-sm">open_in_new</span>
-            Open in GitHub
-          </button>
-        </div>
-
-        {/* Meta */}
-        <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-600 pt-2">
-          <span>Updated {formatTimeAgo(pr.updated_at)}</span>
-          <span>Created {formatTimeAgo(pr.created_at)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function BranchesView() {
-  const { state, dispatch, loadGithubRepos, loadPullRequests } = useApp();
+  const { state, dispatch, loadGithubRepos, loadPullRequests, openNewTaskModal } = useApp();
   const { githubRepos, selectedRepo, pullRequests, loadingRepos, loadingPRs, configuredServices } = state;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
+  const [updatesContent, setUpdatesContent] = useState<string | null>(null);
 
   const handleViewPR = async (pr: PullRequest) => {
     setSelectedPR(pr);
@@ -378,12 +123,75 @@ export default function BranchesView() {
     }
   }, [configuredServices.github, loadGithubRepos]);
 
-  // Load PRs when repo is selected
+  // Load PRs and UPDATES.md when repo is selected
   useEffect(() => {
     if (selectedRepo) {
       loadPullRequests(selectedRepo.owner.login, selectedRepo.name);
+
+      // Fetch UPDATES.md
+      const fetchUpdates = async () => {
+        setUpdatesContent(null);
+        try {
+          // Try UPDATES.md first
+          let content = await githubService.getRepoFileContent(selectedRepo.owner.login, selectedRepo.name, 'UPDATES.md');
+
+          // Fallback to UPDATE.md
+          if (!content) {
+            content = await githubService.getRepoFileContent(selectedRepo.owner.login, selectedRepo.name, 'UPDATE.md');
+          }
+
+          setUpdatesContent(content);
+        } catch (err) {
+          console.warn('Failed to fetch UPDATES.md:', err);
+        }
+      };
+
+      fetchUpdates();
     }
   }, [selectedRepo, loadPullRequests]);
+
+  const parsedTasks = useMemo(() => {
+    if (!updatesContent) return [];
+
+    const lines = updatesContent.split('\n');
+    const tasks: { title: string; description: string }[] = [];
+    let currentTask: { title: string; descriptionLines: string[] } | null = null;
+
+    for (const line of lines) {
+      // Level 1 bullet: * Title or - Title or 1. Title
+      // We look for lines starting with optional space (0-1), then a bullet marker, then space
+      const titleMatch = line.match(/^(\s{0,1})(?:-|\*|\d+\.)\s+(.*)/);
+      // Level 2 bullet:   * Description or   - Description (2+ spaces)
+      const descMatch = line.match(/^(\s{2,})(?:-|\*|\d+\.)\s+(.*)/);
+
+      if (titleMatch && !descMatch) {
+        if (currentTask) {
+          tasks.push({
+            title: currentTask.title,
+            description: currentTask.descriptionLines.join('\n')
+          });
+        }
+        currentTask = {
+          title: titleMatch[2].trim(),
+          descriptionLines: []
+        };
+      } else if (currentTask) {
+        if (descMatch) {
+          currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
+        } else if (line.trim()) {
+          currentTask.descriptionLines.push(line.trim());
+        }
+      }
+    }
+    if (currentTask) {
+        tasks.push({
+            title: currentTask.title,
+            description: currentTask.descriptionLines.join('\n')
+        });
+    }
+
+    return tasks;
+  }, [updatesContent]);
 
   const handleSelectRepo = (repo: GithubRepo) => {
     dispatch({ type: 'SET_SELECTED_REPO', payload: repo });
@@ -535,6 +343,48 @@ export default function BranchesView() {
                     onView={() => handleViewPR(pr)}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* Tasks Section */}
+            {updatesContent && (
+              <div className="mt-6 border-t border-slate-200 dark:border-border-dark pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined text-primary text-sm">campaign</span>
+                  <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Tasks ({parsedTasks.length})
+                  </h3>
+                </div>
+
+                {parsedTasks.length === 0 ? (
+                   <p className="text-xs text-slate-500 italic">No tasks found in UPDATES.md</p>
+                ) : (
+                  <div className="space-y-3">
+                    {parsedTasks.map((task, index) => (
+                      <div
+                        key={`task-${index}`}
+                        className="p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl shadow-sm"
+                      >
+                         <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                               <h4 className="font-semibold text-sm text-slate-900 dark:text-white mb-1">{task.title}</h4>
+                               {task.description && (
+                                 <p className="text-xs text-slate-500 line-clamp-2">{task.description}</p>
+                               )}
+                            </div>
+                            <button
+                              onClick={() => openNewTaskModal({
+                                initialPrompt: `${task.description}\n\nWhen finished, remove the task from the UPDATES.md file`
+                              })}
+                              className="px-3 py-1.5 bg-primary text-black text-xs font-semibold rounded-lg hover:shadow-md transition-all shrink-0"
+                            >
+                              Build
+                            </button>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -3,13 +3,7 @@ import Modal from '../components/ui/Modal.jsx';
 import { ProviderBadge, StatusBadge } from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { getProviderDisplayName, getStatusLabel } from '../utils/format.js';
-
-function escapeHtml(s) {
-  if (!s) return '';
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
-}
+import DOMPurify from 'dompurify';
 
 function getActivityTypeLabel(type) {
   if (!type) return 'Activity';
@@ -83,7 +77,7 @@ export default function AgentModal({ agent, onClose, api }) {
               return (
                 <div
                   className="markdown-content prose dark:prose-invert prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: details.content }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(details.content) }}
                 />
               );
             }

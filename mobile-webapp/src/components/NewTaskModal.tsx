@@ -26,7 +26,7 @@ const services: ServiceOption[] = [
 
 export default function NewTaskModal() {
   const { state, dispatch, createTask, getRepositories, loadComputers, dispatchRemoteTask } = useApp();
-  const { showNewTaskModal, configuredServices, computers } = state;
+  const { showNewTaskModal, configuredServices, computers, newTaskInitialPrompt } = state;
 
   const [selectedService, setSelectedService] = useState<Provider | null>(null);
   const [targetDevice, setTargetDevice] = useState<'local' | string>('local'); // 'local' or device ID
@@ -46,6 +46,13 @@ export default function NewTaskModal() {
     }
   }, [showNewTaskModal, configuredServices.cloudflare, loadComputers]);
 
+  // Set initial prompt if provided
+  useEffect(() => {
+    if (showNewTaskModal && newTaskInitialPrompt) {
+      setPrompt(newTaskInitialPrompt);
+    }
+  }, [showNewTaskModal, newTaskInitialPrompt]);
+
   // Load repositories when service is selected
   useEffect(() => {
     if (selectedService && (selectedService === 'jules' || selectedService === 'cursor')) {
@@ -61,7 +68,7 @@ export default function NewTaskModal() {
             setSelectedRepo(parsed[0].id);
             hasCached = true;
           }
-        } catch (e) {
+        } catch {
           // Ignore cache errors
         }
       }

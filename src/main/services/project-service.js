@@ -45,41 +45,61 @@ class ProjectService {
       return [];
     }
 
-    const projects = [];
-    const scannedPaths = new Set();
+    // Deduplicate paths to avoid processing the same directory twice
+    const uniquePaths = [...new Set(paths)];
 
-    for (const basePath of paths) {
-      if (!fs.existsSync(basePath)) continue;
-
+    const results = await Promise.all(uniquePaths.map(async (basePath) => {
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        // Check if directory exists by trying to read it
+        // This replaces the synchronous fs.existsSync check
+        const entries = await fsp.readdir(basePath, { withFileTypes: true });
 
-        for (const entry of entries) {
+        const dirPromises = entries.map(async (entry) => {
           if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+            if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
 
             const dirPath = path.join(basePath, entry.name);
             const gitPath = path.join(dirPath, '.git');
 
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
+            try {
+              // Check if .git exists asynchronously
+              await fsp.access(gitPath);
+
+              return {
                 id: entry.name,
                 name: entry.name,
                 path: dirPath,
                 geminiPath: null,
                 displayName: entry.name,
                 hasExistingSessions: false
-              });
+              };
+            } catch (err) {
+              // Not a git repo
+              return null;
             }
           }
-        }
+          return null;
+        });
+
+        const dirs = await Promise.all(dirPromises);
+        return dirs.filter(dir => dir !== null);
       } catch (err) {
-        // Ignore error
+        // Ignore error (e.g. basePath doesn't exist or not readable)
+        return [];
       }
+    }));
+
+    // Flatten results
+    const allProjects = results.flat();
+
+    // Deduplicate by path to handle potential edge cases (though unique basePaths should prevent this)
+    // Using a Map to ensure unique paths
+    const uniqueProjects = new Map();
+    for (const project of allProjects) {
+      uniqueProjects.set(project.path, project);
     }
 
-    return projects;
+    return Array.from(uniqueProjects.values());
   }
 
   async getRepoFile(repoPath, fileName) {

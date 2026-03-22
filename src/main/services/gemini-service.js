@@ -1,7 +1,8 @@
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const https = require('https');
+const httpService = require('./http-service');
 
 class GeminiService {
   constructor() {
@@ -28,44 +29,15 @@ class GeminiService {
     const url = new URL(`https://generativelanguage.googleapis.com${endpoint}`);
     url.searchParams.append('key', this.apiKey);
 
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-
-        res.on('data', chunk => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`Gemini API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(30000, () => {
-        req.destroy();
-        reject(new Error('Gemini API request timeout'));
-      });
-
-      req.end();
-    });
+    try {
+      return await httpService.requestJson(url.toString(), method);
+    } catch (err) {
+      if (err.statusCode) {
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`Gemini API error: ${err.statusCode} - ${dataStr}`);
+      }
+      throw err;
+    }
   }
 
   async getModels() {
@@ -120,12 +92,14 @@ class GeminiService {
     const pathsToScan = [this.baseDir, ...additionalPaths];
 
     for (const basePath of pathsToScan) {
-      if (!fs.existsSync(basePath)) {
+      try {
+        await fsPromises.access(basePath);
+      } catch (err) {
         continue;
       }
 
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
         
         for (const entry of entries) {
           if (entry.isDirectory()) {
@@ -137,12 +111,15 @@ class GeminiService {
             const projectPath = path.join(basePath, entry.name);
             const chatsPath = path.join(projectPath, 'chats');
             
-            if (fs.existsSync(chatsPath)) {
+            try {
+              await fsPromises.access(chatsPath);
               projects.push({
                 hash: entry.name,
                 path: projectPath,
                 chatsPath: chatsPath
               });
+            } catch (err) {
+              // Ignore
             }
           }
         }
@@ -162,31 +139,36 @@ class GeminiService {
     const chatsPath = path.join(projectPath, 'chats');
     const sessions = [];
 
-    if (!fs.existsSync(chatsPath)) {
+    try {
+      await fsPromises.access(chatsPath);
+    } catch (err) {
       return sessions;
     }
 
     try {
-      const files = fs.readdirSync(chatsPath).filter(f => f.endsWith('.json'));
+      const files = (await fsPromises.readdir(chatsPath)).filter(f => f.endsWith('.json'));
+      const repository = await this.extractRepository(projectPath);
 
-      for (const file of files) {
+      const sessionPromises = files.map(async (file) => {
         try {
           const filePath = path.join(chatsPath, file);
-          const stats = fs.statSync(filePath);
-          const content = fs.readFileSync(filePath, 'utf-8');
+          const [stats, content] = await Promise.all([
+            fsPromises.stat(filePath),
+            fsPromises.readFile(filePath, 'utf-8')
+          ]);
           const session = JSON.parse(content);
 
           // Use session timestamps if available, fall back to file stats
           const createdAt = session.startTime ? new Date(session.startTime) : stats.birthtime;
           const updatedAt = session.lastUpdated ? new Date(session.lastUpdated) : stats.mtime;
 
-          sessions.push({
+          return {
             id: `gemini-${path.basename(projectPath)}-${file.replace('.json', '')}`,
             provider: 'gemini',
             name: this.extractSessionName(session),
             status: this.inferStatus(session, stats),
             prompt: this.extractInitialPrompt(session),
-            repository: this.extractRepository(projectPath),
+            repository: repository,
             createdAt: createdAt,
             updatedAt: updatedAt,
             summary: this.extractSummary(session),
@@ -194,11 +176,14 @@ class GeminiService {
             projectHash: path.basename(projectPath),
             messageCount: this.countMessages(session),
             rawId: session.sessionId || file.replace('.json', '')
-          });
+          };
         } catch (err) {
-          // Ignore error
+          return null;
         }
-      }
+      });
+
+      const results = await Promise.all(sessionPromises);
+      return results.filter(s => s !== null);
     } catch (err) {
       // Ignore error
     }
@@ -212,12 +197,11 @@ class GeminiService {
    */
   async getAllAgents(additionalPaths = []) {
     const projects = await this.discoverProjects(additionalPaths);
-    const allSessions = [];
 
-    for (const project of projects) {
-      const sessions = await this.getProjectSessions(project.path);
-      allSessions.push(...sessions);
-    }
+    const allSessionsPromises = projects.map(project => this.getProjectSessions(project.path));
+    const sessionsArrays = await Promise.all(allSessionsPromises);
+
+    const allSessions = sessionsArrays.flat();
 
     // Sort by most recent first
     return allSessions.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
@@ -229,14 +213,18 @@ class GeminiService {
    * @param {string} filePath - Path to the session JSON file
    */
   async getSessionDetails(filePath) {
-    if (!fs.existsSync(filePath)) {
+    try {
+      await fsPromises.access(filePath);
+    } catch (err) {
       return null;
     }
 
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const [content, stats] = await Promise.all([
+        fsPromises.readFile(filePath, 'utf-8'),
+        fsPromises.stat(filePath)
+      ]);
       const session = JSON.parse(content);
-      const stats = fs.statSync(filePath);
 
       // Extract only essential data - ignore heavy fields like thoughts, tokens, toolCalls
       return {
@@ -368,14 +356,18 @@ class GeminiService {
   /**
    * Try to extract repository info from project path
    */
-  extractRepository(projectPath) {
+  async extractRepository(projectPath) {
     // The project hash doesn't directly map to a repo, but we can check for .git
     try {
       // Look for a mapping file if it exists
       const mappingFile = path.join(projectPath, 'project-info.json');
-      if (fs.existsSync(mappingFile)) {
-        const info = JSON.parse(fs.readFileSync(mappingFile, 'utf-8'));
+      try {
+        await fsPromises.access(mappingFile);
+        const content = await fsPromises.readFile(mappingFile, 'utf-8');
+        const info = JSON.parse(content);
         return info.repository || info.path || null;
+      } catch (err) {
+        // Mapping file doesn't exist or is invalid
       }
     } catch (err) {
       // Ignore
@@ -438,13 +430,17 @@ class GeminiService {
     // Only scan the provided paths for git repositories
     // Do NOT include Gemini session folders from .gemini/tmp
     for (const basePath of additionalPaths) {
-      if (!fs.existsSync(basePath)) continue;
+      try {
+        await fsPromises.access(basePath);
+      } catch (err) {
+        continue;
+      }
 
       // Skip the Gemini directories - these are session data, not project repos
       if (basePath.includes('.gemini')) continue;
 
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
         
         for (const entry of entries) {
           if (entry.isDirectory()) {
@@ -454,16 +450,21 @@ class GeminiService {
             const dirPath = path.join(basePath, entry.name);
             const gitPath = path.join(dirPath, '.git');
             
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                geminiPath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              });
+            try {
+              await fsPromises.access(gitPath);
+              if (!scannedPaths.has(dirPath)) {
+                scannedPaths.add(dirPath);
+                projects.push({
+                  id: entry.name,
+                  name: entry.name,
+                  path: dirPath,
+                  geminiPath: null,
+                  displayName: entry.name,
+                  hasExistingSessions: false
+                });
+              }
+            } catch (err) {
+              // Ignore
             }
           }
         }
@@ -493,7 +494,9 @@ class GeminiService {
       throw new Error('Project path is required');
     }
 
-    if (!fs.existsSync(projectPath)) {
+    try {
+      await fsPromises.access(projectPath);
+    } catch (err) {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
@@ -503,8 +506,7 @@ class GeminiService {
     // Build command: gemini -p "prompt" -y
     // -p: prompt/headless mode
     // -y: yolo mode (auto-approve all actions)
-    // Wrap prompt in quotes to handle spaces and special characters
-    const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '-y'];
+    const args = ['-p', prompt, '-y'];
 
     return new Promise((resolve, reject) => {
       const geminiCmd = (command && String(command).trim())
@@ -518,7 +520,7 @@ class GeminiService {
 
       const child = spawn(geminiCmd, args, {
         cwd: projectPath,
-        shell: true,
+        shell: false,
         detached: true,
         stdio: 'ignore',
         env: env,

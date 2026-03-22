@@ -3,6 +3,7 @@ import { useApp } from '../store/AppContext';
 import { storageService } from '../services/storage-service';
 import ServiceOnboardingSheet from './ServiceOnboardingSheet';
 import { MOBILE_SERVICE_CATALOG, type MobileServiceId } from './mobile-service-catalog';
+import ModelSelector from './ModelSelector';
 
 function NotificationSettings({ enableNotifications }: { enableNotifications: () => Promise<string> }) {
   const [status, setStatus] = useState<string>(
@@ -65,6 +66,7 @@ export default function Settings() {
     testCloudflareConfig,
     pullKeysFromKV,
     enableNotifications,
+    setModel,
   } = useApp();
 
   const { configuredServices, settings } = state;
@@ -80,6 +82,8 @@ export default function Settings() {
     if (configuredServices.cursor) ids.push('cursor');
     if (configuredServices.codex) ids.push('codex');
     if (configuredServices.claude) ids.push('claude');
+    if (configuredServices.openrouter) ids.push('openrouter');
+    if (configuredServices.gemini) ids.push('gemini');
     if (configuredServices.github) ids.push('github');
     if (configuredServices.jira || !!settings.jiraBaseUrl?.trim()) ids.push('jira');
     if (configuredServices.cloudflare) ids.push('cloudflare');
@@ -334,6 +338,24 @@ export default function Settings() {
             </div>
           </section>
         )}
+
+        <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary text-lg">smart_toy</span>
+            <h3 className="text-base font-semibold">Agent Model</h3>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+              Orchestrator Model
+            </label>
+            <ModelSelector
+              value={settings.selectedModel}
+              onChange={(model) => setModel(model)}
+            />
+            <p className="text-xs text-slate-500">The AI model used for the main agent chat.</p>
+          </div>
+        </section>
 
         <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
           <div className="flex items-center gap-2 mb-4">

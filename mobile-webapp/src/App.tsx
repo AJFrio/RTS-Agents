@@ -9,7 +9,9 @@ import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import ComputersList from './components/ComputersList';
 import BranchesView from './components/BranchesView';
+import PullRequestsView from './components/PullRequestsView';
 import JiraView from './components/JiraView';
+import AgentView from './components/AgentView';
 import AgentModal from './components/AgentModal';
 import NewTaskModal from './components/NewTaskModal';
 import './index.css';
@@ -27,8 +29,12 @@ function AppContent() {
         return <ComputersList />;
       case 'branches':
         return <BranchesView />;
+      case 'pull-requests':
+        return <PullRequestsView />;
       case 'jira':
         return <JiraView />;
+      case 'agent':
+        return <AgentView />;
       default:
         return <Dashboard />;
     }

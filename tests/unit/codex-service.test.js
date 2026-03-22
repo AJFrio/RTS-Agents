@@ -40,6 +40,7 @@ describe('Codex Service', () => {
 
     mockResponse = new EventEmitter();
     mockResponse.statusCode = 200;
+    mockResponse.headers = {};
 
     requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
       if (callback) {
@@ -224,6 +225,7 @@ describe('Codex Service', () => {
       requestSpy.mockImplementation((options, callback) => {
         const res = new EventEmitter();
         res.statusCode = 200;
+        res.headers = {};
 
         process.nextTick(() => {
           let data = '{}';
@@ -266,6 +268,7 @@ describe('Codex Service', () => {
       requestSpy.mockImplementation((options, callback) => {
         const res = new EventEmitter();
         res.statusCode = 200;
+        res.headers = {};
 
         process.nextTick(() => {
           let data = '{}';
@@ -305,15 +308,16 @@ describe('Codex Service', () => {
 
   describe('Local Repositories', () => {
     test('getAvailableLocalRepositories scans directories correctly', async () => {
-      // Mock fs
-      fs.existsSync.mockImplementation((path) => {
-        if (path === '/projects') return true;
-        if (path === '/projects/repo1/.git') return true;
-        if (path === '/projects/repo2/.git') return false; // Not a git repo
-        return false;
+      // Mock fs.promises
+      fs.promises.access.mockImplementation(async (path) => {
+        if (path === '/projects') return Promise.resolve();
+        if (path === '/projects/repo1/.git') return Promise.resolve();
+        // repo2 is a directory but has no .git folder
+        if (path === '/projects/repo2/.git') return Promise.reject({ code: 'ENOENT' });
+        return Promise.reject({ code: 'ENOENT' });
       });
 
-      fs.readdirSync.mockImplementation((path, options) => {
+      fs.promises.readdir.mockImplementation(async (path, options) => {
         if (path === '/projects') {
           return [
             { name: 'repo1', isDirectory: () => true },

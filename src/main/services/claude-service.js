@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const https = require('https');
+const { upsertItem } = require('../utils/collection-utils');
+const httpService = require('./http-service');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -187,52 +188,20 @@ class ClaudeService {
       throw new Error('Anthropic API key not configured');
     }
 
-    const url = new URL(`${ANTHROPIC_API_URL}${endpoint}`);
+    const url = `${ANTHROPIC_API_URL}${endpoint}`;
 
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'x-api-key': this.apiKey,
-          'anthropic-version': ANTHROPIC_API_VERSION,
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-
-        res.on('data', chunk => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`Anthropic API error: ${res.statusCode} - ${data}`));
-          }
-        });
-      });
-
-      req.on('error', reject);
-      req.setTimeout(60000, () => {
-        req.destroy();
-        reject(new Error('Anthropic API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
+    try {
+      return await httpService.requestJson(url, method, body, {
+        'x-api-key': this.apiKey,
+        'anthropic-version': ANTHROPIC_API_VERSION
+      }, 60000);
+    } catch (err) {
+      if (err.statusCode) {
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`Anthropic API error: ${err.statusCode} - ${dataStr}`);
       }
-
-      req.end();
-    });
+      throw err;
+    }
   }
 
   /**
@@ -308,7 +277,6 @@ class ClaudeService {
    * @param {object} metadata 
    */
   trackConversation(conversationId, metadata = {}) {
-    const existingIndex = trackedConversations.findIndex(c => c.id === conversationId);
     const conversationInfo = {
       id: conversationId,
       createdAt: new Date().toISOString(),
@@ -320,16 +288,7 @@ class ClaudeService {
       ...metadata
     };
 
-    if (existingIndex >= 0) {
-      trackedConversations[existingIndex] = { ...trackedConversations[existingIndex], ...conversationInfo };
-    } else {
-      trackedConversations.unshift(conversationInfo);
-    }
-
-    // Keep only last 100 conversations in memory
-    if (trackedConversations.length > 100) {
-      trackedConversations = trackedConversations.slice(0, 100);
-    }
+    trackedConversations = upsertItem(trackedConversations, conversationInfo, { limit: 100 });
   }
 
   /**
@@ -659,8 +618,7 @@ class ClaudeService {
     // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
     // -p: prompt/headless mode
     // --allowedTools: auto-approve these tools
-    // Wrap prompt in quotes to handle spaces and special characters
-    const args = ['-p', `"${prompt.replace(/"/g, '\\"')}"`, '--allowedTools', allowedTools];
+    const args = ['-p', prompt, '--allowedTools', allowedTools];
 
     return new Promise((resolve, reject) => {
       const claudeCmd = (command && String(command).trim())
@@ -669,7 +627,7 @@ class ClaudeService {
 
       const child = spawn(claudeCmd, args, {
         cwd: projectPath,
-        shell: true,
+        shell: false,
         detached: true,
         stdio: 'ignore',
         windowsHide: true

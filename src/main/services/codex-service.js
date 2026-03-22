@@ -1,6 +1,7 @@
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { upsertItem } = require('../utils/collection-utils');
+const httpService = require('./http-service');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
@@ -32,52 +33,20 @@ class CodexService {
       throw new Error('OpenAI API key not configured');
     }
 
-    const url = new URL(`${BASE_URL}${endpoint}`);
+    const url = `${BASE_URL}${endpoint}`;
     
-    return new Promise((resolve, reject) => {
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'OpenAI-Beta': 'assistants=v2'
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        
-        res.on('data', chunk => {
-          data += chunk;
-        });
-        
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              resolve(data);
-            }
-          } else {
-            reject(new Error(`OpenAI API error: ${res.statusCode} - ${data}`));
-          }
-        });
+    try {
+      return await httpService.requestJson(url, method, body, {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'OpenAI-Beta': 'assistants=v2'
       });
-
-      req.on('error', reject);
-      req.setTimeout(30000, () => {
-        req.destroy();
-        reject(new Error('OpenAI API request timeout'));
-      });
-
-      if (body) {
-        req.write(JSON.stringify(body));
+    } catch (err) {
+      if (err.statusCode) {
+         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+         throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
       }
-      
-      req.end();
-    });
+      throw err;
+    }
   }
 
   /**
@@ -173,7 +142,6 @@ class CodexService {
    * @param {object} metadata 
    */
   trackThread(threadId, metadata = {}) {
-    const existingIndex = trackedThreads.findIndex(t => t.id === threadId);
     const threadInfo = {
       id: threadId,
       createdAt: new Date().toISOString(),
@@ -182,16 +150,7 @@ class CodexService {
       ...metadata
     };
 
-    if (existingIndex >= 0) {
-      trackedThreads[existingIndex] = { ...trackedThreads[existingIndex], ...threadInfo };
-    } else {
-      trackedThreads.unshift(threadInfo);
-    }
-
-    // Keep only last 100 threads in memory
-    if (trackedThreads.length > 100) {
-      trackedThreads = trackedThreads.slice(0, 100);
-    }
+    trackedThreads = upsertItem(trackedThreads, threadInfo, { limit: 100 });
   }
 
   /**
@@ -397,36 +356,61 @@ class CodexService {
   async getAvailableLocalRepositories(paths = []) {
     const projects = [];
     const scannedPaths = new Set();
+    const uniquePaths = [...new Set(paths)];
 
-    for (const basePath of paths) {
-      if (!fs.existsSync(basePath)) continue;
-
+    const results = await Promise.all(uniquePaths.map(async (basePath) => {
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
-
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
-
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              projects.push({
-                id: dirPath, // Use path as ID for local
-                name: entry.name,
-                url: dirPath, // Use path as URL
-                path: dirPath,
-                displayName: entry.name
-              });
-            }
-          }
+        try {
+          await fs.promises.access(basePath);
+        } catch {
+          return [];
         }
+
+        const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
+
+        // Filter directories first to avoid creating unnecessary promises
+        const validDirs = entries.filter(entry =>
+          entry.isDirectory() &&
+          !entry.name.startsWith('.') &&
+          entry.name !== 'node_modules'
+        );
+
+        const dirPromises = validDirs.map(async (entry) => {
+          const dirPath = path.join(basePath, entry.name);
+          const gitPath = path.join(dirPath, '.git');
+
+          try {
+            await fs.promises.access(gitPath);
+            return {
+              id: dirPath, // Use path as ID for local
+              name: entry.name,
+              url: dirPath, // Use path as URL
+              path: dirPath,
+              displayName: entry.name
+            };
+          } catch {
+            return null; // Not a git repo or error accessing it
+          }
+        });
+
+        return Promise.all(dirPromises);
       } catch (err) {
         console.error(`Error scanning ${basePath}:`, err);
+        return [];
+      }
+    }));
+
+    // Flatten results and filter nulls
+    const allProjects = results.flat().filter(p => p !== null);
+
+    // Deduplicate based on path while preserving order
+    for (const project of allProjects) {
+      if (!scannedPaths.has(project.path)) {
+        scannedPaths.add(project.path);
+        projects.push(project);
       }
     }
+
     return projects;
   }
 

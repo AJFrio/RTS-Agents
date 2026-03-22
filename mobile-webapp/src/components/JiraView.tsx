@@ -4,16 +4,13 @@
  * Shows tickets in a flat list.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { jiraService } from '../services/jira-service';
 import type { JiraBoard, JiraIssue } from '../services/jira-service';
 import JiraIssueModal from './JiraIssueModal';
 import JiraFilterModal from './JiraFilterModal';
-
-function getAssignee(issue: JiraIssue): string {
-  return issue.fields?.assignee?.displayName || 'Unassigned';
-}
+import JiraTicketItem, { getAssignee } from './JiraTicketItem';
 
 export default function JiraView() {
   const { state, dispatch } = useApp();
@@ -129,12 +126,12 @@ export default function JiraView() {
     dispatch({ type: 'SET_VIEW', payload: 'settings' });
   };
 
-  const openIssue = (issue: JiraIssue) => {
+  const openIssue = useCallback((issue: JiraIssue) => {
     console.log('openIssue called with:', issue.key);
     setSelectedIssueKey(issue.key);
     setShowIssueModal(true);
     console.log('Modal state set - showIssueModal should be true');
-  };
+  }, []);
 
   const handleFilterChange = (assignee: string | null, status: string | null) => {
     setFilterAssignee(assignee);
@@ -243,42 +240,11 @@ export default function JiraView() {
                 <div className="p-4 text-xs text-slate-500">No tickets found</div>
               ) : (
                 filteredTickets.map((issue) => (
-                  <div
+                  <JiraTicketItem
                     key={issue.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openIssue(issue)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        openIssue(issue);
-                      }
-                    }}
-                    className="w-full text-left p-4 hover:bg-slate-50 dark:hover:bg-black/20 active:scale-[0.99] transition cursor-pointer"
-                    style={{ pointerEvents: 'auto', WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-display text-[10px] text-slate-500 uppercase tracking-wider">
-                          {issue.key}
-                        </div>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-2">
-                          {issue.fields?.summary || '(no summary)'}
-                        </div>
-                              <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                                <span>Assignee: {getAssignee(issue)}</span>
-                                {issue.fields?.status?.name && (
-                                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-xs">
-                                    {issue.fields.status.name}
-                                  </span>
-                                )}
-                              </div>
-                      </div>
-                      <span className="material-symbols-outlined text-slate-500 text-sm mt-1">
-                        chevron_right
-                      </span>
-                    </div>
-                  </div>
+                    issue={issue}
+                    onOpen={openIssue}
+                  />
                 ))
               )}
             </div>

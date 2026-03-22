@@ -136,6 +136,7 @@ describe('ClaudeService', () => {
       https.request.mockImplementation((options, cb) => {
         const mockRes = {
           statusCode: 200,
+          headers: {},
           on: (event, handler) => {
             if (event === 'data') handler(JSON.stringify({ content: [] }));
             if (event === 'end') handler();

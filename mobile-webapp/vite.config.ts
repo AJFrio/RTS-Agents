@@ -15,7 +15,7 @@ export default defineConfig({
         name: 'RTS Agents',
         short_name: 'RTS Agents',
         description: 'Mobile dashboard for managing AI coding agents',
-        theme_color: '#C2B280',
+        theme_color: '#000000',
         background_color: '#121212',
         display: 'standalone',
         orientation: 'portrait-primary',

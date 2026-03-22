@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import Button from '../components/ui/Button.jsx';
 import { useApp } from '../context/AppContext.jsx';
+import DOMPurify from 'dompurify';
 
 export default function PrModal({ pr, onClose, api }) {
   const { loadAgents, removePr } = useApp();
@@ -30,7 +31,6 @@ export default function PrModal({ pr, onClose, api }) {
 
   const data = details || pr;
   const mergeable = data?.mergeable === true;
-  const merged = !!data?.merged_at;
   const state = data?.state || 'open';
 
   const handleMerge = async () => {
@@ -103,7 +103,7 @@ export default function PrModal({ pr, onClose, api }) {
             <div
               id="pr-modal-body"
               className="prose dark:prose-invert prose-sm max-w-none text-slate-600 dark:text-slate-300 font-light leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: data?.body ? data.body.replace(/\n/g, '<br/>') : '—' }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(data?.body ? data.body.replace(/\n/g, '<br/>') : '—') }}
             />
           </div>
           <div className="bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-4 flex items-center justify-between">

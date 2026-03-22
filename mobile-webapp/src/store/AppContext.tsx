@@ -25,6 +25,9 @@ import {
   githubService,
   cloudflareKvService,
   storageService,
+  openRouterService,
+  geminiService,
+  agentOrchestratorService,
 } from '../services';
 
 // ============================================
@@ -68,12 +71,15 @@ interface AppState {
   githubRepos: GithubRepo[];
   selectedRepo: GithubRepo | null;
   pullRequests: PullRequest[];
+  allPullRequests: PullRequest[];
   loadingRepos: boolean;
   loadingPRs: boolean;
+  loadingAllPRs: boolean;
   
   // UI State
-  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings';
+  currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings' | 'pull-requests' | 'agent';
   showNewTaskModal: boolean;
+  newTaskInitialPrompt: string | null;
   showAgentModal: boolean;
 }
 
@@ -95,10 +101,13 @@ type AppAction =
   | { type: 'SET_GITHUB_REPOS'; payload: GithubRepo[] }
   | { type: 'SET_SELECTED_REPO'; payload: GithubRepo | null }
   | { type: 'SET_PULL_REQUESTS'; payload: PullRequest[] }
+  | { type: 'SET_ALL_PULL_REQUESTS'; payload: PullRequest[] }
   | { type: 'SET_LOADING_REPOS'; payload: boolean }
   | { type: 'SET_LOADING_PRS'; payload: boolean }
+  | { type: 'SET_LOADING_ALL_PRS'; payload: boolean }
   | { type: 'SET_VIEW'; payload: AppState['currentView'] }
   | { type: 'SET_SHOW_NEW_TASK_MODAL'; payload: boolean }
+  | { type: 'SET_NEW_TASK_INITIAL_PROMPT'; payload: string | null }
   | { type: 'SET_SHOW_AGENT_MODAL'; payload: boolean };
 
 // ============================================
@@ -127,10 +136,13 @@ const initialState: AppState = {
   githubRepos: [],
   selectedRepo: null,
   pullRequests: [],
+  allPullRequests: [],
   loadingRepos: false,
   loadingPRs: false,
+  loadingAllPRs: false,
   currentView: 'dashboard',
   showNewTaskModal: false,
+  newTaskInitialPrompt: null,
   showAgentModal: false,
 };
 
@@ -146,16 +158,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, filteredAgents: action.payload };
     case 'SET_SELECTED_AGENT':
       return { ...state, selectedAgent: action.payload };
-    case 'SET_FILTERS':
+    case 'SET_FILTERS': {
       const newFilters = { ...state.filters, ...action.payload };
       storageService.setFilters(newFilters);
       return { ...state, filters: newFilters };
+    }
     case 'SET_COUNTS':
       return { ...state, counts: action.payload };
-    case 'SET_SETTINGS':
+    case 'SET_SETTINGS': {
       const newSettings = { ...state.settings, ...action.payload };
       storageService.setSettings(newSettings);
       return { ...state, settings: newSettings };
+    }
     case 'SET_CONFIGURED_SERVICES':
       return { ...state, configuredServices: action.payload };
     case 'SET_LOADING':
@@ -178,14 +192,20 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, selectedRepo: action.payload };
     case 'SET_PULL_REQUESTS':
       return { ...state, pullRequests: action.payload };
+    case 'SET_ALL_PULL_REQUESTS':
+      return { ...state, allPullRequests: action.payload };
     case 'SET_LOADING_REPOS':
       return { ...state, loadingRepos: action.payload };
     case 'SET_LOADING_PRS':
       return { ...state, loadingPRs: action.payload };
+    case 'SET_LOADING_ALL_PRS':
+      return { ...state, loadingAllPRs: action.payload };
     case 'SET_VIEW':
       return { ...state, currentView: action.payload };
     case 'SET_SHOW_NEW_TASK_MODAL':
       return { ...state, showNewTaskModal: action.payload };
+    case 'SET_NEW_TASK_INITIAL_PROMPT':
+      return { ...state, newTaskInitialPrompt: action.payload };
     case 'SET_SHOW_AGENT_MODAL':
       return { ...state, showAgentModal: action.payload };
     default:
@@ -207,6 +227,7 @@ interface AppContextType {
   loadComputers: () => Promise<void>;
   loadGithubRepos: () => Promise<void>;
   loadPullRequests: (owner: string, repo: string) => Promise<void>;
+  loadAllPullRequests: () => Promise<void>;
   createTask: (provider: Provider, options: {
     prompt: string;
     repository: string;
@@ -227,6 +248,9 @@ interface AppContextType {
   applyFilters: () => void;
   getRepositories: (provider: Provider) => Promise<Repository[]>;
   enableNotifications: () => Promise<string>;
+  openNewTaskModal: (options?: { initialPrompt?: string }) => void;
+  setModel: (model: string) => void;
+  agentOrchestratorService: typeof agentOrchestratorService;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -258,6 +282,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const claudeKey = storageService.getApiKey('claude');
     const jiraKey = storageService.getApiKey('jira');
     const githubKey = storageService.getApiKey('github');
+    const openRouterKey = storageService.getApiKey('openrouter');
+    const geminiKey = storageService.getApiKey('gemini');
+
     const cfConfig = storageService.getCloudflareConfig();
     const appSettings = storageService.getSettings();
 
@@ -267,6 +294,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (claudeKey) claudeService.setApiKey(claudeKey);
     if (jiraKey) jiraService.setApiKey(jiraKey);
     if (githubKey) githubService.setApiKey(githubKey);
+    if (openRouterKey) openRouterService.setApiKey(openRouterKey);
+    if (geminiKey) geminiService.setApiKey(geminiKey);
+
     if (cfConfig) cloudflareKvService.setConfig(cfConfig);
     jiraService.setBaseUrl(appSettings.jiraBaseUrl || null);
 
@@ -296,6 +326,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       case 'github':
         githubService.setApiKey(key);
         break;
+      case 'openrouter':
+        openRouterService.setApiKey(key);
+        break;
+      case 'gemini':
+        geminiService.setApiKey(key);
+        break;
     }
 
     dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });
@@ -316,6 +352,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return jiraService.testConnection();
       case 'github':
         return githubService.testConnection();
+      case 'openrouter':
+        return openRouterService.testConnection();
+      case 'gemini':
+        return geminiService.testConnection();
       default:
         return { success: false, error: 'Unknown provider' };
     }
@@ -363,6 +403,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         github: 'github',
         githubApiKey: 'github',
         githubToken: 'github',
+        openrouter: 'openrouter',
+        openrouterApiKey: 'openrouter',
+        gemini: 'gemini',
+        geminiApiKey: 'gemini',
       };
 
       for (const [kvKey, value] of Object.entries(keys)) {
@@ -371,7 +415,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const provider = keyMapping[kvKey] || kvKey;
         
         // Only import recognized providers
-        if (['jules', 'cursor', 'codex', 'claude', 'jira', 'github'].includes(provider)) {
+        if (['jules', 'cursor', 'codex', 'claude', 'jira', 'github', 'openrouter', 'gemini'].includes(provider)) {
           storageService.setApiKey(provider, value);
           
           // Update the service
@@ -393,6 +437,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               break;
             case 'github':
               githubService.setApiKey(value);
+              break;
+            case 'openrouter':
+              openRouterService.setApiKey(value);
+              break;
+            case 'gemini':
+              geminiService.setApiKey(value);
               break;
           }
           
@@ -621,6 +671,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Load ALL pull requests
+  const loadAllPullRequests = useCallback(async () => {
+    if (!githubService.isConfigured()) return;
+
+    dispatch({ type: 'SET_LOADING_ALL_PRS', payload: true });
+
+    try {
+      const prs = await githubService.getAllPullRequests();
+      dispatch({ type: 'SET_ALL_PULL_REQUESTS', payload: prs });
+    } catch (err) {
+      dispatch({ type: 'ADD_ERROR', payload: `Failed to load all pull requests: ${err instanceof Error ? err.message : 'Unknown error'}` });
+    } finally {
+      dispatch({ type: 'SET_LOADING_ALL_PRS', payload: false });
+    }
+  }, []);
+
   // Create a new task
   const createTask = useCallback(async (
     provider: Provider,
@@ -682,6 +748,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const openNewTaskModal = useCallback((options?: { initialPrompt?: string }) => {
+    if (options?.initialPrompt) {
+      dispatch({ type: 'SET_NEW_TASK_INITIAL_PROMPT', payload: options.initialPrompt });
+    } else {
+      dispatch({ type: 'SET_NEW_TASK_INITIAL_PROMPT', payload: null });
+    }
+    dispatch({ type: 'SET_SHOW_NEW_TASK_MODAL', payload: true });
+  }, []);
+
+  const setModel = useCallback((model: string) => {
+    dispatch({ type: 'SET_SETTINGS', payload: { selectedModel: model } });
+  }, []);
+
   // Initialize on mount
   useEffect(() => {
     initializeServices();
@@ -731,6 +810,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     loadComputers,
     loadGithubRepos,
     loadPullRequests,
+    loadAllPullRequests,
     createTask,
     dispatchRemoteTask,
     setApiKey,
@@ -742,6 +822,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     applyFilters,
     getRepositories,
     enableNotifications,
+    openNewTaskModal,
+    setModel,
+    agentOrchestratorService,
   };
 
   return (

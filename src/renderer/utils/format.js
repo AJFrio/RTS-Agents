@@ -6,20 +6,6 @@ export function formatCount(num) {
 }
 
 /**
- * Get status label for display
- */
-export function getTacticalStatus(status) {
-  const statusMap = {
-    running: 'RUNNING',
-    completed: 'OP-COMPLETE',
-    pending: 'PENDING_QUEUE',
-    failed: 'FAILED',
-    stopped: 'STOPPED',
-  };
-  return statusMap[status] || status?.toUpperCase() || 'UNKNOWN';
-}
-
-/**
  * Get provider display name
  */
 export function getProviderDisplayName(provider) {

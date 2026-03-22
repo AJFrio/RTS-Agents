@@ -88,6 +88,13 @@ export interface PullRequest {
   base: {
     ref: string;
     sha: string;
+    repo?: {
+      name: string;
+      full_name: string;
+      owner: {
+        login: string;
+      };
+    };
   };
   created_at: string;
   updated_at: string;
@@ -146,6 +153,10 @@ export interface ApiKeyStatus {
   jira: boolean;
   github: boolean;
   cloudflare: boolean;
+  openrouter: boolean;
+  openai: boolean;
+  gemini: boolean;
+  [key: string]: boolean;
 }
 
 export interface CloudflareConfig {
@@ -160,6 +171,7 @@ export interface AppSettings {
   autoPolling: boolean;
   theme: 'system' | 'light' | 'dark';
   jiraBaseUrl?: string;
+  selectedModel?: string;
 }
 
 export interface ProviderCounts {

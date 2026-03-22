@@ -3,6 +3,8 @@ export type MobileServiceId =
   | 'cursor'
   | 'codex'
   | 'claude'
+  | 'openrouter'
+  | 'gemini'
   | 'github'
   | 'jira'
   | 'cloudflare';
@@ -53,6 +55,22 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     icon: 'smart_toy',
     description: 'Connect Anthropic to run Claude conversations from the PWA.',
     fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Anthropic API key' }],
+  },
+  {
+    id: 'openrouter',
+    title: 'OpenRouter',
+    subtitle: 'Model provider',
+    icon: 'hub',
+    description: 'Connect OpenRouter for orchestrator model access on mobile.',
+    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenRouter API key' }],
+  },
+  {
+    id: 'gemini',
+    title: 'Gemini API',
+    subtitle: 'Model provider',
+    icon: 'token',
+    description: 'Connect Gemini API access for model selection and orchestration support.',
+    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Gemini API key' }],
   },
   {
     id: 'github',

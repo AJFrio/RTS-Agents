@@ -36,6 +36,7 @@ const initialState = {
     theme: 'system',
     displayMode: 'fullscreen',
     jiraBaseUrl: '',
+    selectedModel: 'openrouter/openai/gpt-4o',
   },
   counts: {
     gemini: 0,
@@ -53,6 +54,8 @@ const initialState = {
     codex: false,
     'claude-cli': false,
     'claude-cloud': false,
+    openrouter: false,
+    openai: false,
     github: false,
     jira: false,
   },
@@ -63,6 +66,18 @@ const initialState = {
     codex: { cloud: false, local: false },
     claude: { cloud: false, local: false },
     github: { cloud: false, local: false },
+  },
+  serviceInfo: {
+    apiKeys: {},
+    cloudflare: {
+      configured: false,
+      accountId: '',
+      namespaceTitle: 'rtsa',
+    },
+    installations: {
+      gemini: false,
+      claude: false,
+    },
   },
   connectionStatus: {},
   loading: false,
@@ -153,6 +168,17 @@ function appReducer(state, action) {
       return { ...state, configuredServices: { ...state.configuredServices, ...action.payload } };
     case 'SET_CAPABILITIES':
       return { ...state, capabilities: { ...state.capabilities, ...action.payload } };
+    case 'SET_SERVICE_INFO':
+      return {
+        ...state,
+        serviceInfo: {
+          ...state.serviceInfo,
+          ...action.payload,
+          apiKeys: action.payload.apiKeys ?? state.serviceInfo.apiKeys,
+          cloudflare: action.payload.cloudflare ?? state.serviceInfo.cloudflare,
+          installations: action.payload.installations ?? state.serviceInfo.installations,
+        },
+      };
     case 'SET_COMPUTERS':
       return { ...state, computers: { ...state.computers, ...action.payload } };
     case 'SET_GITHUB':
@@ -238,6 +264,7 @@ export function AppProvider({ children }) {
           theme: result.settings?.theme ?? 'system',
           displayMode: result.settings?.displayMode ?? 'fullscreen',
           jiraBaseUrl: result.jiraBaseUrl ?? '',
+          selectedModel: result.selectedModel ?? result.settings?.selectedModel ?? 'openrouter/openai/gpt-4o',
         },
       });
       dispatch({
@@ -249,6 +276,8 @@ export function AppProvider({ children }) {
           codex: !!result.apiKeys?.codex || (result.codexPaths?.length > 0) || false,
           'claude-cli': result.claudeCliInstalled || (result.claudePaths?.length > 0) || false,
           'claude-cloud': result.claudeCloudConfigured || !!result.apiKeys?.claude,
+          openrouter: !!result.apiKeys?.openrouter,
+          openai: !!result.apiKeys?.openai,
           github: !!result.apiKeys?.github,
           jira: !!result.apiKeys?.jira && !!(result.jiraBaseUrl || ''),
         },
@@ -265,6 +294,17 @@ export function AppProvider({ children }) {
             local: !!(result.claudeCliInstalled || result.claudePaths?.length),
           },
           github: { cloud: !!result.apiKeys?.github, local: !!(result.githubPaths?.length) },
+        },
+      });
+      dispatch({
+        type: 'SET_SERVICE_INFO',
+        payload: {
+          apiKeys: result.apiKeys ?? {},
+          cloudflare: result.cloudflare ?? { configured: false, accountId: '', namespaceTitle: 'rtsa' },
+          installations: {
+            gemini: !!result.geminiInstalled,
+            claude: !!result.claudeCliInstalled,
+          },
         },
       });
       if (result.localDeviceId) dispatch({ type: 'SET_LOCAL_DEVICE_ID', payload: result.localDeviceId });

@@ -1,116 +1,9 @@
-/**
- * Settings Component
- * 
- * API key configuration and app settings
- */
-
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { storageService } from '../services/storage-service';
+import ServiceOnboardingSheet from './ServiceOnboardingSheet';
+import { MOBILE_SERVICE_CATALOG, type MobileServiceId } from './mobile-service-catalog';
 import ModelSelector from './ModelSelector';
-
-interface ApiKeyInputProps {
-  label: string;
-  placeholder: string;
-  hint: string;
-  isConfigured: boolean;
-  onSave: (key: string) => void;
-  onTest: () => Promise<{ success: boolean; error?: string }>;
-  onDisconnect: () => void;
-}
-
-function ApiKeyInput({
-  label,
-  placeholder,
-  hint,
-  isConfigured,
-  onSave,
-  onTest,
-  onDisconnect,
-}: ApiKeyInputProps) {
-  const [key, setKey] = useState('');
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null);
-
-  const handleSave = () => {
-    if (key.trim()) {
-      onSave(key.trim());
-      setKey('');
-      setTestResult(null);
-    }
-  };
-
-  const handleTest = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const result = await onTest();
-      setTestResult(result);
-    } catch (err) {
-      setTestResult({ success: false, error: err instanceof Error ? err.message : 'Test failed' });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const handleDisconnect = () => {
-    onDisconnect();
-    setTestResult(null);
-  };
-
-  return (
-    <div className="space-y-2">
-      <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
-        {label}
-      </label>
-      
-      <div className="flex gap-2">
-        <input
-          type="password"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          placeholder={isConfigured ? '••••••••' : placeholder}
-          className="flex-1 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
-        />
-        
-        <button
-          onClick={handleSave}
-          disabled={!key.trim()}
-          className="bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-        >
-          Save
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleTest}
-          disabled={!isConfigured || testing}
-          className="border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
-        >
-          {testing ? 'Testing...' : 'Test'}
-        </button>
-        
-        {isConfigured && (
-          <button
-            onClick={handleDisconnect}
-            className="border border-red-900/50 text-red-400 px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-red-900/20 transition-all duration-200"
-          >
-            Disconnect
-          </button>
-        )}
-
-        {testResult && (
-          <span className={`text-xs ${testResult.success ? 'text-emerald-500' : 'text-red-400'}`}>
-            {testResult.success ? 'Connected!' : testResult.error || 'Failed'}
-          </span>
-        )}
-      </div>
-
-      <p className="text-xs text-slate-500">{hint}</p>
-    </div>
-  );
-}
 
 function NotificationSettings({ enableNotifications }: { enableNotifications: () => Promise<string> }) {
   const [status, setStatus] = useState<string>(
@@ -140,8 +33,8 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
       <div className="flex items-center gap-2 text-red-400">
         <span className="material-symbols-outlined text-sm">block</span>
         <div className="flex flex-col">
-            <span className="text-sm font-semibold">Notifications Blocked</span>
-            <span className="text-xs text-slate-500">Enable in browser settings</span>
+          <span className="text-sm font-semibold">Notifications Blocked</span>
+          <span className="text-xs text-slate-500">Enable in browser settings</span>
         </div>
       </div>
     );
@@ -157,16 +50,115 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
   );
 }
 
-export default function Settings() {
-  const { state, dispatch, setApiKey, testApiKey, setCloudflareConfig, testCloudflareConfig, pullKeysFromKV, enableNotifications, setModel } = useApp();
-  const { configuredServices, settings } = state;
+function getStatusMeta(connected: boolean) {
+  return connected
+    ? { label: 'Connected', className: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 dark:text-emerald-300' }
+    : { label: 'Attention', className: 'text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-300' };
+}
 
-  const [cfAccountId, setCfAccountId] = useState('');
-  const [cfApiToken, setCfApiToken] = useState('');
-  const [cfTesting, setCfTesting] = useState(false);
+export default function Settings() {
+  const {
+    state,
+    dispatch,
+    setApiKey,
+    testApiKey,
+    setCloudflareConfig,
+    testCloudflareConfig,
+    pullKeysFromKV,
+    enableNotifications,
+    setModel,
+  } = useApp();
+
+  const { configuredServices, settings } = state;
   const [syncingKeys, setSyncingKeys] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; keysImported?: string[]; error?: string } | null>(null);
-  const [cfTestResult, setCfTestResult] = useState<{ success: boolean; error?: string } | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [activeServiceId, setActiveServiceId] = useState<MobileServiceId | null>(null);
+  const [autoOpened, setAutoOpened] = useState(false);
+
+  const connectedServices = useMemo(() => {
+    const ids: MobileServiceId[] = [];
+    if (configuredServices.jules) ids.push('jules');
+    if (configuredServices.cursor) ids.push('cursor');
+    if (configuredServices.codex) ids.push('codex');
+    if (configuredServices.claude) ids.push('claude');
+    if (configuredServices.openrouter) ids.push('openrouter');
+    if (configuredServices.gemini) ids.push('gemini');
+    if (configuredServices.github) ids.push('github');
+    if (configuredServices.jira || !!settings.jiraBaseUrl?.trim()) ids.push('jira');
+    if (configuredServices.cloudflare) ids.push('cloudflare');
+    return ids;
+  }, [configuredServices, settings.jiraBaseUrl]);
+
+  useEffect(() => {
+    if (!autoOpened && connectedServices.length === 0) {
+      setOnboardingOpen(true);
+      setAutoOpened(true);
+    }
+  }, [autoOpened, connectedServices.length]);
+
+  const openOnboarding = (serviceId: MobileServiceId | null = null) => {
+    setActiveServiceId(serviceId);
+    setOnboardingOpen(true);
+  };
+
+  const refreshConfiguredServices = () => {
+    dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });
+  };
+
+  const handleConnect = async (serviceId: MobileServiceId, values: Record<string, string>) => {
+    try {
+      if (serviceId === 'cloudflare') {
+        const accountId = (values.accountId || '').trim();
+        const apiToken = (values.apiToken || '').trim();
+        if (!accountId || !apiToken) {
+          return { success: false, error: 'Enter both the Cloudflare account ID and API token.' };
+        }
+        setCloudflareConfig({ accountId, apiToken });
+        const result = await testCloudflareConfig();
+        refreshConfiguredServices();
+        return result;
+      }
+
+      if (serviceId === 'jira') {
+        const baseUrl = (values.baseUrl || settings.jiraBaseUrl || '').trim();
+        const apiKey = (values.apiKey || '').trim();
+        if (!baseUrl || !apiKey) {
+          return { success: false, error: 'Enter both the Jira Base URL and API token.' };
+        }
+        dispatch({ type: 'SET_SETTINGS', payload: { jiraBaseUrl: baseUrl } });
+        setApiKey('jira', apiKey);
+        const result = await testApiKey('jira');
+        refreshConfiguredServices();
+        return result;
+      }
+
+      const apiKey = (values.apiKey || '').trim();
+      if (!apiKey) {
+        return { success: false, error: 'Enter an API key before continuing.' };
+      }
+
+      setApiKey(serviceId, apiKey);
+      const result = await testApiKey(serviceId);
+      refreshConfiguredServices();
+      return result;
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unable to connect this service.' };
+    }
+  };
+
+  const handleDisconnect = (serviceId: MobileServiceId) => {
+    if (serviceId === 'cloudflare') {
+      storageService.removeCloudflareConfig();
+    } else if (serviceId === 'jira') {
+      storageService.removeApiKey('jira');
+      dispatch({ type: 'SET_SETTINGS', payload: { jiraBaseUrl: '' } });
+    } else {
+      storageService.removeApiKey(serviceId);
+    }
+
+    refreshConfiguredServices();
+  };
 
   const handleThemeChange = (theme: 'system' | 'light' | 'dark') => {
     dispatch({ type: 'SET_SETTINGS', payload: { theme } });
@@ -176,435 +168,287 @@ export default function Settings() {
     dispatch({ type: 'SET_SETTINGS', payload: { autoPolling: !settings.autoPolling } });
   };
 
-  const [jiraBaseUrl, setJiraBaseUrl] = useState(settings.jiraBaseUrl || '');
-
   const handleIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value, 10) * 1000;
-    dispatch({ type: 'SET_SETTINGS', payload: { pollingInterval: value } });
-  };
-
-  const handleSaveJiraBaseUrl = () => {
-    dispatch({ type: 'SET_SETTINGS', payload: { jiraBaseUrl: jiraBaseUrl.trim() } });
-  };
-
-  const handleSaveCloudflare = () => {
-    if (cfAccountId.trim() && cfApiToken.trim()) {
-      setCloudflareConfig({
-        accountId: cfAccountId.trim(),
-        apiToken: cfApiToken.trim(),
-      });
-      setCfAccountId('');
-      setCfApiToken('');
-      setCfTestResult(null);
-    }
-  };
-
-  const handleTestCloudflare = async () => {
-    setCfTesting(true);
-    setCfTestResult(null);
-    try {
-      const result = await testCloudflareConfig();
-      setCfTestResult(result);
-    } catch (err) {
-      setCfTestResult({ success: false, error: err instanceof Error ? err.message : 'Test failed' });
-    } finally {
-      setCfTesting(false);
-    }
-  };
-
-  const handleDisconnectCloudflare = () => {
-    // Clear cloudflare config via storage service
-    storageService.removeCloudflareConfig();
-    dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });
-    setCfTestResult(null);
-  };
-
-  const handleDisconnect = (provider: string) => {
-    storageService.removeApiKey(provider);
-    dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });
+    dispatch({ type: 'SET_SETTINGS', payload: { pollingInterval: parseInt(e.target.value, 10) * 1000 } });
   };
 
   return (
-    <div className="p-4 space-y-6">
-      {/* API Keys Section */}
-      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-lg">key</span>
-          <h3 className="text-base font-semibold">API Keys</h3>
-        </div>
-
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
-              Jira Base URL
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={jiraBaseUrl}
-                onChange={(e) => setJiraBaseUrl(e.target.value)}
-                placeholder="https://your-domain.atlassian.net"
-                className="flex-1 bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
-              />
-              <button
-                onClick={handleSaveJiraBaseUrl}
-                disabled={!jiraBaseUrl.trim()}
-                className="bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                Save
-              </button>
-            </div>
-            <p className="text-xs text-slate-500">Your Jira site URL (no trailing slash)</p>
-          </div>
-
-          <ApiKeyInput
-            label="Jira API Token / PAT"
-            placeholder="Enter Jira API token (or email:token)"
-            hint="Cloud: create an API token and paste token, or paste email:token. Data Center: use a Personal Access Token."
-            isConfigured={configuredServices.jira}
-            onSave={(key) => setApiKey('jira', key)}
-            onTest={() => testApiKey('jira')}
-            onDisconnect={() => handleDisconnect('jira')}
-          />
-
-          <ApiKeyInput
-            label="Jules API Key"
-            placeholder="Enter Jules API key"
-            hint="Get from Jules console settings"
-            isConfigured={configuredServices.jules}
-            onSave={(key) => setApiKey('jules', key)}
-            onTest={() => testApiKey('jules')}
-            onDisconnect={() => handleDisconnect('jules')}
-          />
-
-          <ApiKeyInput
-            label="Cursor Cloud API Key"
-            placeholder="Enter Cursor API key"
-            hint="Get from cursor.com/settings"
-            isConfigured={configuredServices.cursor}
-            onSave={(key) => setApiKey('cursor', key)}
-            onTest={() => testApiKey('cursor')}
-            onDisconnect={() => handleDisconnect('cursor')}
-          />
-
-          <ApiKeyInput
-            label="OpenAI Codex API Key (Legacy)"
-            placeholder="Enter OpenAI API key"
-            hint="Get from platform.openai.com/api-keys"
-            isConfigured={configuredServices.codex}
-            onSave={(key) => setApiKey('codex', key)}
-            onTest={() => testApiKey('codex')}
-            onDisconnect={() => handleDisconnect('codex')}
-          />
-
-          <ApiKeyInput
-            label="Anthropic Claude API Key"
-            placeholder="Enter Anthropic API key"
-            hint="Get from console.anthropic.com"
-            isConfigured={configuredServices.claude}
-            onSave={(key) => setApiKey('claude', key)}
-            onTest={() => testApiKey('claude')}
-            onDisconnect={() => handleDisconnect('claude')}
-          />
-
-          <ApiKeyInput
-            label="OpenRouter API Key"
-            placeholder="Enter OpenRouter API key"
-            hint="Get from openrouter.ai/keys"
-            isConfigured={configuredServices.openrouter}
-            onSave={(key) => setApiKey('openrouter', key)}
-            onTest={() => testApiKey('openrouter')}
-            onDisconnect={() => handleDisconnect('openrouter')}
-          />
-
-          <ApiKeyInput
-            label="Google Gemini API Key"
-            placeholder="Enter Gemini API key"
-            hint="Get from aistudio.google.com"
-            isConfigured={configuredServices.gemini}
-            onSave={(key) => setApiKey('gemini', key)}
-            onTest={() => testApiKey('gemini')}
-            onDisconnect={() => handleDisconnect('gemini')}
-          />
-
-          <ApiKeyInput
-            label="GitHub Personal Access Token"
-            placeholder="Enter GitHub PAT (repo scope)"
-            hint="Get from github.com/settings/tokens"
-            isConfigured={configuredServices.github}
-            onSave={(key) => setApiKey('github', key)}
-            onTest={() => testApiKey('github')}
-            onDisconnect={() => handleDisconnect('github')}
-          />
-        </div>
-      </section>
-
-      {/* Cloudflare KV Section */}
-      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-lg">cloud</span>
-          <h3 className="text-base font-semibold">Cloudflare KV</h3>
-        </div>
-
-        <p className="text-xs text-slate-500 mb-4">
-          Connect to read computers and dispatch remote tasks. The mobile app will not register itself.
-        </p>
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              Account ID
-            </label>
-            <input
-              type="text"
-              value={cfAccountId}
-              onChange={(e) => setCfAccountId(e.target.value)}
-              placeholder={configuredServices.cloudflare ? '••••••••' : 'Enter Cloudflare Account ID'}
-              className="w-full bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              API Token
-            </label>
-            <input
-              type="password"
-              value={cfApiToken}
-              onChange={(e) => setCfApiToken(e.target.value)}
-              placeholder={configuredServices.cloudflare ? '••••••••' : 'Enter Cloudflare API token'}
-              className="w-full bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm py-2.5 px-3 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSaveCloudflare}
-              disabled={!cfAccountId.trim() || !cfApiToken.trim()}
-              className="bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            >
-              Save
-            </button>
-
-            <button
-              onClick={handleTestCloudflare}
-              disabled={!configuredServices.cloudflare || cfTesting}
-              className="border border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200"
-            >
-              {cfTesting ? 'Testing...' : 'Test'}
-            </button>
-
-            {configuredServices.cloudflare && (
-              <button
-                onClick={handleDisconnectCloudflare}
-                className="border border-red-900/50 text-red-400 px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-red-900/20 transition-all duration-200"
-              >
-                Disconnect
-              </button>
-            )}
-
-            {cfTestResult && (
-              <span className={`text-xs ${cfTestResult.success ? 'text-emerald-500' : 'text-red-400'}`}>
-                {cfTestResult.success ? 'Connected!' : cfTestResult.error || 'Failed'}
-              </span>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Sync Keys from Cloud */}
-      {configuredServices.cloudflare && (
+    <>
+      <div className="p-4 space-y-6">
         <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="material-symbols-outlined text-primary text-lg">sync</span>
-            <h3 className="text-base font-semibold">Sync Keys from Cloud</h3>
-          </div>
-
-          <p className="text-xs text-slate-500 mb-4">
-            Pull API keys from the Cloudflare KV store. Keys must first be pushed from the Electron desktop app.
-          </p>
-
-          <div className="space-y-3">
-            <button
-              onClick={async () => {
-                setSyncingKeys(true);
-                setSyncResult(null);
-                try {
-                  const result = await pullKeysFromKV();
-                  setSyncResult(result);
-                } catch (err) {
-                  setSyncResult({ 
-                    success: false, 
-                    error: err instanceof Error ? err.message : 'Sync failed' 
-                  });
-                } finally {
-                  setSyncingKeys(false);
-                }
-              }}
-              disabled={syncingKeys}
-              className="w-full flex items-center justify-center gap-2 bg-primary/20 border border-primary text-primary py-3 text-sm font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/30 transition-all duration-200"
-            >
-              <span className={`material-symbols-outlined text-sm ${syncingKeys ? 'animate-spin' : ''}`}>
-                {syncingKeys ? 'sync' : 'cloud_download'}
-              </span>
-              {syncingKeys ? 'Syncing...' : 'Pull Keys from KV Store'}
-            </button>
-
-            {syncResult && (
-              <div className={`p-3 rounded-lg ${syncResult.success ? 'bg-emerald-500/10 dark:bg-emerald-900/20 border border-emerald-500/50' : 'bg-red-500/10 dark:bg-red-900/20 border border-red-500/50'}`}>
-                <div className="flex items-start gap-2">
-                  <span className={`material-symbols-outlined text-sm ${syncResult.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {syncResult.success ? 'check_circle' : 'error'}
-                  </span>
-                  <div>
-                    {syncResult.success ? (
-                      <>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">Keys synced successfully!</p>
-                        {syncResult.keysImported && syncResult.keysImported.length > 0 ? (
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                            Imported: {syncResult.keysImported.join(', ')}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-slate-500 mt-1">
-                            No new keys found in KV store
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs text-red-400">{syncResult.error || 'Failed to sync keys'}</p>
-                    )}
-                  </div>
-                </div>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-symbols-outlined text-primary text-lg">link</span>
+                <h3 className="text-base font-semibold">Connected Services</h3>
               </div>
-            )}
-
-            <p className="text-xs text-slate-500">
-              Tip: Use "Push Keys to Cloud" in the Electron app's Settings to make keys available here.
-            </p>
+              <p className="text-xs text-slate-500">
+                Service setup now uses guided onboarding. Existing saved keys are still recognized and shown here automatically.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => openOnboarding()}
+              className="shrink-0 bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm"
+            >
+              Add Service
+            </button>
           </div>
         </section>
-      )}
 
-      {/* Model Selection */}
-      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-lg">smart_toy</span>
-          <h3 className="text-base font-semibold">Agent Model</h3>
-        </div>
+        <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+          {connectedServices.length === 0 ? (
+            <div className="text-center py-8 space-y-4">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-2xl">hub</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">No services connected yet</h3>
+                <p className="text-sm text-slate-500 mt-2">Start onboarding to connect your cloud services.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => openOnboarding()}
+                className="bg-primary text-black px-4 py-2 text-sm font-semibold rounded-lg"
+              >
+                Start Onboarding
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {connectedServices.map((serviceId) => {
+                const definition = MOBILE_SERVICE_CATALOG.find((service) => service.id === serviceId);
+                if (!definition) return null;
 
-        <div className="space-y-2">
-          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
-             Orchestrator Model
-          </label>
-          <ModelSelector
-            value={settings.selectedModel}
-            onChange={(model) => setModel(model)}
-          />
-          <p className="text-xs text-slate-500">The AI model used for the main agent chat.</p>
-        </div>
-      </section>
+                const connected = serviceId === 'jira'
+                  ? configuredServices.jira && !!settings.jiraBaseUrl?.trim()
+                  : serviceId === 'cloudflare'
+                    ? configuredServices.cloudflare
+                    : configuredServices[serviceId];
+                const statusMeta = getStatusMeta(!!connected);
 
-      {/* Notifications */}
-      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-lg">notifications</span>
-          <h3 className="text-base font-semibold">Notifications</h3>
-        </div>
+                const summary = serviceId === 'jira'
+                  ? settings.jiraBaseUrl || 'Jira base URL missing'
+                  : serviceId === 'cloudflare'
+                    ? 'Cloudflare KV sync enabled'
+                    : 'API key saved and ready';
 
-        <p className="text-xs text-slate-500 mb-4">
-          Enable native notifications to get alerted when tasks are ready for review.
-        </p>
+                return (
+                  <div
+                    key={serviceId}
+                    className="rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-slate-900/60 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined">{definition.icon}</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-semibold text-slate-900 dark:text-white">{definition.title}</h4>
+                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${statusMeta.className}`}>
+                              {statusMeta.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{definition.subtitle}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{summary}</p>
+                        </div>
+                      </div>
+                    </div>
 
-        <NotificationSettings enableNotifications={enableNotifications} />
-      </section>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => openOnboarding(serviceId)}
+                        className="flex-1 border border-slate-200 dark:border-border-dark text-slate-600 dark:text-slate-300 py-2 rounded-xl text-sm font-semibold"
+                      >
+                        Manage
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDisconnect(serviceId)}
+                        className="flex-1 border border-red-900/50 text-red-400 py-2 rounded-xl text-sm font-semibold"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-      {/* Display Settings */}
-      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-lg">palette</span>
-          <h3 className="text-base font-semibold">Display</h3>
-        </div>
+        {configuredServices.cloudflare && (
+          <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="material-symbols-outlined text-primary text-lg">sync</span>
+              <h3 className="text-base font-semibold">Sync Keys from Cloud</h3>
+            </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
-              Theme
+            <p className="text-xs text-slate-500 mb-4">
+              Pull API keys from the Cloudflare KV store. Existing saved keys will be merged and recognized automatically.
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={async () => {
+                  setSyncingKeys(true);
+                  setSyncResult(null);
+                  try {
+                    const result = await pullKeysFromKV();
+                    setSyncResult(result);
+                    refreshConfiguredServices();
+                  } catch (err) {
+                    setSyncResult({
+                      success: false,
+                      error: err instanceof Error ? err.message : 'Sync failed',
+                    });
+                  } finally {
+                    setSyncingKeys(false);
+                  }
+                }}
+                disabled={syncingKeys}
+                className="w-full flex items-center justify-center gap-2 bg-primary/20 border border-primary text-primary py-3 text-sm font-semibold rounded-lg disabled:opacity-50"
+              >
+                <span className={`material-symbols-outlined text-sm ${syncingKeys ? 'animate-spin' : ''}`}>
+                  {syncingKeys ? 'sync' : 'cloud_download'}
+                </span>
+                {syncingKeys ? 'Syncing...' : 'Pull Keys from KV Store'}
+              </button>
+
+              {syncResult && (
+                <div className={`p-3 rounded-lg ${
+                  syncResult.success
+                    ? 'bg-emerald-500/10 dark:bg-emerald-900/20 border border-emerald-500/50'
+                    : 'bg-red-500/10 dark:bg-red-900/20 border border-red-500/50'
+                }`}>
+                  {syncResult.success ? (
+                    <>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">Keys synced successfully.</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                        {syncResult.keysImported?.length ? `Imported: ${syncResult.keysImported.join(', ')}` : 'No new keys found.'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-red-400">{syncResult.error || 'Failed to sync keys'}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary text-lg">smart_toy</span>
+            <h3 className="text-base font-semibold">Agent Model</h3>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+              Orchestrator Model
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(['system', 'light', 'dark'] as const).map((theme) => (
-                <button
-                  key={theme}
-                  onClick={() => handleThemeChange(theme)}
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg transition-all duration-200 ${
-                    settings.theme === theme
-                      ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                      : 'border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-lg">
-                    {theme === 'system' ? 'settings_brightness' : theme === 'light' ? 'light_mode' : 'dark_mode'}
-                  </span>
-                  <span className="text-xs font-medium capitalize">{theme}</span>
-                </button>
-              ))}
+            <ModelSelector
+              value={settings.selectedModel}
+              onChange={(model) => setModel(model)}
+            />
+            <p className="text-xs text-slate-500">The AI model used for the main agent chat.</p>
+          </div>
+        </section>
+
+        <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary text-lg">notifications</span>
+            <h3 className="text-base font-semibold">Notifications</h3>
+          </div>
+          <p className="text-xs text-slate-500 mb-4">
+            Enable native notifications to get alerted when tasks are ready for review.
+          </p>
+          <NotificationSettings enableNotifications={enableNotifications} />
+        </section>
+
+        <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary text-lg">palette</span>
+            <h3 className="text-base font-semibold">Display</h3>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {(['system', 'light', 'dark'] as const).map((theme) => (
+              <button
+                key={theme}
+                onClick={() => handleThemeChange(theme)}
+                className={`flex flex-col items-center gap-2 p-3 border rounded-lg transition-all duration-200 ${
+                  settings.theme === theme
+                    ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                    : 'border-slate-200 dark:border-border-dark text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {theme === 'system' ? 'settings_brightness' : theme === 'light' ? 'light_mode' : 'dark_mode'}
+                </span>
+                <span className="text-xs font-medium capitalize">{theme}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="material-symbols-outlined text-primary text-lg">schedule</span>
+            <h3 className="text-base font-semibold">Data Polling</h3>
+          </div>
+
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.autoPolling}
+                onChange={handlePollingToggle}
+                className="w-4 h-4 bg-transparent border-primary text-primary focus:ring-0 focus:ring-offset-0"
+              />
+              <span className="text-sm text-slate-600 dark:text-slate-300">Enable auto refresh</span>
+            </label>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Refresh interval</label>
+                <span className="text-primary font-semibold text-sm">{Math.round(settings.pollingInterval / 1000)}s</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="300"
+                step="5"
+                value={Math.round(settings.pollingInterval / 1000)}
+                onChange={handleIntervalChange}
+                disabled={!settings.autoPolling}
+                className="w-full h-1 bg-slate-200 dark:bg-border-dark appearance-none cursor-pointer disabled:opacity-50"
+              />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Polling Settings */}
-      <section className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="material-symbols-outlined text-primary text-lg">schedule</span>
-          <h3 className="text-base font-semibold">Data Polling</h3>
-        </div>
-
-        <div className="space-y-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.autoPolling}
-              onChange={handlePollingToggle}
-              className="w-4 h-4 bg-transparent border-primary text-primary focus:ring-0 focus:ring-offset-0"
-            />
-            <span className="text-sm text-slate-600 dark:text-slate-300">Enable auto refresh</span>
-          </label>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Refresh interval
-              </label>
-              <span className="text-primary font-semibold text-sm">
-                {Math.round(settings.pollingInterval / 1000)}s
-              </span>
-            </div>
-            <input
-              type="range"
-              min="5"
-              max="300"
-              step="5"
-              value={Math.round(settings.pollingInterval / 1000)}
-              onChange={handleIntervalChange}
-              disabled={!settings.autoPolling}
-              className="w-full h-1 bg-slate-200 dark:bg-border-dark appearance-none cursor-pointer disabled:opacity-50"
-            />
-            <div className="flex justify-between text-xs text-slate-500 mt-1">
-              <span>5s</span>
-              <span>5min</span>
-            </div>
+        <section className="text-center py-4">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-primary text-lg">grid_view</span>
+            <span className="font-semibold text-sm">RTS Agents</span>
           </div>
-        </div>
-      </section>
+          <p className="text-xs text-slate-500">Mobile PWA v1.0.0</p>
+        </section>
+      </div>
 
-      {/* App Info */}
-      <section className="text-center py-4">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <span className="material-symbols-outlined text-primary text-lg">grid_view</span>
-          <span className="font-semibold text-sm">RTS Agents</span>
-        </div>
-        <p className="text-xs text-slate-500">Mobile PWA v1.0.0</p>
-      </section>
-    </div>
+      <ServiceOnboardingSheet
+        open={onboardingOpen}
+        initialServiceId={activeServiceId}
+        requiredConnection={connectedServices.length === 0}
+        hasConnectedServices={connectedServices.length > 0}
+        jiraBaseUrl={settings.jiraBaseUrl || ''}
+        onClose={() => setOnboardingOpen(false)}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+      />
+    </>
   );
 }

@@ -1,57 +1,134 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import ApiKeyRow from '../components/settings/ApiKeyRow.jsx';
-import PathRow from '../components/settings/PathRow.jsx';
-import ModelSelector from '../components/settings/ModelSelector.jsx';
 import Button from '../components/ui/Button.jsx';
+import ModelSelector from '../components/settings/ModelSelector.jsx';
+import ServiceOnboardingModal from '../components/settings/ServiceOnboardingModal.jsx';
+import { getServiceDefinition } from '../components/settings/service-catalog.js';
 
-const CLOUD_KEYS = [
-  { id: 'jules', label: 'Jules API Key', placeholder: 'Enter Jules API key', hint: 'Get from Jules console settings' },
-  { id: 'cursor', label: 'Cursor Cloud API Key', placeholder: 'Enter Cursor API key', hint: 'Get from cursor.com/settings' },
-  { id: 'github', label: 'GitHub Personal Access Token', placeholder: 'Enter GitHub PAT (repo scope)', hint: 'Get from github.com/settings/tokens (classic)' },
-  { id: 'jira', label: 'Jira API Token / PAT', placeholder: "Enter 'email:token' (Cloud) or PAT (Server)", hint: 'Cloud: email:token. Data Center: Personal Access Token.' },
-];
-
-const MODEL_KEYS = [
-  { id: 'openrouter', label: 'OpenRouter API Key', placeholder: 'Enter OpenRouter API key', hint: 'Get from openrouter.ai/keys' },
-  { id: 'claude', label: 'Anthropic Claude API Key', placeholder: 'Enter Anthropic API key', hint: 'Get from console.anthropic.com' },
-  { id: 'openai', label: 'OpenAI API Key (Orchestrator)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
-  { id: 'gemini', label: 'Google Gemini API Key', placeholder: 'Enter Gemini API key', hint: 'Get from aistudio.google.com' },
-  { id: 'codex', label: 'OpenAI Codex API Key (Legacy)', placeholder: 'Enter OpenAI API key', hint: 'Get from platform.openai.com/api-keys' },
-];
-
-const STATUS_KEYS = ['gemini', 'jules', 'cursor', 'codex', 'openai', 'openrouter', 'claude-cli', 'claude-cloud', 'github'];
-
-function statusText(s) {
-  if (!s) return 'STBY';
-  if (s.success || s.connected) return 'Connected';
-  if (s.error === 'Not configured') return 'Offline';
-  return 'Error';
+function getStatusMeta(status) {
+  if (!status) {
+    return { label: 'Pending', className: 'text-slate-500 bg-slate-100 dark:bg-slate-800/80 dark:text-slate-300' };
+  }
+  if (status.success || status.connected) {
+    return { label: 'Connected', className: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-300' };
+  }
+  return { label: 'Attention', className: 'text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300' };
 }
 
-function statusClass(s) {
-  if (!s) return 'font-semibold text-slate-500';
-  if (s.success || s.connected) return 'font-bold text-emerald-500';
-  if (s.error === 'Not configured') return 'font-bold text-slate-500';
-  return 'font-bold text-red-500';
+function buildConnectedServices(state) {
+  const services = [];
+  const apiKeys = state.serviceInfo?.apiKeys || {};
+
+  if (apiKeys.jules) services.push('jules-cloud');
+  if (apiKeys.cursor) services.push('cursor-cloud');
+  if ((state.settings?.cursorPaths || []).length > 0) services.push('cursor-local');
+  if (apiKeys.codex) services.push('codex-cloud');
+  if ((state.settings?.codexPaths || []).length > 0) services.push('codex-local');
+  if (apiKeys.claude) services.push('claude-cloud');
+  if (state.serviceInfo?.installations?.claude || (state.settings?.claudePaths || []).length > 0) services.push('claude-local');
+  if (state.serviceInfo?.installations?.gemini || (state.settings?.geminiPaths || []).length > 0) services.push('gemini-local');
+  if (apiKeys.gemini) services.push('gemini-api');
+  if (apiKeys.openrouter) services.push('openrouter-cloud');
+  if (apiKeys.openai) services.push('openai-cloud');
+  if (apiKeys.github) services.push('github-cloud');
+  if ((state.settings?.githubPaths || []).length > 0) services.push('github-local');
+  if (apiKeys.jira || state.settings?.jiraBaseUrl) services.push('jira-cloud');
+  if (state.serviceInfo?.cloudflare?.configured || state.computers?.configured) services.push('cloudflare-sync');
+
+  return [...new Set(services)];
+}
+
+function getServiceStatus(serviceId, state) {
+  switch (serviceId) {
+    case 'jules-cloud':
+      return state.connectionStatus?.jules;
+    case 'cursor-cloud':
+      return state.connectionStatus?.cursor;
+    case 'codex-cloud':
+      return state.connectionStatus?.codex;
+    case 'claude-cloud':
+      return state.connectionStatus?.['claude-cloud'];
+    case 'claude-local':
+      return state.connectionStatus?.['claude-cli'] || { success: !!state.serviceInfo?.installations?.claude };
+    case 'gemini-local':
+    case 'gemini-api':
+      return state.connectionStatus?.gemini || { success: !!state.serviceInfo?.installations?.gemini };
+    case 'openrouter-cloud':
+      return state.connectionStatus?.openrouter;
+    case 'openai-cloud':
+      return state.connectionStatus?.openai;
+    case 'github-cloud':
+      return state.connectionStatus?.github;
+    case 'jira-cloud':
+      return state.connectionStatus?.jira;
+    case 'cloudflare-sync':
+      return state.computers?.configured ? { success: true, connected: true } : { success: false, error: 'Not configured' };
+    default:
+      return { success: true, connected: true };
+  }
+}
+
+function getServiceSummary(serviceId, state, status) {
+  switch (serviceId) {
+    case 'cursor-local':
+      return `${state.settings?.cursorPaths?.length || 0} repository roots connected`;
+    case 'codex-local':
+      return `${state.settings?.codexPaths?.length || 0} repository roots connected`;
+    case 'claude-local':
+      return state.serviceInfo?.installations?.claude
+        ? `${state.settings?.claudePaths?.length || 0} repository roots linked`
+        : 'Repository roots saved, but Claude Code is not detected locally';
+    case 'gemini-local':
+      return state.serviceInfo?.installations?.gemini
+        ? `${state.settings?.geminiPaths?.length || 0} repository roots linked`
+        : 'Repository roots saved, but Gemini CLI is not detected locally';
+    case 'github-local':
+      return `${state.settings?.githubPaths?.length || 0} repository roots connected`;
+    case 'jira-cloud':
+      return state.settings?.jiraBaseUrl || status?.error || 'Jira is configured';
+    case 'cloudflare-sync':
+      return state.serviceInfo?.cloudflare?.accountId
+        ? `Account ${state.serviceInfo.cloudflare.accountId}`
+        : 'Cloudflare KV sync enabled';
+    default:
+      return status?.error || 'Verified and ready to use';
+  }
+}
+
+function isDisconnectable(serviceId, state) {
+  if (['jules-cloud', 'cursor-cloud', 'codex-cloud', 'claude-cloud', 'gemini-api', 'openrouter-cloud', 'openai-cloud', 'github-cloud', 'jira-cloud', 'cloudflare-sync'].includes(serviceId)) {
+    return true;
+  }
+  if (serviceId === 'cursor-local') return (state.settings?.cursorPaths || []).length > 0;
+  if (serviceId === 'codex-local') return (state.settings?.codexPaths || []).length > 0;
+  if (serviceId === 'claude-local') return (state.settings?.claudePaths || []).length > 0;
+  if (serviceId === 'gemini-local') return (state.settings?.geminiPaths || []).length > 0;
+  if (serviceId === 'github-local') return (state.settings?.githubPaths || []).length > 0;
+  return false;
 }
 
 export default function SettingsPage() {
-  const { state, dispatch, api, loadSettings } = useApp();
-  const { settings, configuredServices, connectionStatus, computers } = state;
-  const [jiraBaseUrl, setJiraBaseUrl] = useState(settings.jiraBaseUrl || '');
-  const [keyValues, setKeyValues] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [cloudflareAccountId, setCloudflareAccountId] = useState('');
-  const [cloudflareToken, setCloudflareToken] = useState('');
-  const [newGithubPath, setNewGithubPath] = useState('');
-  const [selectedModel, setSelectedModel] = useState(settings.selectedModel || 'openrouter/openai/gpt-4o');
+  const { state, dispatch, api, loadSettings, checkConnectionStatus } = useApp();
+  const [selectedModel, setSelectedModel] = useState(state.settings.selectedModel || 'openrouter/openai/gpt-4o');
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [activeServiceId, setActiveServiceId] = useState(null);
+  const [autoOpened, setAutoOpened] = useState(false);
+  const [busyServiceId, setBusyServiceId] = useState(null);
+
+  const connectedServices = useMemo(() => buildConnectedServices(state), [state]);
 
   useEffect(() => {
-    if (settings.selectedModel) {
-      setSelectedModel(settings.selectedModel);
+    setSelectedModel(state.settings.selectedModel || 'openrouter/openai/gpt-4o');
+  }, [state.settings.selectedModel]);
+
+  useEffect(() => {
+    if (autoOpened) return;
+    if (Object.keys(state.connectionStatus || {}).length === 0) return;
+    if (connectedServices.length === 0) {
+      setOnboardingOpen(true);
+      setAutoOpened(true);
     }
-  }, [settings.selectedModel]);
+  }, [autoOpened, connectedServices.length, state.connectionStatus]);
 
   const saveModel = useCallback(async (model) => {
     setSelectedModel(model);
@@ -61,61 +138,75 @@ export default function SettingsPage() {
     }
   }, [api, dispatch]);
 
-  // Cloudflare state
-  const [pushingKeys, setPushingKeys] = useState(false);
-  const [pullingKeys, setPullingKeys] = useState(false);
-  const [saveButtonText, setSaveButtonText] = useState('SAVE');
-  const [pushButtonText, setPushButtonText] = useState('PUSH KEYS');
-  const [pullButtonText, setPullButtonText] = useState('PULL KEYS');
+  const openOnboarding = useCallback((serviceId = null) => {
+    setActiveServiceId(serviceId);
+    setOnboardingOpen(true);
+  }, []);
 
-  const isCloudflareConfigured = computers?.configured;
+  const disconnectService = useCallback(async (serviceId) => {
+    if (!api) return;
 
-  const saveJiraBaseUrl = useCallback(async () => {
-    const url = jiraBaseUrl.trim();
-    if (!url || !api?.setJiraBaseUrl) return;
-    setSaving(true);
+    setBusyServiceId(serviceId);
     try {
-      await api.setJiraBaseUrl(url);
-      dispatch({ type: 'SET_SETTINGS', payload: { jiraBaseUrl: url } });
+      if (serviceId === 'jules-cloud') {
+        await api.removeApiKey('jules');
+      } else if (serviceId === 'cursor-cloud') {
+        await api.removeApiKey('cursor');
+      } else if (serviceId === 'codex-cloud') {
+        await api.removeApiKey('codex');
+      } else if (serviceId === 'claude-cloud') {
+        await api.removeApiKey('claude');
+      } else if (serviceId === 'gemini-api') {
+        await api.removeApiKey('gemini');
+      } else if (serviceId === 'openrouter-cloud') {
+        await api.removeApiKey('openrouter');
+      } else if (serviceId === 'openai-cloud') {
+        await api.removeApiKey('openai');
+      } else if (serviceId === 'github-cloud') {
+        await api.removeApiKey('github');
+      } else if (serviceId === 'jira-cloud') {
+        await api.removeApiKey('jira');
+        await api.setJiraBaseUrl('');
+      } else if (serviceId === 'cloudflare-sync') {
+        await api.clearCloudflareConfig();
+      } else if (serviceId === 'cursor-local') {
+        for (const pathValue of state.settings?.cursorPaths || []) {
+          await api.removeCursorPath(pathValue);
+        }
+      } else if (serviceId === 'codex-local') {
+        for (const pathValue of state.settings?.codexPaths || []) {
+          await api.removeCodexPath(pathValue);
+        }
+      } else if (serviceId === 'claude-local') {
+        for (const pathValue of state.settings?.claudePaths || []) {
+          await api.removeClaudePath(pathValue);
+        }
+      } else if (serviceId === 'gemini-local') {
+        for (const pathValue of state.settings?.geminiPaths || []) {
+          await api.removeGeminiPath(pathValue);
+        }
+      } else if (serviceId === 'github-local') {
+        for (const pathValue of state.settings?.githubPaths || []) {
+          await api.removeGithubPath(pathValue);
+        }
+      }
+
       await loadSettings();
+      await checkConnectionStatus();
     } finally {
-      setSaving(false);
+      setBusyServiceId(null);
     }
-  }, [jiraBaseUrl, api, dispatch, loadSettings]);
+  }, [api, checkConnectionStatus, loadSettings, state.settings]);
 
-  const saveApiKey = useCallback(async (provider) => {
-    const key = (keyValues[provider] || '').trim();
-    if (!key || !api?.setApiKey) return;
-    setSaving(true);
+  const refreshStatus = useCallback(async () => {
+    setBusyServiceId('refresh');
     try {
-      await api.setApiKey(provider, key);
-      setKeyValues((prev) => ({ ...prev, [provider]: '' }));
       await loadSettings();
+      await checkConnectionStatus();
     } finally {
-      setSaving(false);
+      setBusyServiceId(null);
     }
-  }, [keyValues, api, loadSettings]);
-
-  const testApiKey = useCallback(async (provider) => {
-    if (!api?.testApiKey) return;
-    setSaving(true);
-    try {
-      await api.testApiKey(provider);
-    } finally {
-      setSaving(false);
-    }
-  }, [api]);
-
-  const disconnectApiKey = useCallback(async (provider) => {
-    if (!api?.removeApiKey) return;
-    setSaving(true);
-    try {
-      await api.removeApiKey(provider);
-      await loadSettings();
-    } finally {
-      setSaving(false);
-    }
-  }, [api, loadSettings]);
+  }, [checkConnectionStatus, loadSettings]);
 
   const setTheme = useCallback((theme) => {
     api?.setTheme?.(theme);
@@ -132,363 +223,229 @@ export default function SettingsPage() {
     dispatch({ type: 'SET_SETTINGS', payload: { autoPolling, pollingInterval: intervalMs } });
   }, [api, dispatch]);
 
-  const saveCloudflare = useCallback(async () => {
-    if (!api?.setCloudflareConfig) return;
-    setSaving(true);
-    setSaveButtonText('SAVING...');
-    try {
-      await api.setCloudflareConfig(cloudflareAccountId, cloudflareToken);
-      await loadSettings();
-      setSaveButtonText('SAVED!');
-      setCloudflareAccountId('');
-      setCloudflareToken('');
-      setTimeout(() => setSaveButtonText('SAVE'), 2000);
-    } catch (err) {
-      console.error(err);
-      setSaveButtonText('ERROR');
-      setTimeout(() => setSaveButtonText('SAVE'), 2000);
-    } finally {
-      setSaving(false);
-    }
-  }, [api, cloudflareAccountId, cloudflareToken, loadSettings]);
-
-  const unlinkCloudflare = useCallback(async () => {
-    if (!api?.clearCloudflareConfig) return;
-    setSaving(true);
-    try {
-      await api.clearCloudflareConfig();
-      await loadSettings();
-      setCloudflareAccountId('');
-      setCloudflareToken('');
-    } finally {
-      setSaving(false);
-    }
-  }, [api, loadSettings]);
-
-  const pushKeys = useCallback(async () => {
-    if (!api?.pushKeysToCloudflare) return;
-    setPushingKeys(true);
-    setPushButtonText('PUSHING...');
-    try {
-      await api.pushKeysToCloudflare();
-      setPushButtonText('PUSHED!');
-      setTimeout(() => setPushButtonText('PUSH KEYS'), 2000);
-    } catch (err) {
-      console.error(err);
-      setPushButtonText('ERROR');
-      setTimeout(() => setPushButtonText('PUSH KEYS'), 2000);
-    } finally {
-      setPushingKeys(false);
-    }
-  }, [api]);
-
-  const pullKeys = useCallback(async () => {
-    if (!api?.pullKeysFromCloudflare) return;
-    setPullingKeys(true);
-    setPullButtonText('PULLING...');
-    try {
-      await api.pullKeysFromCloudflare();
-      await loadSettings();
-      setPullButtonText('PULLED!');
-      setTimeout(() => setPullButtonText('PULL KEYS'), 2000);
-    } catch (err) {
-      console.error(err);
-      setPullButtonText('ERROR');
-      setTimeout(() => setPullButtonText('PULL KEYS'), 2000);
-    } finally {
-      setPullingKeys(false);
-    }
-  }, [api, loadSettings]);
-
   const updateApp = useCallback(() => {
     api?.updateApp?.();
   }, [api]);
 
   return (
-    <div id="view-settings" className="view-content max-w-4xl mx-auto w-full space-y-8">
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">key</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Cloud Service Keys</h3>
-        </div>
-        <div className="space-y-8">
-          <div className="space-y-2">
-            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Jira Base URL</label>
-            <div className="flex gap-2 inner-glow">
-              <input
-                type="text"
-                value={jiraBaseUrl}
-                onChange={(e) => setJiraBaseUrl(e.target.value)}
-                placeholder="https://your-domain.atlassian.net"
-                className="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white"
-              />
-              <Button variant="primary" onClick={saveJiraBaseUrl} disabled={saving}>SAVE</Button>
-            </div>
-            <p className="text-[10px] technical-font text-slate-500 opacity-60">Your Jira site URL (no trailing slash)</p>
-          </div>
-          {CLOUD_KEYS.map(({ id, label, placeholder, hint }) => (
-            <ApiKeyRow
-              key={id}
-              id={`${id}-api-key`}
-              label={label}
-              placeholder={placeholder}
-              hint={hint}
-              value={keyValues[id] ?? ''}
-              onChange={(v) => setKeyValues((prev) => ({ ...prev, [id]: v }))}
-              onSave={() => saveApiKey(id)}
-              onTest={() => testApiKey(id)}
-              onDisconnect={() => disconnectApiKey(id)}
-              configured={configuredServices[id]}
-              saving={saving}
-            />
-          ))}
-          <div className="space-y-2">
-            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Cloudflare Account ID</label>
-            <input
-              id="cloudflare-account-id"
-              type="text"
-              value={cloudflareAccountId}
-              onChange={(e) => setCloudflareAccountId(e.target.value)}
-              placeholder={isCloudflareConfigured ? '••••••••••••••••' : "Enter Cloudflare Account ID"}
-              className="flex-1 w-full bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white"
-            />
-            <p className="text-[10px] technical-font text-slate-500 opacity-60">Used for Cloudflare KV (computers registry)</p>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Cloudflare API Token</label>
-            <div className="flex gap-2">
-              <input
-                id="cloudflare-api-token"
-                type="password"
-                value={cloudflareToken}
-                onChange={(e) => setCloudflareToken(e.target.value)}
-                placeholder={isCloudflareConfigured ? '••••••••••••••••' : "Enter Cloudflare API token"}
-                className="flex-1 bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg text-sm py-2.5 px-4 text-slate-800 dark:text-white"
-              />
-              <Button variant="primary" onClick={saveCloudflare} disabled={saving}>{saveButtonText}</Button>
-              <Button variant="secondary" onClick={async () => { if (api?.testCloudflare) await api.testCloudflare(); }} disabled={saving}>TEST</Button>
-              {isCloudflareConfigured && (
-                <button
-                  type="button"
-                  onClick={unlinkCloudflare}
-                  className="border border-red-900/50 text-red-400 px-4 py-2.5 text-[10px] technical-font font-bold hover:bg-red-900/20 flex items-center gap-1 rounded-lg transition-all"
-                >
-                  <span className="material-symbols-outlined text-sm">link_off</span>
-                </button>
-              )}
-            </div>
-            <p className="text-[10px] technical-font text-slate-500 opacity-60">Create an API token with KV permissions</p>
-          </div>
-
-          {isCloudflareConfigured && (
-            <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-border-dark">
-              <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Key Synchronization (KV Store)</label>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={pushKeys} disabled={pushingKeys}>
-                  <span className="material-symbols-outlined text-sm mr-1">cloud_upload</span>
-                  {pushButtonText}
-                </Button>
-                <Button variant="secondary" onClick={pullKeys} disabled={pullingKeys}>
-                  <span className="material-symbols-outlined text-sm mr-1">cloud_download</span>
-                  {pullButtonText}
-                </Button>
+    <>
+      <div id="view-settings" className="view-content max-w-6xl mx-auto w-full space-y-8">
+        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="material-symbols-outlined text-primary text-3xl">link</span>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Connected Services</h2>
               </div>
-              <p className="text-[10px] technical-font text-slate-500 opacity-60">Sync API keys across devices using Cloudflare KV.</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
+                Setup now happens through guided onboarding. Settings only shows services that are already linked, along with their current connection state.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={refreshStatus} disabled={busyServiceId === 'refresh'}>
+                {busyServiceId === 'refresh' ? 'CHECKING...' : 'REFRESH STATUS'}
+              </Button>
+              <Button variant="primary" onClick={() => openOnboarding()}>
+                ADD SERVICE
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
+          {connectedServices.length === 0 ? (
+            <div className="text-center py-12 space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-3xl">hub</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">No services connected yet</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                  Start onboarding to connect your local or cloud assistants before using the dashboard.
+                </p>
+              </div>
+              <Button variant="primary" onClick={() => openOnboarding()}>
+                START ONBOARDING
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+              {connectedServices.map((serviceId) => {
+                const definition = getServiceDefinition(serviceId);
+                const status = getServiceStatus(serviceId, state);
+                const statusMeta = getStatusMeta(status);
+                const summary = getServiceSummary(serviceId, state, status);
+
+                return (
+                  <div
+                    key={serviceId}
+                    className="rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50/60 dark:bg-[#11151b] p-6"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined">{definition?.icon || 'link'}</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{definition?.title || serviceId}</h3>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusMeta.className}`}>
+                              {statusMeta.label}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{definition?.subtitle}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">{summary}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                      <Button variant="secondary" onClick={() => openOnboarding(serviceId)}>
+                        MANAGE
+                      </Button>
+                      {isDisconnectable(serviceId, state) && (
+                        <Button
+                          variant="danger"
+                          onClick={() => disconnectService(serviceId)}
+                          disabled={busyServiceId === serviceId}
+                        >
+                          {busyServiceId === serviceId ? 'DISCONNECTING...' : 'DISCONNECT'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
-      </section>
+        </section>
 
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">smart_toy</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Agent Model Keys</h3>
-        </div>
-        <div className="space-y-8">
-          {MODEL_KEYS.map(({ id, label, placeholder, hint }) => (
-            <ApiKeyRow
-              key={id}
-              id={`${id}-api-key`}
-              label={label}
-              placeholder={placeholder}
-              hint={hint}
-              value={keyValues[id] ?? ''}
-              onChange={(v) => setKeyValues((prev) => ({ ...prev, [id]: v }))}
-              onSave={() => saveApiKey(id)}
-              onTest={() => testApiKey(id)}
-              onDisconnect={() => disconnectApiKey(id)}
-              configured={configuredServices[id]}
-              saving={saving}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">smart_toy</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Agent Model</h3>
-        </div>
-        <div className="space-y-2">
-          <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Orchestrator Model</label>
-          <ModelSelector value={selectedModel} onChange={saveModel} />
-          <p className="text-[10px] technical-font text-slate-500 opacity-60">The AI model used for the main agent chat.</p>
-        </div>
-      </section>
-
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">monitor</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Display</h3>
-        </div>
-        <div className="space-y-4">
-          <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">App Theme</label>
-          <div className="grid grid-cols-3 gap-4">
-            {['system', 'light', 'dark'].map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                onClick={() => setTheme(theme)}
-                className={`flex flex-col items-center gap-3 p-4 border rounded-lg transition-all ${
-                  settings.theme === theme ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary'
-                }`}
-              >
-                <span className="material-symbols-outlined text-slate-500">
-                  {theme === 'system' ? 'settings_brightness' : theme === 'light' ? 'light_mode' : 'dark_mode'}
-                </span>
-                <span className="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">{theme.toUpperCase()}</span>
-              </button>
-            ))}
+        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="material-symbols-outlined text-primary">smart_toy</span>
+            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Agent Model</h3>
           </div>
-        </div>
-        <div className="space-y-4 mt-8">
-          <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Window Mode</label>
-          <div className="grid grid-cols-2 gap-4">
-            {['windowed', 'fullscreen'].map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setDisplayMode(mode)}
-                className={`flex flex-col items-center gap-3 p-4 border rounded-lg transition-all ${
-                  settings.displayMode === mode ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary'
-                }`}
-              >
-                <span className="material-symbols-outlined text-slate-500">{mode === 'windowed' ? 'grid_view' : 'fullscreen'}</span>
-                <span className="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">
-                  {mode === 'windowed' ? 'WINDOWED' : 'FULL SCREEN'}
-                </span>
-              </button>
-            ))}
+          <div className="space-y-2">
+            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Orchestrator Model</label>
+            <ModelSelector value={selectedModel} onChange={saveModel} />
+            <p className="text-[10px] technical-font text-slate-500 opacity-60">The AI model used for the main agent chat.</p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">history</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Data Polling</h3>
-        </div>
-        <div className="space-y-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.autoPolling !== false}
-              onChange={(e) => updatePolling(e.target.checked, settings.pollingInterval)}
-              className="form-checkbox h-4 w-4 bg-transparent border-primary text-primary focus:ring-0"
-            />
-            <span className="text-sm technical-font text-slate-300">Enable auto refresh</span>
-          </label>
-          <div className="flex justify-between items-end">
-            <label className="text-[10px] technical-font text-slate-500">Refresh interval</label>
-            <span className="text-primary font-display font-bold">
-              {Math.round((settings.pollingInterval || 30000) / 1000)} SECONDS
-            </span>
+        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="material-symbols-outlined text-primary">monitor</span>
+            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Display</h3>
           </div>
-          <input
-            type="range"
-            min="5"
-            max="300"
-            step="5"
-            value={Math.round((settings.pollingInterval || 30000) / 1000)}
-            onChange={(e) => updatePolling(settings.autoPolling !== false, parseInt(e.target.value, 10) * 1000)}
-            className="w-full cursor-pointer"
-          />
-        </div>
-      </section>
+          <div className="space-y-4">
+            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">App Theme</label>
+            <div className="grid grid-cols-3 gap-4">
+              {['system', 'light', 'dark'].map((theme) => (
+                <button
+                  key={theme}
+                  id={`theme-${theme}`}
+                  type="button"
+                  onClick={() => setTheme(theme)}
+                  className={`flex flex-col items-center gap-3 p-4 border rounded-lg transition-all ${
+                    state.settings.theme === theme ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-slate-500">
+                    {theme === 'system' ? 'settings_brightness' : theme === 'light' ? 'light_mode' : 'dark_mode'}
+                  </span>
+                  <span className="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">{theme.toUpperCase()}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-4 mt-8">
+            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">Window Mode</label>
+            <div className="grid grid-cols-2 gap-4">
+              {['windowed', 'fullscreen'].map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setDisplayMode(mode)}
+                  className={`flex flex-col items-center gap-3 p-4 border rounded-lg transition-all ${
+                    state.settings.displayMode === mode ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-slate-500">{mode === 'windowed' ? 'grid_view' : 'fullscreen'}</span>
+                  <span className="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">
+                    {mode === 'windowed' ? 'WINDOWED' : 'FULL SCREEN'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
 
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">source</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">GitHub Repository Paths</h3>
-        </div>
-        <p className="text-sm text-slate-400 mb-4 technical-font">
-          Add paths to folders containing your Git repositories. CLI tools will scan these for available projects.
-        </p>
-        <PathRow
-          label="Add path"
-          placeholder="e.g., D:\GitHub or ~/projects..."
-          value={newGithubPath}
-          onChange={setNewGithubPath}
-          paths={settings.githubPaths || []}
-          onAdd={async () => {
-            const p = newGithubPath.trim();
-            if (p && api?.addGithubPath) {
-              await api.addGithubPath(p);
-              setNewGithubPath('');
-              await loadSettings();
-            }
-          }}
-          onBrowse={async () => {
-            const p = await api?.openDirectory?.();
-            if (p && api?.addGithubPath) {
-              await api.addGithubPath(p);
-              await loadSettings();
-            }
-          }}
-          onRemove={async (path) => {
-            if (api?.removeGithubPath) {
-              await api.removeGithubPath(path);
-              await loadSettings();
-            }
-          }}
-        />
-      </section>
-
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">monitor_heart</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Health Check</h3>
-        </div>
-        <div className="space-y-4">
-          {STATUS_KEYS.map((key) => (
-            <div key={key} className="flex justify-between items-center text-sm border-b border-slate-100 dark:border-border-dark py-3 last:border-0">
-              <span className="text-slate-600 dark:text-slate-400 font-medium">
-                {key === 'claude-cli' ? 'Claude CLI' : key === 'claude-cloud' ? 'Claude Cloud' : key.charAt(0).toUpperCase() + key.slice(1)}
-              </span>
-              <span className={statusClass(connectionStatus[key])} title={connectionStatus[key]?.error}>
-                {statusText(connectionStatus[key])}
+        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="material-symbols-outlined text-primary">history</span>
+            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Data Polling</h3>
+          </div>
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={state.settings.autoPolling !== false}
+                onChange={(e) => updatePolling(e.target.checked, state.settings.pollingInterval)}
+                className="form-checkbox h-4 w-4 bg-transparent border-primary text-primary focus:ring-0"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-300">Enable auto refresh</span>
+            </label>
+            <div className="flex justify-between items-end">
+              <label className="text-[10px] technical-font text-slate-500">Refresh interval</label>
+              <span className="text-primary font-display font-bold">
+                {Math.round((state.settings.pollingInterval || 30000) / 1000)} SECONDS
               </span>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-xl">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="material-symbols-outlined text-primary">system_update</span>
-          <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">System</h3>
-        </div>
-        <div className="flex justify-between items-center">
-          <div>
-            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Update Application</h4>
-            <p className="text-[10px] technical-font text-slate-500 mt-1">Pull latest changes from GitHub and restart the application.</p>
+            <input
+              type="range"
+              min="5"
+              max="300"
+              step="5"
+              value={Math.round((state.settings.pollingInterval || 30000) / 1000)}
+              onChange={(e) => updatePolling(state.settings.autoPolling !== false, parseInt(e.target.value, 10) * 1000)}
+              className="w-full cursor-pointer"
+            />
           </div>
-          <Button id="update-app-btn" variant="primary" onClick={updateApp}>
-            <span className="material-symbols-outlined text-sm">download</span>
-            UPDATE & RESTART
-          </Button>
-        </div>
-      </section>
-    </div>
+        </section>
+
+        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
+          <div className="flex items-center gap-3 mb-8">
+            <span className="material-symbols-outlined text-primary">system_update</span>
+            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">System</h3>
+          </div>
+          <div className="flex justify-between items-center gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">Update Application</h4>
+              <p className="text-[10px] technical-font text-slate-500 mt-1">Pull latest changes from GitHub and restart the application.</p>
+            </div>
+            <Button id="update-app-btn" variant="primary" onClick={updateApp}>
+              <span className="material-symbols-outlined text-sm">download</span>
+              UPDATE & RESTART
+            </Button>
+          </div>
+        </section>
+      </div>
+
+      <ServiceOnboardingModal
+        open={onboardingOpen}
+        initialServiceId={activeServiceId}
+        requiredConnection={connectedServices.length === 0}
+        hasConnectedServices={connectedServices.length > 0}
+        state={state}
+        api={api}
+        loadSettings={loadSettings}
+        checkConnectionStatus={checkConnectionStatus}
+        onClose={() => setOnboardingOpen(false)}
+        onConnected={() => {
+          setOnboardingOpen(false);
+          setActiveServiceId(null);
+        }}
+      />
+    </>
   );
 }

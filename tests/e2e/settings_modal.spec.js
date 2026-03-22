@@ -27,13 +27,13 @@ test.describe('Settings View', () => {
     const settingsView = window.locator('#view-settings');
     await expect(settingsView).toBeVisible();
 
-    // Verify API Keys Section exists
-    const apiKeysHeader = window.locator('h3:has-text("API Command Keys")');
-    await expect(apiKeysHeader).toBeVisible();
+    // Verify the new connected services summary is visible
+    const connectedServicesHeader = window.locator('h2:has-text("Connected Services")');
+    await expect(connectedServicesHeader).toBeVisible();
 
-    // Check for Jules API Key input
-    const julesInput = window.locator('#jules-api-key');
-    await expect(julesInput).toBeVisible();
+    // Verify onboarding entry point exists
+    const addServiceBtn = window.locator('button:has-text("ADD SERVICE")');
+    await expect(addServiceBtn).toBeVisible();
 
     // Check for Theme options
     const themeSection = window.locator('h3:has-text("Display")');
@@ -46,21 +46,26 @@ test.describe('Settings View', () => {
     await expect(darkThemeBtn).toBeVisible();
   });
 
-  test('should be able to enter an API key', async () => {
-    // Navigate to Settings if not already there (though previous test should have left it there)
-    // But tests should be independent if possible. Since we reuse the app instance, state persists.
+  test('should open the onboarding modal from settings', async () => {
     const settingsBtn = window.locator('button[data-view="settings"]');
     await settingsBtn.click();
 
-    const julesInput = window.locator('#jules-api-key');
-    await julesInput.fill('test-api-key');
+    const addServiceBtn = window.locator('button:has-text("ADD SERVICE")');
+    await addServiceBtn.click();
 
-    // We won't click SAVE as that might trigger IPC calls that fail or persist data we don't want
-    // But we can verify the value is there
-    await expect(julesInput).toHaveValue('test-api-key');
+    const onboardingTitle = window.locator('h2:has-text("Service Onboarding")');
+    await expect(onboardingTitle).toBeVisible();
+
+    const verifyButton = window.locator('button:has-text("VERIFY & CONNECT")');
+    await expect(verifyButton).toBeVisible();
   });
 
   test('should switch back to Dashboard view', async () => {
+    const closeModalBtn = window.locator('button:has-text("Cancel")');
+    if (await closeModalBtn.isVisible().catch(() => false)) {
+      await closeModalBtn.click();
+    }
+
     const dashboardBtn = window.locator('button[data-view="dashboard"]');
     await dashboardBtn.click();
 

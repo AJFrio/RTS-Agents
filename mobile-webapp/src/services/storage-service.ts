@@ -10,6 +10,14 @@
 import type { AppSettings, CloudflareConfig, ApiKeyStatus } from '../store/types';
 
 const STORAGE_PREFIX = 'rts_agents_';
+const LEGACY_KEY_ALIASES: Record<string, string[]> = {
+  jules: ['julesApiKey'],
+  cursor: ['cursorApiKey'],
+  codex: ['codexApiKey', 'openai', 'openaiApiKey'],
+  claude: ['claudeApiKey', 'anthropic', 'anthropicApiKey'],
+  jira: ['jiraApiKey', 'jiraToken'],
+  github: ['githubApiKey', 'githubToken'],
+};
 
 // Simple obfuscation (base64 encode/decode)
 function encode(value: string): string {
@@ -36,6 +44,9 @@ class StorageService {
   setApiKey(provider: string, key: string): void {
     if (key) {
       localStorage.setItem(`${STORAGE_PREFIX}key_${provider}`, encode(key));
+      (LEGACY_KEY_ALIASES[provider] || []).forEach((alias) => {
+        localStorage.removeItem(`${STORAGE_PREFIX}key_${alias}`);
+      });
     } else {
       localStorage.removeItem(`${STORAGE_PREFIX}key_${provider}`);
     }
@@ -43,12 +54,25 @@ class StorageService {
 
   getApiKey(provider: string): string | null {
     const stored = localStorage.getItem(`${STORAGE_PREFIX}key_${provider}`);
-    if (!stored) return null;
-    return decode(stored);
+    if (stored) {
+      return decode(stored);
+    }
+
+    for (const alias of LEGACY_KEY_ALIASES[provider] || []) {
+      const legacyValue = localStorage.getItem(`${STORAGE_PREFIX}key_${alias}`);
+      if (legacyValue) {
+        return decode(legacyValue);
+      }
+    }
+
+    return null;
   }
 
   removeApiKey(provider: string): void {
     localStorage.removeItem(`${STORAGE_PREFIX}key_${provider}`);
+    (LEGACY_KEY_ALIASES[provider] || []).forEach((alias) => {
+      localStorage.removeItem(`${STORAGE_PREFIX}key_${alias}`);
+    });
   }
 
   hasApiKey(provider: string): boolean {

@@ -60,6 +60,15 @@ class GeminiService {
      }
   }
 
+  async testConnection() {
+    try {
+      await this.request('/v1beta/models');
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
   /**
    * Get the default Gemini CLI directory
    */

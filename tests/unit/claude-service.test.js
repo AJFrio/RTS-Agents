@@ -7,6 +7,11 @@ jest.mock('fs', () => ({
   statSync: jest.fn(),
   readFileSync: jest.fn(),
   mkdirSync: jest.fn(),
+  promises: {
+    readdir: jest.fn(),
+    stat: jest.fn(),
+    readFile: jest.fn(),
+  }
 }));
 jest.mock('https');
 jest.mock('os', () => ({
@@ -91,6 +96,41 @@ describe('ClaudeService', () => {
       const session = {};
 
       expect(claudeService.inferStatus(session, stats)).toBe('completed');
+    });
+  });
+
+  describe('getProjectSessions', () => {
+    test('getProjectSessions returns sessions from valid directory', async () => {
+      const projectPath = '/path/to/project';
+      const sessionsPath = '/path/to/project/sessions';
+      const file = 'session1.json';
+      const sessionData = {
+        title: 'Test Session',
+        startTime: '2023-01-01T00:00:00.000Z'
+      };
+
+      fs.existsSync.mockReturnValue(true);
+      fs.promises.readdir.mockResolvedValue([file]);
+      fs.promises.stat.mockResolvedValue({
+        birthtime: new Date('2023-01-01'),
+        mtime: new Date('2023-01-02')
+      });
+      fs.promises.readFile.mockResolvedValue(JSON.stringify(sessionData));
+
+      const sessions = await claudeService.getProjectSessions(projectPath, sessionsPath);
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].name).toBe('Test Session');
+      expect(fs.promises.readdir).toHaveBeenCalledWith(sessionsPath);
+      expect(fs.promises.readFile).toHaveBeenCalledWith(path.join(sessionsPath, file), 'utf-8');
+    });
+
+    test('getProjectSessions handles errors and returns empty array', async () => {
+      fs.existsSync.mockReturnValue(true);
+      fs.promises.readdir.mockRejectedValue(new Error('Read error'));
+
+      const sessions = await claudeService.getProjectSessions('/path', '/path/sessions');
+      expect(sessions).toEqual([]);
     });
   });
 

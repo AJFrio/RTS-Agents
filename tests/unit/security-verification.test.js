@@ -11,14 +11,18 @@ jest.mock('fs', () => ({
 }));
 
 // Require services AFTER mocking/spying
-const claudeService = require('../../src/main/services/claude-service');
-const geminiService = require('../../src/main/services/gemini-service');
-const queueProcessorService = require('../../src/main/services/queue-processor-service');
+let claudeService = require('../../src/main/services/claude-service');
+let geminiService = require('../../src/main/services/gemini-service');
+let queueProcessorService = require('../../src/main/services/queue-processor-service');
 
 describe('Security Verification - Command Injection', () => {
   beforeEach(() => {
+    jest.resetModules();
     spawnSpy.mockClear();
     spawnSyncSpy.mockClear();
+    claudeService = require('../../src/main/services/claude-service');
+    geminiService = require('../../src/main/services/gemini-service');
+    queueProcessorService = require('../../src/main/services/queue-processor-service');
   });
 
   describe('ClaudeService', () => {
@@ -55,9 +59,15 @@ describe('Security Verification - Command Injection', () => {
       const prompt = 'test prompt " with quotes';
       const projectPath = '/tmp/project';
 
+      // Mock fsPromises.access to return resolved promise for projectPath
+      const fsPromises = require('fs').promises;
+      jest.spyOn(fsPromises, 'access').mockResolvedValue(undefined);
+
       try {
         await geminiService.startSession({ prompt, projectPath });
-      } catch (e) {}
+      } catch (e) {
+        console.error('startSession error:', e);
+      }
 
       expect(spawnSpy).toHaveBeenCalledWith(
         expect.any(String),

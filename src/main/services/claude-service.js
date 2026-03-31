@@ -1,4 +1,5 @@
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const { upsertItem } = require('../utils/collection-utils');
@@ -108,13 +109,15 @@ class ClaudeService {
     }
 
     try {
-      const files = fs.readdirSync(sessionsPath).filter(f => f.endsWith('.json'));
+      const files = (await fsPromises.readdir(sessionsPath)).filter(f => f.endsWith('.json'));
 
-      for (const file of files) {
+      const sessionPromises = files.map(async (file) => {
         try {
           const filePath = path.join(sessionsPath, file);
-          const stats = fs.statSync(filePath);
-          const content = fs.readFileSync(filePath, 'utf-8');
+          const [stats, content] = await Promise.all([
+            fsPromises.stat(filePath),
+            fsPromises.readFile(filePath, 'utf-8')
+          ]);
           const session = JSON.parse(content);
 
           // Use session timestamps if available, fall back to file stats
@@ -123,7 +126,7 @@ class ClaudeService {
           const updatedAt = session.lastUpdated || session.updated_at ? 
             new Date(session.lastUpdated || session.updated_at) : stats.mtime;
 
-          sessions.push({
+          return {
             id: `claude-local-${path.basename(projectPath)}-${file.replace('.json', '')}`,
             provider: 'claude',
             source: 'local',
@@ -137,11 +140,14 @@ class ClaudeService {
             filePath: filePath,
             projectHash: path.basename(projectPath),
             messageCount: this.countMessages(session)
-          });
+          };
         } catch (err) {
-          // Ignore error
+          return null;
         }
-      }
+      });
+
+      const results = await Promise.all(sessionPromises);
+      return results.filter(s => s !== null);
     } catch (err) {
       // Ignore error
     }

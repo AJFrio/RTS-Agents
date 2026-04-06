@@ -206,6 +206,29 @@ describe('Jira Service', () => {
         expect.any(Function)
       );
     });
+    test('assignIssue sends correct request', async () => {
+      const promise = jiraService.assignIssue('TEST-1', 'account-123');
+
+      mockResponse.emit('data', JSON.stringify({}));
+      mockResponse.emit('end');
+
+      await promise;
+
+      expect(httpsRequestSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: expect.stringContaining('/rest/api/3/issue/TEST-1/assignee'),
+          method: 'PUT'
+        }),
+        expect.any(Function)
+      );
+
+      expect(mockRequest.write).toHaveBeenCalledWith(JSON.stringify({ accountId: 'account-123' }));
+    });
+
+    test('assignIssue throws when arguments missing', async () => {
+      await expect(jiraService.assignIssue('TEST-1')).rejects.toThrow('Issue ID/Key and account ID are required');
+      await expect(jiraService.assignIssue(null, 'account-123')).rejects.toThrow('Issue ID/Key and account ID are required');
+    });
   });
 
   describe('Connection Test', () => {

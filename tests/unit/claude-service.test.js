@@ -138,22 +138,26 @@ describe('ClaudeService', () => {
     test('discoverProjects finds projects with sessions', async () => {
       const projectsDir = path.join(mockHomeDir, '.claude', 'projects');
 
-      // Mock directory structure
-      fs.existsSync.mockImplementation((p) => {
-        if (p === projectsDir) return true;
-        if (p.endsWith('my-project')) return true;
-        if (p.endsWith('sessions')) return true;
-        return false;
+      // Mock directory structure using fs.promises for the new async logic
+      if (!fs.promises.access) {
+        fs.promises.access = jest.fn();
+      }
+
+      fs.promises.access.mockImplementation(async (p) => {
+        if (p === projectsDir) return Promise.resolve();
+        if (p.endsWith('my-project')) return Promise.resolve();
+        if (p.endsWith('sessions')) return Promise.resolve();
+        return Promise.reject(new Error('ENOENT'));
       });
 
-      fs.readdirSync.mockImplementation((p, options) => {
+      fs.promises.readdir.mockImplementation(async (p, options) => {
         if (p === projectsDir) {
-          return [{
+          return Promise.resolve([{
             name: 'my-project',
             isDirectory: () => true
-          }];
+          }]);
         }
-        return [];
+        return Promise.resolve([]);
       });
 
       const projects = await claudeService.discoverProjects();

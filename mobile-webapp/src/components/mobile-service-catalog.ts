@@ -100,6 +100,7 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     fields: [
       { key: 'accountId', label: 'Account ID', type: 'text', placeholder: 'Enter Cloudflare account ID' },
       { key: 'apiToken', label: 'API Token', type: 'password', placeholder: 'Enter Cloudflare API token' },
+      { key: 'namespaceTitle', label: 'Namespace Title', type: 'text', placeholder: 'rtsa' },
     ],
   },
 ];

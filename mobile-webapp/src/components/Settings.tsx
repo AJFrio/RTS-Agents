@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { storageService } from '../services/storage-service';
+import { cloudflareKvService } from '../services/cloudflare-kv-service';
 import ServiceOnboardingSheet from './ServiceOnboardingSheet';
 import { MOBILE_SERVICE_CATALOG, type MobileServiceId } from './mobile-service-catalog';
 import ModelSelector from './ModelSelector';
@@ -111,10 +112,11 @@ export default function Settings() {
       if (serviceId === 'cloudflare') {
         const accountId = (values.accountId || '').trim();
         const apiToken = (values.apiToken || '').trim();
+        const namespaceTitle = (values.namespaceTitle || 'rtsa').trim() || 'rtsa';
         if (!accountId || !apiToken) {
           return { success: false, error: 'Enter both the Cloudflare account ID and API token.' };
         }
-        setCloudflareConfig({ accountId, apiToken });
+        setCloudflareConfig({ accountId, apiToken, namespaceTitle });
         const result = await testCloudflareConfig();
         refreshConfiguredServices();
         return result;
@@ -150,6 +152,7 @@ export default function Settings() {
   const handleDisconnect = (serviceId: MobileServiceId) => {
     if (serviceId === 'cloudflare') {
       storageService.removeCloudflareConfig();
+      cloudflareKvService.setConfig(null);
     } else if (serviceId === 'jira') {
       storageService.removeApiKey('jira');
       dispatch({ type: 'SET_SETTINGS', payload: { jiraBaseUrl: '' } });

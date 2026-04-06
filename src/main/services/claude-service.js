@@ -47,51 +47,72 @@ class ClaudeService {
     const projects = [];
     const pathsToScan = [CLAUDE_PROJECTS_DIR, ...additionalPaths];
 
-    for (const basePath of pathsToScan) {
-      if (!fs.existsSync(basePath)) {
-        continue;
+    const pathPromises = pathsToScan.map(async (basePath) => {
+      try {
+        await fsPromises.access(basePath);
+      } catch {
+        return [];
       }
 
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
 
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip known non-project directories
-            if (entry.name === 'bin' || entry.name === 'cache' || entry.name === 'tmp') {
-              continue;
-            }
+        const entryPromises = entries.map(async (entry) => {
+          if (!entry.isDirectory()) return null;
+          // Skip known non-project directories
+          if (entry.name === 'bin' || entry.name === 'cache' || entry.name === 'tmp') {
+            return null;
+          }
 
-            const projectPath = path.join(basePath, entry.name);
-            
-            // Check for sessions directory or session files
-            const sessionsPath = path.join(projectPath, 'sessions');
-            const chatsPath = path.join(projectPath, 'chats');
-            
-            if (fs.existsSync(sessionsPath) || fs.existsSync(chatsPath)) {
-              projects.push({
+          const projectPath = path.join(basePath, entry.name);
+          const sessionsPath = path.join(projectPath, 'sessions');
+          const chatsPath = path.join(projectPath, 'chats');
+
+          // Check for sessions directory or session files
+          try {
+            await fsPromises.access(sessionsPath);
+            return {
+              hash: entry.name,
+              path: projectPath,
+              sessionsPath: sessionsPath
+            };
+          } catch { }
+
+          try {
+            await fsPromises.access(chatsPath);
+            return {
+              hash: entry.name,
+              path: projectPath,
+              sessionsPath: chatsPath
+            };
+          } catch { }
+
+          try {
+            // Check if the directory itself contains session files
+            const files = await fsPromises.readdir(projectPath);
+            const hasSessionFiles = files.some(f => f.endsWith('.json'));
+            if (hasSessionFiles) {
+              return {
                 hash: entry.name,
                 path: projectPath,
-                sessionsPath: fs.existsSync(sessionsPath) ? sessionsPath : chatsPath
-              });
-            } else {
-              // Check if the directory itself contains session files
-              const files = fs.readdirSync(projectPath);
-              const hasSessionFiles = files.some(f => f.endsWith('.json'));
-              if (hasSessionFiles) {
-                projects.push({
-                  hash: entry.name,
-                  path: projectPath,
-                  sessionsPath: projectPath
-                });
-              }
+                sessionsPath: projectPath
+              };
             }
-          }
-        }
+          } catch { }
+
+          return null;
+        });
+
+        const results = await Promise.all(entryPromises);
+        return results.filter(r => r !== null);
       } catch (err) {
         // Ignore errors
+        return [];
       }
-    }
+    });
+
+    const allResults = await Promise.all(pathPromises);
+    allResults.forEach(res => projects.push(...res));
 
     return projects;
   }

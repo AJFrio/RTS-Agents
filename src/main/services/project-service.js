@@ -4,9 +4,9 @@ const path = require('path');
 const { execFile } = require('child_process');
 
 class ProjectService {
-  execAsync(command, args = [], options = {}) {
+  execAsync(file, args = [], options = {}) {
     return new Promise((resolve, reject) => {
-      execFile(command, args, options, (error, stdout, stderr) => {
+      execFile(file, args, options, (error, stdout, stderr) => {
         if (error) {
           reject(new Error(stderr || stdout || error.message));
           return;
@@ -171,7 +171,7 @@ class ProjectService {
     // Use exec with cwd option, same approach as performUpdate in main.js
     // On Windows, ensure we use Windows Credential Manager if credential helper is problematic
     return new Promise((resolve, reject) => {
-      let command = 'git';
+      let file = 'git';
       let args = ['pull'];
       
       // On Windows with HTTPS, always use Windows Credential Manager
@@ -187,9 +187,9 @@ class ProjectService {
         cwd: repoPath
       };
       
-      console.log(`Executing: ${command} ${args.join(' ')} in directory: ${repoPath}`);
+      console.log(`Executing: ${file} ${args.join(' ')} in directory: ${repoPath}`);
       
-      execFile(command, args, options, (error, stdout, stderr) => {
+      execFile(file, args, options, (error, stdout, stderr) => {
         if (error) {
           console.error('=== Pull Failed ===');
           console.error(`Error Code: ${error.code}`);

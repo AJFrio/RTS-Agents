@@ -47,15 +47,7 @@ describe('ProjectService Unit Tests', () => {
         return false;
       });
 
-      mockExecFile.mockImplementation((cmd, args, opts, cb) => {
-        if (typeof args === 'function') {
-          args(null, 'stdout', 'stderr');
-        } else if (typeof opts === 'function') {
-          opts(null, 'stdout', 'stderr');
-        } else {
-          cb(null, 'stdout', 'stderr');
-        }
-      });
+      mockExecFile.mockImplementation((file, args, opts, cb) => cb(null, 'stdout', 'stderr'));
 
       const result = await projectService.createLocalRepo({ directory: dir, name });
 
@@ -118,15 +110,7 @@ describe('ProjectService Unit Tests', () => {
         return false;
       });
 
-      mockExecFile.mockImplementation((cmd, args, opts, cb) => {
-        if (typeof args === 'function') {
-          args(null, 'stdout', 'stderr');
-        } else if (typeof opts === 'function') {
-          opts(null, 'stdout', 'stderr');
-        } else {
-          cb(null, 'stdout', 'stderr');
-        }
-      });
+      mockExecFile.mockImplementation((file, args, opts, cb) => cb(null, 'stdout', 'stderr'));
 
       const result = await projectService.pullRepo(repoPath);
       expect(result).toBe(repoPath);

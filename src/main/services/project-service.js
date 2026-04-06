@@ -1,12 +1,12 @@
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 
 class ProjectService {
-  execAsync(command, options = {}) {
+  execAsync(command, args = [], options = {}) {
     return new Promise((resolve, reject) => {
-      exec(command, options, (error, stdout, stderr) => {
+      execFile(command, args, options, (error, stdout, stderr) => {
         if (error) {
           reject(new Error(stderr || stdout || error.message));
           return;
@@ -35,7 +35,7 @@ class ProjectService {
     }
 
     await fsp.mkdir(repoPath, { recursive: false });
-    await this.execAsync('git init', { cwd: repoPath });
+    await this.execAsync('git', ['init'], { cwd: repoPath });
 
     return repoPath;
   }
@@ -135,7 +135,7 @@ class ProjectService {
     // Check remote URL to understand authentication requirements
     let remoteUrl = null;
     try {
-      const remoteResult = await this.execAsync('git config --get remote.origin.url', { cwd: repoPath });
+      const remoteResult = await this.execAsync('git', ['config', '--get', 'remote.origin.url'], { cwd: repoPath });
       remoteUrl = remoteResult.stdout.trim();
       console.log(`Remote URL: ${remoteUrl}`);
     } catch (err) {
@@ -145,13 +145,13 @@ class ProjectService {
     // Check credential helper configuration
     let credentialHelper = null;
     try {
-      const helperResult = await this.execAsync('git config --get credential.helper', { cwd: repoPath });
+      const helperResult = await this.execAsync('git', ['config', '--get', 'credential.helper'], { cwd: repoPath });
       credentialHelper = helperResult.stdout.trim();
       console.log(`Credential Helper (repo): ${credentialHelper || '(not set)'}`);
     } catch (err) {
       // Not set at repo level, check global
       try {
-        const globalHelperResult = await this.execAsync('git config --global --get credential.helper', { cwd: repoPath });
+        const globalHelperResult = await this.execAsync('git', ['config', '--global', '--get', 'credential.helper'], { cwd: repoPath });
         credentialHelper = globalHelperResult.stdout.trim();
         console.log(`Credential Helper (global): ${credentialHelper || '(not set)'}`);
       } catch (err2) {
@@ -171,14 +171,15 @@ class ProjectService {
     // Use exec with cwd option, same approach as performUpdate in main.js
     // On Windows, ensure we use Windows Credential Manager if credential helper is problematic
     return new Promise((resolve, reject) => {
-      let command = 'git pull';
+      let command = 'git';
+      let args = ['pull'];
       
       // On Windows with HTTPS, always use Windows Credential Manager
       // This prevents git from trying to use bash-based credential helpers that fail in Electron
       if (process.platform === 'win32' && remoteUrl && remoteUrl.startsWith('https://')) {
         // 'manager' is the modern Git for Windows credential helper that works in Electron
         // This overrides any problematic credential helper config for this command only
-        command = `git -c credential.helper=manager pull`;
+        args = ['-c', 'credential.helper=manager', 'pull'];
         console.log(`Using Windows Credential Manager (manager) for HTTPS remote`);
       }
       
@@ -186,9 +187,9 @@ class ProjectService {
         cwd: repoPath
       };
       
-      console.log(`Executing: ${command} in directory: ${repoPath}`);
+      console.log(`Executing: ${command} ${args.join(' ')} in directory: ${repoPath}`);
       
-      exec(command, options, (error, stdout, stderr) => {
+      execFile(command, args, options, (error, stdout, stderr) => {
         if (error) {
           console.error('=== Pull Failed ===');
           console.error(`Error Code: ${error.code}`);

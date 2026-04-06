@@ -89,4 +89,46 @@ describe('OpenRouter Service', () => {
         expect.any(Function)
     );
   });
+
+  describe('getModels', () => {
+    test('returns empty array if no API key is set', async () => {
+      openRouterService.setApiKey(null);
+      const models = await openRouterService.getModels();
+      expect(models).toEqual([]);
+    });
+
+    test('returns mapped models on successful response', async () => {
+      const promise = openRouterService.getModels();
+
+      mockResponse.headers['content-type'] = 'application/json';
+      mockResponse.emit('data', JSON.stringify({
+        data: [
+          { id: 'model-1', name: 'Model 1' },
+          { id: 'model-2' }
+        ]
+      }));
+      mockResponse.emit('end');
+
+      const models = await promise;
+      expect(models).toEqual([
+        { id: 'openrouter/model-1', name: 'Model 1', provider: 'openrouter' },
+        { id: 'openrouter/model-2', name: 'model-2', provider: 'openrouter' }
+      ]);
+    });
+
+    test('catches error and returns empty array on request failure', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const promise = openRouterService.getModels();
+
+      mockResponse.statusCode = 500;
+      mockResponse.emit('data', 'Internal Server Error');
+      mockResponse.emit('end');
+
+      const models = await promise;
+      expect(models).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith('OpenRouter getModels error:', expect.any(Error));
+      consoleSpy.mockRestore();
+    });
+  });
 });

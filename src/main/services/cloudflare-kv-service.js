@@ -78,7 +78,7 @@ class CloudflareKvService {
             if (contentType.includes('application/json')) {
               try {
                 resolve(JSON.parse(data));
-              } catch (err) {
+              } catch {
                 // Should not happen if content-type is json, but safe fallback
                 resolve(data);
               }
@@ -181,7 +181,7 @@ class CloudflareKvService {
       const text = await this.getValueText(namespaceId, key);
       if (!text) return fallback;
       return JSON.parse(text);
-    } catch (err) {
+    } catch {
       // If key is missing, Cloudflare returns 404 (handled earlier) so this is parse/other.
       return fallback;
     }
@@ -194,7 +194,7 @@ class CloudflareKvService {
       // If something else is stored, reset to empty array.
       await this.putValue(namespaceId, 'devices', []);
       return [];
-    } catch (err) {
+    } catch {
       // If missing, create it.
       await this.putValue(namespaceId, 'devices', []);
       return [];

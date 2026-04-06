@@ -9,7 +9,7 @@ const mockReaddirSync = jest.fn();
 const mockMkdir = jest.fn();
 const mockReaddir = jest.fn();
 const mockAccess = jest.fn();
-const mockExec = jest.fn();
+const mockExecFile = jest.fn();
 
 // Mock modules
 jest.mock('fs', () => ({
@@ -24,7 +24,7 @@ jest.mock('fs/promises', () => ({
 }));
 
 jest.mock('child_process', () => ({
-  exec: mockExec
+  execFile: mockExecFile
 }));
 
 // Require service
@@ -47,13 +47,21 @@ describe('ProjectService Unit Tests', () => {
         return false;
       });
 
-      mockExec.mockImplementation((cmd, opts, cb) => cb(null, 'stdout', 'stderr'));
+      mockExecFile.mockImplementation((cmd, args, opts, cb) => {
+        if (typeof args === 'function') {
+          args(null, 'stdout', 'stderr');
+        } else if (typeof opts === 'function') {
+          opts(null, 'stdout', 'stderr');
+        } else {
+          cb(null, 'stdout', 'stderr');
+        }
+      });
 
       const result = await projectService.createLocalRepo({ directory: dir, name });
 
       expect(result).toContain('new-repo');
       expect(mockMkdir).toHaveBeenCalled();
-      expect(mockExec).toHaveBeenCalledWith('git init', expect.objectContaining({ cwd: expect.stringContaining('new-repo') }), expect.any(Function));
+      expect(mockExecFile).toHaveBeenCalledWith('git', ['init'], expect.objectContaining({ cwd: expect.stringContaining('new-repo') }), expect.any(Function));
     });
 
     test('should fail if base dir does not exist', async () => {
@@ -110,11 +118,19 @@ describe('ProjectService Unit Tests', () => {
         return false;
       });
 
-      mockExec.mockImplementation((cmd, opts, cb) => cb(null, 'stdout', 'stderr'));
+      mockExecFile.mockImplementation((cmd, args, opts, cb) => {
+        if (typeof args === 'function') {
+          args(null, 'stdout', 'stderr');
+        } else if (typeof opts === 'function') {
+          opts(null, 'stdout', 'stderr');
+        } else {
+          cb(null, 'stdout', 'stderr');
+        }
+      });
 
       const result = await projectService.pullRepo(repoPath);
       expect(result).toBe(repoPath);
-      expect(mockExec).toHaveBeenCalledWith('git pull', { cwd: repoPath }, expect.any(Function));
+      expect(mockExecFile).toHaveBeenCalledWith('git', ['pull'], { cwd: repoPath }, expect.any(Function));
     });
 
     test('should fail if not a git repo', async () => {

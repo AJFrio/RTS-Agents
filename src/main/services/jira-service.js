@@ -290,6 +290,22 @@ class JiraService {
     );
   }
 
+  async assignIssue(issueIdOrKey, accountId) {
+    if (!issueIdOrKey || !accountId) {
+      throw new Error('Issue ID/Key and account ID are required');
+    }
+
+    const body = {
+      accountId
+    };
+
+    return await this.request(
+      `/rest/api/3/issue/${encodeURIComponent(issueIdOrKey)}/assignee`,
+      'PUT',
+      body
+    );
+  }
+
   async testConnection() {
     try {
       // Validate configuration before attempting connection

@@ -702,40 +702,59 @@ class ClaudeService {
 
     // Only scan the provided paths for git repositories
     // Do NOT include Claude session folders from .claude/projects
-    for (const basePath of additionalPaths) {
-      if (!fs.existsSync(basePath)) continue;
-
+    const pathPromises = additionalPaths.map(async (basePath) => {
       // Skip the Claude directories - these are session data, not project repos
-      if (basePath.includes('.claude')) continue;
+      if (basePath.includes('.claude')) return [];
 
       try {
-        const entries = fs.readdirSync(basePath, { withFileTypes: true });
+        await fsPromises.access(basePath);
+      } catch {
+        return [];
+      }
 
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            // Skip hidden directories and common non-project folders
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-            
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
+      try {
+        const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
 
-            if (fs.existsSync(gitPath) && !scannedPaths.has(dirPath)) {
+        const entryPromises = entries.map(async (entry) => {
+          if (!entry.isDirectory()) return null;
+
+          // Skip hidden directories and common non-project folders
+          if (entry.name.startsWith('.') || entry.name === 'node_modules') {
+            return null;
+          }
+
+          const dirPath = path.join(basePath, entry.name);
+          const gitPath = path.join(dirPath, '.git');
+
+          try {
+            await fsPromises.access(gitPath);
+            if (!scannedPaths.has(dirPath)) {
               scannedPaths.add(dirPath);
-              projects.push({
+              return {
                 id: entry.name,
                 name: entry.name,
                 path: dirPath,
                 claudePath: null,
                 displayName: entry.name,
                 hasExistingSessions: false
-              });
+              };
             }
+          } catch {
+            // Not a git repo or access error
           }
-        }
+          return null;
+        });
+
+        const results = await Promise.all(entryPromises);
+        return results.filter(r => r !== null);
       } catch (err) {
         // Ignore error
+        return [];
       }
-    }
+    });
+
+    const allResults = await Promise.all(pathPromises);
+    allResults.forEach(res => projects.push(...res));
 
     return projects;
   }

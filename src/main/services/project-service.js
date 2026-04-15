@@ -137,36 +137,9 @@ class ProjectService {
     try {
       const remoteResult = await this.execAsync('git', ['config', '--get', 'remote.origin.url'], { cwd: repoPath });
       remoteUrl = remoteResult.stdout.trim();
-      console.log(`Remote URL: ${remoteUrl}`);
     } catch (err) {
-      console.log('Could not determine remote URL:', err.message);
+      // Ignore
     }
-
-    // Check credential helper configuration
-    let credentialHelper = null;
-    try {
-      const helperResult = await this.execAsync('git', ['config', '--get', 'credential.helper'], { cwd: repoPath });
-      credentialHelper = helperResult.stdout.trim();
-      console.log(`Credential Helper (repo): ${credentialHelper || '(not set)'}`);
-    } catch (err) {
-      // Not set at repo level, check global
-      try {
-        const globalHelperResult = await this.execAsync('git', ['config', '--global', '--get', 'credential.helper'], { cwd: repoPath });
-        credentialHelper = globalHelperResult.stdout.trim();
-        console.log(`Credential Helper (global): ${credentialHelper || '(not set)'}`);
-      } catch (err2) {
-        console.log('Credential Helper: (not configured)');
-      }
-    }
-
-    // Log execution details
-    console.log('=== Git Pull Execution Details ===');
-    console.log(`Platform: ${process.platform}`);
-    console.log(`Repository Path: ${repoPath}`);
-    console.log(`Working Directory (cwd): ${repoPath}`);
-    console.log(`Command: git pull`);
-    console.log(`Remote URL: ${remoteUrl || '(unknown)'}`);
-    console.log(`Credential Helper: ${credentialHelper || '(default)'}`);
 
     // Use exec with cwd option, same approach as performUpdate in main.js
     // On Windows, ensure we use Windows Credential Manager if credential helper is problematic
@@ -180,14 +153,11 @@ class ProjectService {
         // 'manager' is the modern Git for Windows credential helper that works in Electron
         // This overrides any problematic credential helper config for this command only
         args = ['-c', 'credential.helper=manager', 'pull'];
-        console.log(`Using Windows Credential Manager (manager) for HTTPS remote`);
       }
       
       const options = { 
         cwd: repoPath
       };
-      
-      console.log(`Executing: ${file} ${args.join(' ')} in directory: ${repoPath}`);
       
       execFile(file, args, options, (error, stdout, stderr) => {
         if (error) {
@@ -213,10 +183,6 @@ class ProjectService {
           reject(new Error(stderr || stdout || error.message));
           return;
         }
-
-        console.log('=== Pull Succeeded ===');
-        console.log(`Stdout: ${stdout || '(empty)'}`);
-        if (stderr) console.log(`Stderr: ${stderr}`);
 
         resolve(repoPath);
       });

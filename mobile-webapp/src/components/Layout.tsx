@@ -21,8 +21,12 @@ export default function Layout({ children }: LayoutProps) {
         return 'Dashboard';
       case 'branches':
         return 'Branches';
+      case 'pull-requests':
+        return 'Pull Requests';
       case 'computers':
         return 'Computers';
+      case 'agent':
+        return 'Agent';
       case 'jira':
         return 'Jira';
       case 'settings':

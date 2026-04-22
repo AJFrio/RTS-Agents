@@ -18,6 +18,7 @@ const configStore = require('./src/main/services/config-store');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
 const geminiService = require('./src/main/services/gemini-service');
 const claudeService = require('./src/main/services/claude-service');
+const opencodeService = require('./src/main/services/opencode-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
@@ -68,6 +69,18 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const cliCommands = configStore.getSetting('cliCommands') || {};
   const geminiCmd = typeof cliCommands?.gemini === 'string' ? cliCommands.gemini : '';
   const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
+  const opencodeCmd = typeof cliCommands?.opencode === 'string' ? cliCommands.opencode : '';
+
+  const availableCliTools = [];
+  if (geminiService.isGeminiInstalled() || queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
+    availableCliTools.push('Gemini CLI');
+  }
+  if (claudeService.isClaudeInstalled() || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
+    availableCliTools.push('claude CLI');
+  }
+  if (opencodeService.isOpenCodeInstalled() || queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
+    availableCliTools.push('OpenCode CLI');
+  }
 
   const device = {
     id: identity.id,
@@ -77,10 +90,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     ...(nextStatus === 'on' ? { lastHeartbeat: nowIso } : {}),
     status: nextStatus,
     lastStatusAt: nowIso,
-    tools: {
-      gemini: geminiService.isGeminiInstalled() || queueProcessorService.isCommandRunnable(geminiCmd || 'gemini'),
-      'claude-cli': claudeService.isClaudeInstalled() || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')
-    },
+    tools: [{ 'CLI tools': availableCliTools }],
     repos,
     reposUpdatedAt: nowIso
   };
@@ -137,6 +147,7 @@ async function runSetupPrompts() {
     const existingCli = configStore.getSetting('cliCommands') || {};
     let geminiCmd = typeof existingCli?.gemini === 'string' ? existingCli.gemini : '';
     let claudeCmd = typeof existingCli?.claude === 'string' ? existingCli.claude : '';
+    let opencodeCmd = typeof existingCli?.opencode === 'string' ? existingCli.opencode : '';
 
     if (!geminiService.isGeminiInstalled() && !queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
       const answer = String(await rl.question('Gemini CLI not detected. Full path to gemini executable (or blank to skip): ')).trim();
@@ -148,7 +159,12 @@ async function runSetupPrompts() {
       if (answer) claudeCmd = answer;
     }
 
-    configStore.setSetting('cliCommands', { gemini: geminiCmd, claude: claudeCmd });
+    if (!opencodeService.isOpenCodeInstalled() && !queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
+      const answer = String(await rl.question('OpenCode CLI not detected. Full path to opencode (or blank to skip): ')).trim();
+      if (answer) opencodeCmd = answer;
+    }
+
+    configStore.setSetting('cliCommands', { gemini: geminiCmd, claude: claudeCmd, opencode: opencodeCmd });
   } finally {
     rl.close();
   }
@@ -210,6 +226,8 @@ async function shutdown() {
 
 async function main() {
   await runSetupPrompts();
+  const ocSessions = configStore.getOpenCodeSessions();
+  opencodeService.setTrackedSessions(ocSessions);
   await startHttpServer();
 
   const namespaceId = await ensureCloudflareNamespaceId();

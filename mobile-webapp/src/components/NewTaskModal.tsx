@@ -26,7 +26,7 @@ const services: ServiceOption[] = [
 
 export default function NewTaskModal() {
   const { state, dispatch, createTask, getRepositories, loadComputers, dispatchRemoteTask } = useApp();
-  const { showNewTaskModal, configuredServices, computers, newTaskInitialPrompt } = state;
+  const { showNewTaskModal, configuredServices, computers, newTaskInitialPrompt, newTaskTargetDeviceId } = state;
 
   const [selectedService, setSelectedService] = useState<Provider | null>(null);
   const [targetDevice, setTargetDevice] = useState<'local' | string>('local'); // 'local' or device ID
@@ -38,6 +38,7 @@ export default function NewTaskModal() {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queueSuccess, setQueueSuccess] = useState<string | null>(null);
 
   // Load computers on mount
   useEffect(() => {
@@ -52,6 +53,12 @@ export default function NewTaskModal() {
       setPrompt(newTaskInitialPrompt);
     }
   }, [showNewTaskModal, newTaskInitialPrompt]);
+
+  useEffect(() => {
+    if (showNewTaskModal && newTaskTargetDeviceId) {
+      setTargetDevice(newTaskTargetDeviceId);
+    }
+  }, [showNewTaskModal, newTaskTargetDeviceId]);
 
   // Load repositories when service is selected
   useEffect(() => {
@@ -101,6 +108,8 @@ export default function NewTaskModal() {
   }, [selectedService, getRepositories]);
 
   const handleClose = () => {
+    dispatch({ type: 'SET_NEW_TASK_TARGET_DEVICE', payload: null });
+    dispatch({ type: 'SET_NEW_TASK_INITIAL_PROMPT', payload: null });
     dispatch({ type: 'SET_SHOW_NEW_TASK_MODAL', payload: false });
     // Reset form
     setSelectedService(null);
@@ -111,6 +120,7 @@ export default function NewTaskModal() {
     setPrompt('');
     setAutoCreatePr(true);
     setError(null);
+    setQueueSuccess(null);
   };
 
   const handleServiceSelect = (service: Provider) => {
@@ -142,8 +152,12 @@ export default function NewTaskModal() {
         // Find tool to use based on device capabilities (using new schema)
         let tool = 'gemini'; // Default to gemini for remote devices
 
-        if (hasTool(device, 'claude CLI')) {
+        if (hasTool(device, 'OpenCode CLI')) {
+          tool = 'opencode';
+        } else if (hasTool(device, 'claude CLI')) {
           tool = 'claude-cli';
+        } else if (hasTool(device, 'Codex CLI')) {
+          tool = 'codex';
         }
 
         await dispatchRemoteTask(targetDevice, {
@@ -152,7 +166,11 @@ export default function NewTaskModal() {
           prompt: prompt.trim(),
         });
 
-        handleClose();
+        const devName = device.name || targetDevice;
+        setQueueSuccess(`Task queued for ${devName}. It will run when that device is online.`);
+        setTimeout(() => {
+          handleClose();
+        }, 2000);
         return;
       }
 
@@ -214,6 +232,12 @@ export default function NewTaskModal() {
       {/* Content */}
       <div className="h-[calc(100vh-56px)] overflow-y-auto p-4 space-y-6 safe-bottom">
         {/* Error */}
+        {queueSuccess && (
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-500/50 rounded-xl shadow-sm">
+            <p className="text-sm text-emerald-800 dark:text-emerald-200">{queueSuccess}</p>
+          </div>
+        )}
+
         {error && (
           <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/50 rounded-xl shadow-sm">
             <div className="flex items-start gap-2">

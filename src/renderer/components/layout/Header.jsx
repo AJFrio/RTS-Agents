@@ -14,7 +14,7 @@ const VIEW_TITLES = {
 };
 
 export default function Header() {
-  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, loadAllPrs, openCreateRepoModal } = useApp();
+  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, loadAllPrs, openCreateRepoModal, checkConnectionStatus, loadRemoteQueueActivity } = useApp();
   const { currentView, counts, filters, refreshing, github } = state;
 
   const handleSearch = useMemo(
@@ -26,12 +26,15 @@ export default function Header() {
   );
 
   const handleRefresh = useCallback(() => {
-    if (currentView === 'dashboard') loadAgents(false);
-    else if (currentView === 'branches') loadBranches();
+    if (currentView === 'dashboard') {
+      loadAgents(false);
+      loadRemoteQueueActivity();
+    } else if (currentView === 'branches') loadBranches();
     else if (currentView === 'pull-requests') loadAllPrs();
     else if (currentView === 'computers') fetchComputers();
+    else if (currentView === 'agent') void checkConnectionStatus();
     else if (currentView === 'jira') setView('jira');
-  }, [currentView, loadAgents, setView, fetchComputers, loadBranches, loadAllPrs]);
+  }, [currentView, loadAgents, setView, fetchComputers, loadBranches, loadAllPrs, loadRemoteQueueActivity, checkConnectionStatus]);
 
   const showHeaderActions = currentView !== 'settings';
 

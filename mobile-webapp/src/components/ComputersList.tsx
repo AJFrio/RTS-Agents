@@ -108,6 +108,11 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
                 Claude CLI
               </span>
             )}
+            {checkTool('opencode') && (
+              <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/30 text-violet-600 dark:text-violet-400 text-xs uppercase">
+                OpenCode
+              </span>
+            )}
             {checkTool('codex') && (
               <span className="px-2 py-0.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-500 text-xs uppercase">
                 Codex
@@ -120,7 +125,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
             )}
             {/* Fallback for unknown tools */}
             {Array.from(availableTools).map(tool => {
-               if (['Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI'].includes(tool)) return null;
+               if (['Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI', 'OpenCode CLI'].includes(tool)) return null;
                return (
                 <span key={tool} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/30 text-slate-500 dark:text-slate-400 text-xs uppercase">
                   {tool}
@@ -163,7 +168,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           Last seen: {formatTimeAgo(computer.lastHeartbeat)}
         </span>
 
-        {isOnline && (checkTool('gemini') || checkTool('claude-cli') || checkTool('codex')) && (
+        {isOnline && (checkTool('gemini') || checkTool('claude-cli') || checkTool('opencode') || checkTool('codex')) && (
           <button
             onClick={onDispatchTask}
             className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
@@ -178,7 +183,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
 }
 
 export default function ComputersList() {
-  const { state, dispatch, loadComputers } = useApp();
+  const { state, dispatch, loadComputers, openNewTaskModal } = useApp();
   const { computers, loadingComputers, configuredServices } = state;
 
   useEffect(() => {
@@ -191,9 +196,8 @@ export default function ComputersList() {
     loadComputers();
   };
 
-  const handleDispatchTask = (_computer: Computer) => {
-    // Pre-select this device in the new task modal
-    dispatch({ type: 'SET_SHOW_NEW_TASK_MODAL', payload: true });
+  const handleDispatchTask = (computer: Computer) => {
+    openNewTaskModal({ targetDeviceId: computer.id });
   };
 
   // Not configured state

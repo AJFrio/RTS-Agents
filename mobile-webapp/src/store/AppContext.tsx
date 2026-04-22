@@ -80,6 +80,8 @@ interface AppState {
   currentView: 'dashboard' | 'branches' | 'computers' | 'jira' | 'settings' | 'pull-requests' | 'agent';
   showNewTaskModal: boolean;
   newTaskInitialPrompt: string | null;
+  /** When set, New Task opens with this device pre-selected for remote queue */
+  newTaskTargetDeviceId: string | null;
   showAgentModal: boolean;
 }
 
@@ -108,6 +110,7 @@ type AppAction =
   | { type: 'SET_VIEW'; payload: AppState['currentView'] }
   | { type: 'SET_SHOW_NEW_TASK_MODAL'; payload: boolean }
   | { type: 'SET_NEW_TASK_INITIAL_PROMPT'; payload: string | null }
+  | { type: 'SET_NEW_TASK_TARGET_DEVICE'; payload: string | null }
   | { type: 'SET_SHOW_AGENT_MODAL'; payload: boolean };
 
 // ============================================
@@ -143,6 +146,7 @@ const initialState: AppState = {
   currentView: 'dashboard',
   showNewTaskModal: false,
   newTaskInitialPrompt: null,
+  newTaskTargetDeviceId: null,
   showAgentModal: false,
 };
 
@@ -206,6 +210,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, showNewTaskModal: action.payload };
     case 'SET_NEW_TASK_INITIAL_PROMPT':
       return { ...state, newTaskInitialPrompt: action.payload };
+    case 'SET_NEW_TASK_TARGET_DEVICE':
+      return { ...state, newTaskTargetDeviceId: action.payload };
     case 'SET_SHOW_AGENT_MODAL':
       return { ...state, showAgentModal: action.payload };
     default:
@@ -248,7 +254,7 @@ interface AppContextType {
   applyFilters: () => void;
   getRepositories: (provider: Provider) => Promise<Repository[]>;
   enableNotifications: () => Promise<string>;
-  openNewTaskModal: (options?: { initialPrompt?: string }) => void;
+  openNewTaskModal: (options?: { initialPrompt?: string; targetDeviceId?: string }) => void;
   setModel: (model: string) => void;
   agentOrchestratorService: typeof agentOrchestratorService;
 }
@@ -748,12 +754,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const openNewTaskModal = useCallback((options?: { initialPrompt?: string }) => {
+  const openNewTaskModal = useCallback((options?: { initialPrompt?: string; targetDeviceId?: string }) => {
     if (options?.initialPrompt) {
       dispatch({ type: 'SET_NEW_TASK_INITIAL_PROMPT', payload: options.initialPrompt });
     } else {
       dispatch({ type: 'SET_NEW_TASK_INITIAL_PROMPT', payload: null });
     }
+    dispatch({ type: 'SET_NEW_TASK_TARGET_DEVICE', payload: options?.targetDeviceId ?? null });
     dispatch({ type: 'SET_SHOW_NEW_TASK_MODAL', payload: true });
   }, []);
 

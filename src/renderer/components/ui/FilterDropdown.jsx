@@ -9,6 +9,7 @@ const PROVIDERS = [
   { id: 'codex', label: 'CODEX', dot: 'bg-cyan-500' },
   { id: 'claude-cli', label: 'CLAUDE CLI', dot: 'bg-orange-500' },
   { id: 'claude-cloud', label: 'CLAUDE CLOUD', dot: 'bg-amber-500' },
+  { id: 'opencode', label: 'OPENCODE', dot: 'bg-violet-500' },
 ];
 
 const STATUS_FILTERS = [

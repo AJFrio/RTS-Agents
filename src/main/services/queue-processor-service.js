@@ -4,6 +4,7 @@ const cloudflareKvService = require('./cloudflare-kv-service');
 const geminiService = require('./gemini-service');
 const claudeService = require('./claude-service');
 const codexService = require('./codex-service');
+const opencodeService = require('./opencode-service');
 const projectService = require('./project-service');
 
 class QueueProcessorService {
@@ -103,6 +104,7 @@ class QueueProcessorService {
       const cliCommands = configStore.getSetting('cliCommands') || {};
       const geminiCmd = typeof cliCommands?.gemini === 'string' ? cliCommands.gemini : '';
       const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
+      const opencodeCmd = typeof cliCommands?.opencode === 'string' ? cliCommands.opencode : '';
 
       let started;
       if (tool === 'gemini') {
@@ -133,6 +135,16 @@ class QueueProcessorService {
           attachments: attachments
         });
         configStore.setCodexThreads(codexService.getTrackedThreads());
+      } else if (tool === 'opencode') {
+        if (!opencodeService.isOpenCodeInstalled() && !queueProcessorService.isCommandRunnable(opencodeCmd || 'opencode')) {
+          throw new Error('OpenCode CLI not detected on target device');
+        }
+        started = await opencodeService.startSession({
+          prompt,
+          projectPath: repoPath,
+          command: opencodeCmd || undefined
+        });
+        configStore.setOpenCodeSessions(opencodeService.getTrackedSessions());
       } else {
         throw new Error(`Unsupported queued tool: ${tool}`);
       }

@@ -8,6 +8,7 @@ const PROVIDER_CLASS = {
   'claude-cli': 'provider-badge border-orange-500 text-orange-500',
   'claude-cloud': 'provider-badge border-amber-500 text-amber-500',
   claude: 'provider-badge border-orange-500 text-orange-500',
+  opencode: 'provider-badge border-violet-500 text-violet-500',
 };
 
 const STATUS_CLASS = {

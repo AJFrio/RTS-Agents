@@ -59,7 +59,7 @@ You have access to the following tools:
 1. list_computers(): Returns a list of available computers and their status.
 2. list_repos(computer_id): Returns a list of repositories available on a specific computer.
 3. start_task(computer_id, repo_path, task_description, provider): Starts a coding task.
-   - provider should be one of: 'jules', 'cursor', 'gemini', 'codex', 'claude-cli'.
+   - provider should be one of: 'jules', 'cursor', 'gemini', 'codex', 'claude-cli', 'opencode'.
 
 Workflow:
 - If the user asks to do something, first understand WHICH environment and repo they are talking about.

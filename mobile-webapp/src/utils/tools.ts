@@ -29,6 +29,7 @@ export function hasTool(computer: Computer | undefined, toolId: string): boolean
 
   if (toolId === 'gemini') return tools.has('Gemini CLI');
   if (toolId === 'claude-cli') return tools.has('claude CLI');
+  if (toolId === 'opencode') return tools.has('OpenCode CLI');
   if (toolId === 'codex') return tools.has('Codex CLI');
   if (toolId === 'cursor') return tools.has('cursor CLI');
   if (toolId === 'claude CLI') return tools.has('claude CLI'); // Direct check

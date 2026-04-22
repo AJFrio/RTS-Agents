@@ -15,6 +15,57 @@ import {
   extractRepoName,
 } from '../utils/format.js';
 
+function formatShortTool(tool) {
+  if (!tool) return '';
+  if (tool === 'claude-cli') return 'Claude CLI';
+  if (tool === 'opencode') return 'OpenCode';
+  return String(tool);
+}
+
+function RemoteQueueStrip({ activity }) {
+  if (!activity?.configured) return null;
+  const devices = Array.isArray(activity.devices) ? activity.devices : [];
+  const hasSignal = devices.some(
+    (d) => (d.queueLength || 0) > 0 || (d.lastTask && d.lastTask.status)
+  );
+  if (!hasSignal) return null;
+
+  return (
+    <div
+      className="mb-6 p-4 rounded-xl border border-slate-200 dark:border-border-dark bg-slate-50/80 dark:bg-slate-900/50"
+      role="region"
+      aria-label="Remote device queue and last run"
+    >
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Remote / Headless</div>
+        {activity.loading && <span className="text-[10px] text-slate-500">Updating</span>}
+      </div>
+      <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
+        {devices
+          .filter((d) => (d.queueLength || 0) > 0 || d.lastTask)
+          .map((d) => {
+            const q = d.queueLength || 0;
+            const lt = d.lastTask;
+            return (
+              <li key={d.deviceId} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 border-b border-slate-200/50 dark:border-border-dark/50 pb-2 last:border-0 last:pb-0">
+                <span className="font-semibold text-slate-800 dark:text-white shrink-0">{d.name || d.deviceId}</span>
+                {q > 0 && <span className="text-amber-600 dark:text-amber-400">Queued: {q}</span>}
+                {lt && (
+                  <span className="text-slate-500 text-xs">
+                    Last run: {lt.status}
+                    {lt.tool ? ` · ${formatShortTool(lt.tool)}` : ''}
+                    {lt.error ? ` · ${lt.error}` : ''}
+                    {lt.updatedAt ? ` · ${formatTimeAgo(lt.updatedAt)}` : ''}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+      </ul>
+    </div>
+  );
+}
+
 function AgentCardItem({ agent, onClick }) {
   const style = getStatusStyle(agent.status);
   const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
@@ -64,7 +115,7 @@ function AgentCardItem({ agent, onClick }) {
 
 export default function DashboardPage() {
   const { state, dispatch, setView, openAgentModal } = useApp();
-  const { filteredAgents, loading, errors, pagination } = state;
+  const { filteredAgents, loading, errors, pagination, remoteQueue } = state;
   const { currentPage, pageSize } = pagination;
 
   const totalItems = filteredAgents.length;
@@ -104,6 +155,12 @@ export default function DashboardPage() {
 
   return (
     <div id="view-dashboard" className="view-content">
+      {remoteQueue?.lastError && (
+        <div className="mb-4 text-xs text-amber-700 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
+          Remote activity could not be refreshed: {remoteQueue.lastError}
+        </div>
+      )}
+      <RemoteQueueStrip activity={remoteQueue} />
       <ErrorBanner errors={errors} />
 
       {pageItems.length === 0 ? (

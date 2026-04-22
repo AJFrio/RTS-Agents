@@ -99,6 +99,23 @@ const schema = {
     },
     default: []
   },
+  opencodeSessions: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        rawId: { type: 'string' },
+        prompt: { type: 'string' },
+        projectPath: { type: 'string' },
+        status: { type: 'string' },
+        filePath: { type: 'string' },
+        createdAt: { type: 'string' },
+        updatedAt: { type: 'string' }
+      }
+    },
+    default: []
+  },
   settings: {
     type: 'object',
     properties: {
@@ -145,7 +162,8 @@ const schema = {
         type: 'object',
         properties: {
           gemini: { type: 'string', default: '' },
-          claude: { type: 'string', default: '' }
+          claude: { type: 'string', default: '' },
+          opencode: { type: 'string', default: '' }
         },
         default: {}
       },
@@ -460,6 +478,14 @@ class ConfigStore {
     const conversations = this.getClaudeConversations().filter(c => c.id !== conversationId);
     this.setClaudeConversations(conversations);
     return conversations;
+  }
+
+  getOpenCodeSessions() {
+    return this.store.get('opencodeSessions', []);
+  }
+
+  setOpenCodeSessions(sessions) {
+    this.store.set('opencodeSessions', sessions || []);
   }
 
   // GitHub repository paths

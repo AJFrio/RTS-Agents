@@ -95,6 +95,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   listComputers: () =>
     ipcRenderer.invoke('computers:list'),
+
+  /**
+   * Per-device remote queue + last run status (Cloudflare KV)
+   */
+  getQueueActivity: () =>
+    ipcRenderer.invoke('queue:get-activity'),
   
   /**
    * Push all local keys to Cloudflare KV

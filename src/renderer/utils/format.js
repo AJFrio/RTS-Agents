@@ -11,6 +11,7 @@ export function formatCount(num) {
 export function getProviderDisplayName(provider) {
   if (provider === 'claude-cloud') return 'Claude';
   if (provider === 'claude-cli') return 'Claude CLI';
+  if (provider === 'opencode') return 'OpenCode';
   return provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : '';
 }
 
@@ -49,6 +50,7 @@ export function getProviderDot(provider) {
     'claude-cloud': 'bg-amber-500',
     gemini: 'bg-emerald-500',
     'claude-cli': 'bg-orange-500',
+    opencode: 'bg-violet-500',
   };
   return map[provider] || 'bg-primary';
 }

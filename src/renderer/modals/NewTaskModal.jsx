@@ -28,12 +28,15 @@ function setCachedRepos(provider, repos) {
 }
 
 const CLOUD_PROVIDERS = ['jules', 'cursor', 'codex', 'claude-cloud'];
-const LOCAL_PROVIDERS = ['gemini', 'cursor', 'codex', 'claude-cli'];
-const REMOTE_PROVIDERS = ['gemini', 'claude-cli', 'codex'];
+const LOCAL_PROVIDERS = ['gemini', 'cursor', 'codex', 'claude-cli', 'opencode'];
+const REMOTE_PROVIDERS = ['gemini', 'claude-cli', 'codex', 'opencode'];
 
 function capabilityForProvider(state, provider) {
   if (provider === 'claude-cloud' || provider === 'claude-cli') {
     return state.capabilities?.claude;
+  }
+  if (provider === 'opencode') {
+    return state.capabilities?.opencode;
   }
   return state.capabilities?.[provider];
 }
@@ -50,7 +53,7 @@ function getAgentsForEnvironment(state, environment) {
 
 export default function NewTaskModal({ open, onClose, api }) {
   const { state, fetchComputers, loadAgents } = useApp();
-  const { initialPrompt } = state.newTask || {};
+  const { initialPrompt, presetEnvironment, presetTargetDeviceId, presetPreferredProvider } = state.newTask || {};
   const [environment, setEnvironment] = useState(state.newTask?.environment ?? 'cloud');
   const [selectedService, setSelectedService] = useState(null);
   const [agentFilter, setAgentFilter] = useState('');
@@ -77,6 +80,16 @@ export default function NewTaskModal({ open, onClose, api }) {
       setPrompt(initialPrompt);
     }
   }, [open, initialPrompt]);
+
+  // Apply "open with preset" (e.g. Queue task from Computers view)
+  useEffect(() => {
+    if (!open) return;
+    if (presetEnvironment) setEnvironment(presetEnvironment);
+    if (presetTargetDeviceId) setTargetDeviceId(presetTargetDeviceId);
+    if (presetEnvironment === 'remote' && presetPreferredProvider) {
+      setSelectedService({ provider: presetPreferredProvider });
+    }
+  }, [open, presetEnvironment, presetTargetDeviceId, presetPreferredProvider]);
 
   useEffect(() => {
     if (!open) return;
@@ -584,6 +597,12 @@ export default function NewTaskModal({ open, onClose, api }) {
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 block">
                   Target Device
                 </label>
+                {targetDeviceId && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                    Tasks are queued in Cloudflare KV and run on that machine when it is online. Agent:{' '}
+                    {selectedService?.provider ? getProviderDisplayName(selectedService.provider) : '—'}
+                  </p>
+                )}
                 <select
                   value={targetDeviceId}
                   onChange={(e) => setTargetDeviceId(e.target.value)}
@@ -593,7 +612,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                   <option value="">Select a device...</option>
                   {computersList.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name || c.id}
+                      {c.id === state.localDeviceId ? `${c.name || c.id} (this device)` : c.name || c.id}
                     </option>
                   ))}
                 </select>

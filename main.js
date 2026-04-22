@@ -16,6 +16,7 @@ const cloudflareKvService = require('./src/main/services/cloudflare-kv-service')
 const jiraService = require('./src/main/services/jira-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
+const opencodeService = require('./src/main/services/opencode-service');
 
 let mainWindow;
 let pollingInterval = null;
@@ -133,6 +134,9 @@ function initializeServices() {
     geminiService.setApiKey(geminiKey);
   }
 
+  const opencodeSessions = configStore.getOpenCodeSessions();
+  opencodeService.setTrackedSessions(opencodeSessions);
+
   const githubKey = configStore.getApiKey('github');
   if (githubKey) {
     githubService.setApiKey(githubKey);
@@ -190,6 +194,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   if (configStore.getCodexPaths().length > 0) availableCliTools.push('Codex CLI');
   if (claudeService.isClaudeInstalled()) availableCliTools.push('claude CLI');
   if (geminiService.isGeminiInstalled()) availableCliTools.push('Gemini CLI');
+  if (opencodeService.isOpenCodeInstalled()) availableCliTools.push('OpenCode CLI');
   if (configStore.getCursorPaths().length > 0) availableCliTools.push('cursor CLI');
 
   const device = {
@@ -310,6 +315,7 @@ ipcMain.handle('agents:get-all', async () => {
     codex: [],
     'claude-cli': [],
     'claude-cloud': [],
+    opencode: [],
     errors: []
   };
 
@@ -319,14 +325,16 @@ ipcMain.handle('agents:get-all', async () => {
   // Claude CLI (local) and Claude Cloud (API) are separate
   const claudeCliAvailable = claudeService.isClaudeInstalled();
   const claudeCloudAvailable = configStore.hasApiKey('claude');
+  const opencodeAvailable = opencodeService.isOpenCodeInstalled();
   
-  const [geminiResult, julesResult, cursorResult, codexResult, claudeCliResult, claudeCloudResult] = await Promise.allSettled([
+  const [geminiResult, julesResult, cursorResult, codexResult, claudeCliResult, claudeCloudResult, opencodeResult] = await Promise.allSettled([
     geminiService.getAllAgents(allProjectPaths),
     configStore.hasApiKey('jules') ? julesService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('cursor') ? cursorService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('codex') ? codexService.getAllAgents() : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAllLocalSessions(allProjectPaths) : Promise.resolve([]),
-    claudeCloudAvailable ? claudeService.getAllCloudConversations() : Promise.resolve([])
+    claudeCloudAvailable ? claudeService.getAllCloudConversations() : Promise.resolve([]),
+    opencodeAvailable ? Promise.resolve(opencodeService.getAllAgents()) : Promise.resolve([])
   ]);
 
   if (geminiResult.status === 'fulfilled') {
@@ -367,8 +375,14 @@ ipcMain.handle('agents:get-all', async () => {
     results.errors.push({ provider: 'claude-cloud', error: claudeCloudResult.reason?.message || 'Unknown error' });
   }
 
+  if (opencodeResult.status === 'fulfilled') {
+    results.opencode = (opencodeResult.value || []).map(agent => ({ ...agent, provider: 'opencode' }));
+  } else if (opencodeAvailable) {
+    results.errors.push({ provider: 'opencode', error: opencodeResult.reason?.message || 'Unknown error' });
+  }
+
   // Combine and sort all agents by date
-  const allAgents = [...results.gemini, ...results.jules, ...results.cursor, ...results.codex, ...results['claude-cli'], ...results['claude-cloud']]
+  const allAgents = [...results.gemini, ...results.jules, ...results.cursor, ...results.codex, ...results['claude-cli'], ...results['claude-cloud'], ...results.opencode]
     .sort((a, b) => {
       const dateA = new Date(a.updatedAt || a.createdAt || 0);
       const dateB = new Date(b.updatedAt || b.createdAt || 0);
@@ -385,6 +399,7 @@ ipcMain.handle('agents:get-all', async () => {
       codex: results.codex.length,
       'claude-cli': results['claude-cli'].length,
       'claude-cloud': results['claude-cloud'].length,
+      opencode: results.opencode.length,
       total: allAgents.length
     }
   };
@@ -408,6 +423,8 @@ ipcMain.handle('agents:get-details', async (event, { provider, rawId, filePath }
       case 'claude-cli':
       case 'claude-cloud':
         return await claudeService.getAgentDetails(rawId, filePath);
+      case 'opencode':
+        return opencodeService.getSessionDetails(rawId);
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
@@ -481,6 +498,8 @@ ipcMain.handle('settings:get', async () => {
     geminiInstalled: geminiService.isGeminiInstalled(),
     geminiDefaultPath: geminiService.getDefaultPath(),
     claudeCliInstalled: claudeService.isClaudeInstalled(),
+    opencodeInstalled: opencodeService.isOpenCodeInstalled(),
+    opencodeDefaultPath: opencodeService.getDefaultDataPath(),
     claudeCloudConfigured: configStore.hasApiKey('claude'),
     claudeDefaultPath: claudeService.getDefaultPath(),
     claudePaths: configStore.getClaudePaths(),
@@ -558,6 +577,59 @@ ipcMain.handle('cloudflare:test', async () => {
     return { success: true, namespaceId };
   } catch (err) {
     return { success: false, error: err?.message || 'Unknown error' };
+  }
+});
+
+/**
+ * Per-device remote queue length + last task status from KV (for dashboard visibility)
+ */
+ipcMain.handle('queue:get-activity', async () => {
+  try {
+    if (!configStore.hasCloudflareConfig()) {
+      return { success: true, configured: false, devices: [] };
+    }
+
+    const cfg = configStore.getCloudflareConfig();
+    cloudflareKvService.setConfig({ accountId: cfg.accountId, apiToken: cfg.apiToken });
+    const namespaceId = await ensureCloudflareNamespaceId();
+    if (!namespaceId) {
+      return { success: true, configured: true, devices: [] };
+    }
+
+    const deviceList = await cloudflareKvService.getValueJson(namespaceId, 'devices', []);
+    const devices = Array.isArray(deviceList) ? deviceList : [];
+    const tasksMap = await cloudflareKvService.getTasksMap(namespaceId);
+    const out = [];
+
+    for (const d of devices) {
+      if (!d?.id) continue;
+      const queue = await cloudflareKvService.getDeviceQueue(namespaceId, d.id);
+      const qLen = Array.isArray(queue) ? queue.length : 0;
+      const raw = tasksMap && typeof tasksMap === 'object' ? tasksMap[d.id] : null;
+      out.push({
+        deviceId: d.id,
+        name: d.name || d.id,
+        queueLength: qLen,
+        lastTask: raw
+          ? {
+            status: raw.status,
+            tool: raw.tool,
+            prompt: raw.prompt,
+            error: raw.error,
+            updatedAt: raw.updatedAt
+          }
+          : null
+      });
+    }
+
+    return { success: true, configured: true, devices: out, updatedAt: new Date().toISOString() };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message,
+      configured: configStore.hasCloudflareConfig(),
+      devices: []
+    };
   }
 });
 
@@ -1091,6 +1163,10 @@ ipcMain.handle('utils:get-status', async () => {
       connected: claudeCliInstalled,
       error: claudeCliInstalled ? null : 'Claude CLI not installed'
     },
+    opencode: (() => {
+      const o = opencodeService.isOpenCodeInstalled();
+      return { success: o, connected: o, error: o ? null : 'OpenCode CLI not found' };
+    })(),
     'claude-cloud': {
       success: claudeCloudValid,
       connected: claudeCloudValid,
@@ -1152,6 +1228,14 @@ ipcMain.handle('repos:get', async (event, { provider }) => {
         const claudeCliProjects = await claudeService.getAvailableProjects(claudeCliPaths);
         return { success: true, repositories: claudeCliProjects };
 
+      case 'opencode':
+        if (!opencodeService.isOpenCodeInstalled()) {
+          return { success: false, error: 'OpenCode CLI not installed', repositories: [] };
+        }
+        const opencodePaths = configStore.getAllProjectPaths();
+        const opencodeProjects = await opencodeService.getAvailableProjects(opencodePaths);
+        return { success: true, repositories: opencodeProjects };
+
       case 'claude-cloud':
         if (!configStore.hasApiKey('claude')) {
           return { success: false, error: 'Claude API key not configured', repositories: [] };
@@ -1179,22 +1263,25 @@ ipcMain.handle('repos:get-all', async () => {
     codex: [],
     'claude-cli': [],
     'claude-cloud': [],
+    opencode: [],
     errors: []
   };
 
   // Fetch from all providers in parallel
   const allProjectPaths = configStore.getAllProjectPaths();
   const claudeCliAvailable = claudeService.isClaudeInstalled();
+  const opencodeAvailable = opencodeService.isOpenCodeInstalled();
 
   const cursorPaths = configStore.getCursorPaths();
   const codexPaths = configStore.getCodexPaths();
 
-  const [julesResult, cursorResult, geminiResult, codexResult, claudeCliResult] = await Promise.allSettled([
+  const [julesResult, cursorResult, geminiResult, codexResult, claudeCliResult, opencodeResult] = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.getAllSources() : Promise.resolve([]),
     (configStore.hasApiKey('cursor') || cursorPaths.length > 0) ? cursorService.getAllRepositories(cursorPaths) : Promise.resolve([]),
     geminiService.isGeminiInstalled() ? geminiService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
     (configStore.hasApiKey('codex') || codexPaths.length > 0) ? codexService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
-    claudeCliAvailable ? claudeService.getAvailableProjects(allProjectPaths) : Promise.resolve([])
+    claudeCliAvailable ? claudeService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
+    opencodeAvailable ? opencodeService.getAvailableProjects(allProjectPaths) : Promise.resolve([])
   ]);
 
   if (julesResult.status === 'fulfilled') {
@@ -1227,6 +1314,12 @@ ipcMain.handle('repos:get-all', async () => {
     results.errors.push({ provider: 'claude-cli', error: claudeCliResult.reason?.message || 'Unknown error' });
   }
 
+  if (opencodeResult.status === 'fulfilled') {
+    results.opencode = opencodeResult.value;
+  } else if (opencodeAvailable) {
+    results.errors.push({ provider: 'opencode', error: opencodeResult.reason?.message || 'Unknown error' });
+  }
+
   // Claude Cloud doesn't need repositories - it's prompt-only
   results['claude-cloud'] = [];
 
@@ -1244,8 +1337,8 @@ async function createTask({ provider, options }) {
       if (!namespaceId) throw new Error('Cloudflare KV not configured');
 
       // Validate supported remote tools
-      if (provider !== 'gemini' && provider !== 'claude-cli' && provider !== 'codex') {
-        throw new Error(`Remote execution is not supported for ${provider}. Only local CLI tools (Gemini, Claude CLI, Codex) can be run remotely.`);
+      if (provider !== 'gemini' && provider !== 'claude-cli' && provider !== 'codex' && provider !== 'opencode') {
+        throw new Error(`Remote execution is not supported for ${provider}. Use Gemini, OpenCode, Claude CLI, or Codex on a registered device.`);
       }
 
       const identity = configStore.getOrCreateDeviceIdentity();
@@ -1322,6 +1415,13 @@ async function createTask({ provider, options }) {
         // Force local mode by ensuring projectPath is set
         const claudeCliTask = await claudeService.startLocalSession(options);
         return { success: true, task: { ...claudeCliTask, provider: 'claude-cli' } };
+
+      case 'opencode':
+        if (!opencodeService.isOpenCodeInstalled()) {
+          throw new Error('OpenCode CLI not installed or not on PATH');
+        }
+        const opencodeTask = await opencodeService.startSession(options);
+        return { success: true, task: { ...opencodeTask, provider: 'opencode' } };
 
       case 'claude-cloud':
         if (!configStore.hasApiKey('claude')) {

@@ -5,7 +5,15 @@ import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { Card } from '../components/ui/Card.jsx';
 import { formatTimeAgo } from '../utils/format.js';
 
-function ComputerCard({ device }) {
+function pickPreferredProvider(tools) {
+  if (!Array.isArray(tools)) return 'gemini';
+  if (tools.includes('OpenCode CLI')) return 'opencode';
+  if (tools.includes('claude CLI')) return 'claude-cli';
+  if (tools.includes('Codex CLI')) return 'codex';
+  return 'gemini';
+}
+
+function ComputerCard({ device, onQueueTask, isThisDevice }) {
   const name = device?.name || device?.id || 'UNKNOWN';
   const id = device?.id || '--';
   const lastHeartbeat = device?.lastHeartbeat || device?.heartbeatAt || device?.updatedAt || null;
@@ -30,6 +38,9 @@ function ComputerCard({ device }) {
             {name}
           </div>
           <div className="mt-1 text-[10px] technical-font text-slate-500">ID: {id}</div>
+          {isThisDevice && (
+            <div className="mt-1 text-[10px] technical-font text-primary">THIS_INSTALL</div>
+          )}
         </div>
         <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${statusClass}`}>{statusLabel}</span>
       </div>
@@ -63,19 +74,36 @@ function ComputerCard({ device }) {
                 CODEX_CLI
               </span>
             )}
+            {tools.includes?.('OpenCode CLI') && (
+              <span className="px-2 py-0.5 text-[10px] technical-font border border-violet-500 text-violet-400">
+                OPENCODE_CLI
+              </span>
+            )}
             {tools.length === 0 && (
               <span className="text-[10px] technical-font text-slate-500">NONE_DETECTED</span>
             )}
           </div>
         </div>
+        {online && tools.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-slate-200 dark:border-border-dark">
+            <button
+              type="button"
+              onClick={onQueueTask}
+              className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-semibold rounded-lg border border-primary/50 text-primary hover:bg-primary/10 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm">send</span>
+              Queue task on this device
+            </button>
+          </div>
+        )}
       </div>
     </Card>
   );
 }
 
 export default function ComputersPage() {
-  const { state, setView, api, fetchComputers } = useApp();
-  const { computers, currentView } = state;
+  const { state, setView, api, fetchComputers, openNewTaskModal } = useApp();
+  const { computers, currentView, localDeviceId } = state;
 
   useEffect(() => {
     if (currentView === 'computers' && api?.listComputers) {
@@ -122,9 +150,26 @@ export default function ComputersPage() {
   return (
     <div id="view-computers" className="view-content">
       <div id="computers-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {computers.list.map((device) => (
-          <ComputerCard key={device.id || device.name} device={device} />
-        ))}
+        {computers.list.map((device) => {
+          let tools = [];
+          if (Array.isArray(device?.tools) && device.tools.length > 0 && device.tools[0]?.['CLI tools']) {
+            tools = device.tools[0]['CLI tools'];
+          }
+          return (
+            <ComputerCard
+              key={device.id || device.name}
+              device={device}
+              isThisDevice={!!(localDeviceId && device.id === localDeviceId)}
+              onQueueTask={() => {
+                openNewTaskModal({
+                  presetEnvironment: 'remote',
+                  presetTargetDeviceId: device.id,
+                  presetPreferredProvider: pickPreferredProvider(tools),
+                });
+              }}
+            />
+          );
+        })}
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ const initialState = {
       codex: true,
       'claude-cli': true,
       'claude-cloud': true,
+      opencode: true,
     },
     statuses: {
       running: true,
@@ -45,6 +46,7 @@ const initialState = {
     codex: 0,
     'claude-cli': 0,
     'claude-cloud': 0,
+    opencode: 0,
     total: 0,
   },
   configuredServices: {
@@ -54,6 +56,7 @@ const initialState = {
     codex: false,
     'claude-cli': false,
     'claude-cloud': false,
+    opencode: false,
     openrouter: false,
     openai: false,
     github: false,
@@ -65,6 +68,7 @@ const initialState = {
     cursor: { cloud: false, local: false },
     codex: { cloud: false, local: false },
     claude: { cloud: false, local: false },
+    opencode: { cloud: false, local: false },
     github: { cloud: false, local: false },
   },
   serviceInfo: {
@@ -77,6 +81,7 @@ const initialState = {
     installations: {
       gemini: false,
       claude: false,
+      opencode: false,
     },
   },
   connectionStatus: {},
@@ -89,6 +94,7 @@ const initialState = {
     totalPages: 1,
   },
   newTask: {
+    initialPrompt: '',
     selectedService: null,
     environment: 'local',
     targetDevice: 'local',
@@ -97,6 +103,16 @@ const initialState = {
     creating: false,
     promptMode: 'write',
     pastedImages: [],
+    presetEnvironment: null,
+    presetTargetDeviceId: null,
+    presetPreferredProvider: null,
+  },
+  remoteQueue: {
+    loading: false,
+    devices: [],
+    configured: false,
+    updatedAt: null,
+    lastError: null,
   },
   createRepo: {
     open: false,
@@ -193,6 +209,8 @@ function appReducer(state, action) {
       return { ...state, github: { ...state.github, allPrs: state.github.allPrs.filter(pr => pr.id !== action.payload) } };
     case 'SET_JIRA':
       return { ...state, jira: { ...state.jira, ...action.payload } };
+    case 'SET_REMOTE_QUEUE':
+      return { ...state, remoteQueue: { ...state.remoteQueue, ...action.payload } };
     case 'SET_PAGINATION':
       return { ...state, pagination: { ...state.pagination, ...action.payload } };
     case 'SET_NEW_TASK':
@@ -211,11 +229,26 @@ function appReducer(state, action) {
         newTaskModalOpen: true,
         newTask: {
           ...state.newTask,
-          initialPrompt: action.payload?.initialPrompt || '',
-        },
+          initialPrompt: action.payload?.initialPrompt ?? '',
+          presetEnvironment: action.payload?.presetEnvironment !== undefined ? action.payload.presetEnvironment : null,
+          presetTargetDeviceId:
+            action.payload?.presetTargetDeviceId !== undefined ? action.payload.presetTargetDeviceId : null,
+          presetPreferredProvider:
+            action.payload?.presetPreferredProvider !== undefined ? action.payload.presetPreferredProvider : null
+        }
       };
     case 'CLOSE_NEW_TASK_MODAL':
-      return { ...state, newTaskModalOpen: false };
+      return {
+        ...state,
+        newTaskModalOpen: false,
+        newTask: {
+          ...state.newTask,
+          initialPrompt: '',
+          presetEnvironment: null,
+          presetTargetDeviceId: null,
+          presetPreferredProvider: null
+        }
+      };
     case 'OPEN_CREATE_REPO_MODAL':
       return { ...state, createRepoModalOpen: true };
     case 'CLOSE_CREATE_REPO_MODAL':
@@ -276,6 +309,7 @@ export function AppProvider({ children }) {
           codex: !!result.apiKeys?.codex || (result.codexPaths?.length > 0) || false,
           'claude-cli': result.claudeCliInstalled || (result.claudePaths?.length > 0) || false,
           'claude-cloud': result.claudeCloudConfigured || !!result.apiKeys?.claude,
+          opencode: !!result.opencodeInstalled,
           openrouter: !!result.apiKeys?.openrouter,
           openai: !!result.apiKeys?.openai,
           github: !!result.apiKeys?.github,
@@ -293,6 +327,7 @@ export function AppProvider({ children }) {
             cloud: !!(result.claudeCloudConfigured || result.apiKeys?.claude),
             local: !!(result.claudeCliInstalled || result.claudePaths?.length),
           },
+          opencode: { cloud: false, local: !!result.opencodeInstalled },
           github: { cloud: !!result.apiKeys?.github, local: !!(result.githubPaths?.length) },
         },
       });
@@ -304,6 +339,7 @@ export function AppProvider({ children }) {
           installations: {
             gemini: !!result.geminiInstalled,
             claude: !!result.claudeCliInstalled,
+            opencode: !!result.opencodeInstalled,
           },
         },
       });
@@ -368,6 +404,40 @@ export function AppProvider({ children }) {
     }
   }, [api]);
 
+  const loadRemoteQueueActivity = useCallback(async () => {
+    if (!api?.getQueueActivity) return;
+    dispatch({ type: 'SET_REMOTE_QUEUE', payload: { loading: true } });
+    try {
+      const result = await api.getQueueActivity();
+      if (result?.success) {
+        dispatch({
+          type: 'SET_REMOTE_QUEUE',
+          payload: {
+            loading: false,
+            devices: result.devices ?? [],
+            configured: result.configured !== false,
+            updatedAt: result.updatedAt || new Date().toISOString(),
+            lastError: null,
+          },
+        });
+      } else {
+        dispatch({
+          type: 'SET_REMOTE_QUEUE',
+          payload: {
+            loading: false,
+            devices: [],
+            lastError: result?.error || 'Failed to load queue activity',
+          },
+        });
+      }
+    } catch (err) {
+      dispatch({
+        type: 'SET_REMOTE_QUEUE',
+        payload: { loading: false, lastError: err?.message || 'Failed to load queue activity' },
+      });
+    }
+  }, [api]);
+
   const loadBranches = useCallback(async () => {
     if (!api?.github?.getRepos) return;
     dispatch({ type: 'SET_GITHUB', payload: { loadingRepos: true } });
@@ -420,18 +490,20 @@ export function AppProvider({ children }) {
       if (!mounted) return;
       await checkConnectionStatus();
       fetchComputers();
+      loadRemoteQueueActivity();
     })();
     return () => { mounted = false; };
-  }, [api]);
+  }, [api, loadRemoteQueueActivity]);
 
   // Listen for background refresh ticks (polling)
   useEffect(() => {
     if (!api?.onRefreshTick) return;
     const unsubscribe = api.onRefreshTick(() => {
       loadAgents(true);
+      loadRemoteQueueActivity();
     });
     return unsubscribe;
-  }, [api, loadAgents]);
+  }, [api, loadAgents, loadRemoteQueueActivity]);
 
   // Recompute filtered agents when agents or filters change
   useEffect(() => {
@@ -462,6 +534,7 @@ export function AppProvider({ children }) {
     loadAgents,
     checkConnectionStatus,
     fetchComputers,
+    loadRemoteQueueActivity,
     loadBranches,
     loadAllPrs,
     removePr,

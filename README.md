@@ -6,7 +6,7 @@
 RTS Agents is 1 dashboard to access all your coding agents and Github repos across all your service providers and devices
 
 It supports:
-- **Local CLI-backed agents**: Gemini CLI, Claude Code CLI, Codex CLI, and Cursor CLI (reads local session files and can start new sessions).
+- **Local CLI-backed agents**: Gemini CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (reads local session files and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
 - **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI (Codex via Assistants/Threads), and Claude (Anthropic Messages API).
 - **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
 
@@ -15,7 +15,7 @@ It supports:
 ## What it can do
 
 ### Dashboard
-- **Unified task list** across providers (Gemini, Jules, Cursor, Codex, Claude CLI, Claude Cloud)
+- **Unified task list** across providers (Gemini, OpenCode, Jules, Cursor, Codex, Claude CLI, Claude Cloud)
 - **Search + filtering** by provider and status
 - **Pagination** for large task sets
 - **Auto-refresh (polling)** with configurable interval

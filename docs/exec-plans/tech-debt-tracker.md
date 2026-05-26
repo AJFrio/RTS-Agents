@@ -9,8 +9,6 @@ Synced from [UPDATES.md](../../UPDATES.md) performance findings. Remove items he
 | TD-001 | Sync FS in Gemini/Claude/Project services blocks main thread | `fs.promises` + `Promise.all` in discovery | High |
 | TD-002 | 30s full poll rescans everything | File watchers or mtime cache | High |
 | TD-003 | Full agent list over IPC every poll | Pagination or delta updates | Medium |
-| TD-004 | Orchestrator `chat` uses recursion for tools | Iterative while-loop with depth cap | Medium |
-| TD-005 | `getLocalRepos` sync in loop | Async parallel directory reads | Medium |
 
 ## Harness / DX
 
@@ -19,10 +17,15 @@ Synced from [UPDATES.md](../../UPDATES.md) performance findings. Remove items he
 | TD-010 | Root app had no ESLint | Added `eslint.config.js` — extend rules over time | Low |
 | TD-011 | E2E script Linux-specific (`xvfb-maybe`) | CI uses Linux; document Windows `npx playwright test` | Low |
 | TD-012 | `main.js` monolith (~1600+ lines) | Extract IPC registration modules | Low |
-| TD-013 | `cloudflare-kv-service.test.js` references removed `putKey` API | Rewrite tests for current KV service surface | Medium |
 | TD-014 | `mobile-webapp` ESLint has 29+ errors | Fix or relax rules; re-enable `npm run lint` in CI | Medium |
-| TD-015 | Playwright Electron E2E fails in GHA | Install Linux deps + xvfb; remove `continue-on-error` on e2e job | Medium |
 
 ## Completed
 
-_Move rows here with date when done._
+| ID | Fixed | Notes |
+|----|-------|-------|
+| TD-004 | 2026-05-26 | `AgentOrchestrator.chat` uses iterative tool loop with `maxToolTurns` cap |
+| TD-005 | 2026-05-26 | `ProjectService.getLocalRepos` already async with `Promise.all` |
+| TD-013 | 2026-05-26 | KV unit tests target `putValue` / `getValueText`; re-enabled in `test:ci` |
+| TD-015 | 2026-05-26 | Removed `continue-on-error` on GHA e2e job (xvfb-maybe unchanged) |
+
+_Partial TD-001 (2026-05-26): Claude session scan paths use `fs.promises`; Gemini discovery was already async. Remaining sync checks: `existsSync` for install probes and infrequent project-service paths._

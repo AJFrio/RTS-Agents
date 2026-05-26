@@ -8,6 +8,7 @@ jest.mock('fs', () => ({
   readFileSync: jest.fn(),
   mkdirSync: jest.fn(),
   promises: {
+    access: jest.fn(),
     readdir: jest.fn(),
     stat: jest.fn(),
     readFile: jest.fn(),
@@ -109,7 +110,7 @@ describe('ClaudeService', () => {
         startTime: '2023-01-01T00:00:00.000Z'
       };
 
-      fs.existsSync.mockReturnValue(true);
+      fs.promises.access.mockResolvedValue(undefined);
       fs.promises.readdir.mockResolvedValue([file]);
       fs.promises.stat.mockResolvedValue({
         birthtime: new Date('2023-01-01'),
@@ -126,7 +127,7 @@ describe('ClaudeService', () => {
     });
 
     test('getProjectSessions handles errors and returns empty array', async () => {
-      fs.existsSync.mockReturnValue(true);
+      fs.promises.access.mockResolvedValue(undefined);
       fs.promises.readdir.mockRejectedValue(new Error('Read error'));
 
       const sessions = await claudeService.getProjectSessions('/path', '/path/sessions');

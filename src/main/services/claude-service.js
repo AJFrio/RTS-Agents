@@ -125,7 +125,9 @@ class ClaudeService {
   async getProjectSessions(projectPath, sessionsPath) {
     const sessions = [];
 
-    if (!fs.existsSync(sessionsPath)) {
+    try {
+      await fsPromises.access(sessionsPath);
+    } catch {
       return sessions;
     }
 
@@ -154,7 +156,7 @@ class ClaudeService {
             name: this.extractSessionName(session),
             status: this.inferStatus(session, stats),
             prompt: this.extractInitialPrompt(session),
-            repository: this.extractRepository(projectPath, session),
+            repository: await this.extractRepository(projectPath, session),
             createdAt: createdAt,
             updatedAt: updatedAt,
             summary: this.extractSummary(session),
@@ -450,14 +452,12 @@ class ClaudeService {
    * @param {string} filePath - Path to the session JSON file
    */
   async getLocalSessionDetails(filePath) {
-    if (!fs.existsSync(filePath)) {
-      return null;
-    }
-
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const [content, stats] = await Promise.all([
+        fsPromises.readFile(filePath, 'utf-8'),
+        fsPromises.stat(filePath)
+      ]);
       const session = JSON.parse(content);
-      const stats = fs.statSync(filePath);
 
       return {
         sessionId: session.sessionId || session.id || null,
@@ -635,7 +635,9 @@ class ClaudeService {
       throw new Error('Project path is required');
     }
 
-    if (!fs.existsSync(projectPath)) {
+    try {
+      await fsPromises.access(projectPath);
+    } catch {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
@@ -847,22 +849,18 @@ class ClaudeService {
   /**
    * Try to extract repository info from project path or session
    */
-  extractRepository(projectPath, session = {}) {
-    // Check session for repository info
+  async extractRepository(projectPath, session = {}) {
     if (session.repository) return session.repository;
     if (session.project?.path) return session.project.path;
 
-    // Try to find project-info.json
     try {
       const infoPath = path.join(projectPath, 'project-info.json');
-      if (fs.existsSync(infoPath)) {
-        const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-        return info.repository || info.path || null;
-      }
-    } catch (err) {
-      // Ignore
+      const content = await fsPromises.readFile(infoPath, 'utf-8');
+      const info = JSON.parse(content);
+      return info.repository || info.path || null;
+    } catch {
+      return null;
     }
-    return null;
   }
 
   /**

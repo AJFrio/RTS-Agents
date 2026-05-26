@@ -57,7 +57,9 @@ jobs:
     runs-on: ubuntu-latest
     name: E2E (Playwright + Electron)
     needs: desktop
-    continue-on-error: true
+    env:
+      # GitHub-hosted Linux runners lack a configured setuid chrome-sandbox for Electron.
+      ELECTRON_DISABLE_SANDBOX: '1'
     steps:
       - uses: actions/checkout@v4
 

@@ -20,6 +20,8 @@ Synced from [UPDATES.md](../../UPDATES.md) performance findings. Remove items he
 | TD-011 | E2E script Linux-specific (`xvfb-maybe`) | CI uses Linux; document Windows `npx playwright test` | Low |
 | TD-012 | `main.js` monolith (~1600+ lines) | Extract IPC registration modules | Low |
 | TD-013 | `cloudflare-kv-service.test.js` references removed `putKey` API | Rewrite tests for current KV service surface | Medium |
+| TD-014 | `mobile-webapp` ESLint has 29+ errors | Fix or relax rules; re-enable `npm run lint` in CI | Medium |
+| TD-015 | Playwright Electron E2E fails in GHA | Install Linux deps + xvfb; remove `continue-on-error` on e2e job | Medium |
 
 ## Completed
 

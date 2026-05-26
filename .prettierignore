@@ -1,0 +1,6 @@
+dist
+node_modules
+mobile-webapp/dist
+mobile-webapp/node_modules
+package-lock.json
+mobile-webapp/package-lock.json

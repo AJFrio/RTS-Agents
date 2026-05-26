@@ -63,7 +63,9 @@ class AgentOrchestrator {
     return { models, errors };
   }
 
-  async chat(messages, selectedModel) {
+  async chat(messages, selectedModel, options = {}) {
+    const maxToolTurns = typeof options.maxToolTurns === 'number' ? options.maxToolTurns : 5;
+
     // 1. Prepare messages (append system prompt if not present)
     const systemPrompt = `You are an intelligent agent orchestrator for the RTS Agents system.
 Your goal is to help the user accomplish coding tasks by dispatching them to the correct environment and repository.
@@ -106,6 +108,9 @@ If you don't need to use a tool, just reply with text.
     }
 
     try {
+        let conversation = fullMessages;
+        let toolTurns = 0;
+
         // We use OpenRouterService as the generic gateway
         // If the user provided a specific key for OpenAI/Gemini/Anthropic in the future,
         // we might want to use their specific services, but OpenRouterService is a good unified interface
@@ -137,50 +142,50 @@ If you don't need to use a tool, just reply with text.
              return { role: 'assistant', content: "Please configure an OpenRouter API key in Settings to use the Agent Orchestrator." };
         }
 
-        const response = await openRouterService.chat(fullMessages, model);
+        while (toolTurns <= maxToolTurns) {
+            const response = await openRouterService.chat(conversation, model);
 
-        // 3. Handle Tool Calls
-        if (!response || !response.choices || !response.choices[0]) {
-            throw new Error("Invalid response from LLM provider");
-        }
-
-        const content = response.choices[0].message.content;
-        let toolCall = null;
-        try {
-            // fast/simple check for JSON block
-            const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
-            if (jsonMatch) {
-                toolCall = JSON.parse(jsonMatch[0]);
-            } else if (content.trim().startsWith('{')) {
-                toolCall = JSON.parse(content);
+            if (!response || !response.choices || !response.choices[0]) {
+                throw new Error("Invalid response from LLM provider");
             }
-        } catch (e) {
-            // Not valid JSON, treat as text
-        }
 
-        if (toolCall && toolCall.tool) {
-            // Execute Tool
+            const assistantMessage = response.choices[0].message;
+            const content = assistantMessage.content || '';
+            let toolCall = null;
+            try {
+                const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
+                if (jsonMatch) {
+                    toolCall = JSON.parse(jsonMatch[0]);
+                } else if (content.trim().startsWith('{')) {
+                    toolCall = JSON.parse(content);
+                }
+            } catch (e) {
+                // Not valid JSON, treat as text
+            }
+
+            if (!toolCall || !toolCall.tool) {
+                return assistantMessage;
+            }
+
+            if (toolTurns >= maxToolTurns) {
+                const result = await this.executeTool(toolCall);
+                return {
+                    role: 'assistant',
+                    content: "I'm stuck in a loop. Here is the last result: " + JSON.stringify(result)
+                };
+            }
+
             const result = await this.executeTool(toolCall);
-
             const toolMessage = {
-                role: 'user', // representing the system feeding back the result
+                role: 'user',
                 content: `Tool '${toolCall.tool}' Output: ${JSON.stringify(result)}`
             };
 
-            // Recursive call
-            // We append the assistant's tool call (as text) and the result
-            const nextMessages = [...fullMessages, response.choices[0].message, toolMessage];
-
-            // Recursion safety: prevent infinite loops (max 5 turns)
-            const turnCount = fullMessages.filter(m => m.role === 'user' && m.content.startsWith('Tool')).length;
-            if (turnCount > 5) {
-                return { role: 'assistant', content: "I'm stuck in a loop. Here is the last result: " + JSON.stringify(result) };
-            }
-
-            return await this.chat(nextMessages, selectedModel);
+            conversation = [...conversation, assistantMessage, toolMessage];
+            toolTurns += 1;
         }
 
-        return response.choices[0].message;
+        return { role: 'assistant', content: "Maximum tool turns reached." };
 
     } catch (err) {
         console.error("Orchestrator error:", err);

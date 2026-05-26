@@ -8,6 +8,10 @@ const spawnSyncSpy = jest.spyOn(child_process, 'spawnSync').mockReturnValue({ st
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   existsSync: jest.fn().mockReturnValue(true),
+  promises: {
+    ...jest.requireActual('fs').promises,
+    access: jest.fn().mockResolvedValue(undefined),
+  },
 }));
 
 // Require services AFTER mocking/spying
@@ -30,11 +34,7 @@ describe('Security Verification - Command Injection', () => {
       const prompt = 'test prompt " with quotes';
       const projectPath = '/tmp/project';
 
-      try {
-        await claudeService.startLocalSession({ prompt, projectPath });
-      } catch (e) {
-        // We might get an error because we didn't mock everything, but we care about the spawn call
-      }
+      await claudeService.startLocalSession({ prompt, projectPath });
 
       expect(spawnSpy).toHaveBeenCalledWith(
         expect.any(String),

@@ -9,7 +9,7 @@
     "build": "vite build",
     "dev:headless": "node headless.js",
     "test": "jest",
-    "test:ci": "jest --testPathIgnorePatterns=integration --testPathIgnorePatterns=cloudflare-kv-service.test.js",
+    "test:ci": "jest --testPathIgnorePatterns=integration",
     "test:e2e": "npm run build && env -u DISPLAY xvfb-maybe playwright test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

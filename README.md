@@ -223,6 +223,13 @@ If Claude CLI shows as “not installed”:
 - `npm run dev:headless`: run a lightweight headless device (no Electron UI) that registers to Cloudflare KV, pulls keys, and executes queued remote tasks
 - `npm run test`: Jest unit + integration tests
 - `npm run test:e2e`: Playwright E2E tests (optimized for headless Linux with `xvfb-maybe`)
+- `npm run validate`: docs structure + architecture checks + lint + unit tests (agent harness gate)
+- `npm run validate:docs` / `validate:architecture`: harness validators only
+- `npm run lint` / `format:check`: ESLint and Prettier for the desktop app
+
+### Agent / contributor docs
+
+Structured knowledge for coding agents lives under [`docs/`](docs/) with [`AGENTS.md`](AGENTS.md) as the entry map. See [Harness engineering](https://openai.com/index/harness-engineering/) for the methodology.
 
 ### Running Playwright on Windows
 The provided `test:e2e` script uses `env` and `xvfb-maybe`, which are typically not available on Windows.

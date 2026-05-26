@@ -14,6 +14,7 @@ jest.mock('fs', () => {
 const codexService = require('../../src/main/services/codex-service');
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 const { EventEmitter } = require('events');
 
 describe('Codex Service', () => {
@@ -308,17 +309,18 @@ describe('Codex Service', () => {
 
   describe('Local Repositories', () => {
     test('getAvailableLocalRepositories scans directories correctly', async () => {
-      // Mock fs.promises
-      fs.promises.access.mockImplementation(async (path) => {
-        if (path === '/projects') return Promise.resolve();
-        if (path === '/projects/repo1/.git') return Promise.resolve();
-        // repo2 is a directory but has no .git folder
-        if (path === '/projects/repo2/.git') return Promise.reject({ code: 'ENOENT' });
+      const projectsRoot = path.join(path.sep, 'projects');
+      const repo1Git = path.join(projectsRoot, 'repo1', '.git');
+      const repo2Git = path.join(projectsRoot, 'repo2', '.git');
+
+      fs.promises.access.mockImplementation(async (targetPath) => {
+        if (targetPath === projectsRoot || targetPath === repo1Git) return Promise.resolve();
+        if (targetPath === repo2Git) return Promise.reject({ code: 'ENOENT' });
         return Promise.reject({ code: 'ENOENT' });
       });
 
-      fs.promises.readdir.mockImplementation(async (path, options) => {
-        if (path === '/projects') {
+      fs.promises.readdir.mockImplementation(async (dirPath) => {
+        if (dirPath === projectsRoot) {
           return [
             { name: 'repo1', isDirectory: () => true },
             { name: 'repo2', isDirectory: () => true },
@@ -329,7 +331,7 @@ describe('Codex Service', () => {
         return [];
       });
 
-      const repos = await codexService.getAvailableLocalRepositories(['/projects']);
+      const repos = await codexService.getAvailableLocalRepositories([projectsRoot]);
 
       expect(repos).toHaveLength(1);
       expect(repos[0].name).toBe('repo1');

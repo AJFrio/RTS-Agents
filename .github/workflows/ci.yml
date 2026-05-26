@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  desktop:
+    runs-on: ubuntu-latest
+    name: Desktop — validate, lint, test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate documentation harness
+        run: npm run validate:docs
+
+      - name: Validate architecture boundaries
+        run: npm run validate:architecture
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:ci
+
+  mobile-webapp:
+    runs-on: ubuntu-latest
+    name: Mobile — lint and typecheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile-webapp/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mobile-webapp
+        run: npm ci
+
+      - name: Lint
+        working-directory: mobile-webapp
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: mobile-webapp
+        run: npm run typecheck
+
+  e2e:
+    runs-on: ubuntu-latest
+    name: E2E (Playwright)
+    needs: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e

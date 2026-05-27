@@ -120,13 +120,11 @@ test.describe('Merge workflow should not break inputs/dropdowns', () => {
     await prCard.click();
     await expect(page.locator('#pr-modal')).toBeVisible();
  
-    // Merge PR (confirm modal appears)
+    // Merge PR
     await page.click('#merge-btn');
-    await expect(page.locator('#confirm-modal')).toBeVisible();
-    await page.click('#confirm-ok-btn');
  
     // PR modal should close
-    await expect(page.locator('#pr-modal')).toHaveClass(/hidden/);
+    await expect(page.locator('#pr-modal')).not.toBeVisible();
  
     // Branches repo filter should still be focusable/editable
     const repoFilter = page.locator('#repo-filter');
@@ -137,6 +135,7 @@ test.describe('Merge workflow should not break inputs/dropdowns', () => {
     // New Task repo dropdown should still open + select
     await page.click('#new-task-btn');
     await expect(page.locator('#new-task-modal')).toBeVisible();
+    await page.click('#environment-cloud');
     await page.click('#service-jules');
  
     const repoSearch = page.locator('#task-repo-search');

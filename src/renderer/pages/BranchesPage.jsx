@@ -310,7 +310,7 @@ export default function BranchesPage() {
                         role="button"
                         tabIndex={0}
                         onClick={() => openPrModal(pr)}
-                        className="p-4 border border-slate-200 dark:border-border-dark rounded-xl hover:border-primary/50 cursor-pointer transition-all"
+                        className="pr-card p-4 border border-slate-200 dark:border-border-dark rounded-xl hover:border-primary/50 cursor-pointer transition-all"
                       >
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <span className="text-slate-500 technical-font text-sm">#{pr.number}</span>

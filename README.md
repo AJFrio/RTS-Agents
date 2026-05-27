@@ -6,7 +6,7 @@
 RTS Agents is 1 dashboard to access all your coding agents and Github repos across all your service providers and devices
 
 It supports:
-- **Local CLI-backed agents**: Gemini CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (reads local session files and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
+- **Local CLI-backed agents**: Antigravity CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (tracks locally-launched sessions and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
 - **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI (Codex via Assistants/Threads), and Claude (Anthropic Messages API).
 - **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
 
@@ -15,7 +15,7 @@ It supports:
 ## What it can do
 
 ### Dashboard
-- **Unified task list** across providers (Gemini, OpenCode, Jules, Cursor, Codex, Claude CLI, Claude Cloud)
+- **Unified task list** across providers (Antigravity, OpenCode, Jules, Cursor, Codex, Claude CLI, Claude Cloud)
 - **Search + filtering** by provider and status
 - **Pagination** for large task sets
 - **Auto-refresh (polling)** with configurable interval
@@ -25,7 +25,7 @@ It supports:
 - Click a task card to view **provider-specific details**, such as:
   - Cursor: conversation transcript
   - Jules: activity timeline + PR output (when available)
-  - Gemini CLI: lightweight message history extracted from session JSON files
+  - Antigravity CLI: tracked launch metadata with full conversation history available in Antigravity
   - Codex: thread messages and run history
   - Claude CLI / Cloud: message history (local sessions or tracked cloud conversations)
 
@@ -33,7 +33,7 @@ It supports:
 Create tasks from the UI, with provider-specific options:
 - **Jules**: choose connected repo source + branch, optionally auto-create PR
 - **Cursor Cloud**: choose repository + ref/branch, optionally auto-create PR
-- **Gemini CLI**: choose a local Git repo path, start a detached `gemini` CLI session
+- **Antigravity CLI**: choose a local Git repo path, start a detached `agy -p` CLI session
 - **Codex**: create a new OpenAI thread (tracked locally in the app), prompt-only (repo optional)
 - **Claude CLI**: start a detached `claude` CLI session in a local repo
 - **Claude Cloud**: prompt-only (no repository required)
@@ -62,7 +62,7 @@ The repository includes a mobile-optimized Progressive Web App (PWA) in the `mob
 - **GitHub**: View repositories and branches (read-only).
 
 ### Limitations
-- **No Local Execution**: It cannot run local CLI tools (Gemini/Claude CLI) directly. Instead, it dispatches these tasks to your running desktop instances.
+- **No Local Execution**: It cannot run local CLI tools (Antigravity/Claude CLI) directly. Instead, it dispatches these tasks to your running desktop instances.
 - **Requires Cloudflare KV**: Syncing between desktop and mobile requires Cloudflare KV configuration.
 - **Read-Only Device Status**: It views other devices but does not register itself as a compute node.
 
@@ -95,7 +95,7 @@ The repository includes a mobile-optimized Progressive Web App (PWA) in the `mob
 - **Git** (required for cloning and for the in-app “Update & Restart” feature)
 
 Optional, depending on features you use:
-- **Gemini CLI** (for Gemini local sessions + creating Gemini tasks)
+- **Antigravity CLI** (for local Antigravity sessions + creating Antigravity tasks)
 - **Claude Code CLI** (for Claude local sessions + creating Claude CLI tasks)
 
 ### Install dependencies (Windows PowerShell)
@@ -173,23 +173,23 @@ This app stores provider credentials in a local Electron settings store. You can
 
 ---
 
-## Local CLI setup (Gemini CLI and Claude CLI)
+## Local CLI setup (Antigravity CLI and Claude CLI)
 
 These providers are **not configured via API key inside this app**. They rely on locally-installed CLIs and their session folders.
 
-### Gemini CLI
-- **Detected by**: existence of a Gemini data directory under your home directory:
-  - Windows example: `C:\Users\<you>\.gemini\tmp`
-- **Starts tasks by running** (detached): `gemini -p "<prompt>" -y`
-  - `-p` prompt/headless mode
-  - `-y` auto-approve actions
+### Antigravity CLI
+- **Detected by**: `agy --version` or an Antigravity data directory under your home directory:
+  - Windows example: `%LOCALAPPDATA%\Antigravity`
+  - Cross-platform settings example: `~/.gemini/antigravity-cli`
+- **Starts tasks by running** (detached): `agy -p "<prompt>" --print-timeout 30m`
+  - `-p` / `--print` runs a single non-interactive prompt
 - **Project selection**:
   - In Settings, add **GitHub Repository Paths** (folders that contain your Git repos)
   - The New Task modal will list repos found under those paths (directories containing `.git`)
 
-If Gemini shows as “not installed”:
-- Ensure you have installed Gemini CLI and that you’ve run it at least once so it creates its home folder.
-- Ensure `gemini` is available on your `PATH` (the app will run `gemini` / `gemini.cmd` depending on OS).
+If Antigravity shows as “not installed”:
+- Ensure you have installed Antigravity CLI and authenticated it at least once.
+- Ensure `agy` is available on your `PATH`, or set a custom executable path for headless mode.
 
 ### Claude Code CLI
 - **Detected by**: existence of a Claude data directory under your home directory:
@@ -210,8 +210,8 @@ If Claude CLI shows as “not installed”:
 2. **Start the app** (`npm run dev` or `npm run start`)
 3. Open **Settings** and configure what you need:
    - Add API keys for any cloud providers you want to use (Jules, Cursor, Codex, Claude Cloud, GitHub)
-   - Add **GitHub Repository Paths** so the app can find local repos for Gemini CLI / Claude CLI tasks
-   - Optional: add **Gemini CLI Paths** if you keep Gemini projects/sessions in additional locations
+   - Add **GitHub Repository Paths** so the app can find local repos for Antigravity CLI / Claude CLI tasks
+   - Optional: add **Antigravity CLI Paths** if you keep local repo roots in additional locations
 4. Go back to **Dashboard** and click **SYNC** to refresh.
 
 ---

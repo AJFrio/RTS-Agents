@@ -28,7 +28,7 @@ describe('config-path-registry', () => {
   });
 
   test('getAllProjectPaths merges and deduplicates providers', () => {
-    pathRegistry.addPath(store, 'gemini', '/shared');
+    pathRegistry.addPath(store, 'antigravity', '/shared');
     pathRegistry.addPath(store, 'claude', '/shared');
     pathRegistry.addPath(store, 'github', '/only-github');
 

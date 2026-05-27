@@ -1,7 +1,7 @@
 const { spawnSync } = require('child_process');
 const configStore = require('./config-store');
 const cloudflareKvService = require('./cloudflare-kv-service');
-const geminiService = require('./gemini-service');
+const antigravityService = require('./antigravity-service');
 const claudeService = require('./claude-service');
 const codexService = require('./codex-service');
 const opencodeService = require('./opencode-service');
@@ -49,7 +49,7 @@ class QueueProcessorService {
 
       const baseStatus = {
         status: 'starting',
-        tool: item?.tool || null,
+        tool: item?.tool === 'gemini' ? 'antigravity' : item?.tool || null,
         repo: item?.repo || null,
         prompt: item?.prompt || null,
         requestedBy: item?.requestedBy || null,
@@ -60,7 +60,7 @@ class QueueProcessorService {
 
       await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, baseStatus);
 
-      const tool = item?.tool;
+      const tool = item?.tool === 'gemini' ? 'antigravity' : item?.tool;
       if (!tool) throw new Error('Queued task missing tool');
 
       // Project/repo creation tasks
@@ -102,19 +102,19 @@ class QueueProcessorService {
       if (!repoPath) throw new Error('Queued task missing repo.path');
 
       const cliCommands = configStore.getSetting('cliCommands') || {};
-      const geminiCmd = typeof cliCommands?.gemini === 'string' ? cliCommands.gemini : '';
+      const antigravityCmd = typeof cliCommands?.antigravity === 'string' ? cliCommands.antigravity : '';
       const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
       const opencodeCmd = typeof cliCommands?.opencode === 'string' ? cliCommands.opencode : '';
 
       let started;
-      if (tool === 'gemini') {
-        if (!(await geminiService.isGeminiInstalled()) && !this.isCommandRunnable(geminiCmd || 'gemini')) {
-          throw new Error('Gemini CLI not detected on target device');
+      if (tool === 'antigravity') {
+        if (!(await antigravityService.isAntigravityInstalled()) && !this.isCommandRunnable(antigravityCmd || 'agy')) {
+          throw new Error('Antigravity CLI not detected on target device');
         }
-        started = await geminiService.startSession({
+        started = await antigravityService.startSession({
             prompt,
             projectPath: repoPath,
-            command: geminiCmd || undefined
+            command: antigravityCmd || undefined
         });
       } else if (tool === 'claude-cli') {
         if (!claudeService.isClaudeInstalled() && !this.isCommandRunnable(claudeCmd || 'claude')) {

@@ -114,6 +114,23 @@ const schema = {
     },
     default: []
   },
+  antigravitySessions: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        rawId: { type: 'string' },
+        prompt: { type: 'string' },
+        projectPath: { type: 'string' },
+        status: { type: 'string' },
+        filePath: { type: 'string' },
+        createdAt: { type: 'string' },
+        updatedAt: { type: 'string' }
+      }
+    },
+    default: []
+  },
   settings: {
     type: 'object',
     properties: {
@@ -128,6 +145,11 @@ const schema = {
         default: true
       },
       geminiPaths: {
+        type: 'array',
+        items: { type: 'string' },
+        default: []
+      },
+      antigravityPaths: {
         type: 'array',
         items: { type: 'string' },
         default: []
@@ -159,6 +181,7 @@ const schema = {
       cliCommands: {
         type: 'object',
         properties: {
+          antigravity: { type: 'string', default: '' },
           gemini: { type: 'string', default: '' },
           claude: { type: 'string', default: '' },
           opencode: { type: 'string', default: '' }

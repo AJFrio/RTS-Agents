@@ -17,6 +17,7 @@ const jiraService = require('./src/main/services/jira-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 const opencodeService = require('./src/main/services/opencode-service');
+const antigravityService = require('./src/main/services/antigravity-service');
 const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
 const { clearInstallStatusCache } = require('./src/main/utils/install-status');
 
@@ -145,6 +146,8 @@ function initializeServices() {
 
   const opencodeSessions = configStore.getOpenCodeSessions();
   opencodeService.setTrackedSessions(opencodeSessions);
+  const antigravitySessions = configStore.getAntigravitySessions();
+  antigravityService.setTrackedSessions(antigravitySessions);
 
   const githubKey = configStore.getApiKey('github');
   if (githubKey) {
@@ -158,6 +161,7 @@ function initializeServices() {
   }
 
   void Promise.all([
+    antigravityService.refreshInstallStatus(),
     geminiService.refreshInstallStatus(),
     claudeService.refreshInstallStatus(),
     opencodeService.refreshInstallStatus()
@@ -207,16 +211,16 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     repos = [];
   }
 
-  const [claudeInstalled, geminiInstalled, opencodeInstalled] = await Promise.all([
+  const [antigravityInstalled, claudeInstalled, opencodeInstalled] = await Promise.all([
+    antigravityService.isAntigravityInstalled(),
     claudeService.isClaudeInstalled(),
-    geminiService.isGeminiInstalled(),
     opencodeService.isOpenCodeInstalled()
   ]);
 
   const availableCliTools = [];
   if (configStore.getCodexPaths().length > 0) availableCliTools.push('Codex CLI');
+  if (antigravityInstalled) availableCliTools.push('Antigravity CLI');
   if (claudeInstalled) availableCliTools.push('claude CLI');
-  if (geminiInstalled) availableCliTools.push('Gemini CLI');
   if (opencodeInstalled) availableCliTools.push('OpenCode CLI');
   if (configStore.getCursorPaths().length > 0) availableCliTools.push('cursor CLI');
 
@@ -328,6 +332,7 @@ function stopAutoUpdateTimer() {
 function startDiscoveryWatchers() {
   const deps = {
     configStore,
+    antigravityService,
     geminiService,
     claudeService,
     opencodeService
@@ -347,6 +352,7 @@ function invalidateAgentDiscovery() {
   clearInstallStatusCache();
   agentDiscoveryCache.invalidate();
   void Promise.all([
+    antigravityService.refreshInstallStatus(),
     geminiService.refreshInstallStatus(),
     claudeService.refreshInstallStatus(),
     opencodeService.refreshInstallStatus()
@@ -370,6 +376,7 @@ const lifecycle = {
 
 const ipcExports = registerAllIpcHandlers({
   configStore,
+  antigravityService,
   geminiService,
   julesService,
   cursorService,

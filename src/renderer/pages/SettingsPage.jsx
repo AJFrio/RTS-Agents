@@ -26,7 +26,7 @@ function buildConnectedServices(state) {
   if ((state.settings?.codexPaths || []).length > 0) services.push('codex-local');
   if (apiKeys.claude) services.push('claude-cloud');
   if (state.serviceInfo?.installations?.claude || (state.settings?.claudePaths || []).length > 0) services.push('claude-local');
-  if (state.serviceInfo?.installations?.gemini || (state.settings?.geminiPaths || []).length > 0) services.push('gemini-local');
+  if (state.serviceInfo?.installations?.antigravity || (state.settings?.antigravityPaths || []).length > 0) services.push('antigravity-local');
   if (apiKeys.gemini) services.push('gemini-api');
   if (apiKeys.openrouter) services.push('openrouter-cloud');
   if (apiKeys.openai) services.push('openai-cloud');
@@ -50,9 +50,10 @@ function getServiceStatus(serviceId, state) {
       return state.connectionStatus?.['claude-cloud'];
     case 'claude-local':
       return state.connectionStatus?.['claude-cli'] || { success: !!state.serviceInfo?.installations?.claude };
-    case 'gemini-local':
+    case 'antigravity-local':
+      return state.connectionStatus?.antigravity || { success: !!state.serviceInfo?.installations?.antigravity };
     case 'gemini-api':
-      return state.connectionStatus?.gemini || { success: !!state.serviceInfo?.installations?.gemini };
+      return state.connectionStatus?.gemini;
     case 'openrouter-cloud':
       return state.connectionStatus?.openrouter;
     case 'openai-cloud':
@@ -78,10 +79,10 @@ function getServiceSummary(serviceId, state, status) {
       return state.serviceInfo?.installations?.claude
         ? `${state.settings?.claudePaths?.length || 0} repository roots linked`
         : 'Repository roots saved, but Claude Code is not detected locally';
-    case 'gemini-local':
-      return state.serviceInfo?.installations?.gemini
-        ? `${state.settings?.geminiPaths?.length || 0} repository roots linked`
-        : 'Repository roots saved, but Gemini CLI is not detected locally';
+    case 'antigravity-local':
+      return state.serviceInfo?.installations?.antigravity
+        ? `${state.settings?.antigravityPaths?.length || 0} repository roots linked`
+        : 'Repository roots saved, but Antigravity CLI is not detected locally';
     case 'github-local':
       return `${state.settings?.githubPaths?.length || 0} repository roots connected`;
     case 'jira-cloud':
@@ -102,7 +103,7 @@ function isDisconnectable(serviceId, state) {
   if (serviceId === 'cursor-local') return (state.settings?.cursorPaths || []).length > 0;
   if (serviceId === 'codex-local') return (state.settings?.codexPaths || []).length > 0;
   if (serviceId === 'claude-local') return (state.settings?.claudePaths || []).length > 0;
-  if (serviceId === 'gemini-local') return (state.settings?.geminiPaths || []).length > 0;
+  if (serviceId === 'antigravity-local') return (state.settings?.antigravityPaths || []).length > 0;
   if (serviceId === 'github-local') return (state.settings?.githubPaths || []).length > 0;
   return false;
 }
@@ -112,7 +113,6 @@ export default function SettingsPage() {
   const [selectedModel, setSelectedModel] = useState(state.settings.selectedModel || 'openrouter/openai/gpt-4o');
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [activeServiceId, setActiveServiceId] = useState(null);
-  const [autoOpened, setAutoOpened] = useState(false);
   const [busyServiceId, setBusyServiceId] = useState(null);
 
   const connectedServices = useMemo(() => buildConnectedServices(state), [state]);
@@ -120,15 +120,6 @@ export default function SettingsPage() {
   useEffect(() => {
     setSelectedModel(state.settings.selectedModel || 'openrouter/openai/gpt-4o');
   }, [state.settings.selectedModel]);
-
-  useEffect(() => {
-    if (autoOpened) return;
-    if (Object.keys(state.connectionStatus || {}).length === 0) return;
-    if (connectedServices.length === 0) {
-      setOnboardingOpen(true);
-      setAutoOpened(true);
-    }
-  }, [autoOpened, connectedServices.length, state.connectionStatus]);
 
   const saveModel = useCallback(async (model) => {
     setSelectedModel(model);
@@ -141,6 +132,10 @@ export default function SettingsPage() {
   const openOnboarding = useCallback((serviceId = null) => {
     setActiveServiceId(serviceId);
     setOnboardingOpen(true);
+  }, []);
+
+  const closeOnboarding = useCallback(() => {
+    setOnboardingOpen(false);
   }, []);
 
   const disconnectService = useCallback(async (serviceId) => {
@@ -181,9 +176,9 @@ export default function SettingsPage() {
         for (const pathValue of state.settings?.claudePaths || []) {
           await api.removeClaudePath(pathValue);
         }
-      } else if (serviceId === 'gemini-local') {
-        for (const pathValue of state.settings?.geminiPaths || []) {
-          await api.removeGeminiPath(pathValue);
+      } else if (serviceId === 'antigravity-local') {
+        for (const pathValue of state.settings?.antigravityPaths || []) {
+          await api.removeAntigravityPath(pathValue);
         }
       } else if (serviceId === 'github-local') {
         for (const pathValue of state.settings?.githubPaths || []) {
@@ -197,16 +192,6 @@ export default function SettingsPage() {
       setBusyServiceId(null);
     }
   }, [api, checkConnectionStatus, loadSettings, state.settings]);
-
-  const refreshStatus = useCallback(async () => {
-    setBusyServiceId('refresh');
-    try {
-      await loadSettings();
-      await checkConnectionStatus();
-    } finally {
-      setBusyServiceId(null);
-    }
-  }, [checkConnectionStatus, loadSettings]);
 
   const setTheme = useCallback((theme) => {
     api?.setTheme?.(theme);
@@ -241,35 +226,30 @@ export default function SettingsPage() {
                 Setup now happens through guided onboarding. Settings only shows services that are already linked, along with their current connection state.
               </p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={refreshStatus} disabled={busyServiceId === 'refresh'}>
-                {busyServiceId === 'refresh' ? 'CHECKING...' : 'REFRESH STATUS'}
-              </Button>
+            {connectedServices.length > 0 && (
               <Button variant="primary" onClick={() => openOnboarding()}>
                 ADD SERVICE
               </Button>
-            </div>
+            )}
           </div>
-        </section>
 
-        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
           {connectedServices.length === 0 ? (
-            <div className="text-center py-12 space-y-4">
+            <div className="text-center py-12 space-y-4 mt-8">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary">
                 <span className="material-symbols-outlined text-3xl">hub</span>
               </div>
               <div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">No services connected yet</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                  Start onboarding to connect your local or cloud assistants before using the dashboard.
+                  Add a local or cloud assistant when you are ready.
                 </p>
               </div>
               <Button variant="primary" onClick={() => openOnboarding()}>
-                START ONBOARDING
+                ADD SERVICE
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mt-8">
               {connectedServices.map((serviceId) => {
                 const definition = getServiceDefinition(serviceId);
                 const status = getServiceStatus(serviceId, state);
@@ -434,13 +414,13 @@ export default function SettingsPage() {
       <ServiceOnboardingModal
         open={onboardingOpen}
         initialServiceId={activeServiceId}
-        requiredConnection={connectedServices.length === 0}
+        requiredConnection={false}
         hasConnectedServices={connectedServices.length > 0}
         state={state}
         api={api}
         loadSettings={loadSettings}
         checkConnectionStatus={checkConnectionStatus}
-        onClose={() => setOnboardingOpen(false)}
+        onClose={closeOnboarding}
         onConnected={() => {
           setOnboardingOpen(false);
           setActiveServiceId(null);

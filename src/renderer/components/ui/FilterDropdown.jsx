@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext.jsx';
 import { formatCount } from '../../utils/format.js';
 
 const PROVIDERS = [
-  { id: 'gemini', label: 'GEMINI CLI', dot: 'bg-emerald-500' },
+  { id: 'antigravity', label: 'ANTIGRAVITY CLI', dot: 'bg-emerald-500' },
   { id: 'jules', label: 'JULES', dot: 'bg-primary' },
   { id: 'cursor', label: 'CURSOR', dot: 'bg-blue-500' },
   { id: 'codex', label: 'CODEX', dot: 'bg-cyan-500' },

@@ -150,9 +150,11 @@ export default function NewTaskModal() {
         }
 
         // Find tool to use based on device capabilities (using new schema)
-        let tool = 'gemini'; // Default to gemini for remote devices
+        let tool = 'antigravity'; // Default to Antigravity for remote devices
 
-        if (hasTool(device, 'OpenCode CLI')) {
+        if (hasTool(device, 'antigravity')) {
+          tool = 'antigravity';
+        } else if (hasTool(device, 'OpenCode CLI')) {
           tool = 'opencode';
         } else if (hasTool(device, 'claude CLI')) {
           tool = 'claude-cli';

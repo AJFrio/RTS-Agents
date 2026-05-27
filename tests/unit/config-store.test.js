@@ -76,6 +76,25 @@ describe('ConfigStore Unit Tests', () => {
       expect(paths).toContain(path2);
     });
 
+    test('should migrate Gemini paths to Antigravity paths', () => {
+      configStore.addGeminiPath('/legacy/repo');
+
+      const paths = configStore.getAntigravityPaths();
+
+      expect(paths).toEqual(['/legacy/repo']);
+      expect(configStore.getGeminiPaths()).toEqual([]);
+    });
+
+    test('should manage Antigravity paths', () => {
+      configStore.addAntigravityPath('/antigravity/repo');
+      configStore.addAntigravityPath('/antigravity/repo');
+
+      expect(configStore.getAntigravityPaths()).toEqual(['/antigravity/repo']);
+
+      configStore.removeAntigravityPath('/antigravity/repo');
+      expect(configStore.getAntigravityPaths()).toEqual([]);
+    });
+
     test('should manage paths via generic project path API', () => {
       configStore.addProjectPath('cursor', '/cursor/repo');
       configStore.addProjectPath('github', '/github/repo');

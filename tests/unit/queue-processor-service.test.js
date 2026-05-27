@@ -16,8 +16,8 @@ jest.mock('../../src/main/services/cloudflare-kv-service', () => ({
   setDeviceTaskStatus: jest.fn(),
 }));
 
-jest.mock('../../src/main/services/gemini-service', () => ({
-  isGeminiInstalled: jest.fn(),
+jest.mock('../../src/main/services/antigravity-service', () => ({
+  isAntigravityInstalled: jest.fn(),
   startSession: jest.fn(),
 }));
 
@@ -45,7 +45,7 @@ const queueProcessorService = require('../../src/main/services/queue-processor-s
 const { spawnSync } = require('child_process');
 const configStore = require('../../src/main/services/config-store');
 const cloudflareKvService = require('../../src/main/services/cloudflare-kv-service');
-const geminiService = require('../../src/main/services/gemini-service');
+const antigravityService = require('../../src/main/services/antigravity-service');
 const claudeService = require('../../src/main/services/claude-service');
 const codexService = require('../../src/main/services/codex-service');
 const projectService = require('../../src/main/services/project-service');
@@ -107,15 +107,30 @@ describe('QueueProcessorService', () => {
       );
     });
 
-    it('should process gemini task', async () => {
-      const task = { tool: 'gemini', repo: { path: '/path/to/repo' }, prompt: 'test prompt' };
+    it('should process antigravity task', async () => {
+      const task = { tool: 'antigravity', repo: { path: '/path/to/repo' }, prompt: 'test prompt' };
       cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
-      geminiService.isGeminiInstalled.mockReturnValue(true);
-      geminiService.startSession.mockResolvedValue({ id: 'session1' });
+      antigravityService.isAntigravityInstalled.mockReturnValue(true);
+      antigravityService.startSession.mockResolvedValue({ id: 'session1' });
 
       await queueProcessorService.processQueue('ns1');
 
-      expect(geminiService.startSession).toHaveBeenCalledWith({
+      expect(antigravityService.startSession).toHaveBeenCalledWith({
+        prompt: 'test prompt',
+        projectPath: '/path/to/repo',
+        command: undefined
+      });
+    });
+
+    it('should process legacy gemini tasks through antigravity', async () => {
+      const task = { tool: 'gemini', repo: { path: '/path/to/repo' }, prompt: 'test prompt' };
+      cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
+      antigravityService.isAntigravityInstalled.mockReturnValue(true);
+      antigravityService.startSession.mockResolvedValue({ id: 'session1' });
+
+      await queueProcessorService.processQueue('ns1');
+
+      expect(antigravityService.startSession).toHaveBeenCalledWith({
         prompt: 'test prompt',
         projectPath: '/path/to/repo',
         command: undefined

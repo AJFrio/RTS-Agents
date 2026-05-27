@@ -2,7 +2,7 @@ import type { Computer } from '../store/types';
 
 /**
  * Extracts the set of available CLI tools from a computer object based on the new schema.
- * Schema: tools: [{ 'CLI tools': ['Gemini CLI', 'claude CLI', ...] }]
+ * Schema: tools: [{ 'CLI tools': ['Antigravity CLI', 'claude CLI', ...] }]
  */
 export function getAvailableTools(computer: Computer | undefined): Set<string> {
   if (!computer?.tools || !Array.isArray(computer.tools) || computer.tools.length === 0) {
@@ -27,7 +27,8 @@ export function getAvailableTools(computer: Computer | undefined): Set<string> {
 export function hasTool(computer: Computer | undefined, toolId: string): boolean {
   const tools = getAvailableTools(computer);
 
-  if (toolId === 'gemini') return tools.has('Gemini CLI');
+  if (toolId === 'antigravity') return tools.has('Antigravity CLI') || tools.has('Gemini CLI');
+  if (toolId === 'gemini') return tools.has('Gemini CLI') || tools.has('Antigravity CLI');
   if (toolId === 'claude-cli') return tools.has('claude CLI');
   if (toolId === 'opencode') return tools.has('OpenCode CLI');
   if (toolId === 'codex') return tools.has('Codex CLI');

@@ -9,6 +9,7 @@ export function formatCount(num) {
  * Get provider display name
  */
 export function getProviderDisplayName(provider) {
+  if (provider === 'antigravity') return 'Antigravity CLI';
   if (provider === 'claude-cloud') return 'Claude';
   if (provider === 'claude-cli') return 'Claude CLI';
   if (provider === 'opencode') return 'OpenCode';
@@ -44,11 +45,12 @@ export function getStatusStyle(status) {
 
 export function getProviderDot(provider) {
   const map = {
+    antigravity: 'bg-emerald-500',
     jules: 'bg-primary',
     cursor: 'bg-blue-500',
     codex: 'bg-cyan-500',
     'claude-cloud': 'bg-amber-500',
-    gemini: 'bg-emerald-500',
+    gemini: 'bg-teal-500',
     'claude-cli': 'bg-orange-500',
     opencode: 'bg-violet-500',
   };

@@ -28,8 +28,8 @@ function setCachedRepos(provider, repos) {
 }
 
 const CLOUD_PROVIDERS = ['jules', 'cursor', 'codex', 'claude-cloud'];
-const LOCAL_PROVIDERS = ['gemini', 'cursor', 'codex', 'claude-cli', 'opencode'];
-const REMOTE_PROVIDERS = ['gemini', 'claude-cli', 'codex', 'opencode'];
+const LOCAL_PROVIDERS = ['antigravity', 'cursor', 'codex', 'claude-cli', 'opencode'];
+const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode'];
 
 function capabilityForProvider(state, provider) {
   if (provider === 'claude-cloud' || provider === 'claude-cli') {

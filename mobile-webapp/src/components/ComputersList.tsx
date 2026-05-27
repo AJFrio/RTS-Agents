@@ -98,9 +98,9 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
         <div className="mb-3">
           <p className="text-xs text-slate-500 dark:text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
           <div className="flex flex-wrap gap-1.5">
-            {checkTool('gemini') && (
+            {checkTool('antigravity') && (
               <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-500 text-xs uppercase">
-                Gemini CLI
+                Antigravity CLI
               </span>
             )}
             {checkTool('claude-cli') && (
@@ -125,7 +125,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
             )}
             {/* Fallback for unknown tools */}
             {Array.from(availableTools).map(tool => {
-               if (['Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI', 'OpenCode CLI'].includes(tool)) return null;
+               if (['Antigravity CLI', 'Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI', 'OpenCode CLI'].includes(tool)) return null;
                return (
                 <span key={tool} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/30 text-slate-500 dark:text-slate-400 text-xs uppercase">
                   {tool}
@@ -168,7 +168,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           Last seen: {formatTimeAgo(computer.lastHeartbeat)}
         </span>
 
-        {isOnline && (checkTool('gemini') || checkTool('claude-cli') || checkTool('opencode') || checkTool('codex')) && (
+        {isOnline && (checkTool('antigravity') || checkTool('claude-cli') || checkTool('opencode') || checkTool('codex')) && (
           <button
             onClick={onDispatchTask}
             className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"

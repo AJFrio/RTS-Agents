@@ -14,6 +14,7 @@ describe('provider-registry', () => {
   });
 
   test('REMOTE_TASK_PROVIDERS includes expected local CLIs', () => {
+    expect(REMOTE_TASK_PROVIDERS.has('antigravity')).toBe(true);
     expect(REMOTE_TASK_PROVIDERS.has('gemini')).toBe(true);
     expect(REMOTE_TASK_PROVIDERS.has('claude-cli')).toBe(true);
     expect(REMOTE_TASK_PROVIDERS.has('jules')).toBe(false);

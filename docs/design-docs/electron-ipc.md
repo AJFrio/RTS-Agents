@@ -21,16 +21,16 @@ main.js  →  registerAllIpcHandlers()  →  src/main/ipc/register-*.js
 
 ## Channel inventory (representative)
 
-| Channel | Purpose |
-|---------|---------|
-| `agents:get-all` | Aggregated task list from all providers |
-| `agents:get-details` | Provider-specific detail payload |
-| `settings:*` | Keys, polling, theme, paths, filters |
-| `github:*` | Repos, PRs, merge, ready-for-review |
-| `cloudflare:*` | KV config, heartbeat, key sync |
-| `computers:list` | Registered devices |
-| `jira:*` | Boards, sprints, issues |
-| `orchestrator:*` | Chat / models / tool dispatch |
+| Channel              | Purpose                                 |
+| -------------------- | --------------------------------------- |
+| `agents:get-all`     | Aggregated task list from all providers |
+| `agents:get-details` | Provider-specific detail payload        |
+| `settings:*`         | Keys, polling, theme, paths, filters    |
+| `github:*`           | Repos, PRs, merge, ready-for-review     |
+| `cloudflare:*`       | KV config, heartbeat, key sync          |
+| `computers:list`     | Registered devices                      |
+| `jira:*`             | Boards, sprints, issues                 |
+| `orchestrator:*`     | Chat / models / tool dispatch           |
 
 Search `ipcMain.handle` under `src/main/ipc/` for the authoritative full list.
 

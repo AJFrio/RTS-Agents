@@ -113,7 +113,7 @@ describe('ConfigStore Unit Tests', () => {
       const thread = {
         id: 't1',
         title: 'Test Thread',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       configStore.addCodexThread(thread);

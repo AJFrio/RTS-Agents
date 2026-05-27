@@ -17,7 +17,7 @@ describe('HttpService', () => {
       write: jest.fn(),
       end: jest.fn(),
       destroy: jest.fn(),
-      setTimeout: jest.fn((timeout, callback) => {})
+      setTimeout: jest.fn((_timeout, _callback) => {}),
     };
 
     mockResponse = new EventEmitter();
@@ -32,11 +32,11 @@ describe('HttpService', () => {
     });
 
     httpRequestSpy = jest.spyOn(http, 'request').mockImplementation((options, callback) => {
-        if (callback) {
-          callback(mockResponse);
-        }
-        return mockRequest;
-      });
+      if (callback) {
+        callback(mockResponse);
+      }
+      return mockRequest;
+    });
   });
 
   afterEach(() => {
@@ -99,10 +99,10 @@ describe('HttpService', () => {
 
     await expect(promise).rejects.toThrow('Request failed with status code 404');
     try {
-        await promise;
+      await promise;
     } catch (err) {
-        expect(err.statusCode).toBe(404);
-        expect(err.data).toBe('Not Found');
+      expect(err.statusCode).toBe(404);
+      expect(err.data).toBe('Not Found');
     }
   });
 
@@ -113,7 +113,7 @@ describe('HttpService', () => {
     // So we can spyOn mockRequest.on or just use the mock function implementation
 
     mockRequest.on.mockImplementation((event, cb) => {
-        handlers[event] = cb;
+      handlers[event] = cb;
     });
 
     const promise = httpService.request('https://example.com');
@@ -127,7 +127,7 @@ describe('HttpService', () => {
 
   test('should reject on timeout', async () => {
     mockRequest.setTimeout.mockImplementation((timeout, callback) => {
-        callback();
+      callback();
     });
     const promise = httpService.request('https://example.com', { timeout: 1000 });
     await expect(promise).rejects.toThrow('Request timeout after 1000ms');
@@ -146,8 +146,11 @@ describe('HttpService', () => {
     const promise = httpService.requestJson('https://example.com');
     mockResponse.emit('end');
     await promise;
-    expect(httpsRequestSpy).toHaveBeenCalledWith(expect.objectContaining({
-        headers: expect.objectContaining({ 'Content-Type': 'application/json' })
-    }), expect.any(Function));
+    expect(httpsRequestSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+      expect.any(Function)
+    );
   });
 });

@@ -2,25 +2,25 @@
 jest.mock('../../src/main/services/openrouter-service', () => ({
   chat: jest.fn(),
   getModels: jest.fn(),
-  setApiKey: jest.fn()
+  setApiKey: jest.fn(),
 }));
 jest.mock('../../src/main/services/config-store', () => ({
   hasApiKey: jest.fn(),
   hasCloudflareConfig: jest.fn(),
-  getOrCreateDeviceIdentity: jest.fn()
+  getOrCreateDeviceIdentity: jest.fn(),
 }));
 jest.mock('../../src/main/services/cloudflare-kv-service', () => ({
   ensureNamespace: jest.fn(),
-  getValueJson: jest.fn()
+  getValueJson: jest.fn(),
 }));
 jest.mock('../../src/main/services/codex-service', () => ({
-  getModels: jest.fn()
+  getModels: jest.fn(),
 }));
 jest.mock('../../src/main/services/claude-service', () => ({
-  getModels: jest.fn()
+  getModels: jest.fn(),
 }));
 jest.mock('../../src/main/services/gemini-service', () => ({
-  getModels: jest.fn()
+  getModels: jest.fn(),
 }));
 
 describe('AgentOrchestrator', () => {
@@ -56,7 +56,7 @@ describe('AgentOrchestrator', () => {
 
   test('chat sends message to OpenRouter with system prompt', async () => {
     openRouterService.chat.mockResolvedValue({
-      choices: [{ message: { role: 'assistant', content: 'Hello!' } }]
+      choices: [{ message: { role: 'assistant', content: 'Hello!' } }],
     });
 
     const messages = [{ role: 'user', content: 'Hi' }];
@@ -65,7 +65,7 @@ describe('AgentOrchestrator', () => {
     expect(openRouterService.chat).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ role: 'system' }),
-        { role: 'user', content: 'Hi' }
+        { role: 'user', content: 'Hi' },
       ]),
       'openai/gpt-4o'
     );
@@ -75,17 +75,19 @@ describe('AgentOrchestrator', () => {
   test('chat parses tool call and executes it', async () => {
     // First call returns tool call
     openRouterService.chat.mockResolvedValueOnce({
-      choices: [{ message: { role: 'assistant', content: '{"tool": "list_computers", "args": {}}' } }]
+      choices: [
+        { message: { role: 'assistant', content: '{"tool": "list_computers", "args": {}}' } },
+      ],
     });
 
     // Mock tool execution result
     cloudflareKvService.getValueJson.mockResolvedValue([
-      { id: 'dev-1', name: 'Dev Machine', status: 'on' }
+      { id: 'dev-1', name: 'Dev Machine', status: 'on' },
     ]);
 
     // Second call (recursion) returns final answer
     openRouterService.chat.mockResolvedValueOnce({
-      choices: [{ message: { role: 'assistant', content: 'You have one computer.' } }]
+      choices: [{ message: { role: 'assistant', content: 'You have one computer.' } }],
     });
 
     const messages = [{ role: 'user', content: 'List computers' }];
@@ -93,9 +95,13 @@ describe('AgentOrchestrator', () => {
 
     expect(openRouterService.chat).toHaveBeenNthCalledWith(1, expect.anything(), 'model');
     expect(cloudflareKvService.getValueJson).toHaveBeenCalled();
-    expect(openRouterService.chat).toHaveBeenNthCalledWith(2,
+    expect(openRouterService.chat).toHaveBeenNthCalledWith(
+      2,
       expect.arrayContaining([
-        expect.objectContaining({ role: 'user', content: expect.stringContaining('Tool \'list_computers\' Output') })
+        expect.objectContaining({
+          role: 'user',
+          content: expect.stringContaining("Tool 'list_computers' Output"),
+        }),
       ]),
       'model'
     );
@@ -116,8 +122,8 @@ describe('AgentOrchestrator', () => {
         prompt: 'Do it',
         projectPath: '/repo',
         repository: '/repo',
-        targetDeviceId: 'remote-1'
-      }
+        targetDeviceId: 'remote-1',
+      },
     });
     expect(result).toEqual({ success: true, task: { id: 't1' } });
   });
@@ -138,7 +144,9 @@ describe('AgentOrchestrator', () => {
       // Verify
       expect(result.errors).toHaveLength(0);
       expect(result.models).toHaveLength(5);
-      expect(result.models).toEqual(expect.arrayContaining(['or-1', 'or-2', 'cx-1', 'cl-1', 'gm-1']));
+      expect(result.models).toEqual(
+        expect.arrayContaining(['or-1', 'or-2', 'cx-1', 'cl-1', 'gm-1'])
+      );
 
       expect(openRouterService.getModels).toHaveBeenCalled();
       expect(codexService.getModels).toHaveBeenCalled();

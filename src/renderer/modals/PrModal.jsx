@@ -67,7 +67,9 @@ export default function PrModal({ pr, onClose, api }) {
         <div className="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-start bg-white dark:bg-black/40">
           <div className="flex-1 mr-8">
             <div className="flex items-center gap-3 mb-2">
-              <span id="pr-modal-number" className="text-slate-500 technical-font text-sm">#{pr.number}</span>
+              <span id="pr-modal-number" className="text-slate-500 technical-font text-sm">
+                #{pr.number}
+              </span>
               <span
                 id="pr-modal-state"
                 className={`px-2 py-0.5 text-[10px] technical-font font-bold ${
@@ -79,11 +81,18 @@ export default function PrModal({ pr, onClose, api }) {
                 {state.toUpperCase()}
               </span>
             </div>
-            <h2 id="pr-modal-title" className="text-xl font-display font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
+            <h2
+              id="pr-modal-title"
+              className="text-xl font-display font-bold text-slate-900 dark:text-white tracking-tight leading-tight"
+            >
               {data?.title || 'Loading...'}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-700 dark:hover:text-primary transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-700 dark:hover:text-primary transition-colors"
+          >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -91,31 +100,48 @@ export default function PrModal({ pr, onClose, api }) {
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-4">
               <div className="text-[9px] technical-font text-slate-500 mb-1">SOURCE</div>
-              <div id="pr-modal-head" className="text-xs font-mono text-primary">{data?.head?.ref ?? '—'}</div>
+              <div id="pr-modal-head" className="text-xs font-mono text-primary">
+                {data?.head?.ref ?? '—'}
+              </div>
             </div>
             <div className="bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-4">
               <div className="text-[9px] technical-font text-slate-500 mb-1">TARGET</div>
-              <div id="pr-modal-base" className="text-xs font-mono text-slate-600 dark:text-slate-300">{data?.base?.ref ?? '—'}</div>
+              <div
+                id="pr-modal-base"
+                className="text-xs font-mono text-slate-600 dark:text-slate-300"
+              >
+                {data?.base?.ref ?? '—'}
+              </div>
             </div>
           </div>
           <div className="mb-8">
-            <h3 className="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-slate-200 dark:border-border-dark pb-2">DESCRIPTION</h3>
+            <h3 className="text-[11px] technical-font text-slate-500 font-bold mb-3 border-b border-slate-200 dark:border-border-dark pb-2">
+              DESCRIPTION
+            </h3>
             <div
               id="pr-modal-body"
               className="prose dark:prose-invert prose-sm max-w-none text-slate-600 dark:text-slate-300 font-light leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(data?.body ? data.body.replace(/\n/g, '<br/>') : '—') }}
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(data?.body ? data.body.replace(/\n/g, '<br/>') : '—'),
+              }}
             />
           </div>
           <div className="bg-slate-50 dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className={`material-symbols-outlined ${mergeable ? 'text-emerald-500' : 'text-yellow-500'}`}>
+              <span
+                className={`material-symbols-outlined ${mergeable ? 'text-emerald-500' : 'text-yellow-500'}`}
+              >
                 {mergeable ? 'check_circle' : 'warning'}
               </span>
               <div>
                 <div className="text-sm font-bold text-slate-900 dark:text-white">
-                  {mergeable ? 'This branch has no conflicts with the base branch' : 'Merge status may vary'}
+                  {mergeable
+                    ? 'This branch has no conflicts with the base branch'
+                    : 'Merge status may vary'}
                 </div>
-                <div className="text-xs text-slate-500">Merging can be performed automatically.</div>
+                <div className="text-xs text-slate-500">
+                  Merging can be performed automatically.
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -152,7 +178,9 @@ export default function PrModal({ pr, onClose, api }) {
             <span className="material-symbols-outlined text-xs">open_in_new</span>
             OPEN IN BROWSER
           </a>
-          <span id="pr-modal-meta" className="text-slate-600">Updated {data?.updated_at ?? ''}</span>
+          <span id="pr-modal-meta" className="text-slate-600">
+            Updated {data?.updated_at ?? ''}
+          </span>
         </div>
       </div>
     </Modal>

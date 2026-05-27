@@ -14,7 +14,18 @@ const VIEW_TITLES = {
 };
 
 export default function Header() {
-  const { state, dispatch, setView, loadAgents, fetchComputers, loadBranches, loadAllPrs, openCreateRepoModal, checkConnectionStatus, loadRemoteQueueActivity } = useApp();
+  const {
+    state,
+    dispatch,
+    setView,
+    loadAgents,
+    fetchComputers,
+    loadBranches,
+    loadAllPrs,
+    openCreateRepoModal,
+    checkConnectionStatus,
+    loadRemoteQueueActivity,
+  } = useApp();
   const { currentView, counts, filters, refreshing, github } = state;
 
   const handleSearch = useMemo(
@@ -34,7 +45,16 @@ export default function Header() {
     else if (currentView === 'computers') fetchComputers();
     else if (currentView === 'agent') void checkConnectionStatus();
     else if (currentView === 'jira') setView('jira');
-  }, [currentView, loadAgents, setView, fetchComputers, loadBranches, loadAllPrs, loadRemoteQueueActivity, checkConnectionStatus]);
+  }, [
+    currentView,
+    loadAgents,
+    setView,
+    fetchComputers,
+    loadBranches,
+    loadAllPrs,
+    loadRemoteQueueActivity,
+    checkConnectionStatus,
+  ]);
 
   const showHeaderActions = currentView !== 'settings';
 
@@ -42,22 +62,25 @@ export default function Header() {
     currentView === 'branches'
       ? github?.loadingRepos || false
       : currentView === 'pull-requests'
-      ? github?.loadingAllPrs || false
-      : refreshing;
+        ? github?.loadingAllPrs || false
+        : refreshing;
 
   const taskCount =
     currentView === 'computers'
       ? `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`
       : currentView === 'branches'
-      ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
-      : currentView === 'pull-requests'
-      ? `${github?.allPrs?.length || 0} PR${(github?.allPrs?.length || 0) !== 1 ? 's' : ''}`
-      : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
+        ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
+        : currentView === 'pull-requests'
+          ? `${github?.allPrs?.length || 0} PR${(github?.allPrs?.length || 0) !== 1 ? 's' : ''}`
+          : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
 
   return (
     <header className="h-16 shrink-0 flex items-center justify-between px-8 border-b border-slate-200 dark:border-border-dark bg-white/50 dark:bg-sidebar-dark/50 backdrop-blur-md sticky top-0 z-10">
       <div className="flex items-baseline gap-4">
-        <h2 id="view-title" className="text-xl font-display font-bold uppercase tracking-tight dark:text-white">
+        <h2
+          id="view-title"
+          className="text-xl font-display font-bold uppercase tracking-tight dark:text-white"
+        >
           {VIEW_TITLES[currentView] || 'Dashboard'}
         </h2>
         <span id="total-count" className="technical-font text-slate-400 dark:text-slate-500">

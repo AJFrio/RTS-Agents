@@ -8,7 +8,7 @@ test.describe('Settings View', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
     window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');

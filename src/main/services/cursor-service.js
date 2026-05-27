@@ -11,7 +11,7 @@ class CursorService {
 
   /**
    * Set the API key for Cursor Cloud API
-   * @param {string} apiKey 
+   * @param {string} apiKey
    */
   setApiKey(apiKey) {
     this.apiKey = apiKey;
@@ -20,9 +20,9 @@ class CursorService {
   /**
    * Make an HTTP request to the Cursor Cloud API
    * Uses Basic Auth with API key
-   * @param {string} endpoint 
-   * @param {string} method 
-   * @param {object} body 
+   * @param {string} endpoint
+   * @param {string} method
+   * @param {object} body
    */
   async request(endpoint, method = 'GET', body = null) {
     if (!this.apiKey) {
@@ -30,33 +30,33 @@ class CursorService {
     }
 
     const url = new URL(`${BASE_URL}${endpoint}`);
-    
+
     // Basic Auth: API_KEY as username, empty password
     const auth = Buffer.from(`${this.apiKey}:`).toString('base64');
-    
+
     return new Promise((resolve, reject) => {
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
         method: method,
         headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/json',
+        },
       };
 
       const req = https.request(options, (res) => {
         let data = '';
-        
-        res.on('data', chunk => {
+
+        res.on('data', (chunk) => {
           data += chunk;
         });
-        
+
         res.on('end', () => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             try {
               resolve(JSON.parse(data));
-            } catch (e) {
+            } catch {
               resolve(data);
             }
           } else {
@@ -74,7 +74,7 @@ class CursorService {
       if (body) {
         req.write(JSON.stringify(body));
       }
-      
+
       req.end();
     });
   }
@@ -94,7 +94,7 @@ class CursorService {
 
   /**
    * Get a specific agent by ID
-   * @param {string} agentId 
+   * @param {string} agentId
    */
   async getAgent(agentId) {
     return this.request(`/agents/${agentId}`);
@@ -102,7 +102,7 @@ class CursorService {
 
   /**
    * Get conversation history for an agent
-   * @param {string} agentId 
+   * @param {string} agentId
    */
   async getConversation(agentId) {
     return this.request(`/agents/${agentId}/conversation`);
@@ -112,19 +112,14 @@ class CursorService {
    * Get all agents formatted for the dashboard
    */
   async getAllAgents() {
-    try {
-      const response = await this.listAgents(100);
-      const agents = response.agents || [];
-
-      return agents.map(agent => this.normalizeAgent(agent));
-    } catch (err) {
-      throw err;
-    }
+    const response = await this.listAgents(100);
+    const agents = response.agents || [];
+    return agents.map((agent) => this.normalizeAgent(agent));
   }
 
   /**
    * Normalize a Cursor agent to the common AgentTask format
-   * @param {object} agent 
+   * @param {object} agent
    */
   normalizeAgent(agent) {
     return {
@@ -143,7 +138,7 @@ class CursorService {
       webUrl: `https://cursor.com/agents/${agent.id}`,
       url: agent.target?.url || null,
       ref: agent.source?.ref || null,
-      autoCreatePr: agent.target?.autoCreatePr || false
+      autoCreatePr: agent.target?.autoCreatePr || false,
     };
   }
 
@@ -153,12 +148,12 @@ class CursorService {
    */
   mapStatus(status) {
     if (!status) return 'pending';
-    
+
     const statusMap = {
-      'CREATING': 'pending',
-      'RUNNING': 'running',
-      'FINISHED': 'completed',
-      'STOPPED': 'stopped'
+      CREATING: 'pending',
+      RUNNING: 'running',
+      FINISHED: 'completed',
+      STOPPED: 'stopped',
     };
 
     return statusMap[status.toUpperCase()] || 'pending';
@@ -171,26 +166,26 @@ class CursorService {
   async getAgentDetails(agentId) {
     const [agent, conversationResponse] = await Promise.all([
       this.getAgent(agentId),
-      this.getConversation(agentId).catch(() => ({ messages: [] }))
+      this.getConversation(agentId).catch(() => ({ messages: [] })),
     ]);
 
     const normalized = this.normalizeAgent(agent);
     const messages = conversationResponse.messages || [];
 
     // Extract prompt from first user message
-    const firstUserMessage = messages.find(m => m.type === 'user_message');
+    const firstUserMessage = messages.find((m) => m.type === 'user_message');
     if (firstUserMessage) {
       normalized.prompt = firstUserMessage.text;
     }
 
     return {
       ...normalized,
-      conversation: messages.map(msg => ({
+      conversation: messages.map((msg) => ({
         id: msg.id,
         type: msg.type,
         text: msg.text,
-        isUser: msg.type === 'user_message'
-      }))
+        isUser: msg.type === 'user_message',
+      })),
     };
   }
 
@@ -236,44 +231,48 @@ class CursorService {
     const scannedPaths = new Set();
     const uniquePaths = [...new Set(paths)];
 
-    const pathResults = await Promise.all(uniquePaths.map(async (basePath) => {
-      try {
-        // Check if path exists and is a directory
-        const stats = await fs.promises.stat(basePath).catch(() => null);
-        if (!stats || !stats.isDirectory()) return [];
+    const pathResults = await Promise.all(
+      uniquePaths.map(async (basePath) => {
+        try {
+          // Check if path exists and is a directory
+          const stats = await fs.promises.stat(basePath).catch(() => null);
+          if (!stats || !stats.isDirectory()) return [];
 
-        const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
+          const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
 
-        const entryResults = await Promise.all(entries.map(async (entry) => {
-          if (!entry.isDirectory()) return null;
-          if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
+          const entryResults = await Promise.all(
+            entries.map(async (entry) => {
+              if (!entry.isDirectory()) return null;
+              if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
 
-          const dirPath = path.join(basePath, entry.name);
-          const gitPath = path.join(dirPath, '.git');
+              const dirPath = path.join(basePath, entry.name);
+              const gitPath = path.join(dirPath, '.git');
 
-          try {
-            // Use access() as it's more efficient than stat() for just checking existence
-            await fs.promises.access(gitPath);
-            return {
-              id: dirPath, // Use path as ID for local
-              name: entry.name,
-              url: dirPath, // Use path as URL
-              path: dirPath,
-              defaultBranch: 'main',
-              displayName: entry.name
-            };
-          } catch (e) {
-            // .git doesn't exist or not accessible
-            return null;
-          }
-        }));
+              try {
+                // Use access() as it's more efficient than stat() for just checking existence
+                await fs.promises.access(gitPath);
+                return {
+                  id: dirPath, // Use path as ID for local
+                  name: entry.name,
+                  url: dirPath, // Use path as URL
+                  path: dirPath,
+                  defaultBranch: 'main',
+                  displayName: entry.name,
+                };
+              } catch {
+                // .git doesn't exist or not accessible
+                return null;
+              }
+            })
+          );
 
-        return entryResults.filter(Boolean);
-      } catch (err) {
-        console.error(`Error scanning ${basePath}:`, err);
-        return [];
-      }
-    }));
+          return entryResults.filter(Boolean);
+        } catch (err) {
+          console.error(`Error scanning ${basePath}:`, err);
+          return [];
+        }
+      })
+    );
 
     // Flatten results and deduplicate while preserving order
     const projects = [];
@@ -301,12 +300,12 @@ class CursorService {
         const response = await this.listRepositories();
         const repos = response.repositories || response || [];
 
-        cloudRepos = repos.map(repo => ({
+        cloudRepos = repos.map((repo) => ({
           id: repo.url || repo.repository,
           name: repo.name || this.extractRepoName(repo.url || repo.repository),
           url: repo.url || repo.repository,
           defaultBranch: repo.defaultBranch || 'main',
-          displayName: this.extractRepoName(repo.url || repo.repository)
+          displayName: this.extractRepoName(repo.url || repo.repository),
         }));
       }
     } catch (err) {
@@ -324,7 +323,7 @@ class CursorService {
    */
   extractRepoName(url) {
     if (!url) return 'Unknown';
-    const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+    const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
     return match ? match[1] : url;
   }
 
@@ -350,15 +349,15 @@ class CursorService {
 
     const body = {
       prompt: {
-        text: prompt
+        text: prompt,
       },
       source: {
         repository: repository,
-        ref: ref
+        ref: ref,
       },
       target: {
-        autoCreatePr: autoCreatePr
-      }
+        autoCreatePr: autoCreatePr,
+      },
     };
 
     // Add optional branch name
@@ -387,8 +386,8 @@ class CursorService {
 
     const body = {
       prompt: {
-        text: message
-      }
+        text: message,
+      },
     };
 
     const response = await this.request(`/agents/${agentId}/followup`, 'POST', body);

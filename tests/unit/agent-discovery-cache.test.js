@@ -1,5 +1,5 @@
 jest.mock('../../src/main/ipc/provider-registry', () => ({
-  fetchAllAgents: jest.fn()
+  fetchAllAgents: jest.fn(),
 }));
 
 const { fetchAllAgents } = require('../../src/main/ipc/provider-registry');
@@ -15,10 +15,10 @@ describe('agent-discovery-cache', () => {
       hasApiKey: () => false,
       getCodexThreads: () => [],
       getClaudeConversations: () => [],
-      getOpenCodeSessions: () => []
+      getOpenCodeSessions: () => [],
     },
     geminiService: { getDefaultPath: () => '/mock/.gemini/tmp' },
-    claudeService: { getDefaultPath: () => '/mock/.claude' }
+    claudeService: { getDefaultPath: () => '/mock/.claude' },
   };
 
   beforeEach(() => {
@@ -35,7 +35,7 @@ describe('agent-discovery-cache', () => {
     fetchAllAgents.mockResolvedValue({
       agents: [{ id: '1', updatedAt: '2025-01-02' }],
       counts: { total: 1 },
-      errors: []
+      errors: [],
     });
 
     const first = await agentDiscoveryCache.getAgents(deps, { force: true });
@@ -43,7 +43,7 @@ describe('agent-discovery-cache', () => {
     expect(first.agents).toHaveLength(1);
 
     const second = await agentDiscoveryCache.getAgents(deps, {
-      sinceRevision: first.revision
+      sinceRevision: first.revision,
     });
     expect(second.unchanged).toBe(true);
     expect(fetchAllAgents).toHaveBeenCalledTimes(1);
@@ -52,24 +52,50 @@ describe('agent-discovery-cache', () => {
   test('returns delta when list changes and client revision matches', async () => {
     fetchAllAgents
       .mockResolvedValueOnce({
-        agents: [{ id: '1', status: 'running', updatedAt: '1', name: 'x', summary: '', prompt: '', repository: '' }],
+        agents: [
+          {
+            id: '1',
+            status: 'running',
+            updatedAt: '1',
+            name: 'x',
+            summary: '',
+            prompt: '',
+            repository: '',
+          },
+        ],
         counts: { total: 1 },
-        errors: []
+        errors: [],
       })
       .mockResolvedValueOnce({
         agents: [
-          { id: '1', status: 'completed', updatedAt: '2', name: 'x', summary: '', prompt: '', repository: '' },
-          { id: '2', status: 'running', updatedAt: '3', name: 'y', summary: '', prompt: '', repository: '' }
+          {
+            id: '1',
+            status: 'completed',
+            updatedAt: '2',
+            name: 'x',
+            summary: '',
+            prompt: '',
+            repository: '',
+          },
+          {
+            id: '2',
+            status: 'running',
+            updatedAt: '3',
+            name: 'y',
+            summary: '',
+            prompt: '',
+            repository: '',
+          },
         ],
         counts: { total: 2 },
-        errors: []
+        errors: [],
       });
 
     const first = await agentDiscoveryCache.getAgents(deps, { force: true });
     agentDiscoveryCache.localFingerprint = null;
 
     const second = await agentDiscoveryCache.getAgents(deps, {
-      sinceRevision: first.revision
+      sinceRevision: first.revision,
     });
 
     expect(second.full).toBe(false);

@@ -8,12 +8,12 @@
 
 ## Operational expectations
 
-| Area | Target | Notes |
-|------|--------|-------|
-| App boot | Interactive window after `ready-to-show` | Services init after first paint |
-| Poll interval | User-configurable (Settings) | Default ~30s; disable when not needed |
-| Cloudflare heartbeat | 5 min | Devices marked offline after ~6 min stale |
-| Provider errors | Per-provider error object in responses | UI shows Offline/Error, not silent fail |
+| Area                 | Target                                   | Notes                                     |
+| -------------------- | ---------------------------------------- | ----------------------------------------- |
+| App boot             | Interactive window after `ready-to-show` | Services init after first paint           |
+| Poll interval        | User-configurable (Settings)             | Default ~30s; disable when not needed     |
+| Cloudflare heartbeat | 5 min                                    | Devices marked offline after ~6 min stale |
+| Provider errors      | Per-provider error object in responses   | UI shows Offline/Error, not silent fail   |
 
 ## Failure handling
 

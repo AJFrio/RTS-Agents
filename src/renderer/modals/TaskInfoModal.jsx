@@ -25,7 +25,11 @@ export default function TaskInfoModal({ task, onClose, onBuild }) {
 
         <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-background-dark max-h-[70vh]">
           <div className="prose dark:prose-invert prose-sm max-w-none text-slate-600 dark:text-slate-300 font-light leading-relaxed">
-            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseMarkdown(task.description)) }} />
+            <div
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(parseMarkdown(task.description)),
+              }}
+            />
           </div>
         </div>
 

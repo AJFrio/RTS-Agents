@@ -62,7 +62,9 @@ export default function JiraFilterModal({
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
 
-        <h2 className="font-display text-sm font-bold uppercase tracking-tight text-slate-900 dark:text-white">Filter Tickets</h2>
+        <h2 className="font-display text-sm font-bold uppercase tracking-tight text-slate-900 dark:text-white">
+          Filter Tickets
+        </h2>
 
         {hasActiveFilters && (
           <button
@@ -80,7 +82,9 @@ export default function JiraFilterModal({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="material-symbols-outlined text-primary text-sm">visibility</span>
-            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Show Tickets</h3>
+            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+              Show Tickets
+            </h3>
           </div>
 
           <select
@@ -97,7 +101,9 @@ export default function JiraFilterModal({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="material-symbols-outlined text-primary text-sm">person</span>
-            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Assignee</h3>
+            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+              Assignee
+            </h3>
           </div>
 
           <select
@@ -118,7 +124,9 @@ export default function JiraFilterModal({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="material-symbols-outlined text-primary text-sm">flag</span>
-            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Status</h3>
+            <h3 className="font-display text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+              Status
+            </h3>
           </div>
 
           <select
@@ -145,19 +153,25 @@ export default function JiraFilterModal({
               {showAllTickets && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500 dark:text-slate-400">Show:</span>
-                  <span className="text-xs text-slate-900 dark:text-white font-semibold">All Tickets</span>
+                  <span className="text-xs text-slate-900 dark:text-white font-semibold">
+                    All Tickets
+                  </span>
                 </div>
               )}
               {selectedAssignee && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500 dark:text-slate-400">Assignee:</span>
-                  <span className="text-xs text-slate-900 dark:text-white font-semibold">{selectedAssignee}</span>
+                  <span className="text-xs text-slate-900 dark:text-white font-semibold">
+                    {selectedAssignee}
+                  </span>
                 </div>
               )}
               {selectedStatus && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
-                  <span className="text-xs text-slate-900 dark:text-white font-semibold">{selectedStatus}</span>
+                  <span className="text-xs text-slate-900 dark:text-white font-semibold">
+                    {selectedStatus}
+                  </span>
                 </div>
               )}
             </div>

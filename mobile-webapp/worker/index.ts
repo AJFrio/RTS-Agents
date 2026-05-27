@@ -1,6 +1,6 @@
 /**
  * Cloudflare Worker API Proxy
- * 
+ *
  * Routes API requests to their respective providers while handling CORS
  * and authentication. API keys are passed from the client in headers.
  */
@@ -17,12 +17,12 @@ const PROXY_CONFIGS: Record<string, ProxyConfig> = {
   },
   cursor: {
     baseUrl: 'https://api.cursor.com/v0',
-    authHeader: (apiKey) => ({ 'Authorization': `Basic ${btoa(`${apiKey}:`)}` }),
+    authHeader: (apiKey) => ({ Authorization: `Basic ${btoa(`${apiKey}:`)}` }),
   },
   codex: {
     baseUrl: 'https://api.openai.com/v1',
     authHeader: (apiKey) => ({
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       'OpenAI-Beta': 'assistants=v2',
     }),
   },
@@ -36,9 +36,9 @@ const PROXY_CONFIGS: Record<string, ProxyConfig> = {
   github: {
     baseUrl: 'https://api.github.com',
     authHeader: (apiKey) => ({
-      'Authorization': `token ${apiKey}`,
+      Authorization: `token ${apiKey}`,
       'User-Agent': 'RTS-Agents-Mobile-PWA',
-      'Accept': 'application/vnd.github.v3+json',
+      Accept: 'application/vnd.github.v3+json',
     }),
   },
   cloudflare: {
@@ -55,7 +55,8 @@ function corsHeaders(): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, X-JIRA-BASE-URL, X-CF-Account-Id, X-CF-Api-Token',
+    'Access-Control-Allow-Headers':
+      'Content-Type, X-API-Key, X-JIRA-BASE-URL, X-CF-Account-Id, X-CF-Api-Token',
     'Access-Control-Max-Age': '86400',
   };
 }
@@ -69,9 +70,9 @@ function jiraAuthHeader(apiKey: string): Record<string, string> {
   // - "email:token" (Cloud basic auth)
   // - "token" (PAT / bearer)
   if (apiKey.includes(':')) {
-    return { 'Authorization': `Basic ${btoa(apiKey)}` };
+    return { Authorization: `Basic ${btoa(apiKey)}` };
   }
-  return { 'Authorization': `Bearer ${apiKey}` };
+  return { Authorization: `Bearer ${apiKey}` };
 }
 
 async function handleJiraRequest(request: Request, path: string): Promise<Response> {
@@ -97,7 +98,7 @@ async function handleJiraRequest(request: Request, path: string): Promise<Respon
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json',
     ...authHeaders,
   };
 
@@ -227,7 +228,7 @@ async function handleCloudflareRequest(request: Request, path: string): Promise<
     const fetchOptions: RequestInit = {
       method: request.method,
       headers: {
-        'Authorization': `Bearer ${apiToken}`,
+        Authorization: `Bearer ${apiToken}`,
         'Content-Type': request.headers.get('Content-Type') || 'application/json',
       },
     };

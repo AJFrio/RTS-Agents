@@ -49,11 +49,7 @@ export default function PullRequestsView() {
     if (!window.confirm(`Are you sure you want to merge pull request #${pr.number}?`)) return;
 
     try {
-      await githubService.mergePullRequest(
-        pr.base.repo.owner.login,
-        pr.base.repo.name,
-        pr.number
-      );
+      await githubService.mergePullRequest(pr.base.repo.owner.login, pr.base.repo.name, pr.number);
       // Close modal
       setSelectedPR(null);
       // Refresh list
@@ -67,10 +63,11 @@ export default function PullRequestsView() {
   const handleMarkReady = async (pr: PullRequest) => {
     if (!pr.base.repo) return;
     if (!pr.node_id) {
-        alert('Cannot update PR: Missing Node ID');
-        return;
+      alert('Cannot update PR: Missing Node ID');
+      return;
     }
-    if (!window.confirm(`Mark #${pr.number} as ready for review? This will notify reviewers.`)) return;
+    if (!window.confirm(`Mark #${pr.number} as ready for review? This will notify reviewers.`))
+      return;
 
     try {
       await githubService.markPullRequestReadyForReview(pr.node_id);
@@ -122,7 +119,9 @@ export default function PullRequestsView() {
               disabled={loadingAllPRs}
               className="p-2 text-slate-500 hover:text-primary transition-colors"
             >
-              <span className={`material-symbols-outlined text-lg ${loadingAllPRs ? 'animate-spin' : ''}`}>
+              <span
+                className={`material-symbols-outlined text-lg ${loadingAllPRs ? 'animate-spin' : ''}`}
+              >
                 sync
               </span>
             </button>
@@ -133,16 +132,20 @@ export default function PullRequestsView() {
         <div className="flex-1 overflow-y-auto p-4 safe-bottom">
           {loadingAllPRs && allPullRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64">
-              <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
+              <span className="material-symbols-outlined text-primary text-4xl animate-spin">
+                sync
+              </span>
               <p className="mt-4 text-sm text-slate-500">Loading pull requests...</p>
             </div>
           ) : allPullRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
-              <span className="material-symbols-outlined text-slate-600 text-6xl">check_circle</span>
-              <h3 className="mt-4 text-lg font-bold uppercase tracking-tight">No Open Pull Requests</h3>
-              <p className="mt-2 text-slate-500 text-sm max-w-sm">
-                You are all caught up!
-              </p>
+              <span className="material-symbols-outlined text-slate-600 text-6xl">
+                check_circle
+              </span>
+              <h3 className="mt-4 text-lg font-bold uppercase tracking-tight">
+                No Open Pull Requests
+              </h3>
+              <p className="mt-2 text-slate-500 text-sm max-w-sm">You are all caught up!</p>
               <button
                 onClick={handleRefresh}
                 className="mt-4 border border-border-dark text-slate-400 px-6 py-2 text-sm font-semibold rounded-lg hover:border-slate-600 hover:shadow-sm transition-all duration-200"
@@ -152,15 +155,12 @@ export default function PullRequestsView() {
             </div>
           ) : (
             <div className="space-y-3 pb-20">
-              {allPullRequests.map(pr => (
+              {allPullRequests.map((pr) => (
                 <div key={pr.id}>
-                    <div className="mb-1 ml-1 text-xs font-semibold text-slate-500">
-                        {pr.base?.repo?.full_name || 'Unknown Repository'}
-                    </div>
-                    <PRCard
-                        pr={pr}
-                        onView={() => handleViewPR(pr)}
-                    />
+                  <div className="mb-1 ml-1 text-xs font-semibold text-slate-500">
+                    {pr.base?.repo?.full_name || 'Unknown Repository'}
+                  </div>
+                  <PRCard pr={pr} onView={() => handleViewPR(pr)} />
                 </div>
               ))}
             </div>

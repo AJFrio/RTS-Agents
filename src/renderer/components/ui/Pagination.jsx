@@ -1,15 +1,7 @@
 import React from 'react';
 import { formatCount } from '../../utils/format.js';
 
-export default function Pagination({
-  start,
-  end,
-  total,
-  currentPage,
-  totalPages,
-  onPrev,
-  onNext,
-}) {
+export default function Pagination({ start, end, total, currentPage, totalPages, onPrev, onNext }) {
   if (totalPages <= 1) return null;
   const currentStr = formatCount(currentPage);
   const totalStr = formatCount(totalPages);
@@ -28,7 +20,9 @@ export default function Pagination({
           <span className="material-symbols-outlined text-sm">chevron_left</span>
           PREV
         </button>
-        <span className="technical-font text-xs text-primary font-bold">PAGE {currentStr} / {totalStr}</span>
+        <span className="technical-font text-xs text-primary font-bold">
+          PAGE {currentStr} / {totalStr}
+        </span>
         <button
           type="button"
           onClick={onNext}

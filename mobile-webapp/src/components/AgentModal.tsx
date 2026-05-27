@@ -1,6 +1,6 @@
 /**
  * Agent Modal Component
- * 
+ *
  * Full-screen modal for viewing agent details
  */
 
@@ -93,17 +93,21 @@ export default function AgentModal() {
 
       // Refresh agent details
       const service =
-        provider === 'jules' ? julesService :
-        provider === 'cursor' ? cursorService :
-        provider === 'codex' ? codexService :
-        provider === 'claude-cloud' ? claudeService : null;
+        provider === 'jules'
+          ? julesService
+          : provider === 'cursor'
+            ? cursorService
+            : provider === 'codex'
+              ? codexService
+              : provider === 'claude-cloud'
+                ? claudeService
+                : null;
 
       if (service) {
         dispatch({ type: 'SET_LOADING_AGENT', payload: true });
         const details = await service.getAgentDetails(rawId);
         dispatch({ type: 'SET_SELECTED_AGENT', payload: details });
       }
-
     } catch (err) {
       console.error('Error sending follow-up:', err);
       // Ideally show a toast or error message here
@@ -115,8 +119,12 @@ export default function AgentModal() {
 
   if (!showAgentModal) return null;
 
-  const provider = selectedAgent ? providerStyles[selectedAgent.provider] || providerStyles.cursor : providerStyles.cursor;
-  const status = selectedAgent ? statusStyles[selectedAgent.status] || statusStyles.pending : statusStyles.pending;
+  const provider = selectedAgent
+    ? providerStyles[selectedAgent.provider] || providerStyles.cursor
+    : providerStyles.cursor;
+  const status = selectedAgent
+    ? statusStyles[selectedAgent.status] || statusStyles.pending
+    : statusStyles.pending;
 
   return (
     <div className="fixed inset-0 z-50 bg-background-light dark:bg-background-dark">
@@ -145,7 +153,9 @@ export default function AgentModal() {
       <div className="h-[calc(100vh-56px)] overflow-y-auto safe-bottom">
         {loadingAgent ? (
           <div className="flex flex-col items-center justify-center h-64">
-            <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
+            <span className="material-symbols-outlined text-primary text-4xl animate-spin">
+              sync
+            </span>
             <p className="mt-4 text-sm text-slate-500">Loading details...</p>
           </div>
         ) : selectedAgent ? (
@@ -153,10 +163,17 @@ export default function AgentModal() {
             {/* Agent Header */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${provider.bg} ${provider.text}`}>
-                  {selectedAgent.provider === 'claude-cloud' ? 'Claude' : selectedAgent.provider.charAt(0).toUpperCase() + selectedAgent.provider.slice(1)}
+                <span
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md ${provider.bg} ${provider.text}`}
+                >
+                  {selectedAgent.provider === 'claude-cloud'
+                    ? 'Claude'
+                    : selectedAgent.provider.charAt(0).toUpperCase() +
+                      selectedAgent.provider.slice(1)}
                 </span>
-                <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${status.bg} ${status.text}`}>
+                <span
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md ${status.bg} ${status.text}`}
+                >
                   {selectedAgent.status.charAt(0).toUpperCase() + selectedAgent.status.slice(1)}
                 </span>
               </div>
@@ -166,7 +183,7 @@ export default function AgentModal() {
               >
                 {selectedAgent.name}
               </h2>
-              
+
               {/* Metadata */}
               <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
                 {selectedAgent.repository && (
@@ -208,15 +225,21 @@ export default function AgentModal() {
             {/* Prompt */}
             {selectedAgent.prompt && (
               <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Prompt</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{selectedAgent.prompt}</p>
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                  Prompt
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">
+                  {selectedAgent.prompt}
+                </p>
               </div>
             )}
 
             {/* Summary */}
             {selectedAgent.summary && (
               <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Summary</h3>
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                  Summary
+                </h3>
                 <div
                   className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300"
                   dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedAgent.summary) }}
@@ -227,10 +250,15 @@ export default function AgentModal() {
             {/* Activities (Jules) */}
             {selectedAgent.activities && selectedAgent.activities.length > 0 && (
               <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">Activities</h3>
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">
+                  Activities
+                </h3>
                 <div className="space-y-3">
                   {selectedAgent.activities.map((activity: Activity) => (
-                    <div key={activity.id} className="border-l-2 border-slate-200 dark:border-border-dark pl-3">
+                    <div
+                      key={activity.id}
+                      className="border-l-2 border-slate-200 dark:border-border-dark pl-3"
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs text-primary font-medium">
                           {activity.type.replace('_', ' ')}
@@ -242,10 +270,14 @@ export default function AgentModal() {
                         )}
                       </div>
                       {activity.title && (
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-300">{activity.title}</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-300">
+                          {activity.title}
+                        </p>
                       )}
                       {activity.description && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{activity.description}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          {activity.description}
+                        </p>
                       )}
                     </div>
                   ))}
@@ -256,7 +288,9 @@ export default function AgentModal() {
             {/* Conversation (Cursor) */}
             {selectedAgent.conversation && selectedAgent.conversation.length > 0 && (
               <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">Conversation</h3>
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">
+                  Conversation
+                </h3>
                 <div className="space-y-3">
                   {selectedAgent.conversation.map((msg: ConversationMessage) => (
                     <div
@@ -279,7 +313,9 @@ export default function AgentModal() {
             {/* Messages (Codex/Claude) */}
             {selectedAgent.messages && selectedAgent.messages.length > 0 && (
               <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">Messages</h3>
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">
+                  Messages
+                </h3>
                 <div className="space-y-3">
                   {selectedAgent.messages.map((msg: Message) => (
                     <div
@@ -302,7 +338,9 @@ export default function AgentModal() {
             {/* Follow-up Prompt */}
             {(selectedAgent.status === 'completed' || selectedAgent.status === 'failed') && (
               <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm mt-6">
-                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Follow-up</h3>
+                <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                  Follow-up
+                </h3>
                 <div className="space-y-3">
                   <textarea
                     value={followupPrompt}
@@ -331,9 +369,7 @@ export default function AgentModal() {
 
             {/* Task ID */}
             <div className="text-center pt-4">
-              <span className="text-xs text-slate-600">
-                Task ID: {selectedAgent.rawId}
-              </span>
+              <span className="text-xs text-slate-600">Task ID: {selectedAgent.rawId}</span>
             </div>
           </div>
         ) : (

@@ -6,7 +6,7 @@ import { useMemo } from 'react';
  */
 export function useElectronAPI() {
   return useMemo(() => {
-    return typeof window !== 'undefined' ? (window.__electronAPI || window.electronAPI) : null;
+    return typeof window !== 'undefined' ? window.__electronAPI || window.electronAPI : null;
   }, []);
 }
 

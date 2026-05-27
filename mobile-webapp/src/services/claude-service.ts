@@ -95,7 +95,7 @@ class ClaudeService {
   }
 
   trackConversation(conversationId: string, metadata: Partial<TrackedConversation>) {
-    const existingIndex = trackedConversations.findIndex(c => c.id === conversationId);
+    const existingIndex = trackedConversations.findIndex((c) => c.id === conversationId);
     const conversationInfo: TrackedConversation = {
       id: conversationId,
       createdAt: new Date().toISOString(),
@@ -109,7 +109,10 @@ class ClaudeService {
     };
 
     if (existingIndex >= 0) {
-      trackedConversations[existingIndex] = { ...trackedConversations[existingIndex], ...conversationInfo };
+      trackedConversations[existingIndex] = {
+        ...trackedConversations[existingIndex],
+        ...conversationInfo,
+      };
     } else {
       trackedConversations.unshift(conversationInfo);
     }
@@ -179,7 +182,7 @@ class ClaudeService {
   private extractSummary(conversation: TrackedConversation): string | null {
     const content = conversation.lastResponse?.content;
     if (content && content.length > 0) {
-      const text = content.find(c => c.type === 'text')?.text;
+      const text = content.find((c) => c.type === 'text')?.text;
       if (text) {
         return text.substring(0, 200) + (text.length > 200 ? '...' : '');
       }
@@ -195,12 +198,12 @@ class ClaudeService {
 
   async getAllAgents(): Promise<AgentTask[]> {
     this.loadTrackedConversations();
-    return trackedConversations.map(conv => this.normalizeConversation(conv));
+    return trackedConversations.map((conv) => this.normalizeConversation(conv));
   }
 
   async getAgentDetails(conversationId: string): Promise<AgentDetails> {
     this.loadTrackedConversations();
-    const conversation = trackedConversations.find(c => c.id === conversationId);
+    const conversation = trackedConversations.find((c) => c.id === conversationId);
 
     if (!conversation) {
       throw new Error(`Conversation not found: ${conversationId}`);
@@ -209,13 +212,17 @@ class ClaudeService {
     const messages: Message[] = (conversation.messages || []).map((msg, idx) => ({
       id: `msg-${idx}`,
       role: msg.role,
-      content: typeof msg.content === 'string' ? msg.content : msg.content.find(c => c.type === 'text')?.text || '',
+      content:
+        typeof msg.content === 'string'
+          ? msg.content
+          : msg.content.find((c) => c.type === 'text')?.text || '',
       timestamp: null,
     }));
 
     // Add assistant response if exists
     if (conversation.lastResponse) {
-      const responseText = conversation.lastResponse.content.find(c => c.type === 'text')?.text || '';
+      const responseText =
+        conversation.lastResponse.content.find((c) => c.type === 'text')?.text || '';
       messages.push({
         id: `response-${conversation.lastResponse.id}`,
         role: 'assistant',
@@ -300,7 +307,7 @@ class ClaudeService {
     }
 
     this.loadTrackedConversations();
-    const conversation = trackedConversations.find(c => c.id === conversationId);
+    const conversation = trackedConversations.find((c) => c.id === conversationId);
 
     if (!conversation) {
       throw new Error(`Conversation not found: ${conversationId}`);
@@ -310,7 +317,8 @@ class ClaudeService {
 
     // If there was a previous response, add it as an assistant message
     if (conversation.lastResponse) {
-      const responseText = conversation.lastResponse.content.find(c => c.type === 'text')?.text || '';
+      const responseText =
+        conversation.lastResponse.content.find((c) => c.type === 'text')?.text || '';
       messages.push({
         role: 'assistant',
         content: responseText,

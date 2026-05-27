@@ -1,6 +1,6 @@
 /**
  * Branches View Component
- * 
+ *
  * View GitHub repositories and their pull requests
  */
 
@@ -30,7 +30,9 @@ function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{repo.name}</h4>
+          <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">
+            {repo.name}
+          </h4>
           <p className="text-xs text-slate-500 truncate">{repo.full_name}</p>
         </div>
         {repo.private && (
@@ -38,7 +40,9 @@ function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
         )}
       </div>
       {repo.description && (
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{repo.description}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+          {repo.description}
+        </p>
       )}
       <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-500">
         <span className="material-symbols-outlined text-xs">schedule</span>
@@ -50,7 +54,8 @@ function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
 
 export default function BranchesView() {
   const { state, dispatch, loadGithubRepos, loadPullRequests, openNewTaskModal } = useApp();
-  const { githubRepos, selectedRepo, pullRequests, loadingRepos, loadingPRs, configuredServices } = state;
+  const { githubRepos, selectedRepo, pullRequests, loadingRepos, loadingPRs, configuredServices } =
+    state;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
@@ -97,16 +102,21 @@ export default function BranchesView() {
   const handleMarkReady = async (pr: PullRequest) => {
     if (!selectedRepo) return;
     if (!pr.node_id) {
-        alert('Cannot update PR: Missing Node ID');
-        return;
+      alert('Cannot update PR: Missing Node ID');
+      return;
     }
-    if (!window.confirm(`Mark #${pr.number} as ready for review? This will notify reviewers.`)) return;
+    if (!window.confirm(`Mark #${pr.number} as ready for review? This will notify reviewers.`))
+      return;
 
     try {
       await githubService.markPullRequestReadyForReview(pr.node_id);
 
       // Refresh details for the current PR to update UI immediately
-      const updatedPr = await githubService.getPullRequestDetails(selectedRepo.owner.login, selectedRepo.name, pr.number);
+      const updatedPr = await githubService.getPullRequestDetails(
+        selectedRepo.owner.login,
+        selectedRepo.name,
+        pr.number
+      );
       setSelectedPR(updatedPr);
 
       // Also refresh the background list
@@ -133,11 +143,19 @@ export default function BranchesView() {
         setUpdatesContent(null);
         try {
           // Try UPDATES.md first
-          let content = await githubService.getRepoFileContent(selectedRepo.owner.login, selectedRepo.name, 'UPDATES.md');
+          let content = await githubService.getRepoFileContent(
+            selectedRepo.owner.login,
+            selectedRepo.name,
+            'UPDATES.md'
+          );
 
           // Fallback to UPDATE.md
           if (!content) {
-            content = await githubService.getRepoFileContent(selectedRepo.owner.login, selectedRepo.name, 'UPDATE.md');
+            content = await githubService.getRepoFileContent(
+              selectedRepo.owner.login,
+              selectedRepo.name,
+              'UPDATE.md'
+            );
           }
 
           setUpdatesContent(content);
@@ -168,12 +186,12 @@ export default function BranchesView() {
         if (currentTask) {
           tasks.push({
             title: currentTask.title,
-            description: currentTask.descriptionLines.join('\n')
+            description: currentTask.descriptionLines.join('\n'),
           });
         }
         currentTask = {
           title: titleMatch[2].trim(),
-          descriptionLines: []
+          descriptionLines: [],
         };
       } else if (currentTask) {
         if (descMatch) {
@@ -184,10 +202,10 @@ export default function BranchesView() {
       }
     }
     if (currentTask) {
-        tasks.push({
-            title: currentTask.title,
-            description: currentTask.descriptionLines.join('\n')
-        });
+      tasks.push({
+        title: currentTask.title,
+        description: currentTask.descriptionLines.join('\n'),
+      });
     }
 
     return tasks;
@@ -205,7 +223,7 @@ export default function BranchesView() {
   };
 
   // Filter repos by search
-  const filteredRepos = githubRepos.filter(repo => {
+  const filteredRepos = githubRepos.filter((repo) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -277,7 +295,9 @@ export default function BranchesView() {
               disabled={loadingRepos}
               className="p-2 text-slate-500 hover:text-primary transition-colors"
             >
-              <span className={`material-symbols-outlined text-lg ${loadingRepos ? 'animate-spin' : ''}`}>
+              <span
+                className={`material-symbols-outlined text-lg ${loadingRepos ? 'animate-spin' : ''}`}
+              >
                 sync
               </span>
             </button>
@@ -302,7 +322,7 @@ export default function BranchesView() {
         <div className="flex-1 flex overflow-hidden">
           {/* Repo List */}
           <div className="w-2/5 border-r border-slate-200 dark:border-border-dark overflow-y-auto p-2 space-y-2">
-            {filteredRepos.map(repo => (
+            {filteredRepos.map((repo) => (
               <RepoCard
                 key={repo.id}
                 repo={repo}
@@ -321,7 +341,9 @@ export default function BranchesView() {
               </div>
             ) : loadingPRs ? (
               <div className="flex flex-col items-center justify-center h-full">
-                <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
+                <span className="material-symbols-outlined text-primary text-3xl animate-spin">
+                  sync
+                </span>
                 <p className="mt-2 text-sm text-slate-500">Loading PRs...</p>
               </div>
             ) : pullRequests.length === 0 ? (
@@ -336,12 +358,8 @@ export default function BranchesView() {
                     Open Pull Requests ({pullRequests.length})
                   </h3>
                 </div>
-                {pullRequests.map(pr => (
-                  <PRCard
-                    key={pr.id}
-                    pr={pr}
-                    onView={() => handleViewPR(pr)}
-                  />
+                {pullRequests.map((pr) => (
+                  <PRCard key={pr.id} pr={pr} onView={() => handleViewPR(pr)} />
                 ))}
               </div>
             )}
@@ -357,7 +375,7 @@ export default function BranchesView() {
                 </div>
 
                 {parsedTasks.length === 0 ? (
-                   <p className="text-xs text-slate-500 italic">No tasks found in UPDATES.md</p>
+                  <p className="text-xs text-slate-500 italic">No tasks found in UPDATES.md</p>
                 ) : (
                   <div className="space-y-3">
                     {parsedTasks.map((task, index) => (
@@ -365,22 +383,28 @@ export default function BranchesView() {
                         key={`task-${index}`}
                         className="p-4 bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-xl shadow-sm"
                       >
-                         <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                               <h4 className="font-semibold text-sm text-slate-900 dark:text-white mb-1">{task.title}</h4>
-                               {task.description && (
-                                 <p className="text-xs text-slate-500 line-clamp-2">{task.description}</p>
-                               )}
-                            </div>
-                            <button
-                              onClick={() => openNewTaskModal({
-                                initialPrompt: `${task.description}\n\nWhen finished, remove the task from the UPDATES.md file`
-                              })}
-                              className="px-3 py-1.5 bg-primary text-black text-xs font-semibold rounded-lg hover:shadow-md transition-all shrink-0"
-                            >
-                              Build
-                            </button>
-                         </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm text-slate-900 dark:text-white mb-1">
+                              {task.title}
+                            </h4>
+                            {task.description && (
+                              <p className="text-xs text-slate-500 line-clamp-2">
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() =>
+                              openNewTaskModal({
+                                initialPrompt: `${task.description}\n\nWhen finished, remove the task from the UPDATES.md file`,
+                              })
+                            }
+                            className="px-3 py-1.5 bg-primary text-black text-xs font-semibold rounded-lg hover:shadow-md transition-all shrink-0"
+                          >
+                            Build
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

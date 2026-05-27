@@ -19,7 +19,11 @@ function ComputerCard({ device, onQueueTask, isThisDevice }) {
   const lastHeartbeat = device?.lastHeartbeat || device?.heartbeatAt || device?.updatedAt || null;
   const then = lastHeartbeat ? new Date(lastHeartbeat) : null;
   const status = typeof device?.status === 'string' ? device.status.toLowerCase() : '';
-  const online = status ? status === 'on' : (then ? Date.now() - then.getTime() < 6 * 60 * 1000 : false);
+  const online = status
+    ? status === 'on'
+    : then
+      ? Date.now() - then.getTime() < 6 * 60 * 1000
+      : false;
   const statusLabel = online ? 'ONLINE' : 'OFFLINE';
   const statusClass = online ? 'text-emerald-500 bg-emerald-500/20' : 'text-slate-400 bg-slate-700';
   const isHeadless = String(device?.deviceType || '').toLowerCase() === 'headless';
@@ -42,7 +46,9 @@ function ComputerCard({ device, onQueueTask, isThisDevice }) {
             <div className="mt-1 text-[10px] technical-font text-primary">THIS_INSTALL</div>
           )}
         </div>
-        <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${statusClass}`}>{statusLabel}</span>
+        <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${statusClass}`}>
+          {statusLabel}
+        </span>
       </div>
       {isHeadless && (
         <div className="mt-3 p-2 border border-yellow-500/30 bg-yellow-500/10 text-yellow-200 text-[10px] technical-font">
@@ -152,7 +158,11 @@ export default function ComputersPage() {
       <div id="computers-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {computers.list.map((device) => {
           let tools = [];
-          if (Array.isArray(device?.tools) && device.tools.length > 0 && device.tools[0]?.['CLI tools']) {
+          if (
+            Array.isArray(device?.tools) &&
+            device.tools.length > 0 &&
+            device.tools[0]?.['CLI tools']
+          ) {
             tools = device.tools[0]['CLI tools'];
           }
           return (

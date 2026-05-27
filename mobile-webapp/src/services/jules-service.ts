@@ -92,7 +92,10 @@ class JulesService {
     return response.json();
   }
 
-  async listSessions(pageSize = 20, pageToken?: string): Promise<{ sessions?: JulesSession[]; nextPageToken?: string }> {
+  async listSessions(
+    pageSize = 20,
+    pageToken?: string
+  ): Promise<{ sessions?: JulesSession[]; nextPageToken?: string }> {
     let endpoint = `/sessions?pageSize=${pageSize}`;
     if (pageToken) {
       endpoint += `&pageToken=${pageToken}`;
@@ -104,7 +107,11 @@ class JulesService {
     return this.request(`/sessions/${sessionId}`);
   }
 
-  async listActivities(sessionId: string, pageSize = 30, pageToken?: string): Promise<{ activities?: JulesActivity[]; nextPageToken?: string }> {
+  async listActivities(
+    sessionId: string,
+    pageSize = 30,
+    pageToken?: string
+  ): Promise<{ activities?: JulesActivity[]; nextPageToken?: string }> {
     let endpoint = `/sessions/${sessionId}/activities?pageSize=${pageSize}`;
     if (pageToken) {
       endpoint += `&pageToken=${pageToken}`;
@@ -112,7 +119,10 @@ class JulesService {
     return this.request(endpoint);
   }
 
-  async listSources(pageSize = 20, pageToken?: string): Promise<{ sources?: JulesSource[]; nextPageToken?: string }> {
+  async listSources(
+    pageSize = 20,
+    pageToken?: string
+  ): Promise<{ sources?: JulesSource[]; nextPageToken?: string }> {
     let endpoint = `/sources?pageSize=${pageSize}`;
     if (pageToken) {
       endpoint += `&pageToken=${pageToken}`;
@@ -149,15 +159,15 @@ class JulesService {
     }
 
     const stateMap: Record<string, AgentTask['status']> = {
-      'QUEUED': 'pending',
-      'PLANNING': 'running',
-      'AWAITING_PLAN_APPROVAL': 'pending',
-      'AWAITING_USER_FEEDBACK': 'pending',
-      'IN_PROGRESS': 'running',
-      'PAUSED': 'stopped',
-      'FAILED': 'failed',
-      'COMPLETED': 'completed',
-      'STATE_UNSPECIFIED': 'pending',
+      QUEUED: 'pending',
+      PLANNING: 'running',
+      AWAITING_PLAN_APPROVAL: 'pending',
+      AWAITING_USER_FEEDBACK: 'pending',
+      IN_PROGRESS: 'running',
+      PAUSED: 'stopped',
+      FAILED: 'failed',
+      COMPLETED: 'completed',
+      STATE_UNSPECIFIED: 'pending',
     };
 
     return stateMap[session.state] || 'pending';
@@ -199,7 +209,7 @@ class JulesService {
   async getAllAgents(): Promise<AgentTask[]> {
     const response = await this.listSessions(100);
     const sessions = response.sessions || [];
-    return sessions.map(session => this.normalizeSession(session));
+    return sessions.map((session) => this.normalizeSession(session));
   }
 
   async getAgentDetails(sessionId: string): Promise<AgentDetails> {
@@ -208,11 +218,12 @@ class JulesService {
       this.listActivities(sessionId, 100),
     ]);
 
-    const activities: Activity[] = (activitiesResponse.activities || []).map(activity => ({
+    const activities: Activity[] = (activitiesResponse.activities || []).map((activity) => ({
       id: activity.id,
       type: this.getActivityType(activity),
       originator: activity.originator,
-      title: activity.progressUpdated?.title || activity.planGenerated?.plan?.steps?.[0]?.title || null,
+      title:
+        activity.progressUpdated?.title || activity.planGenerated?.plan?.steps?.[0]?.title || null,
       description: activity.progressUpdated?.description || null,
       timestamp: activity.createTime,
       artifacts: activity.artifacts || [],
@@ -253,7 +264,7 @@ class JulesService {
       pageToken = response.nextPageToken;
     } while (pageToken);
 
-    return allSources.map(source => ({
+    return allSources.map((source) => ({
       id: source.name,
       name: source.id,
       owner: source.githubRepo?.owner || null,
@@ -272,7 +283,14 @@ class JulesService {
     autoCreatePr?: boolean;
     requirePlanApproval?: boolean;
   }): Promise<AgentTask> {
-    const { prompt, source, branch = 'main', title, autoCreatePr = true, requirePlanApproval = false } = options;
+    const {
+      prompt,
+      source,
+      branch = 'main',
+      title,
+      autoCreatePr = true,
+      requirePlanApproval = false,
+    } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');

@@ -1,24 +1,24 @@
 const { _electron: electron } = require('playwright');
 const { test, expect } = require('@playwright/test');
 const path = require('path');
- 
+
 test.describe('Merge workflow should not break inputs/dropdowns', () => {
   let electronApp;
   let page;
- 
+
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
- 
+
   test.afterAll(async () => {
     if (electronApp) await electronApp.close();
   });
- 
+
   test.beforeEach(async () => {
     page = await electronApp.firstWindow();
- 
+
     await page.addInitScript(() => {
       // Minimal mocks to drive branches + merge workflow.
       window.__electronAPI = {
@@ -28,21 +28,26 @@ test.describe('Merge workflow should not break inputs/dropdowns', () => {
           githubPaths: [],
           apiKeys: { github: true, jules: true, cursor: true, codex: true, claude: true },
           geminiInstalled: true,
-          claudeCliInstalled: true
+          claudeCliInstalled: true,
         }),
         getConnectionStatus: async () => ({
-          github: { connected: true }
+          github: { connected: true },
         }),
         onRefreshTick: () => {},
- 
+
         getRepositories: async () => ({
           success: true,
           repositories: [
-            { id: 'repo-1', name: 'my-repo', url: 'https://github.com/user/my-repo', displayName: 'MY-REPO' }
-          ]
+            {
+              id: 'repo-1',
+              name: 'my-repo',
+              url: 'https://github.com/user/my-repo',
+              displayName: 'MY-REPO',
+            },
+          ],
         }),
         createTask: async () => ({ success: true }),
- 
+
         github: {
           getRepos: async () => ({
             success: true,
@@ -56,9 +61,9 @@ test.describe('Merge workflow should not break inputs/dropdowns', () => {
                 updated_at: new Date().toISOString(),
                 private: false,
                 open_issues_count: 0,
-                stargazers_count: 0
-              }
-            ]
+                stargazers_count: 0,
+              },
+            ],
           }),
           getPrs: async () => ({
             success: true,
@@ -71,9 +76,9 @@ test.describe('Merge workflow should not break inputs/dropdowns', () => {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 head: { ref: 'feature-1', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
-                base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } }
-              }
-            ]
+                base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
+              },
+            ],
           }),
           getPrDetails: async () => ({
             success: true,
@@ -87,65 +92,64 @@ test.describe('Merge workflow should not break inputs/dropdowns', () => {
               draft: false,
               mergeable: true,
               head: { ref: 'feature-1', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
-              base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } }
-            }
+              base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
+            },
           }),
-          mergePr: async () => ({ success: true })
+          mergePr: async () => ({ success: true }),
         },
- 
+
         setApiKey: async () => {},
         testApiKey: async () => ({ success: true }),
         setTheme: async () => {},
-        openExternal: async () => {}
+        openExternal: async () => {},
       };
     });
- 
+
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
   });
- 
+
   test('After merging a PR, branches filter and new-task repo dropdown still work', async () => {
     // Go to branches view
     await page.click('button[data-view="branches"]');
     await expect(page.locator('#view-branches')).toBeVisible();
- 
+
     // Select repo (triggers PR load)
     const repoItem = page.locator('.repo-item').first();
     await expect(repoItem).toBeVisible();
     await repoItem.click();
- 
+
     // Open PR details modal
     const prCard = page.locator('.pr-card').first();
     await expect(prCard).toBeVisible();
     await prCard.click();
     await expect(page.locator('#pr-modal')).toBeVisible();
- 
+
     // Merge PR (confirm modal appears)
     await page.click('#merge-btn');
     await expect(page.locator('#confirm-modal')).toBeVisible();
     await page.click('#confirm-ok-btn');
- 
+
     // PR modal should close
     await expect(page.locator('#pr-modal')).toHaveClass(/hidden/);
- 
+
     // Branches repo filter should still be focusable/editable
     const repoFilter = page.locator('#repo-filter');
     await repoFilter.click();
     await repoFilter.fill('demo');
     await expect(repoFilter).toHaveValue('demo');
- 
+
     // New Task repo dropdown should still open + select
     await page.click('#new-task-btn');
     await expect(page.locator('#new-task-modal')).toBeVisible();
     await page.click('#service-jules');
- 
+
     const repoSearch = page.locator('#task-repo-search');
     await expect(repoSearch).toBeEnabled();
     await repoSearch.click();
     await expect(page.locator('#repo-dropdown')).toBeVisible();
- 
+
     await page.locator('#repo-dropdown .repo-option').first().click();
     await expect(repoSearch).toHaveValue(/.+/);
   });
 });
-

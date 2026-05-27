@@ -122,7 +122,7 @@ export default function BranchesPage() {
     const tasks = [];
     let currentTask = null;
 
-    lines.forEach(line => {
+    lines.forEach((line) => {
       // Level 1 bullet: * Title or - Title or 1. Title
       // We look for lines starting with optional space (0-1), then a bullet marker, then space
       const titleMatch = line.match(/^(\s{0,1})(?:-|\*|\d+\.)\s+(.*)/);
@@ -133,21 +133,21 @@ export default function BranchesPage() {
         if (currentTask) tasks.push(currentTask);
         currentTask = {
           title: titleMatch[2].trim(),
-          descriptionLines: []
+          descriptionLines: [],
         };
       } else if (currentTask) {
         if (descMatch) {
-            currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
+          currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
         } else if (line.trim()) {
-            currentTask.descriptionLines.push(line.trim());
+          currentTask.descriptionLines.push(line.trim());
         }
       }
     });
     if (currentTask) tasks.push(currentTask);
 
-    return tasks.map(t => ({
+    return tasks.map((t) => ({
       title: t.title,
-      description: t.descriptionLines.join('\n')
+      description: t.descriptionLines.join('\n'),
     }));
   }, [updatesContent]);
 
@@ -197,7 +197,9 @@ export default function BranchesPage() {
           </div>
           <div id="repo-list" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
             {filteredRepos.length === 0 ? (
-              <div className="px-4 py-6 text-center text-slate-500 text-sm font-medium">No repositories found</div>
+              <div className="px-4 py-6 text-center text-slate-500 text-sm font-medium">
+                No repositories found
+              </div>
             ) : (
               filteredRepos.map((repo) => (
                 <div
@@ -216,12 +218,15 @@ export default function BranchesPage() {
                     <span className="font-semibold text-slate-800 dark:text-slate-300 text-sm truncate pr-2">
                       {repo.name}
                     </span>
-                    {repo.private && <span className="material-symbols-outlined text-xs text-slate-500">lock</span>}
+                    {repo.private && (
+                      <span className="material-symbols-outlined text-xs text-slate-500">lock</span>
+                    )}
                   </div>
                   <div className="flex justify-between items-center text-xs text-slate-500">
                     <span>{formatTimeAgo(repo.updated_at)}</span>
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">star</span> {repo.stargazers_count ?? 0}
+                      <span className="material-symbols-outlined text-xs">star</span>{' '}
+                      {repo.stargazers_count ?? 0}
                     </span>
                   </div>
                 </div>
@@ -232,14 +237,20 @@ export default function BranchesPage() {
 
         <div className="lg:col-span-2 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-full overflow-hidden">
           {!selectedRepo ? (
-            <div id="repo-details-placeholder" className="flex flex-col items-center justify-center h-full text-slate-500">
+            <div
+              id="repo-details-placeholder"
+              className="flex flex-col items-center justify-center h-full text-slate-500"
+            >
               <span className="material-symbols-outlined text-4xl mb-2">arrow_back</span>
               <span className="text-sm font-medium">Select a repository</span>
             </div>
           ) : (
             <div id="repo-details-content" className="flex flex-col h-full">
               <div className="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center bg-slate-50 dark:bg-black/20">
-                <h2 id="selected-repo-name" className="text-xl font-semibold text-slate-800 dark:text-white tracking-tight">
+                <h2
+                  id="selected-repo-name"
+                  className="text-xl font-semibold text-slate-800 dark:text-white tracking-tight"
+                >
                   {selectedRepo.name}
                 </h2>
                 <div className="flex items-center gap-3">
@@ -262,7 +273,9 @@ export default function BranchesPage() {
                       type="button"
                       id="pr-filter-open"
                       className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                        prFilter === 'open' ? 'bg-primary text-black' : 'text-slate-600 dark:text-slate-400'
+                        prFilter === 'open'
+                          ? 'bg-primary text-black'
+                          : 'text-slate-600 dark:text-slate-400'
                       }`}
                       onClick={() => setPrFilterAndReload('open')}
                     >
@@ -272,7 +285,9 @@ export default function BranchesPage() {
                       type="button"
                       id="pr-filter-closed"
                       className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                        prFilter === 'closed' ? 'bg-primary text-black' : 'text-slate-600 dark:text-slate-400'
+                        prFilter === 'closed'
+                          ? 'bg-primary text-black'
+                          : 'text-slate-600 dark:text-slate-400'
                       }`}
                       onClick={() => setPrFilterAndReload('closed')}
                     >
@@ -280,15 +295,21 @@ export default function BranchesPage() {
                     </button>
                   </div>
                   <span className="px-2 py-1.5 text-xs font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-lg">
-                    <span id="pr-count">{loadingPrs ? '…' : prs.length}</span> {prFilter === 'open' ? 'Open PRs' : 'Closed PRs'}
+                    <span id="pr-count">{loadingPrs ? '…' : prs.length}</span>{' '}
+                    {prFilter === 'open' ? 'Open PRs' : 'Closed PRs'}
                   </span>
                 </div>
               </div>
               <div className="flex-1 flex flex-col overflow-hidden relative">
-                <div id="pr-list" className={`${updatesContent ? 'flex-1 min-h-0 border-b border-slate-200 dark:border-border-dark' : 'flex-1 min-h-0'} overflow-y-auto p-6 space-y-4 transition-all duration-300`}>
+                <div
+                  id="pr-list"
+                  className={`${updatesContent ? 'flex-1 min-h-0 border-b border-slate-200 dark:border-border-dark' : 'flex-1 min-h-0'} overflow-y-auto p-6 space-y-4 transition-all duration-300`}
+                >
                   {loadingPrs && prs.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-32">
-                      <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
+                      <span className="material-symbols-outlined text-primary text-3xl animate-spin">
+                        sync
+                      </span>
                       <span className="text-sm text-slate-500 mt-2">Loading PRs...</span>
                     </div>
                   )}
@@ -299,11 +320,14 @@ export default function BranchesPage() {
                   )}
                   {!loadingPrs && !prError && prs.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-                      <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
+                      <span className="material-symbols-outlined text-4xl mb-2 opacity-50">
+                        check_circle
+                      </span>
                       <span className="text-sm font-medium">No {prFilter} pull requests</span>
                     </div>
                   )}
-                  {!loadingPrs && prs.length > 0 &&
+                  {!loadingPrs &&
+                    prs.length > 0 &&
                     prs.map((pr) => (
                       <div
                         key={pr.id}
@@ -313,7 +337,9 @@ export default function BranchesPage() {
                         className="p-4 border border-slate-200 dark:border-border-dark rounded-xl hover:border-primary/50 cursor-pointer transition-all"
                       >
                         <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-slate-500 technical-font text-sm">#{pr.number}</span>
+                          <span className="text-slate-500 technical-font text-sm">
+                            #{pr.number}
+                          </span>
                           <span
                             className={`px-2.5 py-1 text-xs font-medium rounded-md ${
                               pr.state === 'open'
@@ -326,7 +352,9 @@ export default function BranchesPage() {
                             {pr.state === 'open' ? 'Open' : pr.merged_at ? 'Merged' : 'Closed'}
                           </span>
                         </div>
-                        <h4 className="font-semibold text-slate-800 dark:text-white line-clamp-2">{pr.title}</h4>
+                        <h4 className="font-semibold text-slate-800 dark:text-white line-clamp-2">
+                          {pr.title}
+                        </h4>
                         <div className="mt-2 text-xs text-slate-500">
                           {pr.head?.ref} → {pr.base?.ref} · {formatTimeAgo(pr.updated_at)}
                         </div>
@@ -334,14 +362,21 @@ export default function BranchesPage() {
                     ))}
                 </div>
                 {updatesContent && (
-                  <div id="updates-section" className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-black/20 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div
+                    id="updates-section"
+                    className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-black/20 animate-in fade-in slide-in-from-bottom-4 duration-300"
+                  >
                     <div className="p-4 border-b border-slate-200 dark:border-border-dark flex items-center gap-2 bg-white dark:bg-[#1A1A1A]">
                       <span className="material-symbols-outlined text-primary">campaign</span>
-                      <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Tasks</span>
+                      <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">
+                        Tasks
+                      </span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-6">
                       {parsedTasks.length === 0 ? (
-                        <div className="text-slate-500 text-sm italic">No tasks found in UPDATES.md</div>
+                        <div className="text-slate-500 text-sm italic">
+                          No tasks found in UPDATES.md
+                        </div>
                       ) : (
                         parsedTasks.map((task, index) => (
                           <div

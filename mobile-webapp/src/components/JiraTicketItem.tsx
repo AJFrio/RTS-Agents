@@ -44,9 +44,7 @@ const JiraTicketItem = React.memo(({ issue, onOpen }: JiraTicketItemProps) => {
             )}
           </div>
         </div>
-        <span className="material-symbols-outlined text-slate-500 text-sm mt-1">
-          chevron_right
-        </span>
+        <span className="material-symbols-outlined text-slate-500 text-sm mt-1">chevron_right</span>
       </div>
     </div>
   );

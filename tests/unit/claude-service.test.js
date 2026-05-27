@@ -12,12 +12,12 @@ jest.mock('fs', () => ({
     readdir: jest.fn(),
     stat: jest.fn(),
     readFile: jest.fn(),
-  }
+  },
 }));
 jest.mock('https');
 jest.mock('os', () => ({
   homedir: jest.fn().mockReturnValue('/home/user'),
-  platform: jest.fn().mockReturnValue('linux')
+  platform: jest.fn().mockReturnValue('linux'),
 }));
 
 describe('ClaudeService', () => {
@@ -47,7 +47,7 @@ describe('ClaudeService', () => {
     fs.statSync.mockReturnValue({
       birthtime: new Date('2023-01-01'),
       mtime: new Date('2023-01-02'),
-      size: 100
+      size: 100,
     });
 
     // Re-require service to get fresh instance/state
@@ -63,8 +63,12 @@ describe('ClaudeService', () => {
     test('extractSessionName falls back to user prompt', () => {
       const session = {
         messages: [
-          { role: 'user', content: 'This is a long prompt that should be truncated because it is very long indeed' }
-        ]
+          {
+            role: 'user',
+            content:
+              'This is a long prompt that should be truncated because it is very long indeed',
+          },
+        ],
       };
       const name = claudeService.extractSessionName(session);
       expect(name).toContain('This is a long prompt');
@@ -74,7 +78,7 @@ describe('ClaudeService', () => {
     test('inferStatus detects running sessions based on mtime', () => {
       const now = new Date();
       fs.statSync.mockReturnValue({
-        mtime: now // Just modified
+        mtime: now, // Just modified
       });
 
       const session = {};
@@ -107,14 +111,14 @@ describe('ClaudeService', () => {
       const file = 'session1.json';
       const sessionData = {
         title: 'Test Session',
-        startTime: '2023-01-01T00:00:00.000Z'
+        startTime: '2023-01-01T00:00:00.000Z',
       };
 
       fs.promises.access.mockResolvedValue(undefined);
       fs.promises.readdir.mockResolvedValue([file]);
       fs.promises.stat.mockResolvedValue({
         birthtime: new Date('2023-01-01'),
-        mtime: new Date('2023-01-02')
+        mtime: new Date('2023-01-02'),
       });
       fs.promises.readFile.mockResolvedValue(JSON.stringify(sessionData));
 
@@ -151,12 +155,14 @@ describe('ClaudeService', () => {
         return Promise.reject(new Error('ENOENT'));
       });
 
-      fs.promises.readdir.mockImplementation(async (p, options) => {
+      fs.promises.readdir.mockImplementation(async (p, _options) => {
         if (p === projectsDir) {
-          return Promise.resolve([{
-            name: 'my-project',
-            isDirectory: () => true
-          }]);
+          return Promise.resolve([
+            {
+              name: 'my-project',
+              isDirectory: () => true,
+            },
+          ]);
         }
         return Promise.resolve([]);
       });
@@ -175,7 +181,7 @@ describe('ClaudeService', () => {
         on: jest.fn(),
         write: jest.fn(),
         end: jest.fn(),
-        setTimeout: jest.fn()
+        setTimeout: jest.fn(),
       };
 
       https.request.mockImplementation((options, cb) => {
@@ -185,7 +191,7 @@ describe('ClaudeService', () => {
           on: (event, handler) => {
             if (event === 'data') handler(JSON.stringify({ content: [] }));
             if (event === 'end') handler();
-          }
+          },
         };
         cb(mockRes);
         return mockReq;
@@ -197,16 +203,18 @@ describe('ClaudeService', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'x-api-key': 'test-api-key'
-          })
+            'x-api-key': 'test-api-key',
+          }),
         }),
         expect.any(Function)
       );
     });
 
     test('createMessage throws if API key not set', async () => {
-        claudeService.setApiKey(null);
-        await expect(claudeService.createMessage([])).rejects.toThrow('Anthropic API key not configured');
+      claudeService.setApiKey(null);
+      await expect(claudeService.createMessage([])).rejects.toThrow(
+        'Anthropic API key not configured'
+      );
     });
   });
 });

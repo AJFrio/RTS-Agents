@@ -18,7 +18,7 @@ class HttpService {
     let urlObj;
     try {
       urlObj = new URL(url);
-    } catch (e) {
+    } catch {
       throw new Error(`Invalid URL: ${url}`);
     }
 
@@ -30,13 +30,13 @@ class HttpService {
         port: urlObj.port,
         path: urlObj.pathname + urlObj.search,
         method: method,
-        headers: headers
+        headers: headers,
       };
 
       const req = requestModule.request(reqOptions, (res) => {
         let data = '';
 
-        res.on('data', chunk => {
+        res.on('data', (chunk) => {
           data += chunk;
         });
 
@@ -49,17 +49,19 @@ class HttpService {
             try {
               parsedData = JSON.parse(data);
             } catch (e) {
+              void e;
               // Keep as string if parsing fails
             }
           } else {
             // Try parsing anyway as some APIs return JSON without correct content-type
             try {
-               // Only try if it looks like JSON to avoid parsing numbers/booleans inadvertently
-               if (data && (data.startsWith('{') || data.startsWith('['))) {
-                 parsedData = JSON.parse(data);
-               }
+              // Only try if it looks like JSON to avoid parsing numbers/booleans inadvertently
+              if (data && (data.startsWith('{') || data.startsWith('['))) {
+                parsedData = JSON.parse(data);
+              }
             } catch (e) {
-               // Ignore
+              void e;
+              // Ignore
             }
           }
 
@@ -104,15 +106,15 @@ class HttpService {
    */
   async requestJson(url, method = 'GET', body = null, headers = {}, timeout = 30000) {
     const jsonHeaders = {
-        'Content-Type': 'application/json',
-        ...headers
+      'Content-Type': 'application/json',
+      ...headers,
     };
 
     return this.request(url, {
-        method,
-        body,
-        headers: jsonHeaders,
-        timeout
+      method,
+      body,
+      headers: jsonHeaders,
+      timeout,
     });
   }
 }

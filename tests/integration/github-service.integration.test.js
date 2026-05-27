@@ -4,7 +4,6 @@ const githubService = require('../../src/main/services/github-service');
 // Mock https but allows us to inspect calls
 describe('GithubService Integration', () => {
   let mockRequest;
-  let mockResponse;
   let requestSpy;
 
   beforeEach(() => {
@@ -14,11 +13,11 @@ describe('GithubService Integration', () => {
     mockRequest = {
       on: jest.fn(),
       write: jest.fn(),
-      end: jest.fn()
+      end: jest.fn(),
     };
 
     // We create a simpler mock for integration test, focusing on data flow
-    requestSpy = jest.spyOn(https, 'request').mockImplementation((options, cb) => {
+    requestSpy = jest.spyOn(https, 'request').mockImplementation((_options, _cb) => {
       // We don't call cb immediately, we let the test drive it
       // to simulate network delay or specific response sequences
       return mockRequest;
@@ -37,7 +36,7 @@ describe('GithubService Integration', () => {
     // Create a mock response stream
     const responseStream = {
       on: jest.fn(),
-      statusCode: 200
+      statusCode: 200,
     };
 
     // Execute callback with our response stream
@@ -47,7 +46,7 @@ describe('GithubService Integration', () => {
     expect(requestSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         path: '/graphql',
-        method: 'POST'
+        method: 'POST',
       }),
       expect.any(Function)
     );
@@ -58,18 +57,18 @@ describe('GithubService Integration', () => {
         markPullRequestReadyForReview: {
           pullRequest: {
             id: nodeId,
-            isDraft: false
-          }
-        }
-      }
+            isDraft: false,
+          },
+        },
+      },
     });
 
     // Simulate data chunks
-    const dataHandler = responseStream.on.mock.calls.find(call => call[0] === 'data')[1];
+    const dataHandler = responseStream.on.mock.calls.find((call) => call[0] === 'data')[1];
     dataHandler(responseData);
 
     // Simulate end
-    const endHandler = responseStream.on.mock.calls.find(call => call[0] === 'end')[1];
+    const endHandler = responseStream.on.mock.calls.find((call) => call[0] === 'end')[1];
     endHandler();
 
     const result = await promise;
@@ -87,20 +86,20 @@ describe('GithubService Integration', () => {
     const requestCallback = requestSpy.mock.calls[0][1];
     const responseStream = {
       on: jest.fn(),
-      statusCode: 405 // Method Not Allowed (often means not mergeable)
+      statusCode: 405, // Method Not Allowed (often means not mergeable)
     };
 
     requestCallback(responseStream);
 
     const responseData = JSON.stringify({
       message: 'Pull Request is not mergeable',
-      documentation_url: 'https://docs.github.com/rest/reference/pulls#merge-a-pull-request'
+      documentation_url: 'https://docs.github.com/rest/reference/pulls#merge-a-pull-request',
     });
 
-    const dataHandler = responseStream.on.mock.calls.find(call => call[0] === 'data')[1];
+    const dataHandler = responseStream.on.mock.calls.find((call) => call[0] === 'data')[1];
     dataHandler(responseData);
 
-    const endHandler = responseStream.on.mock.calls.find(call => call[0] === 'end')[1];
+    const endHandler = responseStream.on.mock.calls.find((call) => call[0] === 'end')[1];
     endHandler();
 
     await expect(promise).rejects.toThrow('Pull Request is not mergeable');
@@ -110,7 +109,7 @@ describe('GithubService Integration', () => {
     const promise = githubService.getPullRequests('owner', 'repo');
 
     // Simulate error event on request
-    const errorHandler = mockRequest.on.mock.calls.find(call => call[0] === 'error')[1];
+    const errorHandler = mockRequest.on.mock.calls.find((call) => call[0] === 'error')[1];
     errorHandler(new Error('Network connection lost'));
 
     await expect(promise).rejects.toThrow('Network connection lost');

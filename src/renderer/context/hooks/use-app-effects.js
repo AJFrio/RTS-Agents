@@ -28,7 +28,14 @@ export function useAppEffects({
     return () => {
       mounted = false;
     };
-  }, [api, loadSettings, loadAgents, checkConnectionStatus, fetchComputers, loadRemoteQueueActivity]);
+  }, [
+    api,
+    loadSettings,
+    loadAgents,
+    checkConnectionStatus,
+    fetchComputers,
+    loadRemoteQueueActivity,
+  ]);
 
   useEffect(() => {
     if (!api?.onRefreshTick) return;

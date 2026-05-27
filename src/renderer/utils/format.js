@@ -27,7 +27,9 @@ export function formatTimeAgo(date) {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}M_AGO`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}H_AGO`;
   if (seconds < 604800) return `${Math.floor(seconds / 86400)}D_AGO`;
-  return then.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }).replace(/\//g, '/');
+  return then
+    .toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+    .replace(/\//g, '/');
 }
 
 export function getStatusStyle(status) {
@@ -62,6 +64,12 @@ export function extractRepoName(url) {
 }
 
 export function getStatusLabel(status) {
-  const map = { running: 'RUNNING', completed: 'COMPLETE', pending: 'PENDING', failed: 'FAILED', stopped: 'STOPPED' };
+  const map = {
+    running: 'RUNNING',
+    completed: 'COMPLETE',
+    pending: 'PENDING',
+    failed: 'FAILED',
+    stopped: 'STOPPED',
+  };
   return map[status] || status?.toUpperCase() || 'UNKNOWN';
 }

@@ -1,5 +1,3 @@
-const https = require('https');
-
 // Mock external modules
 jest.mock('https');
 
@@ -17,7 +15,7 @@ describe('JulesService', () => {
       write: jest.fn(),
       end: jest.fn(),
       setTimeout: jest.fn(),
-      destroy: jest.fn()
+      destroy: jest.fn(),
     };
 
     // Re-require https and setup mock
@@ -49,19 +47,19 @@ describe('JulesService', () => {
               id: 'a1',
               createTime: '2024-01-15T10:00:00Z',
               originator: 'user',
-              userMessaged: { userMessage: 'Please add tests' }
+              userMessaged: { userMessage: 'Please add tests' },
             },
             {
               id: 'a2',
               createTime: '2024-01-15T10:01:00Z',
               originator: 'agent',
-              agentMessaged: { agentMessage: 'I will add unit tests.' }
+              agentMessaged: { agentMessage: 'I will add unit tests.' },
             },
             {
               id: 'a3',
               createTime: '2024-01-15T10:02:00Z',
               originator: 'system',
-              sessionFailed: { reason: 'Unable to install dependencies' }
+              sessionFailed: { reason: 'Unable to install dependencies' },
             },
             {
               id: 'a4',
@@ -72,13 +70,13 @@ describe('JulesService', () => {
                   id: 'plan1',
                   steps: [
                     { id: 's1', index: 0, title: 'Analyze code', description: 'Review structure' },
-                    { id: 's2', index: 1, title: 'Write tests', description: 'Add coverage' }
+                    { id: 's2', index: 1, title: 'Write tests', description: 'Add coverage' },
                   ],
-                  createTime: '2024-01-15T10:03:00Z'
-                }
-              }
-            }
-          ]
+                  createTime: '2024-01-15T10:03:00Z',
+                },
+              },
+            },
+          ],
         };
       }
       if (url.includes('/sessions/')) {
@@ -87,7 +85,7 @@ describe('JulesService', () => {
           state: 'FAILED',
           title: 'Test Session',
           prompt: 'Task',
-          sourceContext: { source: 'sources/github/o/r' }
+          sourceContext: { source: 'sources/github/o/r' },
         };
       }
       return {};
@@ -100,7 +98,7 @@ describe('JulesService', () => {
     test('normalizeSession maps status correctly', () => {
       const session = {
         id: '123',
-        state: 'IN_PROGRESS'
+        state: 'IN_PROGRESS',
       };
 
       const normalized = julesService.normalizeSession(session);
@@ -111,7 +109,7 @@ describe('JulesService', () => {
       const session = {
         id: '123',
         state: 'IN_PROGRESS', // Even if state says in progress
-        outputs: [{ some: 'output' }]
+        outputs: [{ some: 'output' }],
       };
 
       const normalized = julesService.normalizeSession(session);
@@ -121,8 +119,8 @@ describe('JulesService', () => {
     test('extractRepository finds github repo from source', () => {
       const session = {
         sourceContext: {
-          source: 'sources/github/owner/repo'
-        }
+          source: 'sources/github/owner/repo',
+        },
       };
 
       const repo = julesService.extractRepository(session);
@@ -131,9 +129,7 @@ describe('JulesService', () => {
 
     test('extractPrUrl finds PR url in outputs', () => {
       const session = {
-        outputs: [
-          { pullRequest: { url: 'https://github.com/owner/repo/pull/1' } }
-        ]
+        outputs: [{ pullRequest: { url: 'https://github.com/owner/repo/pull/1' } }],
       };
 
       const prUrl = julesService.extractPrUrl(session);
@@ -142,9 +138,7 @@ describe('JulesService', () => {
 
     test('extractSummary finds description in outputs', () => {
       const session = {
-        outputs: [
-          { pullRequest: { description: 'Fixing a bug' } }
-        ]
+        outputs: [{ pullRequest: { description: 'Fixing a bug' } }],
       };
 
       const summary = julesService.extractSummary(session);
@@ -184,8 +178,8 @@ describe('JulesService', () => {
         expect.stringContaining('/sources'),
         expect.objectContaining({
           headers: expect.objectContaining({
-            'X-Goog-Api-Key': 'test-key'
-          })
+            'X-Goog-Api-Key': 'test-key',
+          }),
         }),
         null
       );
@@ -197,7 +191,7 @@ describe('JulesService', () => {
       const options = {
         prompt: 'test prompt',
         source: 'sources/github/owner/repo',
-        branch: 'dev'
+        branch: 'dev',
       };
 
       await julesService.createSession(options);
@@ -219,15 +213,15 @@ describe('JulesService', () => {
       const options = {
         prompt: 'test prompt',
         source: 'sources/github/owner/repo',
-        attachments: [
-          { name: 'screen.png', dataUrl: 'data:image/png;base64,12345' }
-        ]
+        attachments: [{ name: 'screen.png', dataUrl: 'data:image/png;base64,12345' }],
       };
 
       await julesService.createSession(options);
 
       expect(httpsRequestMock.write).toHaveBeenCalledWith(
-        expect.stringContaining(JSON.stringify('test prompt\n\n![screen.png](data:image/png;base64,12345)'))
+        expect.stringContaining(
+          JSON.stringify('test prompt\n\n![screen.png](data:image/png;base64,12345)')
+        )
       );
     });
   });
@@ -236,11 +230,17 @@ describe('JulesService', () => {
     test('getActivityType returns correct type for all event kinds', () => {
       expect(julesService.getActivityType({ planGenerated: {} })).toBe('plan_generated');
       expect(julesService.getActivityType({ planApproved: {} })).toBe('plan_approved');
-      expect(julesService.getActivityType({ userMessaged: { userMessage: 'Hi' } })).toBe('user_messaged');
-      expect(julesService.getActivityType({ agentMessaged: { agentMessage: 'Hello' } })).toBe('agent_messaged');
+      expect(julesService.getActivityType({ userMessaged: { userMessage: 'Hi' } })).toBe(
+        'user_messaged'
+      );
+      expect(julesService.getActivityType({ agentMessaged: { agentMessage: 'Hello' } })).toBe(
+        'agent_messaged'
+      );
       expect(julesService.getActivityType({ progressUpdated: { title: 'x' } })).toBe('progress');
       expect(julesService.getActivityType({ sessionCompleted: {} })).toBe('completed');
-      expect(julesService.getActivityType({ sessionFailed: { reason: 'err' } })).toBe('session_failed');
+      expect(julesService.getActivityType({ sessionFailed: { reason: 'err' } })).toBe(
+        'session_failed'
+      );
       expect(julesService.getActivityType({})).toBe('unknown');
     });
 
@@ -271,7 +271,7 @@ describe('JulesService', () => {
       expect(planGen.title).toBe('Analyze code');
       expect(planGen.planSteps).toEqual([
         { title: 'Analyze code', description: 'Review structure' },
-        { title: 'Write tests', description: 'Add coverage' }
+        { title: 'Write tests', description: 'Add coverage' },
       ]);
     });
   });

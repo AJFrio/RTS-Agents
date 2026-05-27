@@ -84,10 +84,12 @@ class CodexService {
     return response.json();
   }
 
-  async createThread(options: {
-    messages?: Array<{ role: string; content: string }>;
-    metadata?: Record<string, unknown>;
-  } = {}): Promise<CodexThread> {
+  async createThread(
+    options: {
+      messages?: Array<{ role: string; content: string }>;
+      metadata?: Record<string, unknown>;
+    } = {}
+  ): Promise<CodexThread> {
     const body: Record<string, unknown> = {};
 
     if (options.messages && options.messages.length > 0) {
@@ -134,7 +136,7 @@ class CodexService {
   }
 
   trackThread(threadId: string, metadata: Partial<TrackedThread> = {}) {
-    const existingIndex = trackedThreads.findIndex(t => t.id === threadId);
+    const existingIndex = trackedThreads.findIndex((t) => t.id === threadId);
     const threadInfo: TrackedThread = {
       id: threadId,
       createdAt: new Date().toISOString(),
@@ -187,7 +189,11 @@ class CodexService {
     }
   }
 
-  normalizeThread(thread: CodexThread, tracked: TrackedThread = { id: thread.id }, latestRun?: CodexRun | null): AgentTask {
+  normalizeThread(
+    thread: CodexThread,
+    tracked: TrackedThread = { id: thread.id },
+    latestRun?: CodexRun | null
+  ): AgentTask {
     return {
       id: `codex-${thread.id}`,
       provider: 'codex',
@@ -239,7 +245,7 @@ class CodexService {
     this.loadTrackedThreads();
 
     const results = await Promise.allSettled(
-      trackedThreads.map(async tracked => {
+      trackedThreads.map(async (tracked) => {
         const [thread, runsResponse] = await Promise.all([
           this.getThread(tracked.id),
           this.listRuns(tracked.id, 1),
@@ -250,8 +256,10 @@ class CodexService {
     );
 
     return results
-      .filter((result): result is PromiseFulfilledResult<AgentTask> => result.status === 'fulfilled')
-      .map(result => result.value);
+      .filter(
+        (result): result is PromiseFulfilledResult<AgentTask> => result.status === 'fulfilled'
+      )
+      .map((result) => result.value);
   }
 
   async getAgentDetails(threadId: string): Promise<AgentDetails> {
@@ -261,11 +269,11 @@ class CodexService {
       this.listRuns(threadId, 10),
     ]);
 
-    const tracked = trackedThreads.find(t => t.id === threadId) || { id: threadId };
+    const tracked = trackedThreads.find((t) => t.id === threadId) || { id: threadId };
     const latestRun = runsResponse.data?.[0];
 
     const messages: Message[] = (messagesResponse.data || [])
-      .map(msg => ({
+      .map((msg) => ({
         id: msg.id,
         role: msg.role,
         content: this.extractMessageContent(msg),
@@ -283,8 +291,8 @@ class CodexService {
     if (!message.content || message.content.length === 0) return '';
 
     return message.content
-      .filter(c => c.type === 'text')
-      .map(c => c.text?.value || '')
+      .filter((c) => c.type === 'text')
+      .map((c) => c.text?.value || '')
       .join('\n');
   }
 

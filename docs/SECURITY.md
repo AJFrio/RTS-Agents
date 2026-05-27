@@ -2,10 +2,10 @@
 
 ## Secrets
 
-| Asset | Storage | Never |
-|-------|---------|-------|
+| Asset                                                                 | Storage                                | Never                                       |
+| --------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------- |
 | API keys (Jules, Cursor, OpenAI, Anthropic, GitHub, Jira, Cloudflare) | `electron-store` via `config-store.js` | Commit to git, log in console in production |
-| Encryption key for store | Hardcoded in app (obfuscation only) | Treat as strong encryption |
+| Encryption key for store                                              | Hardcoded in app (obfuscation only)    | Treat as strong encryption                  |
 
 Mobile may sync keys through Cloudflare KV when user explicitly configures sync — treat KV namespace as sensitive infrastructure.
 

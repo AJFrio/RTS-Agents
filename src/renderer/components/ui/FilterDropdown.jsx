@@ -72,7 +72,10 @@ export default function FilterDropdown() {
               {PROVIDERS.map(({ id, label, dot }) => {
                 if (!configuredServices[id]) return null;
                 return (
-                  <li key={id} className="flex items-center justify-between text-xs px-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded py-1 transition-colors">
+                  <li
+                    key={id}
+                    className="flex items-center justify-between text-xs px-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded py-1 transition-colors"
+                  >
                     <label className="flex items-center gap-2 cursor-pointer select-none flex-1">
                       <input
                         type="checkbox"
@@ -81,7 +84,9 @@ export default function FilterDropdown() {
                         onChange={(e) => handleFilterChange('providers', id, e.target.checked)}
                       />
                       <span className={`w-2 h-2 rounded-full ${dot}`} />
-                      <span className="text-slate-700 dark:text-slate-300 font-medium">{label}</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">
+                        {label}
+                      </span>
                     </label>
                     <span className="technical-font text-slate-400 dark:text-slate-500 text-[10px]">
                       {formatCount(counts[id] ?? 0)}
@@ -98,7 +103,10 @@ export default function FilterDropdown() {
             </div>
             <ul className="space-y-2">
               {STATUS_FILTERS.map(({ id, label, muted }) => (
-                <li key={id} className="flex items-center gap-2 text-xs px-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded py-1 transition-colors">
+                <li
+                  key={id}
+                  className="flex items-center gap-2 text-xs px-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded py-1 transition-colors"
+                >
                   <label className="flex items-center gap-2 cursor-pointer select-none w-full">
                     <input
                       type="checkbox"
@@ -106,7 +114,9 @@ export default function FilterDropdown() {
                       className="form-checkbox h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all"
                       onChange={(e) => handleFilterChange('statuses', id, e.target.checked)}
                     />
-                    <span className={`font-medium ${muted ? 'text-slate-500 dark:text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                    <span
+                      className={`font-medium ${muted ? 'text-slate-500 dark:text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}
+                    >
                       {label}
                     </span>
                   </label>

@@ -16,14 +16,19 @@ export default function Sidebar() {
   const { currentView } = state;
 
   return (
-    <aside id="sidebar" className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark flex flex-col">
+    <aside
+      id="sidebar"
+      className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-border-dark bg-white dark:bg-sidebar-dark flex flex-col"
+    >
       <div className="p-4 border-b border-slate-200 dark:border-border-dark">
         <h1 className="font-semibold text-lg tracking-tight dark:text-white">RTS Agents</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-8">
         <div>
-          <div className="text-xs text-slate-400 dark:text-slate-500 mb-4 px-2 font-medium">Main Controls</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500 mb-4 px-2 font-medium">
+            Main Controls
+          </div>
           <ul className="space-y-1">
             {NAV_ITEMS.map(({ view, icon, label }) => (
               <li key={view}>
@@ -44,7 +49,6 @@ export default function Sidebar() {
             ))}
           </ul>
         </div>
-
       </nav>
 
       <div className="p-4 border-t border-slate-200 dark:border-border-dark">
@@ -58,7 +62,6 @@ export default function Sidebar() {
           New Task
         </button>
       </div>
-
     </aside>
   );
 }

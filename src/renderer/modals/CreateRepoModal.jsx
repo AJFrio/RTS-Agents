@@ -46,7 +46,8 @@ export default function CreateRepoModal({ open, onClose, api }) {
     try {
       if (location === 'github') {
         if (!api?.github?.createRepo) throw new Error('GitHub API not available');
-        const ownerType = owners.find((o) => o.login === githubOwner)?.type === 'Organization' ? 'org' : 'user';
+        const ownerType =
+          owners.find((o) => o.login === githubOwner)?.type === 'Organization' ? 'org' : 'user';
         await api.github.createRepo({
           ownerType,
           owner: githubOwner || owners[0]?.login,
@@ -87,17 +88,27 @@ export default function CreateRepoModal({ open, onClose, api }) {
               <span className="material-symbols-outlined text-primary text-2xl">source</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Create Repository</h2>
-              <p className="text-xs text-slate-500 font-medium">GitHub, local, or remote computer</p>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Create Repository
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                GitHub, local, or remote computer
+              </p>
             </div>
           </div>
-          <button type="button" onClick={handleClose} className="text-slate-400 hover:text-primary transition-colors">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="text-slate-400 hover:text-primary transition-colors"
+          >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
         <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
           <div>
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Where to create</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+              Where to create
+            </label>
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -109,7 +120,9 @@ export default function CreateRepoModal({ open, onClose, api }) {
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Repository name</label>
+            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+              Repository name
+            </label>
             <input
               type="text"
               value={name}
@@ -121,7 +134,9 @@ export default function CreateRepoModal({ open, onClose, api }) {
           {location === 'github' && (
             <>
               <div>
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Owner</label>
+                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+                  Owner
+                </label>
                 <select
                   value={githubOwner}
                   onChange={(e) => setGithubOwner(e.target.value)}
@@ -129,7 +144,9 @@ export default function CreateRepoModal({ open, onClose, api }) {
                 >
                   <option value="">Select...</option>
                   {owners.map((o) => (
-                    <option key={o.login} value={o.login}>{o.login}</option>
+                    <option key={o.login} value={o.login}>
+                      {o.login}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -139,7 +156,11 @@ export default function CreateRepoModal({ open, onClose, api }) {
                   onClick={() => setGithubPrivate(false)}
                   className={`flex-1 p-4 border rounded-lg text-left transition-colors ${!githubPrivate ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary/50'}`}
                 >
-                  <span className={`text-sm font-bold ${!githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>Public</span>
+                  <span
+                    className={`text-sm font-bold ${!githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+                  >
+                    Public
+                  </span>
                   <p className="text-xs text-slate-400 mt-1">Anyone can see this repository</p>
                 </button>
                 <button
@@ -147,15 +168,23 @@ export default function CreateRepoModal({ open, onClose, api }) {
                   onClick={() => setGithubPrivate(true)}
                   className={`flex-1 p-4 border rounded-lg text-left transition-colors ${githubPrivate ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary/50'}`}
                 >
-                  <span className={`text-sm font-bold ${githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>Private</span>
-                  <p className="text-xs text-slate-400 mt-1">You choose who can see this repository</p>
+                  <span
+                    className={`text-sm font-bold ${githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}
+                  >
+                    Private
+                  </span>
+                  <p className="text-xs text-slate-400 mt-1">
+                    You choose who can see this repository
+                  </p>
                 </button>
               </div>
             </>
           )}
           {location === 'local' && (
             <div>
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Directory</label>
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+                Directory
+              </label>
               <input
                 type="text"
                 value={localDir}
@@ -167,7 +196,9 @@ export default function CreateRepoModal({ open, onClose, api }) {
           )}
           {location === 'remote' && (
             <div>
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Target device</label>
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">
+                Target device
+              </label>
               <select
                 value={remoteDeviceId}
                 onChange={(e) => setRemoteDeviceId(e.target.value)}
@@ -175,7 +206,9 @@ export default function CreateRepoModal({ open, onClose, api }) {
               >
                 <option value="">Select a computer...</option>
                 {(state.computers?.list || []).map((d) => (
-                  <option key={d.id} value={d.id}>{d.name || d.id}</option>
+                  <option key={d.id} value={d.id}>
+                    {d.name || d.id}
+                  </option>
                 ))}
               </select>
             </div>
@@ -183,11 +216,17 @@ export default function CreateRepoModal({ open, onClose, api }) {
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
         <div className="border-t border-slate-200 dark:border-border-dark p-6 flex justify-between items-center bg-slate-50 dark:bg-black/20">
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Name required</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Name required
+          </span>
           <div className="flex gap-4">
-            <Button variant="secondary" onClick={handleClose}>Cancel</Button>
+            <Button variant="secondary" onClick={handleClose}>
+              Cancel
+            </Button>
             <Button variant="primary" onClick={handleSubmit} disabled={loading}>
-              {loading ? <span className="material-symbols-outlined text-sm animate-spin">sync</span> : null}
+              {loading ? (
+                <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+              ) : null}
               Create
             </Button>
           </div>

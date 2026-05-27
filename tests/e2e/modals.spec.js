@@ -9,7 +9,7 @@ test.describe('Modal Tests', () => {
   test.beforeAll(async () => {
     // Launch Electron app
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 
@@ -26,30 +26,32 @@ test.describe('Modal Tests', () => {
     await page.addInitScript(() => {
       window.__electronAPI = {
         getAgents: async () => ({
-          agents: [{
-            provider: 'gemini',
-            rawId: 'task-123',
-            name: 'Test Agent',
-            status: 'running',
-            prompt: 'Test prompt for agent',
-            repository: 'https://github.com/user/test-repo',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }],
+          agents: [
+            {
+              provider: 'gemini',
+              rawId: 'task-123',
+              name: 'Test Agent',
+              status: 'running',
+              prompt: 'Test prompt for agent',
+              repository: 'https://github.com/user/test-repo',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
           counts: { gemini: 1, total: 1 },
-          errors: []
+          errors: [],
         }),
         getSettings: async () => ({
           settings: {
             pollingInterval: 30000,
             autoPolling: false,
             geminiPaths: [],
-            theme: 'dark'
+            theme: 'dark',
           },
           githubPaths: [],
           apiKeys: { jules: true, cursor: true, codex: true, claude: true },
           geminiInstalled: true,
-          claudeCliInstalled: true
+          claudeCliInstalled: true,
         }),
         getConnectionStatus: async () => ({
           gemini: { connected: true },
@@ -57,9 +59,9 @@ test.describe('Modal Tests', () => {
           cursor: { connected: true },
           codex: { connected: true },
           'claude-cli': { connected: true },
-          'claude-cloud': { connected: true }
+          'claude-cloud': { connected: true },
         }),
-        getAgentDetails: async (provider, rawId) => ({
+        getAgentDetails: async (_provider, rawId) => ({
           name: 'Test Agent Details',
           status: 'running',
           rawId: rawId,
@@ -69,26 +71,36 @@ test.describe('Modal Tests', () => {
           summary: 'Agent summary text',
           conversation: [
             { isUser: true, text: 'Hello agent' },
-            { isUser: false, text: 'Hello user' }
+            { isUser: false, text: 'Hello user' },
           ],
           messages: [],
-          activities: [
-            { title: 'Task started', timestamp: new Date().toISOString() }
-          ]
+          activities: [{ title: 'Task started', timestamp: new Date().toISOString() }],
         }),
-        getRepositories: async (provider) => ({
+        getRepositories: async (_provider) => ({
           success: true,
           repositories: [
-            { id: 'repo-1', name: 'my-repo', url: 'https://github.com/user/my-repo', displayName: 'MY-REPO' },
-            { id: 'repo-2', name: 'other-repo', url: 'https://github.com/user/other-repo', displayName: 'OTHER-REPO' }
-          ]
+            {
+              id: 'repo-1',
+              name: 'my-repo',
+              url: 'https://github.com/user/my-repo',
+              displayName: 'MY-REPO',
+            },
+            {
+              id: 'repo-2',
+              name: 'other-repo',
+              url: 'https://github.com/user/other-repo',
+              displayName: 'OTHER-REPO',
+            },
+          ],
         }),
-        createTask: async (provider, options) => ({ success: true }),
-        onRefreshTick: (cb) => { return () => {} },
+        createTask: async (_provider, _options) => ({ success: true }),
+        onRefreshTick: (_cb) => {
+          return () => {};
+        },
         setApiKey: async () => {},
         testApiKey: async () => ({ success: true }),
         setTheme: async () => {},
-        openExternal: async () => {}
+        openExternal: async () => {},
       };
     });
 
@@ -117,7 +129,6 @@ test.describe('Modal Tests', () => {
     await expect(page.locator('#modal-content')).toContainText('Hello agent');
 
     // Close the modal
-    const closeBtn = modal.locator('button').filter({ hasText: 'close' });
     // Or finding the close button by icon
     const closeIcon = modal.locator('.material-symbols-outlined', { hasText: 'close' });
     await closeIcon.click();

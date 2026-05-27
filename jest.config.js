@@ -7,6 +7,6 @@ module.exports = {
   verbose: true,
   // Mock electron-store
   moduleNameMapper: {
-    'electron-store': '<rootDir>/tests/mocks/electron-store.js'
-  }
+    'electron-store': '<rootDir>/tests/mocks/electron-store.js',
+  },
 };

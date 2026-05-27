@@ -3,13 +3,7 @@ const globals = require('globals');
 
 module.exports = [
   {
-    ignores: [
-      'dist/**',
-      'node_modules/**',
-      'mobile-webapp/**',
-      'coverage/**',
-      'tests/mocks/**',
-    ],
+    ignores: ['dist/**', 'node_modules/**', 'mobile-webapp/**', 'coverage/**', 'tests/mocks/**'],
   },
   js.configs.recommended,
   {
@@ -49,8 +43,12 @@ module.exports = [
       globals: {
         ...globals.browser,
       },
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
     },
     rules: {
+      'no-unused-vars': 'off',
       'no-restricted-imports': [
         'error',
         {

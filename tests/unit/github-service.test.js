@@ -11,13 +11,13 @@ describe('GitHub Service', () => {
     mockRequest = {
       on: jest.fn(),
       write: jest.fn(),
-      end: jest.fn()
+      end: jest.fn(),
     };
     mockResponse = new EventEmitter();
     mockResponse.statusCode = 200;
 
     // Mock https.request
-    requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
+    requestSpy = jest.spyOn(https, 'request').mockImplementation((_options, _callback) => {
       // Immediately call callback if provided (optional, depends on implementation)
       // but in the test we call it manually to control timing.
       return mockRequest;
@@ -44,7 +44,7 @@ describe('GitHub Service', () => {
 
     expect(requestSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/repos/owner/repo/pulls?state=open'
+        path: '/repos/owner/repo/pulls?state=open',
       }),
       expect.any(Function)
     );
@@ -63,7 +63,7 @@ describe('GitHub Service', () => {
 
     expect(requestSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/repos/owner/repo/pulls?state=closed'
+        path: '/repos/owner/repo/pulls?state=closed',
       }),
       expect.any(Function)
     );
@@ -82,7 +82,7 @@ describe('GitHub Service', () => {
     expect(requestSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         path: '/repos/owner/repo/pulls/123',
-        method: 'PATCH'
+        method: 'PATCH',
       }),
       expect.any(Function)
     );
@@ -93,8 +93,18 @@ describe('GitHub Service', () => {
     test('fetches repos and then PRs, returning sorted list', async () => {
       const mockRepo1 = { name: 'repo1', full_name: 'user/repo1', owner: { login: 'user' } };
       const mockRepo2 = { name: 'repo2', full_name: 'user/repo2', owner: { login: 'user' } };
-      const mockPr1 = { id: 1, title: 'PR 1', created_at: '2023-01-01T10:00:00Z', base: { repo: mockRepo1 } };
-      const mockPr2 = { id: 2, title: 'PR 2', created_at: '2023-01-02T10:00:00Z', base: { repo: mockRepo2 } };
+      const mockPr1 = {
+        id: 1,
+        title: 'PR 1',
+        created_at: '2023-01-01T10:00:00Z',
+        base: { repo: mockRepo1 },
+      };
+      const mockPr2 = {
+        id: 2,
+        title: 'PR 2',
+        created_at: '2023-01-02T10:00:00Z',
+        base: { repo: mockRepo2 },
+      };
 
       requestSpy.mockImplementation((options, callback) => {
         const res = new EventEmitter();
@@ -129,7 +139,12 @@ describe('GitHub Service', () => {
     test('handles individual repo PR fetch failure gracefully', async () => {
       const mockRepo1 = { name: 'repo1', full_name: 'user/repo1', owner: { login: 'user' } };
       const mockRepo2 = { name: 'repo2', full_name: 'user/repo2', owner: { login: 'user' } };
-      const mockPr1 = { id: 1, title: 'PR 1', created_at: '2023-01-01T10:00:00Z', base: { repo: mockRepo1 } };
+      const mockPr1 = {
+        id: 1,
+        title: 'PR 1',
+        created_at: '2023-01-01T10:00:00Z',
+        base: { repo: mockRepo1 },
+      };
 
       requestSpy.mockImplementation((options, callback) => {
         const res = new EventEmitter();
@@ -176,7 +191,7 @@ describe('GitHub Service', () => {
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/repos/owner/repo/pulls/123/merge',
-          method: 'PUT'
+          method: 'PUT',
         }),
         expect.any(Function)
       );
@@ -215,7 +230,7 @@ describe('GitHub Service', () => {
       const base64Content = Buffer.from(content).toString('base64');
       const mockResponseData = {
         content: base64Content,
-        encoding: 'base64'
+        encoding: 'base64',
       };
 
       const promise = githubService.getRepoFile('owner', 'repo', 'README.md');
@@ -229,7 +244,7 @@ describe('GitHub Service', () => {
       expect(result).toBe(content);
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          path: '/repos/owner/repo/contents/README.md'
+          path: '/repos/owner/repo/contents/README.md',
         }),
         expect.any(Function)
       );
@@ -251,7 +266,7 @@ describe('GitHub Service', () => {
     test('returns null for non-base64 encoding', async () => {
       const mockResponseData = {
         content: 'some content',
-        encoding: 'utf-8' // unexpected encoding
+        encoding: 'utf-8', // unexpected encoding
       };
 
       const promise = githubService.getRepoFile('owner', 'repo', 'file.txt');

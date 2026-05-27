@@ -24,14 +24,11 @@ describe('GeminiService Integration Tests', () => {
       lastUpdated: new Date().toISOString(),
       messages: [
         { role: 'user', content: 'Integration test prompt' },
-        { role: 'gemini', content: 'Integration test response' }
-      ]
+        { role: 'gemini', content: 'Integration test response' },
+      ],
     };
 
-    fs.writeFileSync(
-      path.join(chatsDir, 'session-1.json'),
-      JSON.stringify(sessionData, null, 2)
-    );
+    fs.writeFileSync(path.join(chatsDir, 'session-1.json'), JSON.stringify(sessionData, null, 2));
   });
 
   afterAll(() => {

@@ -6,11 +6,11 @@ This file is the **table of contents**. Detailed guidance lives under `docs/` (s
 
 ## Start here
 
-| Step | Action |
-|------|--------|
-| 1 | Read [ARCHITECTURE.md](ARCHITECTURE.md) for boundaries and domains |
-| 2 | Pick a task type → [docs/PLANS.md](docs/PLANS.md) and [UPDATES.md](UPDATES.md) |
-| 3 | Follow domain docs below before editing code |
+| Step | Action                                                                         |
+| ---- | ------------------------------------------------------------------------------ |
+| 1    | Read [ARCHITECTURE.md](ARCHITECTURE.md) for boundaries and domains             |
+| 2    | Pick a task type → [docs/PLANS.md](docs/PLANS.md) and [UPDATES.md](UPDATES.md) |
+| 3    | Follow domain docs below before editing code                                   |
 
 ## Repository layout
 
@@ -25,23 +25,23 @@ docs/                        # Knowledge base (design, specs, plans)
 
 ## Documentation index
 
-| Topic | Path |
-|-------|------|
-| Architecture map | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Design & UX | [docs/DESIGN.md](docs/DESIGN.md) |
-| Frontend rules | [docs/FRONTEND.md](docs/FRONTEND.md) |
-| Security | [docs/SECURITY.md](docs/SECURITY.md) |
+| Topic                   | Path                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Architecture map        | [ARCHITECTURE.md](ARCHITECTURE.md)                                                                                       |
+| Design & UX             | [docs/DESIGN.md](docs/DESIGN.md)                                                                                         |
+| Frontend rules          | [docs/FRONTEND.md](docs/FRONTEND.md)                                                                                     |
+| Security                | [docs/SECURITY.md](docs/SECURITY.md)                                                                                     |
 | Reliability / perf debt | [docs/RELIABILITY.md](docs/RELIABILITY.md), [docs/exec-plans/tech-debt-tracker.md](docs/exec-plans/tech-debt-tracker.md) |
-| Quality grades | [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md) |
-| Product context | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md) |
-| Planning workflow | [docs/PLANS.md](docs/PLANS.md) |
-| Harness guide | [docs/HARNESS.md](docs/HARNESS.md) |
-| Design doc catalog | [docs/design-docs/index.md](docs/design-docs/index.md) |
-| Agent-first principles | [docs/design-docs/core-beliefs.md](docs/design-docs/core-beliefs.md) |
-| IPC boundaries | [docs/design-docs/electron-ipc.md](docs/design-docs/electron-ipc.md) |
-| New provider guide | [docs/design-docs/provider-integration.md](docs/design-docs/provider-integration.md) |
-| Feature specs | [docs/product-specs/index.md](docs/product-specs/index.md) |
-| User-facing setup | [README.md](README.md) |
+| Quality grades          | [docs/QUALITY_SCORE.md](docs/QUALITY_SCORE.md)                                                                           |
+| Product context         | [docs/PRODUCT_SENSE.md](docs/PRODUCT_SENSE.md)                                                                           |
+| Planning workflow       | [docs/PLANS.md](docs/PLANS.md)                                                                                           |
+| Harness guide           | [docs/HARNESS.md](docs/HARNESS.md)                                                                                       |
+| Design doc catalog      | [docs/design-docs/index.md](docs/design-docs/index.md)                                                                   |
+| Agent-first principles  | [docs/design-docs/core-beliefs.md](docs/design-docs/core-beliefs.md)                                                     |
+| IPC boundaries          | [docs/design-docs/electron-ipc.md](docs/design-docs/electron-ipc.md)                                                     |
+| New provider guide      | [docs/design-docs/provider-integration.md](docs/design-docs/provider-integration.md)                                     |
+| Feature specs           | [docs/product-specs/index.md](docs/product-specs/index.md)                                                               |
+| User-facing setup       | [README.md](README.md)                                                                                                   |
 
 ## Coding standards (summary)
 

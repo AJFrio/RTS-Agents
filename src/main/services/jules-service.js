@@ -9,7 +9,7 @@ class JulesService {
 
   /**
    * Set the API key for Jules API
-   * @param {string} apiKey 
+   * @param {string} apiKey
    */
   setApiKey(apiKey) {
     this.apiKey = apiKey;
@@ -17,9 +17,9 @@ class JulesService {
 
   /**
    * Make an HTTP request to the Jules API
-   * @param {string} endpoint 
-   * @param {string} method 
-   * @param {object} body 
+   * @param {string} endpoint
+   * @param {string} method
+   * @param {object} body
    */
   async request(endpoint, method = 'GET', body = null) {
     if (!this.apiKey) {
@@ -27,22 +27,26 @@ class JulesService {
     }
 
     const url = `${BASE_URL}${endpoint}`;
-    
-    return httpService.request(url, {
-      method,
-      headers: {
-        'X-Goog-Api-Key': this.apiKey,
-        'Content-Type': 'application/json'
+
+    return httpService.request(
+      url,
+      {
+        method,
+        headers: {
+          'X-Goog-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+        errorMessagePrefix: 'Jules API error',
       },
-      timeout: 30000,
-      errorMessagePrefix: 'Jules API error'
-    }, body);
+      body
+    );
   }
 
   /**
    * List all connected sources (repositories)
-   * @param {number} pageSize 
-   * @param {string} pageToken 
+   * @param {number} pageSize
+   * @param {string} pageToken
    */
   async listSources(pageSize = 20, pageToken = null) {
     let endpoint = `/sources?pageSize=${pageSize}`;
@@ -54,8 +58,8 @@ class JulesService {
 
   /**
    * List all sessions
-   * @param {number} pageSize 
-   * @param {string} pageToken 
+   * @param {number} pageSize
+   * @param {string} pageToken
    */
   async listSessions(pageSize = 20, pageToken = null) {
     let endpoint = `/sessions?pageSize=${pageSize}`;
@@ -67,7 +71,7 @@ class JulesService {
 
   /**
    * Get a specific session by ID
-   * @param {string} sessionId 
+   * @param {string} sessionId
    */
   async getSession(sessionId) {
     return this.request(`/sessions/${sessionId}`);
@@ -75,9 +79,9 @@ class JulesService {
 
   /**
    * List activities for a session
-   * @param {string} sessionId 
-   * @param {number} pageSize 
-   * @param {string} pageToken 
+   * @param {string} sessionId
+   * @param {number} pageSize
+   * @param {string} pageToken
    */
   async listActivities(sessionId, pageSize = 30, pageToken = null) {
     let endpoint = `/sessions/${sessionId}/activities?pageSize=${pageSize}`;
@@ -91,19 +95,14 @@ class JulesService {
    * Get all agents (sessions) formatted for the dashboard
    */
   async getAllAgents() {
-    try {
-      const response = await this.listSessions(100);
-      const sessions = response.sessions || [];
-
-      return sessions.map(session => this.normalizeSession(session));
-    } catch (err) {
-      throw err;
-    }
+    const response = await this.listSessions(100);
+    const sessions = response.sessions || [];
+    return sessions.map((session) => this.normalizeSession(session));
   }
 
   /**
    * Normalize a Jules session to the common AgentTask format
-   * @param {object} session 
+   * @param {object} session
    */
   normalizeSession(session) {
     return {
@@ -120,7 +119,7 @@ class JulesService {
       summary: this.extractSummary(session),
       rawId: session.id,
       webUrl: `https://jules.google.com/session/${session.id}`,
-      source: session.sourceContext?.source || null
+      source: session.sourceContext?.source || null,
     };
   }
 
@@ -140,15 +139,15 @@ class JulesService {
     }
 
     const stateMap = {
-      'QUEUED': 'pending',
-      'PLANNING': 'running',
-      'AWAITING_PLAN_APPROVAL': 'pending',
-      'AWAITING_USER_FEEDBACK': 'pending',
-      'IN_PROGRESS': 'running',
-      'PAUSED': 'stopped',
-      'FAILED': 'failed',
-      'COMPLETED': 'completed',
-      'STATE_UNSPECIFIED': 'pending'
+      QUEUED: 'pending',
+      PLANNING: 'running',
+      AWAITING_PLAN_APPROVAL: 'pending',
+      AWAITING_USER_FEEDBACK: 'pending',
+      IN_PROGRESS: 'running',
+      PAUSED: 'stopped',
+      FAILED: 'failed',
+      COMPLETED: 'completed',
+      STATE_UNSPECIFIED: 'pending',
     };
 
     return stateMap[session.state] || 'pending';
@@ -203,24 +202,27 @@ class JulesService {
   async getAgentDetails(sessionId) {
     const [session, activitiesResponse] = await Promise.all([
       this.getSession(sessionId),
-      this.listActivities(sessionId, 100)
+      this.listActivities(sessionId, 100),
     ]);
 
     return {
       ...this.normalizeSession(session),
-      activities: (activitiesResponse.activities || []).map(activity => {
+      activities: (activitiesResponse.activities || []).map((activity) => {
         const artifacts = activity.artifacts || [];
-        const commands = artifacts
-          .filter(a => a.bashOutput)
-          .map(a => a.bashOutput.command);
+        const commands = artifacts.filter((a) => a.bashOutput).map((a) => a.bashOutput.command);
 
         const fileChanges = artifacts
-          .filter(a => a.changeSet && a.changeSet.gitPatch)
-          .map(a => this.extractFilesFromPatch(a.changeSet.gitPatch.unidiffPatch))
+          .filter((a) => a.changeSet && a.changeSet.gitPatch)
+          .map((a) => this.extractFilesFromPatch(a.changeSet.gitPatch.unidiffPatch))
           .flat();
 
         const type = this.getActivityType(activity);
-        const { title, description, message, planSteps } = this.getActivityTitleDescriptionMessage(activity, type, commands, fileChanges);
+        const { title, description, message, planSteps } = this.getActivityTitleDescriptionMessage(
+          activity,
+          type,
+          commands,
+          fileChanges
+        );
 
         return {
           id: activity.id,
@@ -233,9 +235,9 @@ class JulesService {
           timestamp: activity.createTime,
           commands,
           fileChanges,
-          artifacts
+          artifacts,
         };
-      })
+      }),
     };
   }
 
@@ -269,7 +271,7 @@ class JulesService {
 
     if (activity.planGenerated?.plan?.steps?.length) {
       const steps = activity.planGenerated.plan.steps;
-      planSteps = steps.map(s => ({ title: s.title || '', description: s.description || '' }));
+      planSteps = steps.map((s) => ({ title: s.title || '', description: s.description || '' }));
       if (!title) title = steps[0]?.title || 'Plan generated';
       if (!description && steps[0]?.description) description = steps[0].description;
     } else if (activity.planApproved) {
@@ -344,14 +346,14 @@ class JulesService {
       // Return whatever we managed to fetch (or empty array)
     }
 
-    return allSources.map(source => ({
+    return allSources.map((source) => ({
       id: source.name,
       name: source.id,
       owner: source.githubRepo?.owner || null,
       repo: source.githubRepo?.repo || null,
-      displayName: source.githubRepo 
+      displayName: source.githubRepo
         ? `${source.githubRepo.owner}/${source.githubRepo.repo}`
-        : source.id
+        : source.id,
     }));
   }
 
@@ -367,7 +369,15 @@ class JulesService {
    * @param {Array} [options.attachments] - Array of attachments with dataUrl
    */
   async createSession(options) {
-    const { prompt, source, branch = 'main', title, autoCreatePr = true, requirePlanApproval = false, attachments } = options;
+    const {
+      prompt,
+      source,
+      branch = 'main',
+      title,
+      autoCreatePr = true,
+      requirePlanApproval = false,
+      attachments,
+    } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -393,9 +403,9 @@ class JulesService {
       sourceContext: {
         source: source,
         githubRepoContext: {
-          startingBranch: branch
-        }
-      }
+          startingBranch: branch,
+        },
+      },
     };
 
     // Set automation mode based on autoCreatePr
@@ -426,7 +436,7 @@ class JulesService {
     }
 
     const body = {
-      prompt: message
+      prompt: message,
     };
 
     // The API uses the custom verb :sendMessage

@@ -1,5 +1,4 @@
 const path = require('path');
-const os = require('os');
 
 // Define mock functions outside the factory so we can control them in tests
 jest.mock('fs', () => {
@@ -15,7 +14,7 @@ jest.mock('fs', () => {
       readdir: jest.fn(),
       stat: jest.fn(),
       readFile: jest.fn(),
-    }
+    },
   };
 });
 
@@ -30,8 +29,6 @@ const installStatus = require('../../src/main/utils/install-status');
 const geminiService = require('../../src/main/services/gemini-service');
 
 describe('GeminiService Unit Tests', () => {
-  const mockHomeDir = '/mock/home';
-
   beforeEach(() => {
     jest.clearAllMocks();
     installStatus.clearInstallStatusCache();
@@ -62,7 +59,7 @@ describe('GeminiService Unit Tests', () => {
           return [
             { name: 'proj1', isDirectory: () => true },
             { name: 'bin', isDirectory: () => true },
-            { name: 'file.txt', isDirectory: () => false }
+            { name: 'file.txt', isDirectory: () => false },
           ];
         }
         return [];
@@ -89,15 +86,15 @@ describe('GeminiService Unit Tests', () => {
       const mockStat = {
         birthtime: new Date('2023-01-01'),
         mtime: new Date('2023-01-02'),
-        size: 100
+        size: 100,
       };
       fsPromises.stat.mockResolvedValue(mockStat);
 
       const mockSessionContent = JSON.stringify({
         messages: [
           { type: 'user', content: 'hello' },
-          { type: 'gemini', content: 'hi' }
-        ]
+          { type: 'gemini', content: 'hi' },
+        ],
       });
       fsPromises.readFile.mockResolvedValue(mockSessionContent);
 

@@ -14,7 +14,8 @@ module.exports = {
   getQueueActivity: () => ipcRenderer.invoke('queue:get-activity'),
   pushKeysToCloudflare: () => ipcRenderer.invoke('cloudflare:push-keys'),
   pullKeysFromCloudflare: () => ipcRenderer.invoke('cloudflare:pull-keys'),
-  setPolling: (enabled, interval) => ipcRenderer.invoke('settings:set-polling', { enabled, interval }),
+  setPolling: (enabled, interval) =>
+    ipcRenderer.invoke('settings:set-polling', { enabled, interval }),
   setTheme: (theme) => ipcRenderer.invoke('settings:set-theme', { theme }),
   setDisplayMode: (mode) => ipcRenderer.invoke('settings:set-display-mode', { mode }),
   saveFilters: (filters) => ipcRenderer.invoke('settings:save-filters', { filters }),
@@ -35,5 +36,5 @@ module.exports = {
   removeGithubPath: (path) => ipcRenderer.invoke('settings:remove-github-path', { path }),
   getGithubPaths: () => ipcRenderer.invoke('settings:get-github-paths'),
   getAllProjectPaths: () => ipcRenderer.invoke('settings:get-all-project-paths'),
-  updateApp: () => ipcRenderer.invoke('app:update')
+  updateApp: () => ipcRenderer.invoke('app:update'),
 };

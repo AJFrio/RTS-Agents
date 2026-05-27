@@ -16,7 +16,7 @@ class CodexService {
 
   /**
    * Set the API key for OpenAI Codex API
-   * @param {string} apiKey 
+   * @param {string} apiKey
    */
   setApiKey(apiKey) {
     this.apiKey = apiKey;
@@ -24,9 +24,9 @@ class CodexService {
 
   /**
    * Make an HTTP request to the OpenAI API
-   * @param {string} endpoint 
-   * @param {string} method 
-   * @param {object} body 
+   * @param {string} endpoint
+   * @param {string} method
+   * @param {object} body
    */
   async request(endpoint, method = 'GET', body = null) {
     if (!this.apiKey) {
@@ -34,16 +34,16 @@ class CodexService {
     }
 
     const url = `${BASE_URL}${endpoint}`;
-    
+
     try {
       return await httpService.requestJson(url, method, body, {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'OpenAI-Beta': 'assistants=v2'
+        Authorization: `Bearer ${this.apiKey}`,
+        'OpenAI-Beta': 'assistants=v2',
       });
     } catch (err) {
       if (err.statusCode) {
-         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
-         throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
+        const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+        throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
       }
       throw err;
     }
@@ -55,7 +55,7 @@ class CodexService {
    */
   async createThread(options = {}) {
     const body = {};
-    
+
     // Add initial messages if provided
     if (options.messages && options.messages.length > 0) {
       body.messages = options.messages;
@@ -67,16 +67,16 @@ class CodexService {
     }
 
     const response = await this.request('/threads', 'POST', body);
-    
+
     // Track this thread ID for listing later
     this.trackThread(response.id, options);
-    
+
     return response;
   }
 
   /**
    * Get a specific thread by ID
-   * @param {string} threadId 
+   * @param {string} threadId
    */
   async getThread(threadId) {
     return this.request(`/threads/${threadId}`);
@@ -84,8 +84,8 @@ class CodexService {
 
   /**
    * List messages in a thread
-   * @param {string} threadId 
-   * @param {number} limit 
+   * @param {string} threadId
+   * @param {number} limit
    */
   async listMessages(threadId, limit = 100) {
     return this.request(`/threads/${threadId}/messages?limit=${limit}`);
@@ -93,26 +93,26 @@ class CodexService {
 
   /**
    * Create a message in a thread
-   * @param {string} threadId 
-   * @param {string} content 
-   * @param {string} role 
+   * @param {string} threadId
+   * @param {string} content
+   * @param {string} role
    */
   async createMessage(threadId, content, role = 'user') {
     return this.request(`/threads/${threadId}/messages`, 'POST', {
       role: role,
-      content: content
+      content: content,
     });
   }
 
   /**
    * Create and run a thread with an assistant
-   * @param {string} threadId 
-   * @param {object} options 
+   * @param {string} threadId
+   * @param {object} options
    */
   async createRun(threadId, options = {}) {
     const body = {
       assistant_id: options.assistantId || CODEX_DEFAULT_ASSISTANT_ID, // Default Codex assistant
-      ...options
+      ...options,
     };
 
     return this.request(`/threads/${threadId}/runs`, 'POST', body);
@@ -120,8 +120,8 @@ class CodexService {
 
   /**
    * List runs for a thread
-   * @param {string} threadId 
-   * @param {number} limit 
+   * @param {string} threadId
+   * @param {number} limit
    */
   async listRuns(threadId, limit = 20) {
     return this.request(`/threads/${threadId}/runs?limit=${limit}`);
@@ -129,8 +129,8 @@ class CodexService {
 
   /**
    * Get a specific run
-   * @param {string} threadId 
-   * @param {string} runId 
+   * @param {string} threadId
+   * @param {string} runId
    */
   async getRun(threadId, runId) {
     return this.request(`/threads/${threadId}/runs/${runId}`);
@@ -138,8 +138,8 @@ class CodexService {
 
   /**
    * Track a thread ID for later listing
-   * @param {string} threadId 
-   * @param {object} metadata 
+   * @param {string} threadId
+   * @param {object} metadata
    */
   trackThread(threadId, metadata = {}) {
     const threadInfo = {
@@ -147,7 +147,7 @@ class CodexService {
       createdAt: new Date().toISOString(),
       prompt: metadata.prompt || metadata.messages?.[0]?.content || '',
       repository: metadata.repository || null,
-      ...metadata
+      ...metadata,
     };
 
     trackedThreads = upsertItem(trackedThreads, threadInfo, { limit: 100 });
@@ -155,7 +155,7 @@ class CodexService {
 
   /**
    * Set tracked threads (used to restore from config)
-   * @param {Array} threads 
+   * @param {Array} threads
    */
   setTrackedThreads(threads) {
     trackedThreads = threads || [];
@@ -174,42 +174,38 @@ class CodexService {
    * Fetches all thread details in parallel for better performance
    */
   async getAllAgents() {
-    try {
-      // Fetch details for all tracked threads in parallel
-      const results = await Promise.allSettled(
-        trackedThreads.map(async (tracked) => {
-          // Fetch thread and runs in parallel for each thread
-          const [thread, runsResponse] = await Promise.all([
-            this.getThread(tracked.id),
-            this.listRuns(tracked.id, 1)
-          ]);
-          const latestRun = runsResponse.data?.[0];
-          return this.normalizeThread(thread, tracked, latestRun);
-        })
-      );
+    // Fetch details for all tracked threads in parallel
+    const results = await Promise.allSettled(
+      trackedThreads.map(async (tracked) => {
+        // Fetch thread and runs in parallel for each thread
+        const [thread, runsResponse] = await Promise.all([
+          this.getThread(tracked.id),
+          this.listRuns(tracked.id, 1),
+        ]);
+        const latestRun = runsResponse.data?.[0];
+        return this.normalizeThread(thread, tracked, latestRun);
+      })
+    );
 
-      // Filter out failed fetches and extract successful results
-      const agents = results
-        .filter((result, index) => {
-          if (result.status === 'rejected') {
-            // Thread might have been deleted, skip it
-            return false;
-          }
-          return true;
-        })
-        .map(result => result.value);
+    // Filter out failed fetches and extract successful results
+    const agents = results
+      .filter((result) => {
+        if (result.status === 'rejected') {
+          // Thread might have been deleted, skip it
+          return false;
+        }
+        return true;
+      })
+      .map((result) => result.value);
 
-      return agents;
-    } catch (err) {
-      throw err;
-    }
+    return agents;
   }
 
   /**
    * Normalize a Codex thread to the common AgentTask format
-   * @param {object} thread 
-   * @param {object} tracked 
-   * @param {object} latestRun 
+   * @param {object} thread
+   * @param {object} tracked
+   * @param {object} latestRun
    */
   normalizeThread(thread, tracked = {}, latestRun = null) {
     return {
@@ -226,7 +222,7 @@ class CodexService {
       summary: latestRun?.status || null,
       rawId: thread.id,
       webUrl: `https://platform.openai.com/playground/assistants?thread=${thread.id}`,
-      runId: latestRun?.id || null
+      runId: latestRun?.id || null,
     };
   }
 
@@ -249,7 +245,7 @@ class CodexService {
     if (!run) return 'pending';
 
     const status = run.status?.toLowerCase();
-    
+
     switch (status) {
       case 'queued':
       case 'in_progress':
@@ -275,28 +271,30 @@ class CodexService {
     const [thread, messagesResponse, runsResponse] = await Promise.all([
       this.getThread(threadId),
       this.listMessages(threadId, 100),
-      this.listRuns(threadId, 10)
+      this.listRuns(threadId, 10),
     ]);
 
-    const tracked = trackedThreads.find(t => t.id === threadId) || {};
+    const tracked = trackedThreads.find((t) => t.id === threadId) || {};
     const latestRun = runsResponse.data?.[0];
 
     return {
       ...this.normalizeThread(thread, tracked, latestRun),
-      messages: (messagesResponse.data || []).map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: this.extractMessageContent(msg),
-        createdAt: msg.created_at ? new Date(msg.created_at * 1000) : null
-      })).reverse(), // Reverse to get chronological order
-      runs: (runsResponse.data || []).map(run => ({
+      messages: (messagesResponse.data || [])
+        .map((msg) => ({
+          id: msg.id,
+          role: msg.role,
+          content: this.extractMessageContent(msg),
+          createdAt: msg.created_at ? new Date(msg.created_at * 1000) : null,
+        }))
+        .reverse(), // Reverse to get chronological order
+      runs: (runsResponse.data || []).map((run) => ({
         id: run.id,
         status: run.status,
         model: run.model,
         createdAt: run.created_at ? new Date(run.created_at * 1000) : null,
         completedAt: run.completed_at ? new Date(run.completed_at * 1000) : null,
-        failedAt: run.failed_at ? new Date(run.failed_at * 1000) : null
-      }))
+        failedAt: run.failed_at ? new Date(run.failed_at * 1000) : null,
+      })),
     };
   }
 
@@ -305,11 +303,11 @@ class CodexService {
    */
   extractMessageContent(message) {
     if (!message.content || message.content.length === 0) return '';
-    
+
     // Messages can have multiple content blocks
     return message.content
-      .filter(c => c.type === 'text')
-      .map(c => c.text?.value || '')
+      .filter((c) => c.type === 'text')
+      .map((c) => c.text?.value || '')
       .join('\n');
   }
 
@@ -335,11 +333,11 @@ class CodexService {
       const response = await this.request('/models');
       if (response && Array.isArray(response.data)) {
         return response.data
-          .filter(m => m.id.includes('gpt')) // Filter for GPT models mostly
-          .map(m => ({
+          .filter((m) => m.id.includes('gpt')) // Filter for GPT models mostly
+          .map((m) => ({
             id: 'openai/' + m.id,
             name: m.id,
-            provider: 'openai'
+            provider: 'openai',
           }));
       }
       return [];
@@ -358,50 +356,51 @@ class CodexService {
     const scannedPaths = new Set();
     const uniquePaths = [...new Set(paths)];
 
-    const results = await Promise.all(uniquePaths.map(async (basePath) => {
-      try {
+    const results = await Promise.all(
+      uniquePaths.map(async (basePath) => {
         try {
-          await fs.promises.access(basePath);
-        } catch {
+          try {
+            await fs.promises.access(basePath);
+          } catch {
+            return [];
+          }
+
+          const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
+
+          // Filter directories first to avoid creating unnecessary promises
+          const validDirs = entries.filter(
+            (entry) =>
+              entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules'
+          );
+
+          const dirPromises = validDirs.map(async (entry) => {
+            const dirPath = path.join(basePath, entry.name);
+            const gitPath = path.join(dirPath, '.git');
+
+            try {
+              await fs.promises.access(gitPath);
+              return {
+                id: dirPath, // Use path as ID for local
+                name: entry.name,
+                url: dirPath, // Use path as URL
+                path: dirPath,
+                displayName: entry.name,
+              };
+            } catch {
+              return null; // Not a git repo or error accessing it
+            }
+          });
+
+          return Promise.all(dirPromises);
+        } catch (err) {
+          console.error(`Error scanning ${basePath}:`, err);
           return [];
         }
-
-        const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
-
-        // Filter directories first to avoid creating unnecessary promises
-        const validDirs = entries.filter(entry =>
-          entry.isDirectory() &&
-          !entry.name.startsWith('.') &&
-          entry.name !== 'node_modules'
-        );
-
-        const dirPromises = validDirs.map(async (entry) => {
-          const dirPath = path.join(basePath, entry.name);
-          const gitPath = path.join(dirPath, '.git');
-
-          try {
-            await fs.promises.access(gitPath);
-            return {
-              id: dirPath, // Use path as ID for local
-              name: entry.name,
-              url: dirPath, // Use path as URL
-              path: dirPath,
-              displayName: entry.name
-            };
-          } catch {
-            return null; // Not a git repo or error accessing it
-          }
-        });
-
-        return Promise.all(dirPromises);
-      } catch (err) {
-        console.error(`Error scanning ${basePath}:`, err);
-        return [];
-      }
-    }));
+      })
+    );
 
     // Flatten results and filter nulls
-    const allProjects = results.flat().filter(p => p !== null);
+    const allProjects = results.flat().filter((p) => p !== null);
 
     // Deduplicate based on path while preserving order
     for (const project of allProjects) {
@@ -422,13 +421,13 @@ class CodexService {
   async getAvailableProjects(localPaths = []) {
     // Return unique repositories from tracked threads
     const repos = new Map();
-    
+
     for (const thread of trackedThreads) {
       if (thread.repository) {
         repos.set(thread.repository, {
           id: thread.repository,
           name: thread.repository,
-          displayName: thread.repository
+          displayName: thread.repository,
         });
       }
     }
@@ -468,7 +467,7 @@ class CodexService {
       // Add text prompt
       messageContent.push({
         type: 'text',
-        text: prompt
+        text: prompt,
       });
 
       // Add attachments
@@ -477,8 +476,8 @@ class CodexService {
           messageContent.push({
             type: 'image_url',
             image_url: {
-              url: attachment.dataUrl
-            }
+              url: attachment.dataUrl,
+            },
           });
         }
       }
@@ -486,19 +485,21 @@ class CodexService {
 
     // Create thread with initial message
     const thread = await this.createThread({
-      messages: [{
-        role: 'user',
-        content: messageContent
-      }],
+      messages: [
+        {
+          role: 'user',
+          content: messageContent,
+        },
+      ],
       metadata: {
         title: title || prompt.substring(0, 50),
         repository: repository || null,
-        branch: branch || null
+        branch: branch || null,
       },
       prompt: prompt,
       repository: repository,
       branch: branch,
-      title: title
+      title: title,
     });
 
     // Track this thread
@@ -506,14 +507,14 @@ class CodexService {
       prompt: prompt,
       repository: repository,
       branch: branch,
-      title: title
+      title: title,
     });
 
     return this.normalizeThread(thread, {
       prompt: prompt,
       repository: repository,
       branch: branch,
-      title: title
+      title: title,
     });
   }
 }

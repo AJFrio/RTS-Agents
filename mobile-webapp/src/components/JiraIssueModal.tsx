@@ -113,8 +113,12 @@ export default function JiraIssueModal({
       <div className="h-[calc(100vh-56px)] overflow-y-auto safe-bottom">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64">
-            <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
-            <p className="mt-4 font-display text-xs text-slate-500 uppercase tracking-wider">Loading ticket...</p>
+            <span className="material-symbols-outlined text-primary text-4xl animate-spin">
+              sync
+            </span>
+            <p className="mt-4 font-display text-xs text-slate-500 uppercase tracking-wider">
+              Loading ticket...
+            </p>
           </div>
         ) : error ? (
           <div className="p-4">
@@ -164,7 +168,9 @@ export default function JiraIssueModal({
                 <h3 className="font-display text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Description
                 </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{descriptionText}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">
+                  {descriptionText}
+                </p>
               </div>
             )}
 
@@ -196,4 +202,3 @@ export default function JiraIssueModal({
     </div>
   );
 }
-

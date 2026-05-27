@@ -56,9 +56,12 @@ class GithubService {
       }
 
       // Fetch PRs for all repos in parallel
-      const prPromises = repos.map(repo =>
-        this.getPullRequests(repo.owner.login, repo.name).catch(err => {
-          console.warn(`Failed to fetch PRs for ${repo.full_name}:`, err instanceof Error ? err.message : String(err));
+      const prPromises = repos.map((repo) =>
+        this.getPullRequests(repo.owner.login, repo.name).catch((err) => {
+          console.warn(
+            `Failed to fetch PRs for ${repo.full_name}:`,
+            err instanceof Error ? err.message : String(err)
+          );
           return [] as PullRequest[];
         })
       );
@@ -67,7 +70,9 @@ class GithubService {
       const allPrs = results.flat();
 
       // Sort by created_at descending (newest first)
-      return allPrs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return allPrs.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
     } catch (err) {
       console.error('Failed to load all PRs:', err);
       // Re-throw so the app can show an error state instead of empty list
@@ -83,7 +88,11 @@ class GithubService {
     return this.request(`/repos/${owner}/${repo}/branches`);
   }
 
-  async getPullRequestDetails(owner: string, repo: string, pullNumber: number): Promise<PullRequest> {
+  async getPullRequestDetails(
+    owner: string,
+    repo: string,
+    pullNumber: number
+  ): Promise<PullRequest> {
     return this.request(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
   }
 

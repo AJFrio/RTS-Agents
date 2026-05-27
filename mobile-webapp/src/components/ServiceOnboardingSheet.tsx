@@ -18,7 +18,10 @@ interface ServiceOnboardingSheetProps {
   hasConnectedServices: boolean;
   jiraBaseUrl: string;
   onClose: () => void;
-  onConnect: (serviceId: MobileServiceId, values: Record<string, string>) => Promise<{ success: boolean; error?: string }>;
+  onConnect: (
+    serviceId: MobileServiceId,
+    values: Record<string, string>
+  ) => Promise<{ success: boolean; error?: string }>;
   onDisconnect: (serviceId: MobileServiceId) => void;
 }
 
@@ -32,10 +35,14 @@ export default function ServiceOnboardingSheet({
   onConnect,
   onDisconnect,
 }: ServiceOnboardingSheetProps) {
-  const [activeServiceId, setActiveServiceId] = useState<MobileServiceId>(initialServiceId || 'jules');
+  const [activeServiceId, setActiveServiceId] = useState<MobileServiceId>(
+    initialServiceId || 'jules'
+  );
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +55,9 @@ export default function ServiceOnboardingSheet({
   }, [activeServiceId, jiraBaseUrl]);
 
   const activeService = useMemo(
-    () => MOBILE_SERVICE_CATALOG.find((service) => service.id === activeServiceId) || MOBILE_SERVICE_CATALOG[0],
+    () =>
+      MOBILE_SERVICE_CATALOG.find((service) => service.id === activeServiceId) ||
+      MOBILE_SERVICE_CATALOG[0],
     [activeServiceId]
   );
 
@@ -62,7 +71,9 @@ export default function ServiceOnboardingSheet({
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-border-dark">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Service Onboarding</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Verify each connection before leaving setup.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Verify each connection before leaving setup.
+            </p>
           </div>
           <button
             type="button"
@@ -90,10 +101,16 @@ export default function ServiceOnboardingSheet({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-base">{service.icon}</span>
+                    <span className="material-symbols-outlined text-primary text-base">
+                      {service.icon}
+                    </span>
                     <div>
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white">{service.title}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{service.subtitle}</div>
+                      <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {service.title}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {service.subtitle}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -103,8 +120,12 @@ export default function ServiceOnboardingSheet({
 
           <div className="space-y-4">
             <div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">{activeService.title}</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-6">{activeService.description}</p>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                {activeService.title}
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-6">
+                {activeService.description}
+              </p>
             </div>
 
             {activeService.fields.map((field) => (
@@ -115,7 +136,9 @@ export default function ServiceOnboardingSheet({
                 <input
                   type={field.type}
                   value={formValues[field.key] || ''}
-                  onChange={(event) => setFormValues((prev) => ({ ...prev, [field.key]: event.target.value }))}
+                  onChange={(event) =>
+                    setFormValues((prev) => ({ ...prev, [field.key]: event.target.value }))
+                  }
                   placeholder={field.placeholder}
                   className="w-full bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-2xl px-4 py-3 text-sm text-slate-900 dark:text-white"
                 />
@@ -138,7 +161,9 @@ export default function ServiceOnboardingSheet({
 
         <div className="border-t border-slate-200 dark:border-border-dark px-4 py-4 space-y-3">
           <div className="text-xs text-slate-500 dark:text-slate-400">
-            {closeBlocked ? 'Connect at least one service to finish onboarding.' : 'Connected services will remain visible in settings.'}
+            {closeBlocked
+              ? 'Connect at least one service to finish onboarding.'
+              : 'Connected services will remain visible in settings.'}
           </div>
           <div className="flex gap-3">
             <button
@@ -156,7 +181,10 @@ export default function ServiceOnboardingSheet({
                 try {
                   const result = await onConnect(activeService.id, formValues);
                   if (result.success) {
-                    setFeedback({ type: 'success', message: `${activeService.title} connected successfully.` });
+                    setFeedback({
+                      type: 'success',
+                      message: `${activeService.title} connected successfully.`,
+                    });
                   } else {
                     setFeedback({ type: 'error', message: result.error || 'Verification failed.' });
                   }

@@ -1,7 +1,4 @@
-const fs = require('fs');
-const fsp = require('fs/promises');
 const path = require('path');
-const child_process = require('child_process');
 
 // Define mocks
 const mockExistsSync = jest.fn();
@@ -13,22 +10,22 @@ const mockExecFile = jest.fn();
 
 // Mock modules
 jest.mock('../../src/main/utils/path-exists', () => ({
-  pathExists: jest.fn()
+  pathExists: jest.fn(),
 }));
 
 jest.mock('fs', () => ({
   existsSync: mockExistsSync,
-  readdirSync: mockReaddirSync
+  readdirSync: mockReaddirSync,
 }));
 
 jest.mock('fs/promises', () => ({
   mkdir: mockMkdir,
   readdir: mockReaddir,
-  access: mockAccess
+  access: mockAccess,
 }));
 
 jest.mock('child_process', () => ({
-  execFile: mockExecFile
+  execFile: mockExecFile,
 }));
 
 const { pathExists } = require('../../src/main/utils/path-exists');
@@ -45,7 +42,6 @@ describe('ProjectService Unit Tests', () => {
     test('should create repo successfully', async () => {
       const dir = '/base/dir';
       const name = 'new-repo';
-      const repoPath = path.join(dir, name);
 
       pathExists.mockImplementation(async (p) => p === dir);
 
@@ -55,13 +51,19 @@ describe('ProjectService Unit Tests', () => {
 
       expect(result).toContain('new-repo');
       expect(mockMkdir).toHaveBeenCalled();
-      expect(mockExecFile).toHaveBeenCalledWith('git', ['init'], expect.objectContaining({ cwd: expect.stringContaining('new-repo') }), expect.any(Function));
+      expect(mockExecFile).toHaveBeenCalledWith(
+        'git',
+        ['init'],
+        expect.objectContaining({ cwd: expect.stringContaining('new-repo') }),
+        expect.any(Function)
+      );
     });
 
     test('should fail if base dir does not exist', async () => {
       pathExists.mockResolvedValue(false);
-      await expect(projectService.createLocalRepo({ directory: '/bad', name: 'repo' }))
-        .rejects.toThrow('Base directory does not exist');
+      await expect(
+        projectService.createLocalRepo({ directory: '/bad', name: 'repo' })
+      ).rejects.toThrow('Base directory does not exist');
     });
   });
 
@@ -76,7 +78,7 @@ describe('ProjectService Unit Tests', () => {
             { name: 'repo1', isDirectory: () => true },
             { name: 'not-repo', isDirectory: () => true },
             { name: 'file.txt', isDirectory: () => false },
-            { name: '.hidden', isDirectory: () => true }
+            { name: '.hidden', isDirectory: () => true },
           ];
         }
         throw new Error('ENOENT');
@@ -112,7 +114,12 @@ describe('ProjectService Unit Tests', () => {
 
       const result = await projectService.pullRepo(repoPath);
       expect(result).toBe(repoPath);
-      expect(mockExecFile).toHaveBeenCalledWith('git', ['pull'], { cwd: repoPath }, expect.any(Function));
+      expect(mockExecFile).toHaveBeenCalledWith(
+        'git',
+        ['pull'],
+        { cwd: repoPath },
+        expect.any(Function)
+      );
     });
 
     test('should fail if not a git repo', async () => {

@@ -1,6 +1,6 @@
 /**
  * Layout Component
- * 
+ *
  * Mobile-first responsive layout with header and bottom navigation
  */
 
@@ -52,9 +52,7 @@ export default function Layout({ children }: LayoutProps) {
           <span className="material-symbols-outlined text-primary text-lg">grid_view</span>
           <h1 className="font-semibold text-sm tracking-tight">{getViewTitle()}</h1>
           {state.currentView === 'dashboard' && (
-            <span className="text-xs text-slate-500 ml-2">
-              {state.counts.total} Tasks
-            </span>
+            <span className="text-xs text-slate-500 ml-2">{state.counts.total} Tasks</span>
           )}
         </div>
 
@@ -68,7 +66,9 @@ export default function Layout({ children }: LayoutProps) {
                 className="p-2 text-slate-500 hover:text-primary transition-colors duration-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                 aria-label="Refresh"
               >
-                <span className={`material-symbols-outlined text-xl ${state.loading ? 'animate-spin' : ''}`}>
+                <span
+                  className={`material-symbols-outlined text-xl ${state.loading ? 'animate-spin' : ''}`}
+                >
                   sync
                 </span>
               </button>
@@ -87,9 +87,7 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pb-20">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto pb-20">{children}</main>
 
       {/* Bottom Navigation */}
       <BottomNav />

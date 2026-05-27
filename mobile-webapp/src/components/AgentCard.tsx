@@ -1,6 +1,6 @@
 /**
  * Agent Card Component
- * 
+ *
  * Displays a single agent task card
  */
 
@@ -36,7 +36,7 @@ const statusLabels: Record<string, string> = {
 
 function formatTimeAgo(date: Date | null): string {
   if (!date) return '--';
-  
+
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const seconds = Math.floor(diff / 1000);
@@ -70,11 +70,14 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${provider.dot}`} />
           <span className={`text-xs font-medium ${provider.text}`}>
-            {agent.provider === 'claude-cloud' ? 'Claude' : agent.provider.charAt(0).toUpperCase() + agent.provider.slice(1)}
+            {agent.provider === 'claude-cloud'
+              ? 'Claude'
+              : agent.provider.charAt(0).toUpperCase() + agent.provider.slice(1)}
           </span>
         </div>
         <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${status.bg} ${status.text}`}>
-          {statusLabels[agent.status] || agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
+          {statusLabels[agent.status] ||
+            agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
         </span>
       </div>
 
@@ -92,7 +95,7 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
             <span className="truncate">{extractRepoName(agent.repository)}</span>
           </div>
         )}
-        
+
         {/* Branch */}
         {agent.branch && (
           <div className="flex items-center gap-1">

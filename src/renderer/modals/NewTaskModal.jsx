@@ -8,7 +8,10 @@ const CACHE_KEY_PREFIX = 'rts_repo_cache_';
 
 function getCachedRepos(provider) {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(CACHE_KEY_PREFIX + provider) : null;
+    const raw =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(CACHE_KEY_PREFIX + provider)
+        : null;
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -53,7 +56,8 @@ function getAgentsForEnvironment(state, environment) {
 
 export default function NewTaskModal({ open, onClose, api }) {
   const { state, fetchComputers, loadAgents } = useApp();
-  const { initialPrompt, presetEnvironment, presetTargetDeviceId, presetPreferredProvider } = state.newTask || {};
+  const { initialPrompt, presetEnvironment, presetTargetDeviceId, presetPreferredProvider } =
+    state.newTask || {};
   const [environment, setEnvironment] = useState(state.newTask?.environment ?? 'cloud');
   const [selectedService, setSelectedService] = useState(null);
   const [agentFilter, setAgentFilter] = useState('');
@@ -95,7 +99,10 @@ export default function NewTaskModal({ open, onClose, api }) {
     if (!open) return;
 
     let recognition = null;
-    if (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+    if (
+      typeof window !== 'undefined' &&
+      (window.SpeechRecognition || window.webkitSpeechRecognition)
+    ) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SpeechRecognition();
       recognition.continuous = true;
@@ -214,7 +221,10 @@ export default function NewTaskModal({ open, onClose, api }) {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const agentsForEnv = useMemo(() => getAgentsForEnvironment(state, environment), [state.capabilities, environment]);
+  const agentsForEnv = useMemo(
+    () => getAgentsForEnvironment(state, environment),
+    [state.capabilities, environment]
+  );
   const filteredAgents = useMemo(() => {
     if (!agentFilter.trim()) return agentsForEnv;
     const q = agentFilter.trim().toLowerCase();
@@ -233,7 +243,7 @@ export default function NewTaskModal({ open, onClose, api }) {
   const selectedRepoDisplay = useMemo(() => {
     if (!selectedRepo) return '';
     const r = repos.find((x) => (x.id ?? x.path) === selectedRepo);
-    return r ? (r.name || r.displayName || r.id || r.path || selectedRepo) : selectedRepo;
+    return r ? r.name || r.displayName || r.id || r.path || selectedRepo : selectedRepo;
   }, [repos, selectedRepo]);
 
   const repoListRef = React.useRef(null);
@@ -322,7 +332,8 @@ export default function NewTaskModal({ open, onClose, api }) {
     api
       .getRepositories(provider)
       .then((result) => {
-        const list = result?.success && Array.isArray(result.repositories) ? result.repositories : [];
+        const list =
+          result?.success && Array.isArray(result.repositories) ? result.repositories : [];
         setRepos(list);
         setCachedRepos(provider, list);
         setSelectedRepo((prev) => {
@@ -416,11 +427,19 @@ export default function NewTaskModal({ open, onClose, api }) {
               <span className="material-symbols-outlined text-primary text-xl">bolt</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">Create New Agent Task</h2>
-              <p className="text-xs text-slate-500 font-medium">Configure and deploy a new coding agent</p>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
+                Create New Agent Task
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Configure and deploy a new coding agent
+              </p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-white transition-colors p-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-white transition-colors p-1"
+          >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -473,7 +492,9 @@ export default function NewTaskModal({ open, onClose, api }) {
               </div>
               <div className="border border-slate-200 dark:border-border-dark rounded-lg divide-y divide-slate-200 dark:divide-border-dark max-h-40 overflow-y-auto">
                 {filteredAgents.length === 0 ? (
-                  <div className="px-3 py-4 text-sm text-slate-500">No agents available for this environment.</div>
+                  <div className="px-3 py-4 text-sm text-slate-500">
+                    No agents available for this environment.
+                  </div>
                 ) : (
                   filteredAgents.map((id) => {
                     const isSelected = selectedService?.provider === id;
@@ -485,12 +506,21 @@ export default function NewTaskModal({ open, onClose, api }) {
                         className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
                         aria-pressed={isSelected}
                       >
-                        <span className={`shrink-0 w-2 h-2 rounded-full ${isSelected ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-500'}`} aria-hidden />
-                        <span className="flex-1 text-slate-800 dark:text-slate-200">{getProviderDisplayName(id)}</span>
+                        <span
+                          className={`shrink-0 w-2 h-2 rounded-full ${isSelected ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-500'}`}
+                          aria-hidden
+                        />
+                        <span className="flex-1 text-slate-800 dark:text-slate-200">
+                          {getProviderDisplayName(id)}
+                        </span>
                         {isSelected ? (
-                          <span className="material-symbols-outlined text-primary text-lg shrink-0">radio_button_checked</span>
+                          <span className="material-symbols-outlined text-primary text-lg shrink-0">
+                            radio_button_checked
+                          </span>
                         ) : (
-                          <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">radio_button_unchecked</span>
+                          <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">
+                            radio_button_unchecked
+                          </span>
                         )}
                       </button>
                     );
@@ -506,7 +536,9 @@ export default function NewTaskModal({ open, onClose, api }) {
                   3. TARGET REPOSITORY{needsRepo ? '' : ' (optional)'}
                 </label>
                 {selectedService?.provider === 'claude-cloud' ? (
-                  <div className="text-sm text-slate-500 py-2">Cloud prompt-only; no repository required.</div>
+                  <div className="text-sm text-slate-500 py-2">
+                    Cloud prompt-only; no repository required.
+                  </div>
                 ) : (
                   <div className="relative">
                     <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg">
@@ -519,16 +551,22 @@ export default function NewTaskModal({ open, onClose, api }) {
                         }}
                         onFocus={() => setRepoDropdownOpen(true)}
                         onKeyDown={handleRepoKeyDown}
-                        placeholder={loadingRepos && repos.length === 0 ? 'Loading...' : 'Select repository'}
+                        placeholder={
+                          loadingRepos && repos.length === 0 ? 'Loading...' : 'Select repository'
+                        }
                         className="flex-1 py-2.5 pl-4 pr-2 text-sm text-slate-800 dark:text-slate-200 bg-transparent border-0 rounded-l-lg focus:ring-0"
                         aria-label="Search or select repository"
                         aria-expanded={repoDropdownOpen}
                         aria-haspopup="listbox"
-                        aria-activedescendant={highlightedIndex >= 0 ? `repo-option-${highlightedIndex}` : undefined}
+                        aria-activedescendant={
+                          highlightedIndex >= 0 ? `repo-option-${highlightedIndex}` : undefined
+                        }
                       />
                       <div className="flex items-center justify-end shrink-0">
                         {loadingRepos && (
-                          <span className="material-symbols-outlined text-slate-400 px-1 animate-spin text-lg">sync</span>
+                          <span className="material-symbols-outlined text-slate-400 px-1 animate-spin text-lg">
+                            sync
+                          </span>
                         )}
                         <button
                           type="button"
@@ -555,7 +593,9 @@ export default function NewTaskModal({ open, onClose, api }) {
                           role="listbox"
                         >
                           {filteredRepos.length === 0 ? (
-                            <li className="px-3 py-2 text-sm text-slate-500">No repositories found</li>
+                            <li className="px-3 py-2 text-sm text-slate-500">
+                              No repositories found
+                            </li>
                           ) : (
                             filteredRepos.map((r, index) => {
                               const value = r.id ?? r.path;
@@ -599,8 +639,11 @@ export default function NewTaskModal({ open, onClose, api }) {
                 </label>
                 {targetDeviceId && (
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-                    Tasks are queued in Cloudflare KV and run on that machine when it is online. Agent:{' '}
-                    {selectedService?.provider ? getProviderDisplayName(selectedService.provider) : '—'}
+                    Tasks are queued in Cloudflare KV and run on that machine when it is online.
+                    Agent:{' '}
+                    {selectedService?.provider
+                      ? getProviderDisplayName(selectedService.provider)
+                      : '—'}
                   </p>
                 )}
                 <select
@@ -612,7 +655,9 @@ export default function NewTaskModal({ open, onClose, api }) {
                   <option value="">Select a device...</option>
                   {computersList.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.id === state.localDeviceId ? `${c.name || c.id} (this device)` : c.name || c.id}
+                      {c.id === state.localDeviceId
+                        ? `${c.name || c.id} (this device)`
+                        : c.name || c.id}
                     </option>
                   ))}
                 </select>
@@ -624,7 +669,9 @@ export default function NewTaskModal({ open, onClose, api }) {
           <div className="flex-1 flex flex-col gap-6 min-w-0">
             <div>
               <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-2">
-                <span className="material-symbols-outlined text-slate-400 text-base">drag_indicator</span>
+                <span className="material-symbols-outlined text-slate-400 text-base">
+                  drag_indicator
+                </span>
                 TASK DEFINITION & INSTRUCTIONS
               </label>
               <div className="relative w-full bg-slate-50 dark:bg-[#0d0e11] border border-slate-200 dark:border-border-dark rounded-[2rem] flex flex-col overflow-hidden transition-all focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20">
@@ -657,7 +704,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                   </div>
 
                   <div className="flex items-center gap-3">
-                     <button
+                    <button
                       type="button"
                       onClick={toggleRecording}
                       className={`p-2 rounded-full transition-all ${
@@ -695,7 +742,11 @@ export default function NewTaskModal({ open, onClose, api }) {
                     key={att.id}
                     className="relative w-20 h-20 rounded-lg border border-slate-200 dark:border-border-dark overflow-hidden group"
                   >
-                    <img src={att.dataUrl} alt="Attachment" className="w-full h-full object-cover" />
+                    <img
+                      src={att.dataUrl}
+                      alt="Attachment"
+                      className="w-full h-full object-cover"
+                    />
                     <button
                       type="button"
                       onClick={() => removeAttachment(att.id)}
@@ -727,10 +778,17 @@ export default function NewTaskModal({ open, onClose, api }) {
             <Button
               variant="primary"
               onClick={handleSubmit}
-              disabled={!selectedService || !prompt.trim() || creating || (environment === 'remote' && !targetDeviceId)}
+              disabled={
+                !selectedService ||
+                !prompt.trim() ||
+                creating ||
+                (environment === 'remote' && !targetDeviceId)
+              }
               className="inline-flex items-center gap-2"
             >
-              {creating ? <span className="material-symbols-outlined text-sm animate-spin">sync</span> : null}
+              {creating ? (
+                <span className="material-symbols-outlined text-sm animate-spin">sync</span>
+              ) : null}
               <span>Initialize Agent</span>
               <span className="material-symbols-outlined text-lg">rocket_launch</span>
             </Button>

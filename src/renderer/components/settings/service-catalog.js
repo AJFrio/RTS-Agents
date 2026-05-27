@@ -7,7 +7,8 @@ export const SERVICE_CATALOG = [
     kind: 'cloud-api-key',
     provider: 'jules',
     icon: 'cloud',
-    description: 'Connect Google Jules so cloud coding sessions can be launched and monitored here.',
+    description:
+      'Connect Google Jules so cloud coding sessions can be launched and monitored here.',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Jules API key' },
     ],
@@ -35,7 +36,12 @@ export const SERVICE_CATALOG = [
     icon: 'laptop_windows',
     description: 'Add a local folder that contains Git repositories Cursor can work against.',
     fields: [
-      { key: 'path', label: 'Repository Root', type: 'path', placeholder: 'Choose a folder with local Git repos' },
+      {
+        key: 'path',
+        label: 'Repository Root',
+        type: 'path',
+        placeholder: 'Choose a folder with local Git repos',
+      },
     ],
   },
   {
@@ -61,7 +67,12 @@ export const SERVICE_CATALOG = [
     icon: 'terminal',
     description: 'Add a local repository root for Codex tasks and project discovery.',
     fields: [
-      { key: 'path', label: 'Repository Root', type: 'path', placeholder: 'Choose a folder with local Git repos' },
+      {
+        key: 'path',
+        label: 'Repository Root',
+        type: 'path',
+        placeholder: 'Choose a folder with local Git repos',
+      },
     ],
   },
   {
@@ -88,7 +99,12 @@ export const SERVICE_CATALOG = [
     description: 'Verify Claude Code is installed and add a repository root for local sessions.',
     requiresInstall: true,
     fields: [
-      { key: 'path', label: 'Repository Root', type: 'path', placeholder: 'Choose a folder with local Git repos' },
+      {
+        key: 'path',
+        label: 'Repository Root',
+        type: 'path',
+        placeholder: 'Choose a folder with local Git repos',
+      },
     ],
   },
   {
@@ -102,7 +118,12 @@ export const SERVICE_CATALOG = [
     description: 'Verify Gemini CLI is available and add a repository root for local tasks.',
     requiresInstall: true,
     fields: [
-      { key: 'path', label: 'Repository Root', type: 'path', placeholder: 'Choose a folder with local Git repos' },
+      {
+        key: 'path',
+        label: 'Repository Root',
+        type: 'path',
+        placeholder: 'Choose a folder with local Git repos',
+      },
     ],
   },
   {
@@ -115,7 +136,12 @@ export const SERVICE_CATALOG = [
     icon: 'hub',
     description: 'Connect OpenRouter for orchestration model access.',
     fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenRouter API key' },
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        placeholder: 'Enter OpenRouter API key',
+      },
     ],
   },
   {
@@ -154,7 +180,12 @@ export const SERVICE_CATALOG = [
     icon: 'deployed_code',
     description: 'Connect GitHub so repositories, branches, and pull requests are available.',
     fields: [
-      { key: 'apiKey', label: 'Personal Access Token', type: 'password', placeholder: 'Enter GitHub token with repo access' },
+      {
+        key: 'apiKey',
+        label: 'Personal Access Token',
+        type: 'password',
+        placeholder: 'Enter GitHub token with repo access',
+      },
     ],
   },
   {
@@ -167,7 +198,12 @@ export const SERVICE_CATALOG = [
     icon: 'folder_code',
     description: 'Add local GitHub repository roots for local scans and repo creation flows.',
     fields: [
-      { key: 'path', label: 'Repository Root', type: 'path', placeholder: 'Choose a folder with local Git repos' },
+      {
+        key: 'path',
+        label: 'Repository Root',
+        type: 'path',
+        placeholder: 'Choose a folder with local Git repos',
+      },
     ],
   },
   {
@@ -178,10 +214,21 @@ export const SERVICE_CATALOG = [
     kind: 'jira',
     provider: 'jira',
     icon: 'task_alt',
-    description: 'Connect Jira with your site URL and token so backlog and sprint issues can be loaded.',
+    description:
+      'Connect Jira with your site URL and token so backlog and sprint issues can be loaded.',
     fields: [
-      { key: 'baseUrl', label: 'Jira Base URL', type: 'text', placeholder: 'https://your-domain.atlassian.net' },
-      { key: 'apiKey', label: 'API Token', type: 'password', placeholder: 'Enter email:token or PAT' },
+      {
+        key: 'baseUrl',
+        label: 'Jira Base URL',
+        type: 'text',
+        placeholder: 'https://your-domain.atlassian.net',
+      },
+      {
+        key: 'apiKey',
+        label: 'API Token',
+        type: 'password',
+        placeholder: 'Enter email:token or PAT',
+      },
     ],
   },
   {
@@ -194,8 +241,18 @@ export const SERVICE_CATALOG = [
     icon: 'cloud_upload',
     description: 'Connect Cloudflare KV to sync service credentials and remote device state.',
     fields: [
-      { key: 'accountId', label: 'Account ID', type: 'text', placeholder: 'Enter Cloudflare account ID' },
-      { key: 'apiToken', label: 'API Token', type: 'password', placeholder: 'Enter Cloudflare API token' },
+      {
+        key: 'accountId',
+        label: 'Account ID',
+        type: 'text',
+        placeholder: 'Enter Cloudflare account ID',
+      },
+      {
+        key: 'apiToken',
+        label: 'API Token',
+        type: 'password',
+        placeholder: 'Enter Cloudflare API token',
+      },
     ],
   },
 ];

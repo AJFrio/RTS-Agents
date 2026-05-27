@@ -40,27 +40,51 @@ export default function JiraIssueModal({ issue, onClose, api }) {
         <div className="p-6 border-b border-border-dark flex justify-between items-start bg-black/40">
           <div className="flex-1 mr-8">
             <div className="flex items-center gap-3 mb-2">
-              <span id="jira-issue-modal-key" className="text-primary technical-font text-sm font-bold">{issue.key}</span>
-              <span className="px-2 py-0.5 text-[10px] technical-font font-bold bg-primary/10 text-primary border border-primary/30">{issueType}</span>
-              <span className="px-2 py-0.5 text-[10px] technical-font font-bold bg-slate-700 text-slate-200">{status}</span>
+              <span
+                id="jira-issue-modal-key"
+                className="text-primary technical-font text-sm font-bold"
+              >
+                {issue.key}
+              </span>
+              <span className="px-2 py-0.5 text-[10px] technical-font font-bold bg-primary/10 text-primary border border-primary/30">
+                {issueType}
+              </span>
+              <span className="px-2 py-0.5 text-[10px] technical-font font-bold bg-slate-700 text-slate-200">
+                {status}
+              </span>
             </div>
-            <h2 id="jira-issue-modal-title" className="text-xl font-display font-bold text-white tracking-tight leading-tight">
+            <h2
+              id="jira-issue-modal-title"
+              className="text-xl font-display font-bold text-white tracking-tight leading-tight"
+            >
               {summary}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-500 hover:text-primary transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-500 hover:text-primary transition-colors"
+          >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <div id="jira-issue-modal-content" className="flex-1 overflow-y-auto p-8 bg-background-dark">
-          <div className="prose prose-invert prose-sm max-w-none text-slate-300 whitespace-pre-wrap">{description || 'No description.'}</div>
+        <div
+          id="jira-issue-modal-content"
+          className="flex-1 overflow-y-auto p-8 bg-background-dark"
+        >
+          <div className="prose prose-invert prose-sm max-w-none text-slate-300 whitespace-pre-wrap">
+            {description || 'No description.'}
+          </div>
           {comments.length > 0 && (
             <div className="mt-8">
               <h3 className="text-sm font-bold text-white mb-4">Comments</h3>
               <div className="space-y-4">
                 {comments.map((c) => (
                   <div key={c.id} className="p-4 bg-[#1A1A1A] border border-border-dark rounded-lg">
-                    <div className="text-xs text-slate-500 mb-2">{c.author?.displayName} · {c.updated ? new Date(c.updated).toLocaleString() : ''}</div>
+                    <div className="text-xs text-slate-500 mb-2">
+                      {c.author?.displayName} ·{' '}
+                      {c.updated ? new Date(c.updated).toLocaleString() : ''}
+                    </div>
                     <div className="text-sm text-slate-300 whitespace-pre-wrap">{c.body}</div>
                   </div>
                 ))}

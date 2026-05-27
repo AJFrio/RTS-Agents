@@ -6,7 +6,11 @@ import ServiceOnboardingSheet from './ServiceOnboardingSheet';
 import { MOBILE_SERVICE_CATALOG, type MobileServiceId } from './mobile-service-catalog';
 import ModelSelector from './ModelSelector';
 
-function NotificationSettings({ enableNotifications }: { enableNotifications: () => Promise<string> }) {
+function NotificationSettings({
+  enableNotifications,
+}: {
+  enableNotifications: () => Promise<string>;
+}) {
   const [status, setStatus] = useState<string>(
     'Notification' in window ? Notification.permission : 'unsupported'
   );
@@ -17,7 +21,9 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
   };
 
   if (status === 'unsupported') {
-    return <p className="text-xs text-slate-500">Notifications are not supported on this device.</p>;
+    return (
+      <p className="text-xs text-slate-500">Notifications are not supported on this device.</p>
+    );
   }
 
   if (status === 'granted') {
@@ -53,8 +59,14 @@ function NotificationSettings({ enableNotifications }: { enableNotifications: ()
 
 function getStatusMeta(connected: boolean) {
   return connected
-    ? { label: 'Connected', className: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 dark:text-emerald-300' }
-    : { label: 'Attention', className: 'text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-300' };
+    ? {
+        label: 'Connected',
+        className: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 dark:text-emerald-300',
+      }
+    : {
+        label: 'Attention',
+        className: 'text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-300',
+      };
 }
 
 export default function Settings() {
@@ -72,7 +84,11 @@ export default function Settings() {
 
   const { configuredServices, settings } = state;
   const [syncingKeys, setSyncingKeys] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ success: boolean; keysImported?: string[]; error?: string } | null>(null);
+  const [syncResult, setSyncResult] = useState<{
+    success: boolean;
+    keysImported?: string[];
+    error?: string;
+  } | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [activeServiceId, setActiveServiceId] = useState<MobileServiceId | null>(null);
   const [autoOpened, setAutoOpened] = useState(false);
@@ -145,7 +161,10 @@ export default function Settings() {
       refreshConfiguredServices();
       return result;
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Unable to connect this service.' };
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Unable to connect this service.',
+      };
     }
   };
 
@@ -172,7 +191,10 @@ export default function Settings() {
   };
 
   const handleIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch({ type: 'SET_SETTINGS', payload: { pollingInterval: parseInt(e.target.value, 10) * 1000 } });
+    dispatch({
+      type: 'SET_SETTINGS',
+      payload: { pollingInterval: parseInt(e.target.value, 10) * 1000 },
+    });
   };
 
   return (
@@ -186,7 +208,8 @@ export default function Settings() {
                 <h3 className="text-base font-semibold">Connected Services</h3>
               </div>
               <p className="text-xs text-slate-500">
-                Service setup now uses guided onboarding. Existing saved keys are still recognized and shown here automatically.
+                Service setup now uses guided onboarding. Existing saved keys are still recognized
+                and shown here automatically.
               </p>
             </div>
             <button
@@ -206,8 +229,12 @@ export default function Settings() {
                 <span className="material-symbols-outlined text-2xl">hub</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">No services connected yet</h3>
-                <p className="text-sm text-slate-500 mt-2">Start onboarding to connect your cloud services.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  No services connected yet
+                </h3>
+                <p className="text-sm text-slate-500 mt-2">
+                  Start onboarding to connect your cloud services.
+                </p>
               </div>
               <button
                 type="button"
@@ -220,21 +247,25 @@ export default function Settings() {
           ) : (
             <div className="space-y-3">
               {connectedServices.map((serviceId) => {
-                const definition = MOBILE_SERVICE_CATALOG.find((service) => service.id === serviceId);
+                const definition = MOBILE_SERVICE_CATALOG.find(
+                  (service) => service.id === serviceId
+                );
                 if (!definition) return null;
 
-                const connected = serviceId === 'jira'
-                  ? configuredServices.jira && !!settings.jiraBaseUrl?.trim()
-                  : serviceId === 'cloudflare'
-                    ? configuredServices.cloudflare
-                    : configuredServices[serviceId];
+                const connected =
+                  serviceId === 'jira'
+                    ? configuredServices.jira && !!settings.jiraBaseUrl?.trim()
+                    : serviceId === 'cloudflare'
+                      ? configuredServices.cloudflare
+                      : configuredServices[serviceId];
                 const statusMeta = getStatusMeta(!!connected);
 
-                const summary = serviceId === 'jira'
-                  ? settings.jiraBaseUrl || 'Jira base URL missing'
-                  : serviceId === 'cloudflare'
-                    ? 'Cloudflare KV sync enabled'
-                    : 'API key saved and ready';
+                const summary =
+                  serviceId === 'jira'
+                    ? settings.jiraBaseUrl || 'Jira base URL missing'
+                    : serviceId === 'cloudflare'
+                      ? 'Cloudflare KV sync enabled'
+                      : 'API key saved and ready';
 
                 return (
                   <div
@@ -248,13 +279,21 @@ export default function Settings() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-slate-900 dark:text-white">{definition.title}</h4>
-                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${statusMeta.className}`}>
+                            <h4 className="font-semibold text-slate-900 dark:text-white">
+                              {definition.title}
+                            </h4>
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${statusMeta.className}`}
+                            >
                               {statusMeta.label}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{definition.subtitle}</p>
-                          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{summary}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            {definition.subtitle}
+                          </p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
+                            {summary}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -290,7 +329,8 @@ export default function Settings() {
             </div>
 
             <p className="text-xs text-slate-500 mb-4">
-              Pull API keys from the Cloudflare KV store. Existing saved keys will be merged and recognized automatically.
+              Pull API keys from the Cloudflare KV store. Existing saved keys will be merged and
+              recognized automatically.
             </p>
 
             <div className="space-y-3">
@@ -314,27 +354,37 @@ export default function Settings() {
                 disabled={syncingKeys}
                 className="w-full flex items-center justify-center gap-2 bg-primary/20 border border-primary text-primary py-3 text-sm font-semibold rounded-lg disabled:opacity-50"
               >
-                <span className={`material-symbols-outlined text-sm ${syncingKeys ? 'animate-spin' : ''}`}>
+                <span
+                  className={`material-symbols-outlined text-sm ${syncingKeys ? 'animate-spin' : ''}`}
+                >
                   {syncingKeys ? 'sync' : 'cloud_download'}
                 </span>
                 {syncingKeys ? 'Syncing...' : 'Pull Keys from KV Store'}
               </button>
 
               {syncResult && (
-                <div className={`p-3 rounded-lg ${
-                  syncResult.success
-                    ? 'bg-emerald-500/10 dark:bg-emerald-900/20 border border-emerald-500/50'
-                    : 'bg-red-500/10 dark:bg-red-900/20 border border-red-500/50'
-                }`}>
+                <div
+                  className={`p-3 rounded-lg ${
+                    syncResult.success
+                      ? 'bg-emerald-500/10 dark:bg-emerald-900/20 border border-emerald-500/50'
+                      : 'bg-red-500/10 dark:bg-red-900/20 border border-red-500/50'
+                  }`}
+                >
                   {syncResult.success ? (
                     <>
-                      <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">Keys synced successfully.</p>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">
+                        Keys synced successfully.
+                      </p>
                       <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                        {syncResult.keysImported?.length ? `Imported: ${syncResult.keysImported.join(', ')}` : 'No new keys found.'}
+                        {syncResult.keysImported?.length
+                          ? `Imported: ${syncResult.keysImported.join(', ')}`
+                          : 'No new keys found.'}
                       </p>
                     </>
                   ) : (
-                    <p className="text-xs text-red-400">{syncResult.error || 'Failed to sync keys'}</p>
+                    <p className="text-xs text-red-400">
+                      {syncResult.error || 'Failed to sync keys'}
+                    </p>
                   )}
                 </div>
               )}
@@ -352,10 +402,7 @@ export default function Settings() {
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400">
               Orchestrator Model
             </label>
-            <ModelSelector
-              value={settings.selectedModel}
-              onChange={(model) => setModel(model)}
-            />
+            <ModelSelector value={settings.selectedModel} onChange={(model) => setModel(model)} />
             <p className="text-xs text-slate-500">The AI model used for the main agent chat.</p>
           </div>
         </section>
@@ -389,7 +436,11 @@ export default function Settings() {
                 }`}
               >
                 <span className="material-symbols-outlined text-lg">
-                  {theme === 'system' ? 'settings_brightness' : theme === 'light' ? 'light_mode' : 'dark_mode'}
+                  {theme === 'system'
+                    ? 'settings_brightness'
+                    : theme === 'light'
+                      ? 'light_mode'
+                      : 'dark_mode'}
                 </span>
                 <span className="text-xs font-medium capitalize">{theme}</span>
               </button>
@@ -411,13 +462,19 @@ export default function Settings() {
                 onChange={handlePollingToggle}
                 className="w-4 h-4 bg-transparent border-primary text-primary focus:ring-0 focus:ring-offset-0"
               />
-              <span className="text-sm text-slate-600 dark:text-slate-300">Enable auto refresh</span>
+              <span className="text-sm text-slate-600 dark:text-slate-300">
+                Enable auto refresh
+              </span>
             </label>
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Refresh interval</label>
-                <span className="text-primary font-semibold text-sm">{Math.round(settings.pollingInterval / 1000)}s</span>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Refresh interval
+                </label>
+                <span className="text-primary font-semibold text-sm">
+                  {Math.round(settings.pollingInterval / 1000)}s
+                </span>
               </div>
               <input
                 type="range"

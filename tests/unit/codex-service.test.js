@@ -1,4 +1,3 @@
-
 jest.mock('fs', () => {
   return {
     existsSync: jest.fn(),
@@ -6,8 +5,8 @@ jest.mock('fs', () => {
     promises: {
       readdir: jest.fn(),
       stat: jest.fn(),
-      access: jest.fn()
-    }
+      access: jest.fn(),
+    },
   };
 });
 
@@ -36,7 +35,7 @@ describe('Codex Service', () => {
       write: jest.fn(),
       end: jest.fn(),
       destroy: jest.fn(),
-      setTimeout: jest.fn((timeout, callback) => {})
+      setTimeout: jest.fn((_timeout, _callback) => {}),
     };
 
     mockResponse = new EventEmitter();
@@ -99,7 +98,7 @@ describe('Codex Service', () => {
       const promise = codexService.createThread({
         messages: [{ role: 'user', content: 'hello' }],
         metadata: { title: 'Test Thread' },
-        title: 'Test Thread'
+        title: 'Test Thread',
       });
 
       mockResponse.emit('data', JSON.stringify({ id: 'thread_123' }));
@@ -111,7 +110,7 @@ describe('Codex Service', () => {
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/v1/threads',
-          method: 'POST'
+          method: 'POST',
         }),
         expect.any(Function)
       );
@@ -133,7 +132,7 @@ describe('Codex Service', () => {
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/v1/threads/thread_123',
-          method: 'GET'
+          method: 'GET',
         }),
         expect.any(Function)
       );
@@ -150,7 +149,7 @@ describe('Codex Service', () => {
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/v1/threads/thread_123/messages?limit=100',
-          method: 'GET'
+          method: 'GET',
         }),
         expect.any(Function)
       );
@@ -167,15 +166,17 @@ describe('Codex Service', () => {
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/v1/threads/thread_123/messages',
-          method: 'POST'
+          method: 'POST',
         }),
         expect.any(Function)
       );
 
-      expect(mockRequest.write).toHaveBeenCalledWith(JSON.stringify({
-        role: 'user',
-        content: 'hello'
-      }));
+      expect(mockRequest.write).toHaveBeenCalledWith(
+        JSON.stringify({
+          role: 'user',
+          content: 'hello',
+        })
+      );
     });
   });
 
@@ -191,7 +192,7 @@ describe('Codex Service', () => {
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/v1/threads/thread_123/runs',
-          method: 'POST'
+          method: 'POST',
         }),
         expect.any(Function)
       );
@@ -208,7 +209,7 @@ describe('Codex Service', () => {
       expect(requestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/v1/threads/thread_123/runs?limit=20',
-          method: 'GET'
+          method: 'GET',
         }),
         expect.any(Function)
       );
@@ -220,7 +221,7 @@ describe('Codex Service', () => {
       // Setup tracked threads
       codexService.setTrackedThreads([
         { id: 'thread_1', prompt: 'Task 1' },
-        { id: 'thread_2', prompt: 'Task 2' }
+        { id: 'thread_2', prompt: 'Task 2' },
       ]);
 
       requestSpy.mockImplementation((options, callback) => {
@@ -231,9 +232,13 @@ describe('Codex Service', () => {
         process.nextTick(() => {
           let data = '{}';
           if (options.path.includes('/threads/thread_1/runs')) {
-            data = JSON.stringify({ data: [{ id: 'run_1', status: 'completed', created_at: 1000 }] });
+            data = JSON.stringify({
+              data: [{ id: 'run_1', status: 'completed', created_at: 1000 }],
+            });
           } else if (options.path.includes('/threads/thread_2/runs')) {
-            data = JSON.stringify({ data: [{ id: 'run_2', status: 'in_progress', created_at: 2000 }] });
+            data = JSON.stringify({
+              data: [{ id: 'run_2', status: 'in_progress', created_at: 2000 }],
+            });
           } else if (options.path.includes('/threads/thread_1')) {
             data = JSON.stringify({ id: 'thread_1', created_at: 1000 });
           } else if (options.path.includes('/threads/thread_2')) {
@@ -252,12 +257,12 @@ describe('Codex Service', () => {
 
       expect(agents).toHaveLength(2);
 
-      const agent1 = agents.find(a => a.rawId === 'thread_1');
+      const agent1 = agents.find((a) => a.rawId === 'thread_1');
       expect(agent1).toBeDefined();
       expect(agent1.status).toBe('completed');
       expect(agent1.prompt).toBe('Task 1');
 
-      const agent2 = agents.find(a => a.rawId === 'thread_2');
+      const agent2 = agents.find((a) => a.rawId === 'thread_2');
       expect(agent2).toBeDefined();
       expect(agent2.status).toBe('running');
     });
@@ -276,14 +281,17 @@ describe('Codex Service', () => {
           if (options.path.includes('/messages')) {
             data = JSON.stringify({
               data: [
-                { id: 'msg_1', role: 'user', content: [{ type: 'text', text: { value: 'Hello' } }], created_at: 1000 }
-              ]
+                {
+                  id: 'msg_1',
+                  role: 'user',
+                  content: [{ type: 'text', text: { value: 'Hello' } }],
+                  created_at: 1000,
+                },
+              ],
             });
           } else if (options.path.includes('/runs')) {
             data = JSON.stringify({
-              data: [
-                { id: 'run_1', status: 'completed', created_at: 1000 }
-              ]
+              data: [{ id: 'run_1', status: 'completed', created_at: 1000 }],
             });
           } else if (options.path.includes('/threads/thread_1')) {
             data = JSON.stringify({ id: 'thread_1', created_at: 1000 });
@@ -325,7 +333,7 @@ describe('Codex Service', () => {
             { name: 'repo1', isDirectory: () => true },
             { name: 'repo2', isDirectory: () => true },
             { name: 'file.txt', isDirectory: () => false },
-            { name: 'node_modules', isDirectory: () => true } // Should be skipped
+            { name: 'node_modules', isDirectory: () => true }, // Should be skipped
           ];
         }
         return [];
@@ -345,24 +353,30 @@ describe('Codex Service', () => {
 
       // We need to spy on createThread because it calls request internally
       // and we want to verify the orchestration logic
-      const createThreadSpy = jest.spyOn(codexService, 'createThread')
+      const createThreadSpy = jest
+        .spyOn(codexService, 'createThread')
         .mockResolvedValue(mockThread);
 
       const trackThreadSpy = jest.spyOn(codexService, 'trackThread');
 
       const result = await codexService.createTask({
         prompt: 'Do something',
-        repository: '/path/to/repo'
+        repository: '/path/to/repo',
       });
 
-      expect(createThreadSpy).toHaveBeenCalledWith(expect.objectContaining({
-        prompt: 'Do something',
-        repository: '/path/to/repo'
-      }));
+      expect(createThreadSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: 'Do something',
+          repository: '/path/to/repo',
+        })
+      );
 
-      expect(trackThreadSpy).toHaveBeenCalledWith('thread_new', expect.objectContaining({
-        prompt: 'Do something'
-      }));
+      expect(trackThreadSpy).toHaveBeenCalledWith(
+        'thread_new',
+        expect.objectContaining({
+          prompt: 'Do something',
+        })
+      );
 
       expect(result.id).toBe('codex-thread_new');
     });

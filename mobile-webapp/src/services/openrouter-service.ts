@@ -22,9 +22,9 @@ class OpenRouterService {
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.apiKey}`,
+      Authorization: `Bearer ${this.apiKey}`,
       'HTTP-Referer': 'https://rts-agents.com', // Required by OpenRouter
-      'X-Title': 'RTS Agents'
+      'X-Title': 'RTS Agents',
     };
 
     const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -34,29 +34,33 @@ class OpenRouterService {
     });
 
     if (!response.ok) {
-        let errorMessage = `OpenRouter API error: ${response.status}`;
-        try {
-            const errorData = await response.json();
-            if (errorData?.error?.message) {
-                errorMessage = `OpenRouter API error: ${errorData.error.message}`;
-            } else {
-                 errorMessage += ` - ${JSON.stringify(errorData)}`;
-            }
-        } catch {
-             // ignore JSON parse error
-             const text = await response.text();
-             if (text) errorMessage += ` - ${text}`;
+      let errorMessage = `OpenRouter API error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData?.error?.message) {
+          errorMessage = `OpenRouter API error: ${errorData.error.message}`;
+        } else {
+          errorMessage += ` - ${JSON.stringify(errorData)}`;
         }
-        throw new Error(errorMessage);
+      } catch {
+        // ignore JSON parse error
+        const text = await response.text();
+        if (text) errorMessage += ` - ${text}`;
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
   }
 
-  async chat(messages: Array<{role: string, content: string}>, model = 'openai/gpt-4o', tools = null) {
+  async chat(
+    messages: Array<{ role: string; content: string }>,
+    model = 'openai/gpt-4o',
+    tools = null
+  ) {
     const body: any = {
       model: model,
-      messages: messages
+      messages: messages,
     };
 
     if (tools) {
@@ -68,10 +72,10 @@ class OpenRouterService {
 
   async testConnection(): Promise<{ success: boolean; error?: string }> {
     try {
-        await this.request('/models');
-        return { success: true };
+      await this.request('/models');
+      return { success: true };
     } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
     }
   }
 
@@ -86,7 +90,7 @@ class OpenRouterService {
         return response.data.map((m: any) => ({
           id: 'openrouter/' + m.id,
           name: m.name || m.id,
-          provider: 'openrouter'
+          provider: 'openrouter',
         }));
       }
       return [];

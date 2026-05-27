@@ -19,7 +19,8 @@ export function useAppModals(dispatch) {
       closeConfirmModal: () => dispatch({ type: 'CLOSE_CONFIRM_MODAL' }),
       openJiraIssueModal: (issue) => dispatch({ type: 'OPEN_JIRA_ISSUE_MODAL', payload: issue }),
       closeJiraIssueModal: () => dispatch({ type: 'CLOSE_JIRA_ISSUE_MODAL' }),
-      openPastedImageModal: (imageUrl) => dispatch({ type: 'OPEN_PASTED_IMAGE_MODAL', payload: imageUrl }),
+      openPastedImageModal: (imageUrl) =>
+        dispatch({ type: 'OPEN_PASTED_IMAGE_MODAL', payload: imageUrl }),
       closePastedImageModal: () => dispatch({ type: 'CLOSE_PASTED_IMAGE_MODAL' }),
     }),
     [dispatch]

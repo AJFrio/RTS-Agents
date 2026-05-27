@@ -3,10 +3,7 @@ const path = require('path');
 const os = require('os');
 const { fetchAllAgents } = require('../ipc/provider-registry');
 const { computeAgentListDelta } = require('../utils/agent-list-delta');
-const {
-  computeLocalFingerprint,
-  getConfigSignature
-} = require('./agent-discovery-fingerprint');
+const { computeLocalFingerprint, getConfigSignature } = require('./agent-discovery-fingerprint');
 
 class AgentDiscoveryCache {
   constructor() {
@@ -116,7 +113,7 @@ class AgentDiscoveryCache {
       agents: full ? snapshot.agents : [],
       delta,
       counts: snapshot.counts || {},
-      errors: snapshot.errors || []
+      errors: snapshot.errors || [],
     };
   }
 

@@ -49,12 +49,17 @@ export default function PullRequestsPage() {
   }
 
   if (allPrsError) {
-     return (
-      <div id="view-pull-requests" className="view-content flex flex-col items-center justify-center h-full">
+    return (
+      <div
+        id="view-pull-requests"
+        className="view-content flex flex-col items-center justify-center h-full"
+      >
         <div className="text-red-500 mb-2">
-           <span className="material-symbols-outlined text-4xl">error</span>
+          <span className="material-symbols-outlined text-4xl">error</span>
         </div>
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-1">Failed to load Pull Requests</h2>
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-1">
+          Failed to load Pull Requests
+        </h2>
         <p className="text-sm text-slate-500">{allPrsError}</p>
         <button
           onClick={() => loadAllPrs()}
@@ -70,7 +75,7 @@ export default function PullRequestsPage() {
     <div id="view-pull-requests" className="view-content p-6">
       <div className="max-w-5xl mx-auto">
         {allPrs.length === 0 ? (
-           <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+          <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
             <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
             <span className="text-sm font-medium">No open pull requests</span>
           </div>
@@ -79,7 +84,8 @@ export default function PullRequestsPage() {
             {allPrs.map((pr) => {
               // Extract repo name if available in pr object structure
               // Usually pr.base.repo.full_name or similar
-              const repoName = pr.base?.repo?.full_name || pr.repository?.full_name || 'Unknown Repository';
+              const repoName =
+                pr.base?.repo?.full_name || pr.repository?.full_name || 'Unknown Repository';
 
               return (
                 <div
@@ -93,13 +99,13 @@ export default function PullRequestsPage() {
                   <div className="flex justify-between items-start gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 text-xs text-slate-500">
-                         <span className="font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md truncate max-w-[200px]">
-                           {repoName}
-                         </span>
-                         <span>•</span>
-                         <span className="font-mono">{pr.head.ref}</span>
-                         <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
-                         <span className="font-mono">{pr.base.ref}</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md truncate max-w-[200px]">
+                          {repoName}
+                        </span>
+                        <span>•</span>
+                        <span className="font-mono">{pr.head.ref}</span>
+                        <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
+                        <span className="font-mono">{pr.base.ref}</span>
                       </div>
                       <h3 className="text-lg font-semibold text-slate-800 dark:text-white truncate pr-4 group-hover:text-primary transition-colors">
                         {pr.title}
@@ -111,12 +117,14 @@ export default function PullRequestsPage() {
                         </span>
                         <span>#{pr.number}</span>
                         <div className="flex items-center gap-2 ml-auto lg:ml-0">
-                           <span>{pr.user?.login}</span>
+                          <span>{pr.user?.login}</span>
                         </div>
                       </div>
                     </div>
                     <div className="flex-shrink-0 self-center">
-                       <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+                      <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
+                        chevron_right
+                      </span>
                     </div>
                   </div>
                 </div>

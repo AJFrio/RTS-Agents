@@ -48,46 +48,48 @@ class ProjectService {
     // Deduplicate paths to avoid processing the same directory twice
     const uniquePaths = [...new Set(paths)];
 
-    const results = await Promise.all(uniquePaths.map(async (basePath) => {
-      try {
-        // Check if directory exists by trying to read it
-        // This replaces the synchronous fs.existsSync check
-        const entries = await fsp.readdir(basePath, { withFileTypes: true });
+    const results = await Promise.all(
+      uniquePaths.map(async (basePath) => {
+        try {
+          // Check if directory exists by trying to read it
+          // This replaces the synchronous fs.existsSync check
+          const entries = await fsp.readdir(basePath, { withFileTypes: true });
 
-        const dirPromises = entries.map(async (entry) => {
-          if (entry.isDirectory()) {
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
+          const dirPromises = entries.map(async (entry) => {
+            if (entry.isDirectory()) {
+              if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
 
-            const dirPath = path.join(basePath, entry.name);
-            const gitPath = path.join(dirPath, '.git');
+              const dirPath = path.join(basePath, entry.name);
+              const gitPath = path.join(dirPath, '.git');
 
-            try {
-              // Check if .git exists asynchronously
-              await fsp.access(gitPath);
+              try {
+                // Check if .git exists asynchronously
+                await fsp.access(gitPath);
 
-              return {
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                geminiPath: null,
-                displayName: entry.name,
-                hasExistingSessions: false
-              };
-            } catch (err) {
-              // Not a git repo
-              return null;
+                return {
+                  id: entry.name,
+                  name: entry.name,
+                  path: dirPath,
+                  geminiPath: null,
+                  displayName: entry.name,
+                  hasExistingSessions: false,
+                };
+              } catch {
+                // Not a git repo
+                return null;
+              }
             }
-          }
-          return null;
-        });
+            return null;
+          });
 
-        const dirs = await Promise.all(dirPromises);
-        return dirs.filter(dir => dir !== null);
-      } catch (err) {
-        // Ignore error (e.g. basePath doesn't exist or not readable)
-        return [];
-      }
-    }));
+          const dirs = await Promise.all(dirPromises);
+          return dirs.filter((dir) => dir !== null);
+        } catch {
+          // Ignore error (e.g. basePath doesn't exist or not readable)
+          return [];
+        }
+      })
+    );
 
     // Flatten results
     const allProjects = results.flat();
@@ -127,7 +129,8 @@ class ProjectService {
 
   async pullRepo(repoPath) {
     if (!repoPath || typeof repoPath !== 'string') throw new Error('Missing repository path');
-    if (!(await pathExists(repoPath))) throw new Error(`Repository path does not exist: ${repoPath}`);
+    if (!(await pathExists(repoPath)))
+      throw new Error(`Repository path does not exist: ${repoPath}`);
 
     const gitDir = path.join(repoPath, '.git');
     if (!(await pathExists(gitDir))) throw new Error(`Not a git repository: ${repoPath}`);
@@ -135,9 +138,11 @@ class ProjectService {
     // Check remote URL to understand authentication requirements
     let remoteUrl = null;
     try {
-      const remoteResult = await this.execAsync('git', ['config', '--get', 'remote.origin.url'], { cwd: repoPath });
+      const remoteResult = await this.execAsync('git', ['config', '--get', 'remote.origin.url'], {
+        cwd: repoPath,
+      });
       remoteUrl = remoteResult.stdout.trim();
-    } catch (err) {
+    } catch {
       // Ignore
     }
 
@@ -146,7 +151,7 @@ class ProjectService {
     return new Promise((resolve, reject) => {
       let file = 'git';
       let args = ['pull'];
-      
+
       // On Windows with HTTPS, always use Windows Credential Manager
       // This prevents git from trying to use bash-based credential helpers that fail in Electron
       if (process.platform === 'win32' && remoteUrl && remoteUrl.startsWith('https://')) {
@@ -154,11 +159,11 @@ class ProjectService {
         // This overrides any problematic credential helper config for this command only
         args = ['-c', 'credential.helper=manager', 'pull'];
       }
-      
-      const options = { 
-        cwd: repoPath
+
+      const options = {
+        cwd: repoPath,
       };
-      
+
       execFile(file, args, options, (error, stdout, stderr) => {
         if (error) {
           console.error('=== Pull Failed ===');
@@ -167,10 +172,14 @@ class ProjectService {
           console.error(`Error Message: ${error.message}`);
           console.error(`Stdout: ${stdout || '(empty)'}`);
           console.error(`Stderr: ${stderr || '(empty)'}`);
-          
+
           // Provide helpful error message for authentication issues
-          if (stderr && (stderr.includes('could not read Username') || stderr.includes('Authentication failed'))) {
-            const authError = `Git authentication required. Please configure credentials for this repository.\n\n` +
+          if (
+            stderr &&
+            (stderr.includes('could not read Username') || stderr.includes('Authentication failed'))
+          ) {
+            const authError =
+              `Git authentication required. Please configure credentials for this repository.\n\n` +
               `Options:\n` +
               `1. Use SSH instead of HTTPS: git remote set-url origin git@github.com:user/repo.git\n` +
               `2. Configure Windows Credential Manager: git config --global credential.helper wincred\n` +
@@ -179,7 +188,7 @@ class ProjectService {
             reject(new Error(authError));
             return;
           }
-          
+
           reject(new Error(stderr || stdout || error.message));
           return;
         }

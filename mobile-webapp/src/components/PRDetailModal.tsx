@@ -63,11 +63,13 @@ export default function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRD
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm text-slate-500">#{pr.number}</span>
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${
-              pr.draft
-                ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500'
-            }`}>
+            <span
+              className={`px-2.5 py-1 text-xs font-medium rounded-md ${
+                pr.draft
+                  ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                  : 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500'
+              }`}
+            >
               {pr.draft ? 'Draft' : 'Open'}
             </span>
           </div>
@@ -82,14 +84,18 @@ export default function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRD
           </div>
           <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-3">
             <p className="font-display text-[9px] text-slate-500 uppercase mb-1">Target</p>
-            <p className="font-mono text-xs text-slate-600 dark:text-slate-300 truncate">{pr.base.ref}</p>
+            <p className="font-mono text-xs text-slate-600 dark:text-slate-300 truncate">
+              {pr.base.ref}
+            </p>
           </div>
         </div>
 
         {/* Description */}
         {pr.body && (
           <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4 rounded-xl shadow-sm">
-            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Description</h3>
+            <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+              Description
+            </h3>
             <div
               className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300"
               dangerouslySetInnerHTML={{ __html: renderMarkdown(pr.body) }}
@@ -100,33 +106,39 @@ export default function PRDetailModal({ pr, onClose, onMerge, onMarkReady }: PRD
         {/* Merge Status */}
         <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark p-4">
           <div className="flex items-center gap-3">
-            <span className={`material-symbols-outlined ${
-              pr.mergeable === false
-                ? 'text-red-500'
+            <span
+              className={`material-symbols-outlined ${
+                pr.mergeable === false
+                  ? 'text-red-500'
+                  : pr.mergeable === true
+                    ? 'text-emerald-500'
+                    : 'text-yellow-500'
+              }`}
+            >
+              {pr.mergeable === false
+                ? 'error'
                 : pr.mergeable === true
-                ? 'text-emerald-500'
-                : 'text-yellow-500'
-            }`}>
-              {pr.mergeable === false ? 'error' : pr.mergeable === true ? 'check_circle' : 'pending'}
+                  ? 'check_circle'
+                  : 'pending'}
             </span>
             <div>
               <p className="text-sm font-bold text-slate-900 dark:text-white">
                 {pr.draft
                   ? 'This is a draft pull request'
                   : pr.mergeable === false
-                  ? 'This branch has conflicts'
-                  : pr.mergeable === true
-                  ? 'No conflicts with base branch'
-                  : 'Checking mergeability...'}
+                    ? 'This branch has conflicts'
+                    : pr.mergeable === true
+                      ? 'No conflicts with base branch'
+                      : 'Checking mergeability...'}
               </p>
               <p className="text-xs text-slate-500">
                 {pr.draft
                   ? 'Review and publish to enable merging'
                   : pr.mergeable === false
-                  ? 'Resolve conflicts before merging'
-                  : pr.mergeable === true
-                  ? 'Merging can be performed automatically'
-                  : 'Please wait'}
+                    ? 'Resolve conflicts before merging'
+                    : pr.mergeable === true
+                      ? 'Merging can be performed automatically'
+                      : 'Please wait'}
               </p>
             </div>
           </div>

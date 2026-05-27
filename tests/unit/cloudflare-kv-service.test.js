@@ -11,7 +11,7 @@ describe('Cloudflare KV Service', () => {
     mockRequest = {
       on: jest.fn(),
       write: jest.fn(),
-      end: jest.fn()
+      end: jest.fn(),
     };
     mockResponse = new EventEmitter();
     mockResponse.statusCode = 200;
@@ -38,7 +38,7 @@ describe('Cloudflare KV Service', () => {
             }
           },
           write: jest.fn(),
-          end: jest.fn()
+          end: jest.fn(),
         };
         return req;
       }
@@ -70,23 +70,26 @@ describe('Cloudflare KV Service', () => {
           }
         },
         write: jest.fn(),
-        end: jest.fn()
+        end: jest.fn(),
       };
       return req;
     });
 
-    await expect(cloudflareKvService.listNamespaces())
-      .rejects.toThrow('Cloudflare KV request error: Some other network error');
+    await expect(cloudflareKvService.listNamespaces()).rejects.toThrow(
+      'Cloudflare KV request error: Some other network error'
+    );
 
     expect(requestSpy).toHaveBeenCalledTimes(1);
   });
 
   describe('putValue', () => {
     test('throws if namespaceId or key are missing', async () => {
-      await expect(cloudflareKvService.putValue(null, 'key', 'value'))
-        .rejects.toThrow('Missing Cloudflare KV namespaceId');
-      await expect(cloudflareKvService.putValue('ns', null, 'value'))
-        .rejects.toThrow('Missing Cloudflare KV key');
+      await expect(cloudflareKvService.putValue(null, 'key', 'value')).rejects.toThrow(
+        'Missing Cloudflare KV namespaceId'
+      );
+      await expect(cloudflareKvService.putValue('ns', null, 'value')).rejects.toThrow(
+        'Missing Cloudflare KV key'
+      );
     });
 
     test('PUTs string values to the values endpoint', async () => {
@@ -135,8 +138,9 @@ describe('Cloudflare KV Service', () => {
         return mockRequest;
       });
 
-      await expect(cloudflareKvService.putValue('my-ns', 'my-key', 'val'))
-        .rejects.toThrow('Cloudflare KV request failed (400)');
+      await expect(cloudflareKvService.putValue('my-ns', 'my-key', 'val')).rejects.toThrow(
+        'Cloudflare KV request failed (400)'
+      );
     });
   });
 

@@ -4,7 +4,6 @@ import { storageService } from './storage-service';
 import { cloudflareKvService } from './cloudflare-kv-service';
 
 class AgentOrchestratorService {
-
   async getAvailableModels() {
     const models: any[] = [];
     const errors: any[] = [];
@@ -15,9 +14,10 @@ class AgentOrchestratorService {
     // OpenRouter
     if (storageService.hasApiKey('openrouter')) {
       promises.push(
-        openRouterService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'openrouter', error: err.message }))
+        openRouterService
+          .getModels()
+          .then((list) => models.push(...list))
+          .catch((err) => errors.push({ provider: 'openrouter', error: err.message }))
       );
     }
 
@@ -28,20 +28,21 @@ class AgentOrchestratorService {
       // For now, let's assume codexService is for Assistants API, not generic Chat.
       // If we want generic OpenAI models, we should probably add getModels to codexService or create OpenAIService.
       // Re-using codexService for now if it supports it, otherwise skipping or mocking.
-       // TODO: Implement getModels in codexService if needed, or use OpenRouter for everything.
+      // TODO: Implement getModels in codexService if needed, or use OpenRouter for everything.
     }
 
     // Anthropic (Claude)
     if (storageService.hasApiKey('claude')) {
-       // Similarly, check if claudeService supports getModels.
+      // Similarly, check if claudeService supports getModels.
     }
 
     // Gemini
     if (storageService.hasApiKey('gemini')) {
       promises.push(
-        geminiService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'gemini', error: err.message }))
+        geminiService
+          .getModels()
+          .then((list) => models.push(...list))
+          .catch((err) => errors.push({ provider: 'gemini', error: err.message }))
       );
     }
 
@@ -82,68 +83,76 @@ If you don't need to use a tool, just reply with text.
     // 2. Parse model
     let model = selectedModel;
     if (selectedModel.startsWith('openrouter/')) {
-        model = selectedModel.replace('openrouter/', '');
+      model = selectedModel.replace('openrouter/', '');
     } else if (selectedModel.startsWith('openai/')) {
-        model = selectedModel.replace('openai/', '');
+      model = selectedModel.replace('openai/', '');
     } else if (selectedModel.startsWith('anthropic/')) {
-        model = selectedModel.replace('anthropic/', '');
+      model = selectedModel.replace('anthropic/', '');
     } else if (selectedModel.startsWith('gemini/')) {
-        model = selectedModel.replace('gemini/', '');
+      model = selectedModel.replace('gemini/', '');
     }
 
     try {
-        if (!storageService.hasApiKey('openrouter')) {
-             return { role: 'assistant', content: "Please configure an OpenRouter API key in Settings to use the Agent Orchestrator." };
+      if (!storageService.hasApiKey('openrouter')) {
+        return {
+          role: 'assistant',
+          content:
+            'Please configure an OpenRouter API key in Settings to use the Agent Orchestrator.',
+        };
+      }
+
+      const response = await openRouterService.chat(fullMessages, model);
+
+      // 3. Handle Tool Calls
+      if (!response || !response.choices || !response.choices[0]) {
+        throw new Error('Invalid response from LLM provider');
+      }
+
+      const content = response.choices[0].message.content;
+      let toolCall = null;
+      try {
+        // fast/simple check for JSON block
+        const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
+        if (jsonMatch) {
+          toolCall = JSON.parse(jsonMatch[0]);
+        } else if (content.trim().startsWith('{')) {
+          toolCall = JSON.parse(content);
+        }
+      } catch (e) {
+        // Not valid JSON, treat as text
+      }
+
+      if (toolCall && toolCall.tool) {
+        // Execute Tool
+        const result = await this.executeTool(toolCall);
+
+        const toolMessage = {
+          role: 'user', // representing the system feeding back the result
+          content: `Tool '${toolCall.tool}' Output: ${JSON.stringify(result)}`,
+        };
+
+        // Recursive call
+        // We append the assistant's tool call (as text) and the result
+        const nextMessages = [...fullMessages, response.choices[0].message, toolMessage];
+
+        // Recursion safety: prevent infinite loops (max 5 turns)
+        const turnCount = fullMessages.filter(
+          (m) => m.role === 'user' && m.content.startsWith('Tool')
+        ).length;
+        if (turnCount > 5) {
+          return {
+            role: 'assistant',
+            content: "I'm stuck in a loop. Here is the last result: " + JSON.stringify(result),
+          };
         }
 
-        const response = await openRouterService.chat(fullMessages, model);
+        return await this.chat(nextMessages, selectedModel);
+      }
 
-        // 3. Handle Tool Calls
-        if (!response || !response.choices || !response.choices[0]) {
-            throw new Error("Invalid response from LLM provider");
-        }
-
-        const content = response.choices[0].message.content;
-        let toolCall = null;
-        try {
-            // fast/simple check for JSON block
-            const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
-            if (jsonMatch) {
-                toolCall = JSON.parse(jsonMatch[0]);
-            } else if (content.trim().startsWith('{')) {
-                toolCall = JSON.parse(content);
-            }
-        } catch (e) {
-            // Not valid JSON, treat as text
-        }
-
-        if (toolCall && toolCall.tool) {
-            // Execute Tool
-            const result = await this.executeTool(toolCall);
-
-            const toolMessage = {
-                role: 'user', // representing the system feeding back the result
-                content: `Tool '${toolCall.tool}' Output: ${JSON.stringify(result)}`
-            };
-
-            // Recursive call
-            // We append the assistant's tool call (as text) and the result
-            const nextMessages = [...fullMessages, response.choices[0].message, toolMessage];
-
-            // Recursion safety: prevent infinite loops (max 5 turns)
-            const turnCount = fullMessages.filter(m => m.role === 'user' && m.content.startsWith('Tool')).length;
-            if (turnCount > 5) {
-                return { role: 'assistant', content: "I'm stuck in a loop. Here is the last result: " + JSON.stringify(result) };
-            }
-
-            return await this.chat(nextMessages, selectedModel);
-        }
-
-        return response.choices[0].message;
-
+      return response.choices[0].message;
     } catch (err: any) {
-        console.error("Orchestrator error:", err);
-        return { role: 'assistant', content: "I encountered an error: " + err.message };
+      console.error('Orchestrator error:', err);
+      return { role: 'assistant', content: 'I encountered an error: ' + err.message };
     }
   }
 
@@ -151,49 +160,49 @@ If you don't need to use a tool, just reply with text.
     const { tool, args } = toolCall;
 
     switch (tool) {
-        case 'list_computers':
-            return await this.listComputers();
-        case 'list_repos':
-            return await this.listRepos(args.computer_id);
-        case 'start_task':
-            return await this.startTask(args);
-        default:
-            return { error: `Unknown tool: ${tool}` };
+      case 'list_computers':
+        return await this.listComputers();
+      case 'list_repos':
+        return await this.listRepos(args.computer_id);
+      case 'start_task':
+        return await this.startTask(args);
+      default:
+        return { error: `Unknown tool: ${tool}` };
     }
   }
 
   async listComputers() {
     try {
-        if (!cloudflareKvService.isConfigured()) {
-             return { error: "Cloudflare KV not configured. Cannot list computers." };
-        }
-        const computers = await cloudflareKvService.listComputers();
+      if (!cloudflareKvService.isConfigured()) {
+        return { error: 'Cloudflare KV not configured. Cannot list computers.' };
+      }
+      const computers = await cloudflareKvService.listComputers();
 
-        // Filter/Map for relevant info
-        return computers.map(d => ({
-            id: d.id,
-            name: d.name,
-            status: d.status,
-            lastHeartbeat: d.lastHeartbeat,
-            repos: d.repos ? d.repos.map(r => r.name) : []
-        }));
+      // Filter/Map for relevant info
+      return computers.map((d) => ({
+        id: d.id,
+        name: d.name,
+        status: d.status,
+        lastHeartbeat: d.lastHeartbeat,
+        repos: d.repos ? d.repos.map((r) => r.name) : [],
+      }));
     } catch (err: any) {
-        return { error: err.message };
+      return { error: err.message };
     }
   }
 
   async listRepos(computerId: string) {
     try {
-        if (!cloudflareKvService.isConfigured()) {
-             return { error: "Cloudflare KV not configured." };
-        }
-        const computers = await cloudflareKvService.listComputers();
-        const device = computers.find(d => d.id === computerId);
+      if (!cloudflareKvService.isConfigured()) {
+        return { error: 'Cloudflare KV not configured.' };
+      }
+      const computers = await cloudflareKvService.listComputers();
+      const device = computers.find((d) => d.id === computerId);
 
-        if (!device) return { error: "Computer not found" };
-        return device.repos || [];
+      if (!device) return { error: 'Computer not found' };
+      return device.repos || [];
     } catch (err: any) {
-        return { error: err.message };
+      return { error: err.message };
     }
   }
 
@@ -201,20 +210,19 @@ If you don't need to use a tool, just reply with text.
     // args: { computer_id, repo_path, task_description, provider }
     // Dispatch remote task via Cloudflare KV
     try {
-        await cloudflareKvService.ensureNamespace();
+      await cloudflareKvService.ensureNamespace();
 
-        const task = {
-             tool: args.provider || 'jules',
-             repo: args.repo_path,
-             prompt: args.task_description
-        };
+      const task = {
+        tool: args.provider || 'jules',
+        repo: args.repo_path,
+        prompt: args.task_description,
+      };
 
-        await cloudflareKvService.enqueueDeviceTask(args.computer_id, task);
+      await cloudflareKvService.enqueueDeviceTask(args.computer_id, task);
 
-        return { success: true, message: "Task dispatched to remote device." };
-
+      return { success: true, message: 'Task dispatched to remote device.' };
     } catch (err: any) {
-        return { error: err.message };
+      return { error: err.message };
     }
   }
 }

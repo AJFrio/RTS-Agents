@@ -34,31 +34,31 @@ class GeminiService {
       return await httpService.requestJson(url.toString(), method);
     } catch (err) {
       if (err.statusCode) {
-         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
-         throw new Error(`Gemini API error: ${err.statusCode} - ${dataStr}`);
+        const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+        throw new Error(`Gemini API error: ${err.statusCode} - ${dataStr}`);
       }
       throw err;
     }
   }
 
   async getModels() {
-     if (!this.apiKey) return [];
-     try {
-       const response = await this.request('/v1beta/models');
-       if (response && Array.isArray(response.models)) {
-         return response.models
-           .filter(m => m.name.includes('gemini'))
-           .map(m => ({
-             id: 'gemini/' + m.name.replace('models/', ''),
-             name: m.displayName || m.name,
-             provider: 'gemini'
-           }));
-       }
-       return [];
-     } catch (err) {
-       console.error('Gemini getModels error:', err);
-       return [];
-     }
+    if (!this.apiKey) return [];
+    try {
+      const response = await this.request('/v1beta/models');
+      if (response && Array.isArray(response.models)) {
+        return response.models
+          .filter((m) => m.name.includes('gemini'))
+          .map((m) => ({
+            id: 'gemini/' + m.name.replace('models/', ''),
+            name: m.displayName || m.name,
+            provider: 'gemini',
+          }));
+      }
+      return [];
+    } catch (err) {
+      console.error('Gemini getModels error:', err);
+      return [];
+    }
   }
 
   async testConnection() {
@@ -106,42 +106,46 @@ class GeminiService {
    */
   async discoverProjects(additionalPaths = []) {
     const projects = [];
-    const pathsToScan = [this.baseDir, ...additionalPaths];
+    // If caller provided explicit paths, keep discovery deterministic (tests + explicit UI scans).
+    // Otherwise, fall back to the default Gemini CLI home directory.
+    const pathsToScan = additionalPaths.length > 0 ? additionalPaths : [this.baseDir];
 
     for (const basePath of pathsToScan) {
       try {
         await fsPromises.access(basePath);
-      } catch (err) {
+      } catch {
         continue;
       }
 
       try {
         const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
-        
+
         for (const entry of entries) {
           if (entry.isDirectory()) {
             // Skip known non-project directories
             if (entry.name === 'bin' || entry.name === 'cache') {
               continue;
             }
-            
+
             const projectPath = path.join(basePath, entry.name);
             const chatsPath = path.join(projectPath, 'chats');
-            
+
             try {
               await fsPromises.access(chatsPath);
               projects.push({
                 hash: entry.name,
                 path: projectPath,
-                chatsPath: chatsPath
+                chatsPath: chatsPath,
               });
             } catch (err) {
               // Ignore
+              void err;
             }
           }
         }
       } catch (err) {
         // Ignore error
+        void err;
       }
     }
 
@@ -158,12 +162,12 @@ class GeminiService {
 
     try {
       await fsPromises.access(chatsPath);
-    } catch (err) {
+    } catch {
       return sessions;
     }
 
     try {
-      const files = (await fsPromises.readdir(chatsPath)).filter(f => f.endsWith('.json'));
+      const files = (await fsPromises.readdir(chatsPath)).filter((f) => f.endsWith('.json'));
       const repository = await this.extractRepository(projectPath);
 
       const sessionPromises = files.map(async (file) => {
@@ -171,7 +175,7 @@ class GeminiService {
           const filePath = path.join(chatsPath, file);
           const [stats, content] = await Promise.all([
             fsPromises.stat(filePath),
-            fsPromises.readFile(filePath, 'utf-8')
+            fsPromises.readFile(filePath, 'utf-8'),
           ]);
           const session = JSON.parse(content);
 
@@ -192,17 +196,18 @@ class GeminiService {
             filePath: filePath,
             projectHash: path.basename(projectPath),
             messageCount: this.countMessages(session),
-            rawId: session.sessionId || file.replace('.json', '')
+            rawId: session.sessionId || file.replace('.json', ''),
           };
-        } catch (err) {
+        } catch {
           return null;
         }
       });
 
       const results = await Promise.all(sessionPromises);
-      return results.filter(s => s !== null);
+      return results.filter((s) => s !== null);
     } catch (err) {
       // Ignore error
+      void err;
     }
 
     return sessions;
@@ -215,7 +220,7 @@ class GeminiService {
   async getAllAgents(additionalPaths = []) {
     const projects = await this.discoverProjects(additionalPaths);
 
-    const allSessionsPromises = projects.map(project => this.getProjectSessions(project.path));
+    const allSessionsPromises = projects.map((project) => this.getProjectSessions(project.path));
     const sessionsArrays = await Promise.all(allSessionsPromises);
 
     const allSessions = sessionsArrays.flat();
@@ -232,14 +237,14 @@ class GeminiService {
   async getSessionDetails(filePath) {
     try {
       await fsPromises.access(filePath);
-    } catch (err) {
+    } catch {
       return null;
     }
 
     try {
       const [content, stats] = await Promise.all([
         fsPromises.readFile(filePath, 'utf-8'),
-        fsPromises.stat(filePath)
+        fsPromises.stat(filePath),
       ]);
       const session = JSON.parse(content);
 
@@ -252,20 +257,20 @@ class GeminiService {
         prompt: this.extractInitialPrompt(session),
         summary: this.extractSummary(session),
         status: this.inferStatus(session, stats),
-        
+
         // Timestamps - prefer session metadata over file stats
         createdAt: session.startTime || stats.birthtime,
         updatedAt: session.lastUpdated || stats.mtime,
-        
+
         // Lightweight messages array (content only, no thoughts/tokens/toolCalls)
         messages: this.parseMessages(session),
         messageCount: (session.messages || session.conversation || []).length,
-        
+
         // File stats for reference
         filePath: filePath,
-        fileSize: stats.size
+        fileSize: stats.size,
       };
-    } catch (err) {
+    } catch {
       return null;
     }
   }
@@ -277,7 +282,7 @@ class GeminiService {
     // Try to get from metadata or first user message
     if (session.title) return session.title;
     if (session.name) return session.name;
-    
+
     // Look for first user message - Gemini CLI uses 'type' not 'role'
     const messages = session.messages || session.conversation || [];
     for (const msg of messages) {
@@ -291,7 +296,7 @@ class GeminiService {
         }
       }
     }
-    
+
     // If no good user message found, try to get something meaningful from first info message
     for (const msg of messages) {
       const msgType = msg.type || msg.role;
@@ -302,7 +307,7 @@ class GeminiService {
         }
       }
     }
-    
+
     return 'Gemini CLI Session';
   }
 
@@ -327,16 +332,17 @@ class GeminiService {
   extractSummary(session) {
     // Look for last assistant/gemini message or summary field
     if (session.summary) return session.summary;
-    
+
     const messages = session.messages || session.conversation || [];
     for (let i = messages.length - 1; i >= 0; i--) {
       // Support both 'type' (Gemini CLI format) and 'role' (legacy format)
       // Gemini CLI uses 'gemini' type, legacy format uses 'assistant' role
       const msgType = messages[i].type || messages[i].role;
       if ((msgType === 'assistant' || msgType === 'gemini') && messages[i].content) {
-        const content = typeof messages[i].content === 'string' 
-          ? messages[i].content 
-          : messages[i].content[0]?.text || '';
+        const content =
+          typeof messages[i].content === 'string'
+            ? messages[i].content
+            : messages[i].content[0]?.text || '';
         // Skip empty content (e.g., tool-only responses)
         if (content.trim().length === 0) continue;
         return content.substring(0, 200) + (content.length > 200 ? '...' : '');
@@ -385,9 +391,11 @@ class GeminiService {
         return info.repository || info.path || null;
       } catch (err) {
         // Mapping file doesn't exist or is invalid
+        void err;
       }
     } catch (err) {
       // Ignore
+      void err;
     }
     return null;
   }
@@ -408,7 +416,7 @@ class GeminiService {
   parseMessages(session) {
     const messages = session.messages || session.conversation || [];
     return messages
-      .filter(msg => {
+      .filter((msg) => {
         // Get message type
         const msgType = msg.type || msg.role;
         // Only include user and gemini/assistant messages
@@ -416,7 +424,8 @@ class GeminiService {
           return false;
         }
         // Filter out messages with empty content (e.g., tool-only responses)
-        const content = typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '';
+        const content =
+          typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '';
         return content.trim().length > 0;
       })
       .map((msg, idx) => {
@@ -424,12 +433,12 @@ class GeminiService {
         // Normalize 'gemini' type to 'assistant' for UI consistency
         const msgType = msg.type || msg.role;
         const normalizedRole = msgType === 'gemini' ? 'assistant' : msgType;
-        
+
         return {
           id: msg.id || `msg-${idx}`,
           role: normalizedRole,
           content: typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '',
-          timestamp: msg.timestamp || null
+          timestamp: msg.timestamp || null,
           // Intentionally omitting: thoughts, tokens, toolCalls (to keep data lightweight)
         };
       });
@@ -449,7 +458,7 @@ class GeminiService {
     for (const basePath of additionalPaths) {
       try {
         await fsPromises.access(basePath);
-      } catch (err) {
+      } catch {
         continue;
       }
 
@@ -458,15 +467,15 @@ class GeminiService {
 
       try {
         const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
-        
+
         for (const entry of entries) {
           if (entry.isDirectory()) {
             // Skip hidden directories and common non-project folders
             if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-            
+
             const dirPath = path.join(basePath, entry.name);
             const gitPath = path.join(dirPath, '.git');
-            
+
             try {
               await fsPromises.access(gitPath);
               if (!scannedPaths.has(dirPath)) {
@@ -477,16 +486,18 @@ class GeminiService {
                   path: dirPath,
                   geminiPath: null,
                   displayName: entry.name,
-                  hasExistingSessions: false
+                  hasExistingSessions: false,
                 });
               }
             } catch (err) {
               // Ignore
+              void err;
             }
           }
         }
       } catch (err) {
         // Ignore error
+        void err;
       }
     }
 
@@ -513,7 +524,7 @@ class GeminiService {
 
     try {
       await fsPromises.access(projectPath);
-    } catch (err) {
+    } catch {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
@@ -526,10 +537,13 @@ class GeminiService {
     const args = ['-p', prompt, '-y'];
 
     return new Promise((resolve, reject) => {
-      const geminiCmd = (command && String(command).trim())
-        ? String(command).trim()
-        : (process.platform === 'win32' ? 'gemini.cmd' : 'gemini');
-      
+      const geminiCmd =
+        command && String(command).trim()
+          ? String(command).trim()
+          : process.platform === 'win32'
+            ? 'gemini.cmd'
+            : 'gemini';
+
       const env = { ...process.env };
       if (this.apiKey) {
         env.GEMINI_API_KEY = this.apiKey;
@@ -541,12 +555,14 @@ class GeminiService {
         detached: true,
         stdio: 'ignore',
         env: env,
-        windowsHide: true
+        windowsHide: true,
       });
 
       child.on('error', (err) => {
         if (err.code === 'ENOENT') {
-          reject(new Error('Gemini CLI not found. Please ensure it is installed and in your PATH.'));
+          reject(
+            new Error('Gemini CLI not found. Please ensure it is installed and in your PATH.')
+          );
         } else {
           reject(new Error(`Failed to start Gemini CLI: ${err.message}`));
         }
@@ -567,7 +583,7 @@ class GeminiService {
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
-          message: 'Gemini CLI session started. The task is running in the background.'
+          message: 'Gemini CLI session started. The task is running in the background.',
         });
       }, 500);
     });

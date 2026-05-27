@@ -13,7 +13,9 @@ export default function PathRow({
 }) {
   return (
     <div className="space-y-2">
-      <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">{label}</label>
+      <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">
+        {label}
+      </label>
       <div className="flex gap-2">
         <input
           type="text"
@@ -49,7 +51,9 @@ export default function PathRow({
               key={path}
               className="flex items-center justify-between p-3 bg-slate-700/20 dark:bg-slate-800/20 border border-border-dark rounded-lg"
             >
-              <span className="text-sm text-slate-700 dark:text-slate-300 font-mono truncate">{path}</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300 font-mono truncate">
+                {path}
+              </span>
               <button
                 type="button"
                 onClick={() => onRemove?.(path)}

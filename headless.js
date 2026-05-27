@@ -9,8 +9,6 @@
  */
 
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const readline = require('readline/promises');
 
 // Services (same ones used by Electron main)
@@ -59,10 +57,10 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     if (Array.isArray(githubPaths) && githubPaths.length > 0) {
       const scanned = await geminiService.getAvailableProjects(githubPaths);
       repos = (scanned || [])
-        .map(p => ({ name: p?.name || p?.id || 'unknown', path: p?.path || null }))
-        .filter(r => !!r.path);
+        .map((p) => ({ name: p?.name || p?.id || 'unknown', path: p?.path || null }))
+        .filter((r) => !!r.path);
     }
-  } catch (err) {
+  } catch {
     repos = [];
   }
 
@@ -74,7 +72,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const [geminiInstalled, claudeInstalled, opencodeInstalled] = await Promise.all([
     geminiService.isGeminiInstalled(),
     claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled()
+    opencodeService.isOpenCodeInstalled(),
   ]);
 
   const availableCliTools = [];
@@ -84,7 +82,12 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   if (claudeInstalled || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
     availableCliTools.push('claude CLI');
   }
-  if (opencodeInstalled || queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
+  if (
+    opencodeInstalled ||
+    queueProcessorService.isCommandRunnable(
+      opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode')
+    )
+  ) {
     availableCliTools.push('OpenCode CLI');
   }
 
@@ -98,10 +101,14 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     lastStatusAt: nowIso,
     tools: [{ 'CLI tools': availableCliTools }],
     repos,
-    reposUpdatedAt: nowIso
+    reposUpdatedAt: nowIso,
   };
 
-  await cloudflareKvService.heartbeat({ namespaceId, device, staleAfterMs: DEVICE_STALE_OFFLINE_MS });
+  await cloudflareKvService.heartbeat({
+    namespaceId,
+    device,
+    staleAfterMs: DEVICE_STALE_OFFLINE_MS,
+  });
 }
 
 async function runSetupPrompts() {
@@ -123,7 +130,10 @@ async function runSetupPrompts() {
     }
 
     if (nextAccountId && nextApiToken) {
-      const next = configStore.setCloudflareConfig({ accountId: nextAccountId, apiToken: nextApiToken });
+      const next = configStore.setCloudflareConfig({
+        accountId: nextAccountId,
+        apiToken: nextApiToken,
+      });
       cloudflareKvService.setConfig({ accountId: next.accountId, apiToken: next.apiToken });
     }
 
@@ -136,14 +146,16 @@ async function runSetupPrompts() {
       for (const [provider, key] of Object.entries(keys || {})) {
         configStore.setApiKey(provider, key);
       }
-    } catch (_) {
+    } catch {
       // If keys are missing, headless mode can still run remote CLI tasks.
     }
 
     // GitHub repo paths
     const githubPaths = configStore.getGithubPaths();
     if (!Array.isArray(githubPaths) || githubPaths.length === 0) {
-      const answer = String(await rl.question('Path to your GitHub repos folder (e.g. /home/user/github): ')).trim();
+      const answer = String(
+        await rl.question('Path to your GitHub repos folder (e.g. /home/user/github): ')
+      ).trim();
       if (answer) {
         configStore.addGithubPath(answer);
       }
@@ -155,22 +167,47 @@ async function runSetupPrompts() {
     let claudeCmd = typeof existingCli?.claude === 'string' ? existingCli.claude : '';
     let opencodeCmd = typeof existingCli?.opencode === 'string' ? existingCli.opencode : '';
 
-    if (!(await geminiService.isGeminiInstalled()) && !queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
-      const answer = String(await rl.question('Gemini CLI not detected. Full path to gemini executable (or blank to skip): ')).trim();
+    if (
+      !(await geminiService.isGeminiInstalled()) &&
+      !queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')
+    ) {
+      const answer = String(
+        await rl.question(
+          'Gemini CLI not detected. Full path to gemini executable (or blank to skip): '
+        )
+      ).trim();
       if (answer) geminiCmd = answer;
     }
 
-    if (!(await claudeService.isClaudeInstalled()) && !queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
-      const answer = String(await rl.question('Claude CLI not detected. Full path to claude executable (or blank to skip): ')).trim();
+    if (
+      !(await claudeService.isClaudeInstalled()) &&
+      !queueProcessorService.isCommandRunnable(claudeCmd || 'claude')
+    ) {
+      const answer = String(
+        await rl.question(
+          'Claude CLI not detected. Full path to claude executable (or blank to skip): '
+        )
+      ).trim();
       if (answer) claudeCmd = answer;
     }
 
-    if (!(await opencodeService.isOpenCodeInstalled()) && !queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
-      const answer = String(await rl.question('OpenCode CLI not detected. Full path to opencode (or blank to skip): ')).trim();
+    if (
+      !(await opencodeService.isOpenCodeInstalled()) &&
+      !queueProcessorService.isCommandRunnable(
+        opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode')
+      )
+    ) {
+      const answer = String(
+        await rl.question('OpenCode CLI not detected. Full path to opencode (or blank to skip): ')
+      ).trim();
       if (answer) opencodeCmd = answer;
     }
 
-    configStore.setSetting('cliCommands', { gemini: geminiCmd, claude: claudeCmd, opencode: opencodeCmd });
+    configStore.setSetting('cliCommands', {
+      gemini: geminiCmd,
+      claude: claudeCmd,
+      opencode: opencodeCmd,
+    });
   } finally {
     rl.close();
   }
@@ -191,14 +228,16 @@ function startHttpServer() {
     if (req.method === 'GET' && url.startsWith('/status')) {
       const cf = configStore.getCloudflareConfig() || {};
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        ok: true,
-        deviceId: identity.id,
-        deviceType: 'headless',
-        cloudflareConfigured: !!(cf.accountId && cf.apiToken),
-        namespaceId: cf.namespaceId || null,
-        githubPaths: configStore.getGithubPaths()
-      }));
+      res.end(
+        JSON.stringify({
+          ok: true,
+          deviceId: identity.id,
+          deviceType: 'headless',
+          cloudflareConfigured: !!(cf.accountId && cf.apiToken),
+          namespaceId: cf.namespaceId || null,
+          githubPaths: configStore.getGithubPaths(),
+        })
+      );
       return;
     }
     res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -220,7 +259,7 @@ async function shutdown() {
 
   try {
     await sendCloudflareHeartbeat({ status: 'off' });
-  } catch (_) {
+  } catch {
     // ignore
   }
 
@@ -270,4 +309,3 @@ main().catch(async (err) => {
     process.exit(1);
   }
 });
-

@@ -30,7 +30,9 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     subtitle: 'Cloud assistant',
     icon: 'cloud',
     description: 'Connect Jules to create and monitor hosted coding sessions.',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Jules API key' }],
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Jules API key' },
+    ],
   },
   {
     id: 'cursor',
@@ -38,7 +40,9 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     subtitle: 'Cloud assistant',
     icon: 'cloud_sync',
     description: 'Connect Cursor Cloud so mobile can launch and inspect Cursor agents.',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Cursor API key' }],
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Cursor API key' },
+    ],
   },
   {
     id: 'codex',
@@ -46,7 +50,9 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     subtitle: 'OpenAI assistants',
     icon: 'api',
     description: 'Connect the Codex/OpenAI assistants API used by the mobile dashboard.',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenAI API key' }],
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenAI API key' },
+    ],
   },
   {
     id: 'claude',
@@ -54,7 +60,9 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     subtitle: 'Anthropic API',
     icon: 'smart_toy',
     description: 'Connect Anthropic to run Claude conversations from the PWA.',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Anthropic API key' }],
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Anthropic API key' },
+    ],
   },
   {
     id: 'openrouter',
@@ -62,7 +70,14 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     subtitle: 'Model provider',
     icon: 'hub',
     description: 'Connect OpenRouter for orchestrator model access on mobile.',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenRouter API key' }],
+    fields: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        placeholder: 'Enter OpenRouter API key',
+      },
+    ],
   },
   {
     id: 'gemini',
@@ -70,7 +85,9 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     subtitle: 'Model provider',
     icon: 'token',
     description: 'Connect Gemini API access for model selection and orchestration support.',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Gemini API key' }],
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Gemini API key' },
+    ],
   },
   {
     id: 'github',
@@ -78,7 +95,14 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     subtitle: 'Repository integration',
     icon: 'deployed_code',
     description: 'Connect GitHub so repos, branches, and pull requests load on mobile.',
-    fields: [{ key: 'apiKey', label: 'Personal Access Token', type: 'password', placeholder: 'Enter GitHub token' }],
+    fields: [
+      {
+        key: 'apiKey',
+        label: 'Personal Access Token',
+        type: 'password',
+        placeholder: 'Enter GitHub token',
+      },
+    ],
   },
   {
     id: 'jira',
@@ -87,8 +111,18 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     icon: 'task_alt',
     description: 'Connect Jira with a base URL and API token.',
     fields: [
-      { key: 'baseUrl', label: 'Jira Base URL', type: 'text', placeholder: 'https://your-domain.atlassian.net' },
-      { key: 'apiKey', label: 'API Token', type: 'password', placeholder: 'Enter Jira token or email:token' },
+      {
+        key: 'baseUrl',
+        label: 'Jira Base URL',
+        type: 'text',
+        placeholder: 'https://your-domain.atlassian.net',
+      },
+      {
+        key: 'apiKey',
+        label: 'API Token',
+        type: 'password',
+        placeholder: 'Enter Jira token or email:token',
+      },
     ],
   },
   {
@@ -98,8 +132,18 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     icon: 'cloud_upload',
     description: 'Connect Cloudflare KV to load remote devices and pull keys.',
     fields: [
-      { key: 'accountId', label: 'Account ID', type: 'text', placeholder: 'Enter Cloudflare account ID' },
-      { key: 'apiToken', label: 'API Token', type: 'password', placeholder: 'Enter Cloudflare API token' },
+      {
+        key: 'accountId',
+        label: 'Account ID',
+        type: 'text',
+        placeholder: 'Enter Cloudflare account ID',
+      },
+      {
+        key: 'apiToken',
+        label: 'API Token',
+        type: 'password',
+        placeholder: 'Enter Cloudflare API token',
+      },
       { key: 'namespaceTitle', label: 'Namespace Title', type: 'text', placeholder: 'rtsa' },
     ],
   },

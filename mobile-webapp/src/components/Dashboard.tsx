@@ -1,6 +1,6 @@
 /**
  * Dashboard Component
- * 
+ *
  * Main dashboard view showing agent cards
  */
 
@@ -35,7 +35,7 @@ export default function Dashboard() {
   };
 
   const { loadAgentDetails } = useApp();
-  
+
   const handleAgentClick = (_agentId: string, provider: Provider, rawId: string) => {
     dispatch({ type: 'SET_SHOW_AGENT_MODAL', payload: true });
     // Load agent details in context
@@ -46,7 +46,12 @@ export default function Dashboard() {
     { id: 'jules', label: 'Jules', color: 'bg-primary', count: state.counts.jules },
     { id: 'cursor', label: 'Cursor', color: 'bg-blue-500', count: state.counts.cursor },
     { id: 'codex', label: 'Codex', color: 'bg-cyan-500', count: state.counts.codex },
-    { id: 'claude-cloud', label: 'Claude', color: 'bg-amber-500', count: state.counts['claude-cloud'] },
+    {
+      id: 'claude-cloud',
+      label: 'Claude',
+      color: 'bg-amber-500',
+      count: state.counts['claude-cloud'],
+    },
   ];
 
   // Show loading state
@@ -60,7 +65,7 @@ export default function Dashboard() {
   }
 
   // Show empty state
-  const hasAnyConfigured = Object.values(state.configuredServices).some(v => v);
+  const hasAnyConfigured = Object.values(state.configuredServices).some((v) => v);
   if (!hasAnyConfigured) {
     return (
       <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
@@ -100,7 +105,7 @@ export default function Dashboard() {
 
           {/* Provider Filters */}
           <div className="flex flex-wrap gap-2">
-            {providerFilters.map(filter => (
+            {providerFilters.map((filter) => (
               <button
                 key={filter.id}
                 onClick={() => handleProviderFilter(filter.id)}
@@ -147,7 +152,7 @@ export default function Dashboard() {
 
         {/* Provider Filters */}
         <div className="flex flex-wrap gap-2">
-          {providerFilters.map(filter => (
+          {providerFilters.map((filter) => (
             <button
               key={filter.id}
               onClick={() => handleProviderFilter(filter.id)}
@@ -165,26 +170,26 @@ export default function Dashboard() {
         </div>
       </div>
 
-        {/* Error Banner */}
-        {state.errors.length > 0 && (
-          <div className="mb-4 p-4 bg-red-900/20 border border-red-500/50 rounded-xl shadow-sm">
-            <div className="flex items-start gap-2">
-              <span className="material-symbols-outlined text-red-400 text-sm">error</span>
-              <div>
-                <h4 className="text-xs font-semibold text-red-300">Errors</h4>
-                <ul className="mt-1 text-xs text-red-400">
-                  {state.errors.map((error, i) => (
-                    <li key={i}>{error}</li>
-                  ))}
-                </ul>
-              </div>
+      {/* Error Banner */}
+      {state.errors.length > 0 && (
+        <div className="mb-4 p-4 bg-red-900/20 border border-red-500/50 rounded-xl shadow-sm">
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-red-400 text-sm">error</span>
+            <div>
+              <h4 className="text-xs font-semibold text-red-300">Errors</h4>
+              <ul className="mt-1 text-xs text-red-400">
+                {state.errors.map((error, i) => (
+                  <li key={i}>{error}</li>
+                ))}
+              </ul>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* Agent Cards */}
       <div className="space-y-3">
-        {state.filteredAgents.map(agent => (
+        {state.filteredAgents.map((agent) => (
           <AgentCard
             key={agent.id}
             agent={agent}
@@ -197,7 +202,9 @@ export default function Dashboard() {
       {state.loading && state.agents.length > 0 && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-card-dark border border-border-dark px-4 py-2 rounded-lg shadow-lg z-50">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-sm animate-spin">sync</span>
+            <span className="material-symbols-outlined text-primary text-sm animate-spin">
+              sync
+            </span>
             <span className="text-xs text-slate-400">Refreshing...</span>
           </div>
         </div>

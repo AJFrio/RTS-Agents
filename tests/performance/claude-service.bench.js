@@ -18,8 +18,8 @@ async function benchmark() {
     startTime: new Date().toISOString(),
     messages: [
       { role: 'user', content: 'This is a test prompt for benchmarking' },
-      { role: 'assistant', content: 'This is a test response for benchmarking' }
-    ]
+      { role: 'assistant', content: 'This is a test response for benchmarking' },
+    ],
   };
   const content = JSON.stringify(mockSession);
 
@@ -45,7 +45,7 @@ async function benchmark() {
   return end - start;
 }
 
-benchmark().catch(err => {
+benchmark().catch((err) => {
   console.error(err);
   process.exit(1);
 });

@@ -75,7 +75,10 @@ class CursorService {
     return response.json();
   }
 
-  async listAgents(limit = 100, cursor?: string): Promise<{ agents?: CursorAgent[]; cursor?: string }> {
+  async listAgents(
+    limit = 100,
+    cursor?: string
+  ): Promise<{ agents?: CursorAgent[]; cursor?: string }> {
     let endpoint = `/agents?limit=${limit}`;
     if (cursor) {
       endpoint += `&cursor=${cursor}`;
@@ -121,10 +124,10 @@ class CursorService {
     if (!status) return 'pending';
 
     const statusMap: Record<string, AgentTask['status']> = {
-      'CREATING': 'pending',
-      'RUNNING': 'running',
-      'FINISHED': 'completed',
-      'STOPPED': 'stopped',
+      CREATING: 'pending',
+      RUNNING: 'running',
+      FINISHED: 'completed',
+      STOPPED: 'stopped',
     };
 
     return statusMap[status.toUpperCase()] || 'pending';
@@ -133,7 +136,7 @@ class CursorService {
   async getAllAgents(): Promise<AgentTask[]> {
     const response = await this.listAgents(100);
     const agents = response.agents || [];
-    return agents.map(agent => this.normalizeAgent(agent));
+    return agents.map((agent) => this.normalizeAgent(agent));
   }
 
   async getAgentDetails(agentId: string): Promise<AgentDetails> {
@@ -146,12 +149,12 @@ class CursorService {
     const messages = conversationResponse.messages || [];
 
     // Extract prompt from first user message
-    const firstUserMessage = messages.find(m => m.type === 'user_message');
+    const firstUserMessage = messages.find((m) => m.type === 'user_message');
     if (firstUserMessage) {
       normalized.prompt = firstUserMessage.text;
     }
 
-    const conversation: ConversationMessage[] = messages.map(msg => ({
+    const conversation: ConversationMessage[] = messages.map((msg) => ({
       id: msg.id,
       type: msg.type,
       text: msg.text,
@@ -176,9 +179,9 @@ class CursorService {
   async getAllRepositories(): Promise<Repository[]> {
     try {
       const response = await this.listRepositories();
-      const repos = Array.isArray(response) ? response : (response.repositories || []);
+      const repos = Array.isArray(response) ? response : response.repositories || [];
 
-      return repos.map(repo => ({
+      return repos.map((repo) => ({
         id: repo.url || repo.repository || '',
         name: repo.name || this.extractRepoName(repo.url || repo.repository || ''),
         url: repo.url || repo.repository,

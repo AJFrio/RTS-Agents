@@ -25,7 +25,7 @@ export default function AgentPage() {
       sender: 'user', // UI uses 'sender' instead of 'role'
       role: 'user', // Backend expects 'role'
       text: inputValue,
-      content: inputValue // Backend expects 'content'
+      content: inputValue, // Backend expects 'content'
     };
 
     const newMessages = [...messages, newMessage];
@@ -35,9 +35,9 @@ export default function AgentPage() {
 
     try {
       // Convert UI messages to backend format
-      const history = newMessages.map(m => ({
+      const history = newMessages.map((m) => ({
         role: m.role || (m.sender === 'user' ? 'user' : 'assistant'),
-        content: m.content || m.text
+        content: m.content || m.text,
       }));
 
       const response = await api.orchestratorChat(history, selectedModel);
@@ -48,18 +48,21 @@ export default function AgentPage() {
           sender: 'assistant',
           role: 'assistant',
           text: response.content,
-          content: response.content
+          content: response.content,
         };
-        setMessages(prev => [...prev, assistantMsg]);
+        setMessages((prev) => [...prev, assistantMsg]);
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        sender: 'assistant',
-        text: `Error: ${err.message}`,
-        isError: true
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: 'assistant',
+          text: `Error: ${err.message}`,
+          isError: true,
+        },
+      ]);
     } finally {
       setThinking(false);
     }
@@ -92,12 +95,14 @@ export default function AgentPage() {
           </div>
         ))}
         {thinking && (
-           <div className="flex justify-start">
-             <div className="text-slate-400 text-sm pl-2 italic flex items-center gap-2">
-               <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-               Thinking...
-             </div>
-           </div>
+          <div className="flex justify-start">
+            <div className="text-slate-400 text-sm pl-2 italic flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm animate-spin">
+                progress_activity
+              </span>
+              Thinking...
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -109,7 +114,7 @@ export default function AgentPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={thinking ? "Agent is working..." : "Ask Agent"}
+              placeholder={thinking ? 'Agent is working...' : 'Ask Agent'}
               disabled={thinking}
               rows={1}
               className="w-full !bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-sm min-h-[24px] px-0 focus:!ring-0 focus:outline-none disabled:opacity-50"

@@ -12,7 +12,7 @@ export function useAppGithub(api, dispatch) {
         api.github.getRepos(),
         api.projects?.getLocalRepos?.()?.catch(() => null) ?? Promise.resolve(null),
       ]);
-      const localRepos = localResult?.success ? localResult.repos ?? [] : [];
+      const localRepos = localResult?.success ? (localResult.repos ?? []) : [];
       if (result?.success) {
         const repos = result.repos ?? [];
         dispatch({

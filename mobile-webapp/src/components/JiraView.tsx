@@ -30,7 +30,8 @@ export default function JiraView() {
   const [filterAssignee, setFilterAssignee] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
 
-  const isReady = configuredServices.jira && !!(settings.jiraBaseUrl && settings.jiraBaseUrl.trim());
+  const isReady =
+    configuredServices.jira && !!(settings.jiraBaseUrl && settings.jiraBaseUrl.trim());
 
   useEffect(() => {
     // Keep jira service base URL in sync with settings
@@ -91,7 +92,7 @@ export default function JiraView() {
   // Extract unique assignees and statuses for filter dropdowns
   const availableAssignees = useMemo(() => {
     const assignees = new Set<string>();
-    allTickets.forEach(ticket => {
+    allTickets.forEach((ticket) => {
       const assignee = getAssignee(ticket);
       assignees.add(assignee);
     });
@@ -100,7 +101,7 @@ export default function JiraView() {
 
   const availableStatuses = useMemo(() => {
     const statuses = new Set<string>();
-    allTickets.forEach(ticket => {
+    allTickets.forEach((ticket) => {
       const status = ticket.fields?.status?.name;
       if (status) statuses.add(status);
     });
@@ -109,7 +110,7 @@ export default function JiraView() {
 
   // Filter tickets based on selected filters
   const filteredTickets = useMemo(() => {
-    return allTickets.filter(ticket => {
+    return allTickets.filter((ticket) => {
       if (filterAssignee) {
         const assignee = getAssignee(ticket);
         if (assignee !== filterAssignee) return false;
@@ -240,11 +241,7 @@ export default function JiraView() {
                 <div className="p-4 text-xs text-slate-500">No tickets found</div>
               ) : (
                 filteredTickets.map((issue) => (
-                  <JiraTicketItem
-                    key={issue.id}
-                    issue={issue}
-                    onOpen={openIssue}
-                  />
+                  <JiraTicketItem key={issue.id} issue={issue} onOpen={openIssue} />
                 ))
               )}
             </div>

@@ -1,6 +1,5 @@
 const { _electron: electron } = require('playwright');
 const path = require('path');
-const fs = require('fs');
 
 const { test, expect } = require('@playwright/test');
 
@@ -10,7 +9,7 @@ test.describe('E2E Tests', () => {
   test.beforeAll(async () => {
     // Launch Electron app
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 
@@ -21,54 +20,55 @@ test.describe('E2E Tests', () => {
   test('Window should open with correct title', async () => {
     const window = await electronApp.firstWindow();
     const title = await window.title();
+    expect(title).toBeTruthy();
     // Default title is typically "RTS Agents Dashboard" or what's in index.html/main.js
     // Checking index.html to be sure
   });
 
   test('Dashboard should load', async () => {
-      const window = await electronApp.firstWindow();
-      // Wait for the app to load (React mounts into #root then renders #app)
-      await window.waitForLoadState('domcontentloaded');
-      await window.waitForSelector('#app', { state: 'visible', timeout: 15000 });
+    const window = await electronApp.firstWindow();
+    // Wait for the app to load (React mounts into #root then renders #app)
+    await window.waitForLoadState('domcontentloaded');
+    await window.waitForSelector('#app', { state: 'visible', timeout: 15000 });
 
-      // Check for main container or specific elements
-      const app = window.locator('#app');
-      await expect(app).toBeVisible();
+    // Check for main container or specific elements
+    const app = window.locator('#app');
+    await expect(app).toBeVisible();
 
-      // Check sidebar exists
-      const sidebar = await window.locator('#sidebar');
-      await expect(sidebar).toBeVisible();
+    // Check sidebar exists
+    const sidebar = await window.locator('#sidebar');
+    await expect(sidebar).toBeVisible();
   });
 
   test('Should navigate to Settings', async () => {
-      const window = await electronApp.firstWindow();
+    const window = await electronApp.firstWindow();
 
-      // Click on settings button
-      const settingsBtn = await window.locator('button[data-view="settings"]');
-      await settingsBtn.click();
+    // Click on settings button
+    const settingsBtn = await window.locator('button[data-view="settings"]');
+    await settingsBtn.click();
 
-      // Check if settings view is visible
-      const settingsView = await window.locator('#view-settings');
-      await expect(settingsView).toBeVisible();
+    // Check if settings view is visible
+    const settingsView = await window.locator('#view-settings');
+    await expect(settingsView).toBeVisible();
 
-      // Check for API key inputs
-      const julesKeyInput = await window.locator('#jules-api-key');
-      await expect(julesKeyInput).toBeVisible();
+    // Check for API key inputs
+    const julesKeyInput = await window.locator('#jules-api-key');
+    await expect(julesKeyInput).toBeVisible();
 
-      // Check for Cloudflare KV inputs
-      const cloudflareAccountId = await window.locator('#cloudflare-account-id');
-      await expect(cloudflareAccountId).toBeVisible();
-      const cloudflareApiToken = await window.locator('#cloudflare-api-token');
-      await expect(cloudflareApiToken).toBeVisible();
+    // Check for Cloudflare KV inputs
+    const cloudflareAccountId = await window.locator('#cloudflare-account-id');
+    await expect(cloudflareAccountId).toBeVisible();
+    const cloudflareApiToken = await window.locator('#cloudflare-api-token');
+    await expect(cloudflareApiToken).toBeVisible();
   });
 
   test('Should navigate to Computers view', async () => {
-      const window = await electronApp.firstWindow();
+    const window = await electronApp.firstWindow();
 
-      const computersBtn = await window.locator('button[data-view="computers"]');
-      await computersBtn.click();
+    const computersBtn = await window.locator('button[data-view="computers"]');
+    await computersBtn.click();
 
-      const computersView = await window.locator('#view-computers');
-      await expect(computersView).toBeVisible();
+    const computersView = await window.locator('#view-computers');
+    await expect(computersView).toBeVisible();
   });
 });

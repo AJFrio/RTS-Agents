@@ -1,4 +1,12 @@
-export const VIEWS = ['agent', 'dashboard', 'branches', 'pull-requests', 'computers', 'jira', 'settings'];
+export const VIEWS = [
+  'agent',
+  'dashboard',
+  'branches',
+  'pull-requests',
+  'computers',
+  'jira',
+  'settings',
+];
 
 export const initialState = {
   currentView: 'dashboard',
@@ -225,7 +233,12 @@ export function appReducer(state, action) {
     case 'SET_ALL_PRS':
       return {
         ...state,
-        github: { ...state.github, allPrs: action.payload, loadingAllPrs: false, allPrsError: null },
+        github: {
+          ...state.github,
+          allPrs: action.payload,
+          loadingAllPrs: false,
+          allPrsError: null,
+        },
       };
     case 'SET_ALL_PRS_LOADING':
       return { ...state, github: { ...state.github, loadingAllPrs: action.payload } };
@@ -237,7 +250,10 @@ export function appReducer(state, action) {
     case 'REMOVE_PR':
       return {
         ...state,
-        github: { ...state.github, allPrs: state.github.allPrs.filter((pr) => pr.id !== action.payload) },
+        github: {
+          ...state.github,
+          allPrs: state.github.allPrs.filter((pr) => pr.id !== action.payload),
+        },
       };
     case 'SET_JIRA':
       return { ...state, jira: { ...state.jira, ...action.payload } };
@@ -263,9 +279,13 @@ export function appReducer(state, action) {
           ...state.newTask,
           initialPrompt: action.payload?.initialPrompt ?? '',
           presetEnvironment:
-            action.payload?.presetEnvironment !== undefined ? action.payload.presetEnvironment : null,
+            action.payload?.presetEnvironment !== undefined
+              ? action.payload.presetEnvironment
+              : null,
           presetTargetDeviceId:
-            action.payload?.presetTargetDeviceId !== undefined ? action.payload.presetTargetDeviceId : null,
+            action.payload?.presetTargetDeviceId !== undefined
+              ? action.payload.presetTargetDeviceId
+              : null,
           presetPreferredProvider:
             action.payload?.presetPreferredProvider !== undefined
               ? action.payload.presetPreferredProvider

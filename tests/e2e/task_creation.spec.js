@@ -7,7 +7,7 @@ test.describe('Task Creation Shortcut', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 

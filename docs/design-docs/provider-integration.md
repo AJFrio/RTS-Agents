@@ -4,11 +4,11 @@
 
 ## Provider types
 
-| Type | Examples | Config | Discovery |
-|------|----------|--------|-----------|
-| Cloud API key | Jules, Cursor cloud, Codex, Claude cloud | Settings → API keys | HTTP list/create endpoints |
-| Local CLI | Gemini, Claude CLI, Codex local, OpenCode | CLI on PATH + repo paths | Scan session dirs under user home |
-| Hybrid | Cursor (local paths + cloud API) | Both | Combined in aggregator |
+| Type          | Examples                                  | Config                   | Discovery                         |
+| ------------- | ----------------------------------------- | ------------------------ | --------------------------------- |
+| Cloud API key | Jules, Cursor cloud, Codex, Claude cloud  | Settings → API keys      | HTTP list/create endpoints        |
+| Local CLI     | Gemini, Claude CLI, Codex local, OpenCode | CLI on PATH + repo paths | Scan session dirs under user home |
+| Hybrid        | Cursor (local paths + cloud API)          | Both                     | Combined in aggregator            |
 
 ## Adding a cloud provider
 

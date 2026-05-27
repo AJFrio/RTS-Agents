@@ -110,7 +110,7 @@ class JiraService {
 
   async listBoards(): Promise<JiraBoard[]> {
     const res = await this.request<JiraBoardsResponse>('/rest/agile/1.0/board?maxResults=50');
-    return (res.values || []).map(b => ({ id: b.id, name: b.name, type: b.type }));
+    return (res.values || []).map((b) => ({ id: b.id, name: b.name, type: b.type }));
   }
 
   async listSprints(boardId: number): Promise<JiraSprint[]> {
@@ -160,4 +160,3 @@ class JiraService {
 
 export const jiraService = new JiraService();
 export default jiraService;
-

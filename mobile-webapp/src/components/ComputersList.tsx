@@ -1,6 +1,6 @@
 /**
  * Computers List Component
- * 
+ *
  * Read-only view of registered computers from Cloudflare KV
  */
 
@@ -11,7 +11,7 @@ import { getAvailableTools, hasTool } from '../utils/tools';
 
 function formatTimeAgo(dateStr: string | undefined): string {
   if (!dateStr) return 'Unknown';
-  
+
   const date = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -65,7 +65,9 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
   const checkTool = (tool: string) => hasTool(computer, tool);
 
   return (
-    <div className={`bg-white dark:bg-card-dark border ${isOnline ? 'border-emerald-500/50' : 'border-slate-200 dark:border-border-dark'} p-4 rounded-xl shadow-sm`}>
+    <div
+      className={`bg-white dark:bg-card-dark border ${isOnline ? 'border-emerald-500/50' : 'border-slate-200 dark:border-border-dark'} p-4 rounded-xl shadow-sm`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -79,8 +81,12 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-600'}`} />
-          <span className={`text-xs font-bold uppercase ${isOnline ? 'text-emerald-500' : 'text-slate-500'}`}>
+          <span
+            className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-600'}`}
+          />
+          <span
+            className={`text-xs font-bold uppercase ${isOnline ? 'text-emerald-500' : 'text-slate-500'}`}
+          >
             {isOnline ? 'Online' : 'Offline'}
           </span>
         </div>
@@ -96,7 +102,9 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
       {/* Tools */}
       {availableTools.size > 0 ? (
         <div className="mb-3">
-          <p className="text-xs text-slate-500 dark:text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
+          <p className="text-xs text-slate-500 dark:text-slate-600 uppercase tracking-wider mb-1.5">
+            Available Tools
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {checkTool('gemini') && (
               <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-500 text-xs uppercase">
@@ -124,20 +132,30 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
               </span>
             )}
             {/* Fallback for unknown tools */}
-            {Array.from(availableTools).map(tool => {
-               if (['Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI', 'OpenCode CLI'].includes(tool)) return null;
-               return (
-                <span key={tool} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/30 text-slate-500 dark:text-slate-400 text-xs uppercase">
+            {Array.from(availableTools).map((tool) => {
+              if (
+                ['Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI', 'OpenCode CLI'].includes(
+                  tool
+                )
+              )
+                return null;
+              return (
+                <span
+                  key={tool}
+                  className="px-2 py-0.5 bg-slate-100 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/30 text-slate-500 dark:text-slate-400 text-xs uppercase"
+                >
                   {tool}
                 </span>
-               );
+              );
             })}
           </div>
         </div>
       ) : (
         <div className="mb-3">
-           <p className="text-xs text-slate-500 dark:text-slate-600 uppercase tracking-wider mb-1.5">Available Tools</p>
-           <span className="text-xs text-slate-500 dark:text-slate-600">No tools detected</span>
+          <p className="text-xs text-slate-500 dark:text-slate-600 uppercase tracking-wider mb-1.5">
+            Available Tools
+          </p>
+          <span className="text-xs text-slate-500 dark:text-slate-600">No tools detected</span>
         </div>
       )}
 
@@ -149,13 +167,18 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           </p>
           <div className="space-y-1 max-h-24 overflow-y-auto">
             {computer.repos.slice(0, 5).map((repo, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+              <div
+                key={i}
+                className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"
+              >
                 <span className="material-symbols-outlined text-xs">folder</span>
                 <span className="truncate">{repo.name}</span>
               </div>
             ))}
             {computer.repos.length > 5 && (
-              <p className="text-xs text-slate-500 dark:text-slate-600">+{computer.repos.length - 5} more</p>
+              <p className="text-xs text-slate-500 dark:text-slate-600">
+                +{computer.repos.length - 5} more
+              </p>
             )}
           </div>
         </div>
@@ -168,15 +191,19 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
           Last seen: {formatTimeAgo(computer.lastHeartbeat)}
         </span>
 
-        {isOnline && (checkTool('gemini') || checkTool('claude-cli') || checkTool('opencode') || checkTool('codex')) && (
-          <button
-            onClick={onDispatchTask}
-            className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">send</span>
-            <span className="font-bold uppercase">Send Task</span>
-          </button>
-        )}
+        {isOnline &&
+          (checkTool('gemini') ||
+            checkTool('claude-cli') ||
+            checkTool('opencode') ||
+            checkTool('codex')) && (
+            <button
+              onClick={onDispatchTask}
+              className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm">send</span>
+              <span className="font-bold uppercase">Send Task</span>
+            </button>
+          )}
       </div>
     </div>
   );
@@ -205,7 +232,9 @@ export default function ComputersList() {
     return (
       <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
         <span className="material-symbols-outlined text-slate-600 text-6xl">computer</span>
-        <h3 className="mt-4 text-lg font-bold uppercase tracking-tight">Cloudflare Not Configured</h3>
+        <h3 className="mt-4 text-lg font-bold uppercase tracking-tight">
+          Cloudflare Not Configured
+        </h3>
         <p className="mt-2 text-slate-500 text-sm max-w-sm">
           Configure Cloudflare KV in Settings to view registered computers.
         </p>
@@ -224,7 +253,9 @@ export default function ComputersList() {
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
-        <p className="mt-4 font-display text-xs text-slate-500 uppercase tracking-wider">Loading computers...</p>
+        <p className="mt-4 font-display text-xs text-slate-500 uppercase tracking-wider">
+          Loading computers...
+        </p>
       </div>
     );
   }
@@ -236,7 +267,8 @@ export default function ComputersList() {
         <span className="material-symbols-outlined text-slate-600 text-6xl">devices</span>
         <h3 className="mt-4 text-lg font-bold uppercase tracking-tight">No Computers Found</h3>
         <p className="mt-2 text-slate-500 text-sm max-w-sm">
-          No computers are registered in your Cloudflare KV store. Run the Electron app on a computer to register it.
+          No computers are registered in your Cloudflare KV store. Run the Electron app on a
+          computer to register it.
         </p>
         <button
           onClick={handleRefresh}
@@ -249,8 +281,8 @@ export default function ComputersList() {
   }
 
   // Separate online and offline computers
-  const onlineComputers = computers.filter(c => c.status === 'on');
-  const offlineComputers = computers.filter(c => c.status !== 'on');
+  const onlineComputers = computers.filter((c) => c.status === 'on');
+  const offlineComputers = computers.filter((c) => c.status !== 'on');
 
   return (
     <div className="p-4">
@@ -271,7 +303,9 @@ export default function ComputersList() {
           disabled={loadingComputers}
           className="p-2 text-slate-500 hover:text-primary transition-colors"
         >
-          <span className={`material-symbols-outlined text-xl ${loadingComputers ? 'animate-spin' : ''}`}>
+          <span
+            className={`material-symbols-outlined text-xl ${loadingComputers ? 'animate-spin' : ''}`}
+          >
             sync
           </span>
         </button>
@@ -280,9 +314,11 @@ export default function ComputersList() {
       {/* Online Computers */}
       {onlineComputers.length > 0 && (
         <div className="mb-6">
-          <h3 className="font-display text-[10px] text-slate-500 uppercase tracking-wider mb-3">Online</h3>
+          <h3 className="font-display text-[10px] text-slate-500 uppercase tracking-wider mb-3">
+            Online
+          </h3>
           <div className="space-y-3">
-            {onlineComputers.map(computer => (
+            {onlineComputers.map((computer) => (
               <ComputerCard
                 key={computer.id}
                 computer={computer}
@@ -296,14 +332,12 @@ export default function ComputersList() {
       {/* Offline Computers */}
       {offlineComputers.length > 0 && (
         <div>
-          <h3 className="font-display text-[10px] text-slate-500 uppercase tracking-wider mb-3">Offline</h3>
+          <h3 className="font-display text-[10px] text-slate-500 uppercase tracking-wider mb-3">
+            Offline
+          </h3>
           <div className="space-y-3">
-            {offlineComputers.map(computer => (
-              <ComputerCard
-                key={computer.id}
-                computer={computer}
-                onDispatchTask={() => {}}
-              />
+            {offlineComputers.map((computer) => (
+              <ComputerCard key={computer.id} computer={computer} onDispatchTask={() => {}} />
             ))}
           </div>
         </div>
@@ -314,7 +348,8 @@ export default function ComputersList() {
         <div className="flex items-start gap-2">
           <span className="material-symbols-outlined text-slate-500 text-sm">info</span>
           <p className="text-xs text-slate-500">
-            This mobile app does not register itself as a computer. It can only view and dispatch tasks to other registered devices.
+            This mobile app does not register itself as a computer. It can only view and dispatch
+            tasks to other registered devices.
           </p>
         </div>
       </div>

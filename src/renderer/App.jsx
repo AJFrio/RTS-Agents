@@ -17,7 +17,17 @@ import ConfirmModal from './modals/ConfirmModal.jsx';
 import PastedImageModal from './modals/PastedImageModal.jsx';
 
 function App() {
-  const { state, api, closeAgentModal, closeNewTaskModal, closeCreateRepoModal, closePrModal, closeConfirmModal, closeJiraIssueModal, closePastedImageModal } = useApp();
+  const {
+    state,
+    api,
+    closeAgentModal,
+    closeNewTaskModal,
+    closeCreateRepoModal,
+    closePrModal,
+    closeConfirmModal,
+    closeJiraIssueModal,
+    closePastedImageModal,
+  } = useApp();
   const view = state.currentView;
 
   useEffect(() => {
@@ -32,14 +42,21 @@ function App() {
   }, [state.settings?.theme]);
 
   const Page =
-    view === 'agent' ? AgentPage
-    : view === 'dashboard' ? DashboardPage
-    : view === 'branches' ? BranchesPage
-    : view === 'pull-requests' ? PullRequestsPage
-    : view === 'computers' ? ComputersPage
-    : view === 'jira' ? JiraPage
-    : view === 'settings' ? SettingsPage
-    : DashboardPage;
+    view === 'agent'
+      ? AgentPage
+      : view === 'dashboard'
+        ? DashboardPage
+        : view === 'branches'
+          ? BranchesPage
+          : view === 'pull-requests'
+            ? PullRequestsPage
+            : view === 'computers'
+              ? ComputersPage
+              : view === 'jira'
+                ? JiraPage
+                : view === 'settings'
+                  ? SettingsPage
+                  : DashboardPage;
 
   return (
     <>

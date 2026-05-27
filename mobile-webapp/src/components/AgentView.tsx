@@ -40,7 +40,7 @@ export default function AgentView() {
       sender: 'user', // UI uses 'sender' instead of 'role'
       role: 'user', // Backend expects 'role'
       text: inputValue,
-      content: inputValue // Backend expects 'content'
+      content: inputValue, // Backend expects 'content'
     };
 
     const newMessages = [...messages, newMessage];
@@ -50,9 +50,9 @@ export default function AgentView() {
 
     try {
       // Convert UI messages to backend format
-      const history = newMessages.map(m => ({
+      const history = newMessages.map((m) => ({
         role: m.role || (m.sender === 'user' ? 'user' : 'assistant'),
-        content: m.content || m.text
+        content: m.content || m.text,
       }));
 
       const response: any = await agentOrchestratorService.chat(history, selectedModel);
@@ -63,18 +63,21 @@ export default function AgentView() {
           sender: 'assistant',
           role: 'assistant',
           text: response.content,
-          content: response.content
+          content: response.content,
         };
-        setMessages(prev => [...prev, assistantMsg]);
+        setMessages((prev) => [...prev, assistantMsg]);
       }
     } catch (err: any) {
       console.error(err);
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        sender: 'assistant',
-        text: `Error: ${err.message}`,
-        isError: true
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: 'assistant',
+          text: `Error: ${err.message}`,
+          isError: true,
+        },
+      ]);
     } finally {
       setThinking(false);
     }
@@ -88,14 +91,16 @@ export default function AgentView() {
   };
 
   return (
-    <div id="view-agent" className="view-content h-full flex flex-col relative pb-20"> {/* pb-20 to account for bottom nav */}
+    <div id="view-agent" className="view-content h-full flex flex-col relative pb-20">
+      {' '}
+      {/* pb-20 to account for bottom nav */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                <span className="material-symbols-outlined text-6xl mb-4 opacity-50">smart_toy</span>
-                <p className="text-lg font-medium">How can I help you today?</p>
-                <p className="text-xs mt-2 opacity-70">Model: {selectedModel}</p>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full text-slate-400">
+            <span className="material-symbols-outlined text-6xl mb-4 opacity-50">smart_toy</span>
+            <p className="text-lg font-medium">How can I help you today?</p>
+            <p className="text-xs mt-2 opacity-70">Model: {selectedModel}</p>
+          </div>
         )}
         {messages.map((msg) => (
           <div
@@ -114,16 +119,17 @@ export default function AgentView() {
           </div>
         ))}
         {thinking && (
-           <div className="flex justify-start">
-             <div className="bg-white dark:bg-card-dark text-slate-500 text-sm px-4 py-3 rounded-2xl rounded-bl-none flex items-center gap-2 shadow-sm">
-               <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-               Thinking...
-             </div>
-           </div>
+          <div className="flex justify-start">
+            <div className="bg-white dark:bg-card-dark text-slate-500 text-sm px-4 py-3 rounded-2xl rounded-bl-none flex items-center gap-2 shadow-sm">
+              <span className="material-symbols-outlined text-sm animate-spin">
+                progress_activity
+              </span>
+              Thinking...
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
-
       <div className="p-4 bg-transparent">
         <div className="w-full max-w-4xl mx-auto">
           <div className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark rounded-[2rem] p-2 flex flex-col gap-1 shadow-md transition-colors duration-200">
@@ -131,7 +137,7 @@ export default function AgentView() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={thinking ? "Agent is working..." : "Ask Agent"}
+              placeholder={thinking ? 'Agent is working...' : 'Ask Agent'}
               disabled={thinking}
               rows={1}
               className="w-full !bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-sm min-h-[40px] px-4 py-2 focus:!ring-0 focus:outline-none disabled:opacity-50"
@@ -148,7 +154,7 @@ export default function AgentView() {
               <div className="flex items-center gap-2">
                 <button
                   className={`p-2 rounded-full transition-colors ${
-                      inputValue.trim()
+                    inputValue.trim()
                       ? 'bg-primary text-black hover:opacity-90 shadow-sm'
                       : 'text-slate-400 bg-slate-100 dark:bg-white/5'
                   }`}

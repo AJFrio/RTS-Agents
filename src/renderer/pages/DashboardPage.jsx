@@ -37,7 +37,9 @@ function RemoteQueueStrip({ activity }) {
       aria-label="Remote device queue and last run"
     >
       <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Remote / Headless</div>
+        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+          Remote / Headless
+        </div>
         {activity.loading && <span className="text-[10px] text-slate-500">Updating</span>}
       </div>
       <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
@@ -47,8 +49,13 @@ function RemoteQueueStrip({ activity }) {
             const q = d.queueLength || 0;
             const lt = d.lastTask;
             return (
-              <li key={d.deviceId} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 border-b border-slate-200/50 dark:border-border-dark/50 pb-2 last:border-0 last:pb-0">
-                <span className="font-semibold text-slate-800 dark:text-white shrink-0">{d.name || d.deviceId}</span>
+              <li
+                key={d.deviceId}
+                className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 border-b border-slate-200/50 dark:border-border-dark/50 pb-2 last:border-0 last:pb-0"
+              >
+                <span className="font-semibold text-slate-800 dark:text-white shrink-0">
+                  {d.name || d.deviceId}
+                </span>
                 {q > 0 && <span className="text-amber-600 dark:text-amber-400">Queued: {q}</span>}
                 {lt && (
                   <span className="text-slate-500 text-xs">
@@ -82,7 +89,9 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
         </div>
         <StatusBadge status={agent.status}>{statusLabel}</StatusBadge>
       </div>
-      <h3 className="font-bold text-sm mb-2 line-clamp-2 text-slate-800 dark:text-white">{agent.name || 'Untitled'}</h3>
+      <h3 className="font-bold text-sm mb-2 line-clamp-2 text-slate-800 dark:text-white">
+        {agent.name || 'Untitled'}
+      </h3>
       <div className="flex items-center gap-4 text-xs text-slate-500">
         {agent.repository && (
           <div className="flex items-center gap-1 truncate max-w-[140px]">
@@ -127,9 +136,13 @@ export default function DashboardPage() {
     [filteredAgents, startIndex, endIndex]
   );
 
-  const goPrev = () => dispatch({ type: 'SET_PAGINATION', payload: { currentPage: Math.max(1, currentPage - 1) } });
+  const goPrev = () =>
+    dispatch({ type: 'SET_PAGINATION', payload: { currentPage: Math.max(1, currentPage - 1) } });
   const goNext = () =>
-    dispatch({ type: 'SET_PAGINATION', payload: { currentPage: Math.min(totalPagesComputed, currentPage + 1) } });
+    dispatch({
+      type: 'SET_PAGINATION',
+      payload: { currentPage: Math.min(totalPagesComputed, currentPage + 1) },
+    });
 
   if (loading && state.agents.length === 0) {
     return (
@@ -165,7 +178,9 @@ export default function DashboardPage() {
 
       {pageItems.length === 0 ? (
         <div className="col-span-full text-center py-12">
-          <span className="material-symbols-outlined text-slate-600 text-4xl mb-4">filter_alt_off</span>
+          <span className="material-symbols-outlined text-slate-600 text-4xl mb-4">
+            filter_alt_off
+          </span>
           <p className="technical-font text-slate-500">No tasks match current filters</p>
         </div>
       ) : (

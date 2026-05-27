@@ -14,11 +14,11 @@
 /* Base styles */
 :root {
   --color-primary: #93b8c5;
-  --color-background-light: #F5F5F0;
+  --color-background-light: #f5f5f0;
   --color-background-dark: #121212;
-  --color-sidebar-dark: #0D0D0D;
-  --color-card-dark: #1A1A1A;
-  --color-border-dark: #2A2A2A;
+  --color-sidebar-dark: #0d0d0d;
+  --color-card-dark: #1a1a1a;
+  --color-border-dark: #2a2a2a;
 
   /* Safe area insets */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -45,7 +45,8 @@ body {
 }
 
 /* Allow text selection in inputs and textareas */
-input, textarea {
+input,
+textarea {
   -webkit-user-select: text;
   user-select: text;
 }
@@ -59,7 +60,11 @@ input, textarea {
 
 /* Material icons */
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
 }
 
 /* Modern rounded corners - allow Tailwind defaults */
@@ -234,7 +239,9 @@ html:not(.dark) body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2);
 }
 
 /* Disable body scroll when modal is open */

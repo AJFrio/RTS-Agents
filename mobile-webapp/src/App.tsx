@@ -42,9 +42,7 @@ function AppContent() {
 
   return (
     <>
-      <Layout>
-        {renderView()}
-      </Layout>
+      <Layout>{renderView()}</Layout>
       <AgentModal />
       <NewTaskModal />
     </>

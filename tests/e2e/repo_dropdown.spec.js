@@ -7,7 +7,7 @@ test.describe('Repository Dropdown Navigation', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 
@@ -24,20 +24,20 @@ test.describe('Repository Dropdown Navigation', () => {
         getAgents: async () => ({ agents: [], counts: {} }),
         getSettings: async () => ({
           settings: { theme: 'system' },
-          apiKeys: { jules: true }
+          apiKeys: { jules: true },
         }),
         getConnectionStatus: async () => ({}),
-        getRepositories: async (service) => {
+        getRepositories: async (_service) => {
           return {
             success: true,
             repositories: [
               { id: 1, name: 'repo-one', url: 'github.com/user/repo-one' },
               { id: 2, name: 'repo-two', url: 'github.com/user/repo-two' },
-              { id: 3, name: 'repo-three', url: 'github.com/user/repo-three' }
-            ]
+              { id: 3, name: 'repo-three', url: 'github.com/user/repo-three' },
+            ],
           };
         },
-        onRefreshTick: () => {}
+        onRefreshTick: () => {},
       };
     });
 
@@ -75,7 +75,7 @@ test.describe('Repository Dropdown Navigation', () => {
 
     // First item should be active
     await expect(options.nth(0)).toHaveClass(/active-repo-option/);
-    await expect(options.nth(0)).toHaveClass(/bg-\[\#C2B280\]\/20/);
+    await expect(options.nth(0)).toHaveClass(/bg-\[#C2B280\]\/20/);
 
     // Press ArrowDown again
     await repoSearch.press('ArrowDown');

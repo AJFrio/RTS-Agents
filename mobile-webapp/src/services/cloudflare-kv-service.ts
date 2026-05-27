@@ -1,6 +1,6 @@
 /**
  * Cloudflare KV Service (Read-Only for Mobile PWA)
- * 
+ *
  * This service does NOT register the device or send heartbeats.
  * It only reads computer/device data and can dispatch tasks to remote devices.
  */
@@ -102,7 +102,7 @@ class CloudflareKvService {
     let page = 1;
     while (true) {
       const json = await this.listNamespaces(page, 100);
-      const found = (json.result || []).find(ns => ns?.title === title);
+      const found = (json.result || []).find((ns) => ns?.title === title);
       if (found?.id) return found.id;
 
       const info = json.result_info || { total_pages: 1 };
@@ -116,7 +116,9 @@ class CloudflareKvService {
 
     const namespaceId = await this.findNamespaceIdByTitle(title);
     if (!namespaceId) {
-      throw new Error(`Cloudflare KV namespace "${title}" not found. Create it from the Electron app first.`);
+      throw new Error(
+        `Cloudflare KV namespace "${title}" not found. Create it from the Electron app first.`
+      );
     }
 
     this.namespaceId = namespaceId;
@@ -134,7 +136,11 @@ class CloudflareKvService {
     return this.request(`/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`);
   }
 
-  async getValueJson<T>(namespaceId: string, key: string, fallback: T | null = null): Promise<T | null> {
+  async getValueJson<T>(
+    namespaceId: string,
+    key: string,
+    fallback: T | null = null
+  ): Promise<T | null> {
     try {
       const text = await this.getValueText(namespaceId, key);
       if (!text) return fallback;
@@ -184,7 +190,11 @@ class CloudflareKvService {
     return this.getValueJson(namespaceId, this.queueKey(deviceId), []) as Promise<QueuedTask[]>;
   }
 
-  async putDeviceQueue(namespaceId: string, deviceId: string, queue: QueuedTask[]): Promise<{ success: boolean }> {
+  async putDeviceQueue(
+    namespaceId: string,
+    deviceId: string,
+    queue: QueuedTask[]
+  ): Promise<{ success: boolean }> {
     if (!Array.isArray(queue)) throw new Error('Queue must be an array');
     return this.putValue(namespaceId, this.queueKey(deviceId), queue);
   }

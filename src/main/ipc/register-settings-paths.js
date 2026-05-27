@@ -7,15 +7,15 @@ const { PROJECT_PATH_PROVIDERS } = require('../services/config-path-registry');
 const PATH_PROVIDER_META = {
   gemini: async ({ geminiService }) => ({
     defaultPath: geminiService.getDefaultPath(),
-    installed: await geminiService.isGeminiInstalled()
+    installed: await geminiService.isGeminiInstalled(),
   }),
   claude: async ({ claudeService }) => ({
     defaultPath: claudeService.getDefaultPath(),
-    installed: await claudeService.isClaudeInstalled()
+    installed: await claudeService.isClaudeInstalled(),
   }),
   cursor: () => ({}),
   codex: () => ({}),
-  github: () => ({})
+  github: () => ({}),
 };
 
 function registerSettingsPathHandlers(deps) {
@@ -44,7 +44,7 @@ function registerSettingsPathHandlers(deps) {
       const extra = metaFn ? await metaFn({ geminiService, claudeService }) : {};
       return {
         paths: configStore.getProjectPaths(provider),
-        ...extra
+        ...extra,
       };
     });
   }
@@ -52,7 +52,7 @@ function registerSettingsPathHandlers(deps) {
   ipcMain.handle('settings:get-all-project-paths', async () => {
     return {
       paths: configStore.getAllProjectPaths(),
-      ...configStore.getProjectPathsByProvider()
+      ...configStore.getProjectPathsByProvider(),
     };
   });
 }

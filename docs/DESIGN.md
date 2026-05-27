@@ -14,13 +14,13 @@ RTS Agents reduces context switching between coding agents (Jules, Cursor, Gemin
 
 ## Key flows
 
-| Flow | Entry | Success criteria |
-|------|-------|------------------|
-| Sync dashboard | Header SYNC / poll | Tasks refresh without freezing UI |
-| New task | New Task modal | Correct provider + repo/env; task appears in list |
-| Agent detail | Card click | Provider-specific history loads or clear error |
-| GitHub PR | Branches / PR pages | List PRs, merge, mark ready when token valid |
-| Remote dispatch | Computers + mobile | Task reaches chosen desktop and runs |
+| Flow            | Entry               | Success criteria                                  |
+| --------------- | ------------------- | ------------------------------------------------- |
+| Sync dashboard  | Header SYNC / poll  | Tasks refresh without freezing UI                 |
+| New task        | New Task modal      | Correct provider + repo/env; task appears in list |
+| Agent detail    | Card click          | Provider-specific history loads or clear error    |
+| GitHub PR       | Branches / PR pages | List PRs, merge, mark ready when token valid      |
+| Remote dispatch | Computers + mobile  | Task reaches chosen desktop and runs              |
 
 ## Non-goals (current)
 

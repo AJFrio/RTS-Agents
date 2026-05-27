@@ -1,11 +1,11 @@
 <img width="1916" height="997" alt="image" src="https://github.com/user-attachments/assets/ac16d7c3-f19b-4fca-8cf2-3a8571655820" />
 
-
 ## RTS Agents
 
 RTS Agents is 1 dashboard to access all your coding agents and Github repos across all your service providers and devices
 
 It supports:
+
 - **Local CLI-backed agents**: Gemini CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (reads local session files and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
 - **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI (Codex via Assistants/Threads), and Claude (Anthropic Messages API).
 - **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
@@ -15,6 +15,7 @@ It supports:
 ## What it can do
 
 ### Dashboard
+
 - **Unified task list** across providers (Gemini, OpenCode, Jules, Cursor, Codex, Claude CLI, Claude Cloud)
 - **Search + filtering** by provider and status
 - **Pagination** for large task sets
@@ -22,6 +23,7 @@ It supports:
 - **Task completion notifications** (in-app toast + sound when a task transitions to completed)
 
 ### Task details
+
 - Click a task card to view **provider-specific details**, such as:
   - Cursor: conversation transcript
   - Jules: activity timeline + PR output (when available)
@@ -30,7 +32,9 @@ It supports:
   - Claude CLI / Cloud: message history (local sessions or tracked cloud conversations)
 
 ### Create new tasks (“New Task” modal)
+
 Create tasks from the UI, with provider-specific options:
+
 - **Jules**: choose connected repo source + branch, optionally auto-create PR
 - **Cursor Cloud**: choose repository + ref/branch, optionally auto-create PR
 - **Gemini CLI**: choose a local Git repo path, start a detached `gemini` CLI session
@@ -39,7 +43,9 @@ Create tasks from the UI, with provider-specific options:
 - **Claude Cloud**: prompt-only (no repository required)
 
 ### GitHub “Branches” view
+
 When configured with a GitHub token, you can:
+
 - List your GitHub repositories (sorted by updated time)
 - View open PRs for a repo
 - Open PR details
@@ -48,7 +54,6 @@ When configured with a GitHub token, you can:
 
 <img width="1908" height="991" alt="image" src="https://github.com/user-attachments/assets/cb1e9388-2f88-452b-a774-36781bddd934" />
 
-
 ---
 
 ## Mobile Companion App (PWA)
@@ -56,12 +61,14 @@ When configured with a GitHub token, you can:
 The repository includes a mobile-optimized Progressive Web App (PWA) in the `mobile-webapp/` directory.
 
 ### Capabilities
+
 - **Remote Control**: View connected desktop instances and dispatch tasks to them via Cloudflare KV.
 - **Unified Dashboard**: View and filter tasks across all providers, similar to the desktop app.
 - **Cloud Agents**: Create and monitor tasks for cloud providers (Jules, Cursor, Codex, Claude Cloud) directly from your phone.
 - **GitHub**: View repositories and branches (read-only).
 
 ### Limitations
+
 - **No Local Execution**: It cannot run local CLI tools (Gemini/Claude CLI) directly. Instead, it dispatches these tasks to your running desktop instances.
 - **Requires Cloudflare KV**: Syncing between desktop and mobile requires Cloudflare KV configuration.
 - **Read-Only Device Status**: It views other devices but does not register itself as a compute node.
@@ -90,11 +97,13 @@ The repository includes a mobile-optimized Progressive Web App (PWA) in the `mob
 ## Installation
 
 ### Prerequisites
+
 - **Node.js**: recommended **Node 18+** (Electron 28 runtime)
 - **npm** (bundled with Node)
 - **Git** (required for cloning and for the in-app “Update & Restart” feature)
 
 Optional, depending on features you use:
+
 - **Gemini CLI** (for Gemini local sessions + creating Gemini tasks)
 - **Claude Code CLI** (for Claude local sessions + creating Claude CLI tasks)
 
@@ -133,18 +142,21 @@ npm run dev
 This app stores provider credentials in a local Electron settings store. You can configure keys in **Settings → API Command Keys**.
 
 ### Jules API key (required for Jules)
+
 - **Used for**: listing sessions, listing sources/repos, creating sessions, reading activities
 - **Where it’s sent**: `https://jules.googleapis.com/v1alpha/...`
 - **Header**: `X-Goog-Api-Key: <key>`
 - **How to get it**: from your Jules console / configuration (the app UI hints “Jules console settings”)
 
 ### Cursor Cloud API key (required for Cursor)
+
 - **Used for**: listing agents, reading agent details, listing repositories, creating agents
 - **Where it’s sent**: `https://api.cursor.com/v0/...`
 - **Auth**: HTTP Basic Auth with the API key as the username (empty password)
 - **How to get it**: from Cursor settings (the app UI hints “cursor.com/settings”)
 
 ### OpenAI API key (required for Codex)
+
 - **Used for**: creating threads, fetching thread/runs/messages for tracked threads
 - **Where it’s sent**: `https://api.openai.com/v1/...`
 - **Header**: `Authorization: Bearer <key>`
@@ -152,12 +164,14 @@ This app stores provider credentials in a local Electron settings store. You can
 - **How to get it**: from OpenAI API keys (the app UI hints “platform.openai.com/api-keys”)
 
 ### Anthropic API key (required for Claude Cloud)
+
 - **Used for**: sending a prompt via the Anthropic Messages API
 - **Where it’s sent**: `https://api.anthropic.com/v1/messages`
 - **Header**: `x-api-key: <key>`
 - **How to get it**: from the Anthropic console (the app UI hints “console.anthropic.com”)
 
 ### GitHub Personal Access Token (required for GitHub view + PR actions)
+
 - **Used for**:
   - Listing your repos
   - Listing PRs and branches
@@ -178,6 +192,7 @@ This app stores provider credentials in a local Electron settings store. You can
 These providers are **not configured via API key inside this app**. They rely on locally-installed CLIs and their session folders.
 
 ### Gemini CLI
+
 - **Detected by**: existence of a Gemini data directory under your home directory:
   - Windows example: `C:\Users\<you>\.gemini\tmp`
 - **Starts tasks by running** (detached): `gemini -p "<prompt>" -y`
@@ -188,10 +203,12 @@ These providers are **not configured via API key inside this app**. They rely on
   - The New Task modal will list repos found under those paths (directories containing `.git`)
 
 If Gemini shows as “not installed”:
+
 - Ensure you have installed Gemini CLI and that you’ve run it at least once so it creates its home folder.
 - Ensure `gemini` is available on your `PATH` (the app will run `gemini` / `gemini.cmd` depending on OS).
 
 ### Claude Code CLI
+
 - **Detected by**: existence of a Claude data directory under your home directory:
   - Windows example: `C:\Users\<you>\.claude\`
 - **Reads local sessions from**:
@@ -199,6 +216,7 @@ If Gemini shows as “not installed”:
 - **Starts tasks by running** (detached): `claude -p "<prompt>" --allowedTools "Read,Edit,Bash"`
 
 If Claude CLI shows as “not installed”:
+
 - Ensure Claude Code CLI is installed and that you’ve run it at least once so it creates its home folder.
 - Ensure `claude` is available on your `PATH` (the app will run `claude` / `claude.cmd` depending on OS).
 
@@ -232,6 +250,7 @@ If Claude CLI shows as “not installed”:
 Structured knowledge for coding agents lives under [`docs/`](docs/) with [`AGENTS.md`](AGENTS.md) as the entry map. See [Harness engineering](https://openai.com/index/harness-engineering/) for the methodology.
 
 ### Running Playwright on Windows
+
 The provided `test:e2e` script uses `env` and `xvfb-maybe`, which are typically not available on Windows.
 
 On Windows, install browsers and run Playwright directly:
@@ -267,15 +286,19 @@ npx playwright test
 ## Troubleshooting
 
 ### A provider shows “Offline” or “Error”
+
 - Open **Settings** and use the provider’s **TEST** button.
 - Confirm your key/token is valid and has the necessary permissions.
 
 ### Gemini / Claude CLI is not detected
+
 - Ensure the CLI is installed and available in `PATH`.
 - Run the CLI once manually to create its home directory under your user profile.
 
 ### “Update & Restart” does not work
+
 The app runs `git pull` in the current working directory and then relaunches.
+
 - Ensure the app is running from a **git clone** with a configured remote
 - Ensure `git` is installed and available in `PATH`
 - Ensure your environment has permission to pull from the remote

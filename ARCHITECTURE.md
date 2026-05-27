@@ -4,12 +4,12 @@ RTS Agents is an **agent orchestration dashboard**: one place to monitor, create
 
 ## System boundaries
 
-| Surface | Runtime | Entry | Role |
-|---------|---------|-------|------|
-| Desktop app | Electron 28 | `main.js` | Primary product: IPC, polling, provider services |
-| Renderer UI | React 18 + Vite | `src/renderer/` | Dashboard, settings, modals, GitHub/Jira views |
-| Mobile PWA | Vite + Cloudflare Worker | `mobile-webapp/` | Remote dashboard; dispatches to desktop via KV |
-| Headless node | Node (no UI) | `headless.js` | Registers device, pulls keys, runs queued remote tasks |
+| Surface       | Runtime                  | Entry            | Role                                                   |
+| ------------- | ------------------------ | ---------------- | ------------------------------------------------------ |
+| Desktop app   | Electron 28              | `main.js`        | Primary product: IPC, polling, provider services       |
+| Renderer UI   | React 18 + Vite          | `src/renderer/`  | Dashboard, settings, modals, GitHub/Jira views         |
+| Mobile PWA    | Vite + Cloudflare Worker | `mobile-webapp/` | Remote dashboard; dispatches to desktop via KV         |
+| Headless node | Node (no UI)             | `headless.js`    | Registers device, pulls keys, runs queued remote tasks |
 
 ## Layering (desktop)
 
@@ -34,15 +34,15 @@ Main process (main.js, CommonJS)
 
 ## Domain modules
 
-| Domain | Main services | Renderer areas |
-|--------|---------------|----------------|
-| Agent discovery | `gemini-service`, `claude-service`, `opencode-service`, `jules-service`, `cursor-service`, `codex-service` | Dashboard, AgentPage |
-| Task creation | same + `project-service` | NewTaskModal |
-| Orchestration | `agent-orchestrator`, `openrouter-service` | Agent chat / tools |
-| GitHub | `github-service` | BranchesPage, PullRequestsPage, PrModal |
-| Multi-device | `cloudflare-kv-service`, `queue-processor-service` | ComputersPage, Settings |
-| Projects / repos | `project-service`, `config-store` paths | Settings, repo pickers |
-| Integrations | `jira-service` | Jira views (where enabled) |
+| Domain           | Main services                                                                                              | Renderer areas                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Agent discovery  | `gemini-service`, `claude-service`, `opencode-service`, `jules-service`, `cursor-service`, `codex-service` | Dashboard, AgentPage                    |
+| Task creation    | same + `project-service`                                                                                   | NewTaskModal                            |
+| Orchestration    | `agent-orchestrator`, `openrouter-service`                                                                 | Agent chat / tools                      |
+| GitHub           | `github-service`                                                                                           | BranchesPage, PullRequestsPage, PrModal |
+| Multi-device     | `cloudflare-kv-service`, `queue-processor-service`                                                         | ComputersPage, Settings                 |
+| Projects / repos | `project-service`, `config-store` paths                                                                    | Settings, repo pickers                  |
+| Integrations     | `jira-service`                                                                                             | Jira views (where enabled)              |
 
 ## Data flow (typical poll cycle)
 

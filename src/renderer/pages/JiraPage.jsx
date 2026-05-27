@@ -15,10 +15,12 @@ export default function JiraPage() {
       const result = await api.jira.getBoards();
       if (result?.success) {
         const boards = result.boards || [];
-        const savedId = typeof localStorage !== 'undefined' ? localStorage.getItem('rts_jira_board_id') : null;
-        const selectedBoardId = savedId && boards.some((b) => String(b.id) === String(savedId))
-          ? savedId
-          : boards[0]?.id ?? null;
+        const savedId =
+          typeof localStorage !== 'undefined' ? localStorage.getItem('rts_jira_board_id') : null;
+        const selectedBoardId =
+          savedId && boards.some((b) => String(b.id) === String(savedId))
+            ? savedId
+            : (boards[0]?.id ?? null);
         dispatch({ type: 'SET_JIRA', payload: { boards, selectedBoardId, loading: false } });
         if (selectedBoardId) loadIssues(selectedBoardId);
       } else throw new Error(result?.error);
@@ -114,7 +116,9 @@ export default function JiraPage() {
           <select
             id="jira-assignee-filter"
             value={jira.selectedAssignee || ''}
-            onChange={(e) => dispatch({ type: 'SET_JIRA', payload: { selectedAssignee: e.target.value || null } })}
+            onChange={(e) =>
+              dispatch({ type: 'SET_JIRA', payload: { selectedAssignee: e.target.value || null } })
+            }
             className="bg-black dark:bg-card-dark border border-border-dark text-slate-300 technical-font text-xs py-1 px-3 focus:ring-1 focus:ring-primary focus:border-primary rounded-lg cursor-pointer"
           >
             <option value="">All Users</option>
@@ -131,7 +135,11 @@ export default function JiraPage() {
           onClick={() => jira.selectedBoardId && loadIssues(jira.selectedBoardId)}
           disabled={jira.loading}
         >
-          <span className={`material-symbols-outlined text-sm ${jira.loading ? 'animate-spin' : ''}`}>refresh</span>
+          <span
+            className={`material-symbols-outlined text-sm ${jira.loading ? 'animate-spin' : ''}`}
+          >
+            refresh
+          </span>
           REFRESH
         </Button>
       </div>
@@ -140,7 +148,9 @@ export default function JiraPage() {
         <div id="jira-issues-list" className="flex-1 overflow-y-auto space-y-2">
           {jira.loading && (jira.issues || []).length === 0 && (
             <div className="flex flex-col items-center justify-center h-32">
-              <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
+              <span className="material-symbols-outlined text-primary text-3xl animate-spin">
+                sync
+              </span>
               <span className="text-xs technical-font text-slate-500 mt-2">LOADING ISSUES...</span>
             </div>
           )}

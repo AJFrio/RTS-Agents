@@ -9,7 +9,7 @@ function agentSignature(agent) {
     agent.name || '',
     agent.summary || '',
     agent.prompt || '',
-    agent.repository || ''
+    agent.repository || '',
   ].join('\0');
 }
 

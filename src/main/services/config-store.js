@@ -11,7 +11,7 @@ class ConfigStore {
       name: 'rts-agents-config',
       schema,
       encryptionKey: 'rts-agents-v1-secure-key',
-      clearInvalidConfig: true
+      clearInvalidConfig: true,
     });
   }
 
@@ -44,7 +44,7 @@ class ConfigStore {
       ...(typeof accountId === 'string' ? { accountId } : {}),
       ...(typeof apiToken === 'string' ? { apiToken } : {}),
       ...(typeof namespaceId === 'string' ? { namespaceId } : {}),
-      ...(typeof namespaceTitle === 'string' ? { namespaceTitle } : {})
+      ...(typeof namespaceTitle === 'string' ? { namespaceTitle } : {}),
     };
     this.store.set('cloudflare', next);
     return next;
@@ -223,7 +223,7 @@ class ConfigStore {
   getFullConfig() {
     return {
       apiKeys: this.getAllApiKeys(),
-      settings: this.getAllSettings()
+      settings: this.getAllSettings(),
     };
   }
 
@@ -248,7 +248,7 @@ class ConfigStore {
   }
 
   removeCodexThread(threadId) {
-    const threads = this.getCodexThreads().filter(t => t.id !== threadId);
+    const threads = this.getCodexThreads().filter((t) => t.id !== threadId);
     this.setCodexThreads(threads);
     return threads;
   }
@@ -269,7 +269,7 @@ class ConfigStore {
   }
 
   removeClaudeConversation(conversationId) {
-    const conversations = this.getClaudeConversations().filter(c => c.id !== conversationId);
+    const conversations = this.getClaudeConversations().filter((c) => c.id !== conversationId);
     this.setClaudeConversations(conversations);
     return conversations;
   }
@@ -286,7 +286,7 @@ class ConfigStore {
     const outputs = this.store.get('sessionOutputs', {});
     outputs[sessionId] = {
       output: output,
-      savedAt: new Date().toISOString()
+      savedAt: new Date().toISOString(),
     };
 
     const entries = Object.entries(outputs);

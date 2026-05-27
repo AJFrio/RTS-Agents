@@ -13,14 +13,9 @@ function registerSettingsHandlers(deps) {
     githubService,
     jiraService,
     opencodeService,
-    lifecycle
+    lifecycle,
   } = deps;
-  const {
-    startPolling,
-    stopPolling,
-    invalidateAgentDiscovery,
-    startDiscoveryWatchers
-  } = lifecycle;
+  const { startPolling, stopPolling, invalidateAgentDiscovery, startDiscoveryWatchers } = lifecycle;
   const { getMainWindow } = deps;
 
   async function testOpenAiApiKeyConnection() {
@@ -39,11 +34,11 @@ function registerSettingsHandlers(deps) {
     }
   }
 
-ipcMain.handle('settings:get', async () => {
+  ipcMain.handle('settings:get', async () => {
     const [geminiInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
       geminiService.isGeminiInstalled(),
       claudeService.isClaudeInstalled(),
-      opencodeService.isOpenCodeInstalled()
+      opencodeService.isOpenCodeInstalled(),
     ]);
     return {
       settings: configStore.getAllSettings(),
@@ -57,7 +52,7 @@ ipcMain.handle('settings:get', async () => {
         claude: configStore.hasApiKey('claude'),
         github: configStore.hasApiKey('github'),
         jira: configStore.hasApiKey('jira'),
-        cloudflare: configStore.hasCloudflareConfig()
+        cloudflare: configStore.hasCloudflareConfig(),
       },
       jiraBaseUrl: configStore.getJiraBaseUrl(),
       cloudflare: (() => {
@@ -65,7 +60,7 @@ ipcMain.handle('settings:get', async () => {
         return {
           configured: configStore.hasCloudflareConfig(),
           accountId: cfg?.accountId || '',
-          namespaceTitle: cfg?.namespaceTitle || 'rtsa'
+          namespaceTitle: cfg?.namespaceTitle || 'rtsa',
         };
       })(),
       geminiInstalled,
@@ -81,17 +76,17 @@ ipcMain.handle('settings:get', async () => {
       githubPaths: configStore.getGithubPaths(),
       filters: configStore.getFilters(),
       selectedModel: configStore.getSelectedModel(),
-      localDeviceId: configStore.getOrCreateDeviceIdentity().id
+      localDeviceId: configStore.getOrCreateDeviceIdentity().id,
     };
   });
-  
+
   /**
    * Save API key
    */
-ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
+  ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     invalidateAgentDiscovery();
     configStore.setApiKey(provider, key);
-    
+
     // Update service with new key
     if (provider === 'jules') {
       julesService.setApiKey(key);
@@ -114,15 +109,15 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     } else if (provider === 'gemini') {
       geminiService.setApiKey(key);
     }
-    
+
     return { success: true };
   });
-  
-ipcMain.handle('settings:set-jira-base-url', async (event, { url }) => {
+
+  ipcMain.handle('settings:set-jira-base-url', async (event, { url }) => {
     configStore.setJiraBaseUrl(url);
     return { success: true };
   });
-ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
+  ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
     try {
       if (provider === 'jules') {
         return await julesService.testConnection();
@@ -148,14 +143,14 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
       return { success: false, error: err.message };
     }
   });
-  
+
   /**
    * Remove API key (disconnect)
    */
-ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
+  ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
     invalidateAgentDiscovery();
     configStore.removeApiKey(provider);
-    
+
     // Clear the API key from the service
     if (provider === 'jules') {
       julesService.setApiKey(null);
@@ -178,17 +173,17 @@ ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
     } else if (provider === 'gemini') {
       geminiService.setApiKey(null);
     }
-    
+
     return { success: true };
   });
-ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
+  ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
     if (typeof enabled === 'boolean') {
       configStore.setAutoPolling(enabled);
     }
     if (typeof interval === 'number') {
       configStore.setPollingInterval(interval);
     }
-    
+
     invalidateAgentDiscovery();
     startDiscoveryWatchers();
 
@@ -198,45 +193,45 @@ ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
     } else {
       stopPolling();
     }
-    
+
     return { success: true };
   });
-  
+
   /**
    * Set application theme
    */
-ipcMain.handle('settings:set-theme', async (event, { theme }) => {
+  ipcMain.handle('settings:set-theme', async (event, { theme }) => {
     configStore.setSetting('theme', theme);
     return { success: true };
   });
-  
+
   /**
    * Set display mode
    */
-ipcMain.handle('settings:set-display-mode', async (event, { mode }) => {
+  ipcMain.handle('settings:set-display-mode', async (event, { mode }) => {
     configStore.setDisplayMode(mode);
     if (getMainWindow() && !getMainWindow().isDestroyed()) {
       getMainWindow().setFullScreen(mode === 'fullscreen');
     }
     return { success: true };
   });
-  
+
   /**
    * Save filters
    */
-ipcMain.handle('settings:save-filters', async (event, { filters }) => {
+  ipcMain.handle('settings:save-filters', async (event, { filters }) => {
     configStore.setFilters(filters);
     return { success: true };
   });
-  
+
   /**
    * Set selected model
    */
-ipcMain.handle('settings:set-model', async (event, { model }) => {
+  ipcMain.handle('settings:set-model', async (event, { model }) => {
     configStore.setSelectedModel(model);
     return { success: true };
   });
-  
+
   registerSettingsPathHandlers(deps);
 }
 

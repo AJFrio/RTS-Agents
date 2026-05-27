@@ -14,12 +14,12 @@ Developers who run **multiple coding agents** across machines and want a **singl
 
 ## Provider positioning
 
-| Provider | User expectation |
-|----------|------------------|
-| Jules / Cursor cloud | Fully remote; API key in Settings |
+| Provider                               | User expectation                                           |
+| -------------------------------------- | ---------------------------------------------------------- |
+| Jules / Cursor cloud                   | Fully remote; API key in Settings                          |
 | Gemini / Claude / Codex / OpenCode CLI | Local install + repo paths; app discovers sessions on disk |
-| OpenRouter | Optional model hub for orchestrator chat |
-| GitHub | PAT for repo/PR features only |
+| OpenRouter                             | Optional model hub for orchestrator chat                   |
+| GitHub                                 | PAT for repo/PR features only                              |
 
 ## Success signals
 

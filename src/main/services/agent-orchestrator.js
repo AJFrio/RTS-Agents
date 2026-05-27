@@ -24,36 +24,40 @@ class AgentOrchestrator {
     // OpenRouter
     if (configStore.hasApiKey('openrouter')) {
       promises.push(
-        openRouterService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'openrouter', error: err.message }))
+        openRouterService
+          .getModels()
+          .then((list) => models.push(...list))
+          .catch((err) => errors.push({ provider: 'openrouter', error: err.message }))
       );
     }
 
     // OpenAI (Codex)
     if (configStore.hasApiKey('openai') || configStore.hasApiKey('codex')) {
       promises.push(
-        codexService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'openai', error: err.message }))
+        codexService
+          .getModels()
+          .then((list) => models.push(...list))
+          .catch((err) => errors.push({ provider: 'openai', error: err.message }))
       );
     }
 
     // Anthropic (Claude)
     if (configStore.hasApiKey('claude')) {
       promises.push(
-        claudeService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'anthropic', error: err.message }))
+        claudeService
+          .getModels()
+          .then((list) => models.push(...list))
+          .catch((err) => errors.push({ provider: 'anthropic', error: err.message }))
       );
     }
 
     // Gemini
     if (configStore.hasApiKey('gemini')) {
       promises.push(
-        geminiService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'gemini', error: err.message }))
+        geminiService
+          .getModels()
+          .then((list) => models.push(...list))
+          .catch((err) => errors.push({ provider: 'gemini', error: err.message }))
       );
     }
 
@@ -98,98 +102,101 @@ If you don't need to use a tool, just reply with text.
     // 2. Parse model
     let model = selectedModel;
     if (selectedModel.startsWith('openrouter/')) {
-        model = selectedModel.replace('openrouter/', '');
+      model = selectedModel.replace('openrouter/', '');
     } else if (selectedModel.startsWith('openai/')) {
-        model = selectedModel.replace('openai/', '');
+      model = selectedModel.replace('openai/', '');
     } else if (selectedModel.startsWith('anthropic/')) {
-        model = selectedModel.replace('anthropic/', '');
+      model = selectedModel.replace('anthropic/', '');
     } else if (selectedModel.startsWith('gemini/')) {
-        model = selectedModel.replace('gemini/', '');
+      model = selectedModel.replace('gemini/', '');
     }
 
     try {
-        let conversation = fullMessages;
-        let toolTurns = 0;
+      let conversation = fullMessages;
+      let toolTurns = 0;
 
-        // We use OpenRouterService as the generic gateway
-        // If the user provided a specific key for OpenAI/Gemini/Anthropic in the future,
-        // we might want to use their specific services, but OpenRouterService is a good unified interface
-        // if we route through it.
-        // HOWEVER, OpenRouterService requires an OpenRouter API key.
-        // If the user selected "openai/gpt-4o" but only provided an OpenAI key (not OpenRouter),
-        // this will fail if we force it through OpenRouterService.
+      // We use OpenRouterService as the generic gateway
+      // If the user provided a specific key for OpenAI/Gemini/Anthropic in the future,
+      // we might want to use their specific services, but OpenRouterService is a good unified interface
+      // if we route through it.
+      // HOWEVER, OpenRouterService requires an OpenRouter API key.
+      // If the user selected "openai/gpt-4o" but only provided an OpenAI key (not OpenRouter),
+      // this will fail if we force it through OpenRouterService.
 
-        // Check keys. If we have OpenRouter key, use OpenRouterService.
-        // If not, and we have OpenAI key and it's an OpenAI model, use generic OpenAI fetch?
-        // Since I only implemented OpenRouterService (which expects OpenRouter key),
-        // I should probably support using the provider keys directly if OpenRouter key is missing?
-        // Or just assume the user uses OpenRouter for the "Meta-Agent".
-        // The user asked for "model api key section... for openrouter, anthropic, openai, gemini".
-        // This implies they might want to use those direct keys.
+      // Check keys. If we have OpenRouter key, use OpenRouterService.
+      // If not, and we have OpenAI key and it's an OpenAI model, use generic OpenAI fetch?
+      // Since I only implemented OpenRouterService (which expects OpenRouter key),
+      // I should probably support using the provider keys directly if OpenRouter key is missing?
+      // Or just assume the user uses OpenRouter for the "Meta-Agent".
+      // The user asked for "model api key section... for openrouter, anthropic, openai, gemini".
+      // This implies they might want to use those direct keys.
 
-        // For simplicity in this iteration, I will assume OpenRouter is the primary "Orchestrator" brain
-        // OR I will hack OpenRouterService to accept a different Base URL/Key if needed.
-        // Actually, OpenRouterService is just a fetch wrapper. I can instantiate it with different config?
-        // No, it's a singleton.
+      // For simplicity in this iteration, I will assume OpenRouter is the primary "Orchestrator" brain
+      // OR I will hack OpenRouterService to accept a different Base URL/Key if needed.
+      // Actually, OpenRouterService is just a fetch wrapper. I can instantiate it with different config?
+      // No, it's a singleton.
 
-        // Let's assume for V1 that the Orchestrator uses OpenRouter.
-        // If the user wants to use their OpenAI key, they should probably put it in OpenRouter or I need a generic LLM service.
-        // I'll stick to OpenRouterService for now. If it fails (no key), I'll return an error.
+      // Let's assume for V1 that the Orchestrator uses OpenRouter.
+      // If the user wants to use their OpenAI key, they should probably put it in OpenRouter or I need a generic LLM service.
+      // I'll stick to OpenRouterService for now. If it fails (no key), I'll return an error.
 
-        if (!configStore.hasApiKey('openrouter')) {
-             // Fallback: If OpenAI key exists and model is openai, maybe try to use it?
-             // But I haven't implemented a generic OpenAI chat service (CodexService is assistants).
-             return { role: 'assistant', content: "Please configure an OpenRouter API key in Settings to use the Agent Orchestrator." };
+      if (!configStore.hasApiKey('openrouter')) {
+        // Fallback: If OpenAI key exists and model is openai, maybe try to use it?
+        // But I haven't implemented a generic OpenAI chat service (CodexService is assistants).
+        return {
+          role: 'assistant',
+          content:
+            'Please configure an OpenRouter API key in Settings to use the Agent Orchestrator.',
+        };
+      }
+
+      while (toolTurns <= maxToolTurns) {
+        const response = await openRouterService.chat(conversation, model);
+
+        if (!response || !response.choices || !response.choices[0]) {
+          throw new Error('Invalid response from LLM provider');
         }
 
-        while (toolTurns <= maxToolTurns) {
-            const response = await openRouterService.chat(conversation, model);
-
-            if (!response || !response.choices || !response.choices[0]) {
-                throw new Error("Invalid response from LLM provider");
-            }
-
-            const assistantMessage = response.choices[0].message;
-            const content = assistantMessage.content || '';
-            let toolCall = null;
-            try {
-                const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
-                if (jsonMatch) {
-                    toolCall = JSON.parse(jsonMatch[0]);
-                } else if (content.trim().startsWith('{')) {
-                    toolCall = JSON.parse(content);
-                }
-            } catch (e) {
-                // Not valid JSON, treat as text
-            }
-
-            if (!toolCall || !toolCall.tool) {
-                return assistantMessage;
-            }
-
-            if (toolTurns >= maxToolTurns) {
-                const result = await this.executeTool(toolCall);
-                return {
-                    role: 'assistant',
-                    content: "I'm stuck in a loop. Here is the last result: " + JSON.stringify(result)
-                };
-            }
-
-            const result = await this.executeTool(toolCall);
-            const toolMessage = {
-                role: 'user',
-                content: `Tool '${toolCall.tool}' Output: ${JSON.stringify(result)}`
-            };
-
-            conversation = [...conversation, assistantMessage, toolMessage];
-            toolTurns += 1;
+        const assistantMessage = response.choices[0].message;
+        const content = assistantMessage.content || '';
+        let toolCall = null;
+        try {
+          const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
+          if (jsonMatch) {
+            toolCall = JSON.parse(jsonMatch[0]);
+          } else if (content.trim().startsWith('{')) {
+            toolCall = JSON.parse(content);
+          }
+        } catch {
+          // Not valid JSON, treat as text
         }
 
-        return { role: 'assistant', content: "Maximum tool turns reached." };
+        if (!toolCall || !toolCall.tool) {
+          return assistantMessage;
+        }
 
+        if (toolTurns >= maxToolTurns) {
+          const result = await this.executeTool(toolCall);
+          return {
+            role: 'assistant',
+            content: "I'm stuck in a loop. Here is the last result: " + JSON.stringify(result),
+          };
+        }
+
+        const result = await this.executeTool(toolCall);
+        const toolMessage = {
+          role: 'user',
+          content: `Tool '${toolCall.tool}' Output: ${JSON.stringify(result)}`,
+        };
+
+        conversation = [...conversation, assistantMessage, toolMessage];
+        toolTurns += 1;
+      }
+
+      return { role: 'assistant', content: 'Maximum tool turns reached.' };
     } catch (err) {
-        console.error("Orchestrator error:", err);
-        return { role: 'assistant', content: "I encountered an error: " + err.message };
+      console.error('Orchestrator error:', err);
+      return { role: 'assistant', content: 'I encountered an error: ' + err.message };
     }
   }
 
@@ -197,87 +204,87 @@ If you don't need to use a tool, just reply with text.
     const { tool, args } = toolCall;
 
     switch (tool) {
-        case 'list_computers':
-            return await this.listComputers();
-        case 'list_repos':
-            return await this.listRepos(args.computer_id);
-        case 'start_task':
-            return await this.startTask(args);
-        default:
-            return { error: `Unknown tool: ${tool}` };
+      case 'list_computers':
+        return await this.listComputers();
+      case 'list_repos':
+        return await this.listRepos(args.computer_id);
+      case 'start_task':
+        return await this.startTask(args);
+      default:
+        return { error: `Unknown tool: ${tool}` };
     }
   }
 
   async listComputers() {
     try {
-        if (!configStore.hasCloudflareConfig()) {
-             return { error: "Cloudflare KV not configured. Cannot list computers." };
-        }
-        const namespaceId = await cloudflareKvService.ensureNamespace(); // default 'rtsa'
-        const devices = await cloudflareKvService.getValueJson(namespaceId, 'devices', []);
+      if (!configStore.hasCloudflareConfig()) {
+        return { error: 'Cloudflare KV not configured. Cannot list computers.' };
+      }
+      const namespaceId = await cloudflareKvService.ensureNamespace(); // default 'rtsa'
+      const devices = await cloudflareKvService.getValueJson(namespaceId, 'devices', []);
 
-        // Filter/Map for relevant info
-        return devices.map(d => ({
-            id: d.id,
-            name: d.name,
-            status: d.status,
-            lastHeartbeat: d.lastHeartbeat,
-            repos: d.repos ? d.repos.map(r => r.name) : []
-        }));
+      // Filter/Map for relevant info
+      return devices.map((d) => ({
+        id: d.id,
+        name: d.name,
+        status: d.status,
+        lastHeartbeat: d.lastHeartbeat,
+        repos: d.repos ? d.repos.map((r) => r.name) : [],
+      }));
     } catch (err) {
-        return { error: err.message };
+      return { error: err.message };
     }
   }
 
   async listRepos(computerId) {
     try {
-        if (!configStore.hasCloudflareConfig()) {
-             return { error: "Cloudflare KV not configured." };
-        }
-        const namespaceId = await cloudflareKvService.ensureNamespace();
-        const devices = await cloudflareKvService.getValueJson(namespaceId, 'devices', []);
-        const device = devices.find(d => d.id === computerId);
+      if (!configStore.hasCloudflareConfig()) {
+        return { error: 'Cloudflare KV not configured.' };
+      }
+      const namespaceId = await cloudflareKvService.ensureNamespace();
+      const devices = await cloudflareKvService.getValueJson(namespaceId, 'devices', []);
+      const device = devices.find((d) => d.id === computerId);
 
-        if (!device) return { error: "Computer not found" };
-        return device.repos || [];
+      if (!device) return { error: 'Computer not found' };
+      return device.repos || [];
     } catch (err) {
-        return { error: err.message };
+      return { error: err.message };
     }
   }
 
   async startTask(args) {
     // args: { computer_id, repo_path, task_description, provider }
     if (!this.createTaskCallback) {
-        return { error: "Task execution not available (callback not set)" };
+      return { error: 'Task execution not available (callback not set)' };
     }
 
     try {
-        // Construct options for tasks:create
-        const options = {
-            prompt: args.task_description,
-            projectPath: args.repo_path, // for remote/local
-            repository: args.repo_path, // fallback
-            targetDeviceId: args.computer_id === 'local' ? null : args.computer_id
-        };
+      // Construct options for tasks:create
+      const options = {
+        prompt: args.task_description,
+        projectPath: args.repo_path, // for remote/local
+        repository: args.repo_path, // fallback
+        targetDeviceId: args.computer_id === 'local' ? null : args.computer_id,
+      };
 
-        // If computer_id is THIS machine, use local
-        const localId = configStore.getOrCreateDeviceIdentity().id;
-        if (options.targetDeviceId === localId) {
-            options.targetDeviceId = null;
-        }
+      // If computer_id is THIS machine, use local
+      const localId = configStore.getOrCreateDeviceIdentity().id;
+      if (options.targetDeviceId === localId) {
+        options.targetDeviceId = null;
+      }
 
-        const result = await this.createTaskCallback({
-            provider: args.provider || 'jules',
-            options: options
-        });
+      const result = await this.createTaskCallback({
+        provider: args.provider || 'jules',
+        options: options,
+      });
 
-        if (result.success) {
-            return { success: true, task: result.task };
-        } else {
-            return { error: result.error };
-        }
+      if (result.success) {
+        return { success: true, task: result.task };
+      } else {
+        return { error: result.error };
+      }
     } catch (err) {
-        return { error: err.message };
+      return { error: err.message };
     }
   }
 }

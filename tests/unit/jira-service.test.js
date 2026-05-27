@@ -2,7 +2,7 @@ const { EventEmitter } = require('events');
 
 const mockConfigStore = {
   getJiraBaseUrl: jest.fn(),
-  getApiKey: jest.fn()
+  getApiKey: jest.fn(),
 };
 
 jest.mock('../../src/main/services/config-store', () => mockConfigStore);
@@ -16,7 +16,6 @@ describe('Jira Service', () => {
   let mockRequest;
   let mockResponse;
   let httpsRequestSpy;
-  let httpRequestSpy;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -31,7 +30,7 @@ describe('Jira Service', () => {
       write: jest.fn(),
       end: jest.fn(),
       destroy: jest.fn(),
-      setTimeout: jest.fn((timeout, callback) => {})
+      setTimeout: jest.fn((_timeout, _callback) => {}),
     };
 
     mockResponse = new EventEmitter();
@@ -46,10 +45,8 @@ describe('Jira Service', () => {
     });
 
     // Mock http.request (though rarely used for Jira Cloud)
-    httpRequestSpy = jest.spyOn(http, 'request').mockImplementation((options, callback) => {
-      if (callback) {
-        callback(mockResponse);
-      }
+    jest.spyOn(http, 'request').mockImplementation((_options, callback) => {
+      if (callback) callback(mockResponse);
       return mockRequest;
     });
   });
@@ -73,7 +70,8 @@ describe('Jira Service', () => {
     test('authHeader generates correct Basic Auth header', () => {
       configStore.getApiKey.mockReturnValue('user@example.com:secret-token');
 
-      const expectedAuth = 'Basic ' + Buffer.from('user@example.com:secret-token').toString('base64');
+      const expectedAuth =
+        'Basic ' + Buffer.from('user@example.com:secret-token').toString('base64');
       expect(jiraService.authHeader).toBe(expectedAuth);
     });
 
@@ -115,7 +113,7 @@ describe('Jira Service', () => {
       expect(httpsRequestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           hostname: 'test.atlassian.net',
-          path: '/test'
+          path: '/test',
         }),
         expect.any(Function)
       );
@@ -162,7 +160,7 @@ describe('Jira Service', () => {
       // I should make mockRequest extend EventEmitter or manually call the callback.
 
       // Let's manually trigger the error handler
-      const errorCallback = mockRequest.on.mock.calls.find(call => call[0] === 'error')[1];
+      const errorCallback = mockRequest.on.mock.calls.find((call) => call[0] === 'error')[1];
       errorCallback(error);
 
       await expect(promise).rejects.toThrow('Jira request failed: Network error');
@@ -173,9 +171,12 @@ describe('Jira Service', () => {
     test('listBoards fetches boards', async () => {
       const promise = jiraService.listBoards();
 
-      mockResponse.emit('data', JSON.stringify({
-        values: [{ id: 1, name: 'Board 1', type: 'scrum' }]
-      }));
+      mockResponse.emit(
+        'data',
+        JSON.stringify({
+          values: [{ id: 1, name: 'Board 1', type: 'scrum' }],
+        })
+      );
       mockResponse.emit('end');
 
       const result = await promise;
@@ -183,7 +184,7 @@ describe('Jira Service', () => {
 
       expect(httpsRequestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          path: '/rest/agile/1.0/board?maxResults=50'
+          path: '/rest/agile/1.0/board?maxResults=50',
         }),
         expect.any(Function)
       );
@@ -201,7 +202,7 @@ describe('Jira Service', () => {
 
       expect(httpsRequestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          path: expect.stringContaining('/rest/api/3/issue/TEST-1')
+          path: expect.stringContaining('/rest/api/3/issue/TEST-1'),
         }),
         expect.any(Function)
       );
@@ -217,7 +218,7 @@ describe('Jira Service', () => {
       expect(httpsRequestSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           path: expect.stringContaining('/rest/api/3/issue/TEST-1/assignee'),
-          method: 'PUT'
+          method: 'PUT',
         }),
         expect.any(Function)
       );
@@ -226,8 +227,12 @@ describe('Jira Service', () => {
     });
 
     test('assignIssue throws when arguments missing', async () => {
-      await expect(jiraService.assignIssue('TEST-1')).rejects.toThrow('Issue ID/Key and account ID are required');
-      await expect(jiraService.assignIssue(null, 'account-123')).rejects.toThrow('Issue ID/Key and account ID are required');
+      await expect(jiraService.assignIssue('TEST-1')).rejects.toThrow(
+        'Issue ID/Key and account ID are required'
+      );
+      await expect(jiraService.assignIssue(null, 'account-123')).rejects.toThrow(
+        'Issue ID/Key and account ID are required'
+      );
     });
   });
 

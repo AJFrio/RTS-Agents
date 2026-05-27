@@ -2,218 +2,15 @@ const Store = require('electron-store');
 const os = require('os');
 const crypto = require('crypto');
 const { upsertItem } = require('../utils/collection-utils');
-
-const schema = {
-  apiKeys: {
-    type: 'object',
-    properties: {
-      cursor: {
-        type: 'string',
-        default: ''
-      },
-      jules: {
-        type: 'string',
-        default: ''
-      },
-      codex: {
-        type: 'string',
-        default: ''
-      },
-      openai: {
-        type: 'string',
-        default: ''
-      },
-      openrouter: {
-        type: 'string',
-        default: ''
-      },
-      gemini: {
-        type: 'string',
-        default: ''
-      },
-      claude: {
-        type: 'string',
-        default: ''
-      },
-      github: {
-        type: 'string',
-        default: ''
-      },
-      cloudflare: {
-        type: 'string',
-        default: ''
-      },
-      jira: {
-        type: 'string',
-        default: ''
-      }
-    },
-    default: {}
-  },
-  cloudflare: {
-    type: 'object',
-    properties: {
-      accountId: { type: 'string', default: '' },
-      apiToken: { type: 'string', default: '' },
-      namespaceId: { type: 'string', default: '' },
-      namespaceTitle: { type: 'string', default: 'rtsa' }
-    },
-    default: {}
-  },
-  device: {
-    type: 'object',
-    properties: {
-      id: { type: 'string', default: '' },
-      name: { type: 'string', default: '' }
-    },
-    default: {}
-  },
-  codexThreads: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        createdAt: { type: 'string' },
-        prompt: { type: 'string' },
-        repository: { type: 'string' },
-        branch: { type: 'string' },
-        title: { type: 'string' }
-      }
-    },
-    default: []
-  },
-  claudeConversations: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        createdAt: { type: 'string' },
-        updatedAt: { type: 'string' },
-        prompt: { type: 'string' },
-        repository: { type: 'string' },
-        title: { type: 'string' },
-        status: { type: 'string' }
-      }
-    },
-    default: []
-  },
-  opencodeSessions: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        rawId: { type: 'string' },
-        prompt: { type: 'string' },
-        projectPath: { type: 'string' },
-        status: { type: 'string' },
-        filePath: { type: 'string' },
-        createdAt: { type: 'string' },
-        updatedAt: { type: 'string' }
-      }
-    },
-    default: []
-  },
-  settings: {
-    type: 'object',
-    properties: {
-      pollingInterval: {
-        type: 'number',
-        default: 30000, // 30 seconds
-        minimum: 5000,
-        maximum: 300000
-      },
-      autoPolling: {
-        type: 'boolean',
-        default: true
-      },
-      geminiPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        default: []
-      },
-      claudePaths: {
-        type: 'array',
-        items: { type: 'string' },
-        default: []
-      },
-      cursorPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        default: []
-      },
-      codexPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        default: []
-      },
-      githubPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        default: []
-      },
-      jiraBaseUrl: {
-        type: 'string',
-        default: ''
-      },
-      cliCommands: {
-        type: 'object',
-        properties: {
-          gemini: { type: 'string', default: '' },
-          claude: { type: 'string', default: '' },
-          opencode: { type: 'string', default: '' }
-        },
-        default: {}
-      },
-      theme: {
-        type: 'string',
-        enum: ['light', 'dark', 'system'],
-        default: 'system'
-      },
-      displayMode: {
-        type: 'string',
-        enum: ['fullscreen', 'windowed'],
-        default: 'fullscreen'
-      },
-      filters: {
-        type: 'object',
-        properties: {
-          providers: {
-            type: 'object',
-            default: {}
-          },
-          statuses: {
-            type: 'object',
-            default: {}
-          },
-          search: {
-            type: 'string',
-            default: ''
-          }
-        },
-        default: {}
-      },
-      selectedModel: {
-        type: 'string',
-        default: 'openrouter/openai/gpt-4o'
-      }
-    },
-    default: {}
-  },
-  sessionOutputs: {
-    type: 'object',
-    default: {}
-  }
-};
+const { schema } = require('./config-schema');
+const pathRegistry = require('./config-path-registry');
 
 class ConfigStore {
   constructor() {
     this.store = new Store({
       name: 'rts-agents-config',
       schema,
-      encryptionKey: 'rts-agents-v1-secure-key', // Basic encryption for API keys
+      encryptionKey: 'rts-agents-v1-secure-key',
       clearInvalidConfig: true
     });
   }
@@ -325,84 +122,85 @@ class ConfigStore {
     this.store.set('settings.displayMode', mode);
   }
 
-  // Gemini project paths
+  // Project paths (all providers)
+  getProjectPaths(provider) {
+    return pathRegistry.getPaths(this.store, provider);
+  }
+
+  addProjectPath(provider, path) {
+    return pathRegistry.addPath(this.store, provider, path);
+  }
+
+  removeProjectPath(provider, path) {
+    return pathRegistry.removePath(this.store, provider, path);
+  }
+
+  getProjectPathsByProvider() {
+    return pathRegistry.getPathsByProvider(this.store);
+  }
+
   getGeminiPaths() {
-    return this.store.get('settings.geminiPaths', []);
+    return this.getProjectPaths('gemini');
   }
 
   addGeminiPath(path) {
-    const paths = this.getGeminiPaths();
-    if (!paths.includes(path)) {
-      paths.push(path);
-      this.store.set('settings.geminiPaths', paths);
-    }
-    return paths;
+    return this.addProjectPath('gemini', path);
   }
 
   removeGeminiPath(path) {
-    const paths = this.getGeminiPaths().filter(p => p !== path);
-    this.store.set('settings.geminiPaths', paths);
-    return paths;
+    return this.removeProjectPath('gemini', path);
   }
 
-  // Claude project paths
   getClaudePaths() {
-    return this.store.get('settings.claudePaths', []);
+    return this.getProjectPaths('claude');
   }
 
   addClaudePath(path) {
-    const paths = this.getClaudePaths();
-    if (!paths.includes(path)) {
-      paths.push(path);
-      this.store.set('settings.claudePaths', paths);
-    }
-    return paths;
+    return this.addProjectPath('claude', path);
   }
 
   removeClaudePath(path) {
-    const paths = this.getClaudePaths().filter(p => p !== path);
-    this.store.set('settings.claudePaths', paths);
-    return paths;
+    return this.removeProjectPath('claude', path);
   }
 
-  // Cursor project paths
   getCursorPaths() {
-    return this.store.get('settings.cursorPaths', []);
+    return this.getProjectPaths('cursor');
   }
 
   addCursorPath(path) {
-    const paths = this.getCursorPaths();
-    if (!paths.includes(path)) {
-      paths.push(path);
-      this.store.set('settings.cursorPaths', paths);
-    }
-    return paths;
+    return this.addProjectPath('cursor', path);
   }
 
   removeCursorPath(path) {
-    const paths = this.getCursorPaths().filter(p => p !== path);
-    this.store.set('settings.cursorPaths', paths);
-    return paths;
+    return this.removeProjectPath('cursor', path);
   }
 
-  // Codex project paths
   getCodexPaths() {
-    return this.store.get('settings.codexPaths', []);
+    return this.getProjectPaths('codex');
   }
 
   addCodexPath(path) {
-    const paths = this.getCodexPaths();
-    if (!paths.includes(path)) {
-      paths.push(path);
-      this.store.set('settings.codexPaths', paths);
-    }
-    return paths;
+    return this.addProjectPath('codex', path);
   }
 
   removeCodexPath(path) {
-    const paths = this.getCodexPaths().filter(p => p !== path);
-    this.store.set('settings.codexPaths', paths);
-    return paths;
+    return this.removeProjectPath('codex', path);
+  }
+
+  getGithubPaths() {
+    return this.getProjectPaths('github');
+  }
+
+  addGithubPath(path) {
+    return this.addProjectPath('github', path);
+  }
+
+  removeGithubPath(path) {
+    return this.removeProjectPath('github', path);
+  }
+
+  getAllProjectPaths() {
+    return pathRegistry.getAllProjectPaths(this.store);
   }
 
   // Polling settings
@@ -422,7 +220,6 @@ class ConfigStore {
     this.store.set('settings.autoPolling', enabled);
   }
 
-  // Full config export/import
   getFullConfig() {
     return {
       apiKeys: this.getAllApiKeys(),
@@ -430,13 +227,11 @@ class ConfigStore {
     };
   }
 
-  // Check if API key is configured
   hasApiKey(provider) {
     const key = this.getApiKey(provider);
     return !!(key && key.length > 0);
   }
 
-  // Codex thread tracking
   getCodexThreads() {
     return this.store.get('codexThreads', []);
   }
@@ -458,7 +253,6 @@ class ConfigStore {
     return threads;
   }
 
-  // Claude conversation tracking
   getClaudeConversations() {
     return this.store.get('claudeConversations', []);
   }
@@ -488,46 +282,13 @@ class ConfigStore {
     this.store.set('opencodeSessions', sessions || []);
   }
 
-  // GitHub repository paths
-  getGithubPaths() {
-    return this.store.get('settings.githubPaths', []);
-  }
-
-  addGithubPath(path) {
-    const paths = this.getGithubPaths();
-    if (!paths.includes(path)) {
-      paths.push(path);
-      this.store.set('settings.githubPaths', paths);
-    }
-    return paths;
-  }
-
-  removeGithubPath(path) {
-    const paths = this.getGithubPaths().filter(p => p !== path);
-    this.store.set('settings.githubPaths', paths);
-    return paths;
-  }
-
-  // Get all project paths (combines all configured paths)
-  getAllProjectPaths() {
-    const geminiPaths = this.getGeminiPaths();
-    const claudePaths = this.getClaudePaths();
-    const cursorPaths = this.getCursorPaths();
-    const codexPaths = this.getCodexPaths();
-    const githubPaths = this.getGithubPaths();
-    // Combine and deduplicate
-    return [...new Set([...geminiPaths, ...claudePaths, ...cursorPaths, ...codexPaths, ...githubPaths])];
-  }
-
-  // Session output persistence (for terminated CLI sessions)
   saveSessionOutput(sessionId, output) {
     const outputs = this.store.get('sessionOutputs', {});
     outputs[sessionId] = {
       output: output,
       savedAt: new Date().toISOString()
     };
-    
-    // Clean up old outputs (keep only last 50)
+
     const entries = Object.entries(outputs);
     if (entries.length > 50) {
       entries.sort((a, b) => new Date(b[1].savedAt) - new Date(a[1].savedAt));
@@ -552,22 +313,20 @@ class ConfigStore {
   clearOldSessionOutputs(maxAgeDays = 7) {
     const outputs = this.store.get('sessionOutputs', {});
     const cutoff = new Date(Date.now() - maxAgeDays * 24 * 60 * 60 * 1000);
-    
+
     const filtered = {};
     for (const [id, data] of Object.entries(outputs)) {
       if (new Date(data.savedAt) > cutoff) {
         filtered[id] = data;
       }
     }
-    
+
     this.store.set('sessionOutputs', filtered);
   }
 
-  // Clear all data
   clear() {
     this.store.clear();
   }
 }
 
-// Export singleton instance
 module.exports = new ConfigStore();

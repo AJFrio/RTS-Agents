@@ -76,6 +76,20 @@ describe('ConfigStore Unit Tests', () => {
       expect(paths).toContain(path2);
     });
 
+    test('should manage paths via generic project path API', () => {
+      configStore.addProjectPath('cursor', '/cursor/repo');
+      configStore.addProjectPath('github', '/github/repo');
+
+      expect(configStore.getProjectPaths('cursor')).toContain('/cursor/repo');
+      expect(configStore.getAllProjectPaths()).toEqual(
+        expect.arrayContaining(['/cursor/repo', '/github/repo'])
+      );
+
+      const byProvider = configStore.getProjectPathsByProvider();
+      expect(byProvider.cursorPaths).toContain('/cursor/repo');
+      expect(byProvider.githubPaths).toContain('/github/repo');
+    });
+
     test('should manage polling interval', () => {
       // Default
       expect(configStore.getPollingInterval()).toBe(30000);

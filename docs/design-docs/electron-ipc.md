@@ -7,14 +7,14 @@
 ```
 Renderer  →  window.electronAPI.*  →  preload.js  →  ipcRenderer.invoke
                                                       ↓
-main.js  ←  ipcMain.handle('channel', handler)
+main.js  →  registerAllIpcHandlers()  →  src/main/ipc/register-*.js
            ↓
        services/*.js
 ```
 
 ## Adding a channel
 
-1. Implement `ipcMain.handle('domain:action', …)` in `main.js` (or extract handler module if `main.js` grows).
+1. Implement `ipcMain.handle('domain:action', …)` in the matching `src/main/ipc/register-<domain>.js` module (wired from `src/main/ipc/index.js`).
 2. Expose `domainAction: (args) => ipcRenderer.invoke('domain:action', args)` in `preload.js`.
 3. Wrap in `ElectronAPI.jsx` / `useElectronAPI()` for React.
 4. Document the channel in this file (table below) in the same PR.
@@ -32,7 +32,7 @@ main.js  ←  ipcMain.handle('channel', handler)
 | `jira:*` | Boards, sprints, issues |
 | `orchestrator:*` | Chat / models / tool dispatch |
 
-Search `ipcMain.handle` in `main.js` for the authoritative full list.
+Search `ipcMain.handle` under `src/main/ipc/` for the authoritative full list.
 
 ## Rules
 

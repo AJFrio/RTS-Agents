@@ -3,7 +3,19 @@ import Modal from '../components/ui/Modal.jsx';
 import { ProviderBadge, StatusBadge } from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { getProviderDisplayName, getStatusLabel } from '../utils/format.js';
+import { parseMarkdown } from '../utils/markdown.js';
 import DOMPurify from 'dompurify';
+
+function MarkdownBlock({ content, className = '' }) {
+  return (
+    <div
+      className={`prose prose-sm max-w-none text-slate-800 dark:prose-invert dark:text-slate-200 ${className}`}
+      dangerouslySetInnerHTML={{
+        __html: DOMPurify.sanitize(parseMarkdown(String(content ?? ''))),
+      }}
+    />
+  );
+}
 
 function getActivityTypeLabel(type) {
   if (!type) return 'Activity';
@@ -94,7 +106,7 @@ export default function AgentModal({ agent, onClose, api }) {
                 {hasPrompt && (
                   <section>
                     <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Prompt</h3>
-                    <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{details.prompt}</p>
+                    <MarkdownBlock content={details.prompt} />
                   </section>
                 )}
                 {hasSummary && (
@@ -132,9 +144,10 @@ export default function AgentModal({ agent, onClose, api }) {
                             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{activity.description}</p>
                           )}
                           {activity.message && (
-                            <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap border-l-2 border-slate-100 dark:border-slate-700 pl-3">
-                              {activity.message}
-                            </p>
+                            <MarkdownBlock
+                              content={activity.message}
+                              className="mt-2 border-l-2 border-slate-100 pl-3 text-slate-700 dark:border-slate-700 dark:text-slate-300"
+                            />
                           )}
                           {activity.planSteps?.length > 0 && (
                             <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400">
@@ -174,7 +187,7 @@ export default function AgentModal({ agent, onClose, api }) {
                           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">
                             {msg.isUser ? 'You' : 'Agent'}
                           </span>
-                          <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{msg.text}</p>
+                          <MarkdownBlock content={msg.text} />
                         </div>
                       ))}
                     </div>
@@ -192,7 +205,7 @@ export default function AgentModal({ agent, onClose, api }) {
                           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">
                             {msg.role === 'user' ? 'You' : 'Assistant'}
                           </span>
-                          <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{msg.content}</p>
+                          <MarkdownBlock content={msg.content} />
                         </div>
                       ))}
                     </div>

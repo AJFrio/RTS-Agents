@@ -19,6 +19,7 @@ Renderer (React, ESM)
 Preload (preload.js)
     ↕ ipcMain.handle / ipcRenderer.invoke
 Main process (main.js, CommonJS)
+    → IPC handlers (src/main/ipc/*.js)
     → Services (src/main/services/*.js)
     → ConfigStore (electron-store)
     → OS / network / child processes

@@ -59,6 +59,7 @@ function getConfigSignature(configStore) {
     claudePaths: configStore.getClaudePaths?.() ?? [],
     cursorPaths: configStore.getCursorPaths?.() ?? [],
     codexPaths: configStore.getCodexPaths?.() ?? [],
+    opencodePaths: configStore.getOpenCodePaths?.() ?? [],
     keys: {
       jules: configStore.hasApiKey('jules'),
       cursor: configStore.hasApiKey('cursor'),

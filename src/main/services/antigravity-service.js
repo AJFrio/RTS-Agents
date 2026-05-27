@@ -5,6 +5,7 @@ const configStore = require('./config-store');
 const projectService = require('./project-service');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
+const providerHealth = require('./provider-health');
 
 function isCommandRunnable(cmd) {
   if (!cmd) return false;
@@ -75,10 +76,22 @@ class AntigravityService {
   }
 
   async testConnection() {
-    if (await this.isAntigravityInstalled()) {
-      return { success: true };
+    const installed = await this.isAntigravityInstalled();
+    if (installed) {
+      return providerHealth.ok('antigravity', {
+        configured: true,
+        installed: true,
+        docsUrl: 'https://github.com/google-antigravity/antigravity-cli',
+        endpointLabel: `${this.getExecutable()} --version`,
+        message: 'Antigravity CLI is available on this machine.'
+      });
     }
-    return { success: false, error: 'Antigravity CLI not found' };
+    return providerHealth.fail('antigravity', 'Antigravity CLI not found', {
+      configured: false,
+      installed: false,
+      docsUrl: 'https://github.com/google-antigravity/antigravity-cli',
+      endpointLabel: `${this.getExecutable()} --version`
+    });
   }
 
   async startSession(options) {
@@ -95,7 +108,7 @@ class AntigravityService {
     }
 
     const antigravityCmd = (command && String(command).trim()) ? String(command).trim() : this.getExecutable();
-    const args = ['-p', prompt, '--print-timeout', '30m'];
+    const args = ['--print', prompt, '--print-timeout', '30m'];
     const sessionId = `antigravity-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     return new Promise((resolve, reject) => {

@@ -5,6 +5,7 @@ const { upsertItem } = require('../utils/collection-utils');
 const httpService = require('./http-service');
 const { pathExists } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
+const providerHealth = require('./provider-health');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -271,18 +272,30 @@ class ClaudeService {
     return this.request('/messages', 'POST', body);
   }
 
+  async listModels() {
+    return this.request('/models');
+  }
+
   /**
    * Check if API key is valid by making a test request
    */
   async testConnection() {
     try {
-      // Make a minimal request to verify the API key
-      await this.createMessage([
-        { role: 'user', content: 'Hi' }
-      ], { max_tokens: 10 });
-      return { success: true };
+      const response = await this.listModels();
+      const models = Array.isArray(response?.data) ? response.data : [];
+      return providerHealth.ok('claude-cloud', {
+        configured: true,
+        docsUrl: 'https://platform.claude.com/docs/en/api/authentication/overview',
+        endpointLabel: 'GET /v1/models',
+        message: `Connected to Anthropic. ${models.length} models available.`,
+        diagnostics: { modelCount: models.length }
+      });
     } catch (err) {
-      return { success: false, error: err.message };
+      return providerHealth.fail('claude-cloud', err, {
+        configured: !!this.apiKey,
+        docsUrl: 'https://platform.claude.com/docs/en/api/authentication/overview',
+        endpointLabel: 'GET /v1/models'
+      });
     }
   }
 

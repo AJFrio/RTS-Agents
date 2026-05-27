@@ -2,7 +2,7 @@
  * Shared project-path storage for provider scan directories (settings.*Paths).
  */
 
-const PROJECT_PATH_PROVIDERS = ['antigravity', 'claude', 'cursor', 'codex', 'github'];
+const PROJECT_PATH_PROVIDERS = ['antigravity', 'claude', 'cursor', 'codex', 'opencode', 'github'];
 
 function settingsPathKey(provider) {
   if (!PROJECT_PATH_PROVIDERS.includes(provider)) {

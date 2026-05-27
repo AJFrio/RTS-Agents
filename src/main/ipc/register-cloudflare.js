@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const providerHealth = require('../services/provider-health');
 
 const SYNCED_API_KEY_PROVIDERS = new Set([
   'jules',
@@ -7,8 +8,7 @@ const SYNCED_API_KEY_PROVIDERS = new Set([
   'openrouter',
   'claude',
   'github',
-  'jira',
-  'cloudflare'
+  'jira'
 ]);
 
 function registerCloudflareHandlers(deps) {
@@ -38,12 +38,26 @@ ipcMain.handle('cloudflare:clear-config', async () => {
 ipcMain.handle('cloudflare:test', async () => {
     try {
       if (!configStore.hasCloudflareConfig()) {
-        return { success: false, error: 'Cloudflare not configured' };
+        return providerHealth.notConfigured('cloudflare', {
+          docsUrl: 'https://developers.cloudflare.com/api/resources/kv/',
+          endpointLabel: 'GET /client/v4/accounts/:accountId/storage/kv/namespaces',
+          message: 'Cloudflare not configured'
+        });
       }
       const namespaceId = await ensureCloudflareNamespaceId();
-      return { success: true, namespaceId };
+      return providerHealth.ok('cloudflare', {
+        configured: true,
+        docsUrl: 'https://developers.cloudflare.com/api/resources/kv/',
+        endpointLabel: 'GET /client/v4/accounts/:accountId/storage/kv/namespaces',
+        message: 'Connected to Cloudflare KV.',
+        diagnostics: { namespaceId }
+      });
     } catch (err) {
-      return { success: false, error: err?.message || 'Unknown error' };
+      return providerHealth.fail('cloudflare', err, {
+        configured: configStore.hasCloudflareConfig(),
+        docsUrl: 'https://developers.cloudflare.com/api/resources/kv/',
+        endpointLabel: 'GET /client/v4/accounts/:accountId/storage/kv/namespaces'
+      });
     }
   });
   

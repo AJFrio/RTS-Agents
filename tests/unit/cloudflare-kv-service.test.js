@@ -24,41 +24,24 @@ describe('Cloudflare KV Service', () => {
     jest.restoreAllMocks();
   });
 
-  test('retries with rejectUnauthorized: false on SSL error', async () => {
-    let callCount = 0;
-
-    requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
-      callCount++;
-
-      if (callCount === 1) {
-        const req = {
-          on: (event, cb) => {
-            if (event === 'error') {
-              process.nextTick(() => cb(new Error('self signed certificate in certificate chain')));
-            }
-          },
-          write: jest.fn(),
-          end: jest.fn()
-        };
-        return req;
-      }
-
-      if (callCount === 2) {
-        process.nextTick(() => {
-          callback(mockResponse);
-          mockResponse.emit('data', JSON.stringify({ success: true, result: [] }));
-          mockResponse.emit('end');
-        });
-        return mockRequest;
-      }
+  test('does not retry insecurely on SSL errors', async () => {
+    requestSpy = jest.spyOn(https, 'request').mockImplementation(() => {
+      const req = {
+        on: (event, cb) => {
+          if (event === 'error') {
+            process.nextTick(() => cb(new Error('self signed certificate in certificate chain')));
+          }
+        },
+        write: jest.fn(),
+        end: jest.fn()
+      };
+      return req;
     });
 
-    const result = await cloudflareKvService.listNamespaces();
-
-    expect(callCount).toBe(2);
-    expect(result.success).toBe(true);
-    expect(requestSpy.mock.calls[0][0]).toMatchObject({ rejectUnauthorized: true });
-    expect(requestSpy.mock.calls[1][0]).toMatchObject({ rejectUnauthorized: false });
+    await expect(cloudflareKvService.listNamespaces())
+      .rejects.toThrow('Cloudflare KV request error: self signed certificate in certificate chain');
+    expect(requestSpy).toHaveBeenCalledTimes(1);
+    expect(requestSpy.mock.calls[0][0]).not.toHaveProperty('rejectUnauthorized', false);
   });
 
   test('throws other errors without retry', async () => {

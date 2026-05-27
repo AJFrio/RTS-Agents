@@ -1,4 +1,5 @@
 const httpService = require('./http-service');
+const providerHealth = require('./provider-health');
 
 const BASE_URL = 'https://openrouter.ai/api/v1';
 
@@ -53,10 +54,21 @@ class OpenRouterService {
 
   async testConnection() {
     try {
-        await this.request('/models');
-        return { success: true };
+        const response = await this.request('/models');
+        const modelCount = Array.isArray(response?.data) ? response.data.length : 0;
+        return providerHealth.ok('openrouter', {
+          configured: true,
+          docsUrl: 'https://openrouter.ai/docs/api-reference/list-available-models',
+          endpointLabel: 'GET /api/v1/models',
+          message: `Connected to OpenRouter. ${modelCount} models available.`,
+          diagnostics: { modelCount }
+        });
     } catch (err) {
-        return { success: false, error: err.message };
+        return providerHealth.fail('openrouter', err, {
+          configured: !!this.apiKey,
+          docsUrl: 'https://openrouter.ai/docs/api-reference/list-available-models',
+          endpointLabel: 'GET /api/v1/models'
+        });
     }
   }
 

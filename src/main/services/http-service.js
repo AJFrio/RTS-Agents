@@ -13,7 +13,13 @@ class HttpService {
    * @param {number} options.timeout - Timeout in ms (default: 30000)
    */
   async request(url, options = {}) {
-    const { method = 'GET', headers = {}, body = null, timeout = 30000 } = options;
+    const {
+      method = 'GET',
+      headers = {},
+      body = null,
+      timeout = 30000,
+      errorMessagePrefix = null
+    } = options;
 
     let urlObj;
     try {
@@ -66,8 +72,12 @@ class HttpService {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(parsedData);
           } else {
-            // Attach status code and data to error for easier handling
-            const error = new Error(`Request failed with status code ${res.statusCode}`);
+            // Attach status code and data to error for easier handling.
+            const detail = this._extractErrorDetail(parsedData);
+            const baseMessage = errorMessagePrefix
+              ? `${errorMessagePrefix}: ${res.statusCode}${detail ? ` - ${detail}` : ''}`
+              : `Request failed with status code ${res.statusCode}`;
+            const error = new Error(baseMessage);
             error.statusCode = res.statusCode;
             error.data = parsedData;
             reject(error);
@@ -114,6 +124,22 @@ class HttpService {
         headers: jsonHeaders,
         timeout
     });
+  }
+
+  _extractErrorDetail(data) {
+    if (!data) return '';
+    if (typeof data === 'string') return data.length > 300 ? `${data.slice(0, 300)}...` : data;
+    if (typeof data === 'object') {
+      if (data.error?.message) return data.error.message;
+      if (data.message) return data.message;
+      if (Array.isArray(data.errors)) return data.errors.map((entry) => entry.message || String(entry)).join('; ');
+      try {
+        return JSON.stringify(data);
+      } catch {
+        return '';
+      }
+    }
+    return String(data);
   }
 }
 

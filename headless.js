@@ -19,6 +19,7 @@ const cloudflareKvService = require('./src/main/services/cloudflare-kv-service')
 const antigravityService = require('./src/main/services/antigravity-service');
 const claudeService = require('./src/main/services/claude-service');
 const opencodeService = require('./src/main/services/opencode-service');
+const codexService = require('./src/main/services/codex-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 
@@ -154,6 +155,7 @@ async function runSetupPrompts() {
     const existingCli = configStore.getSetting('cliCommands') || {};
     let antigravityCmd = typeof existingCli?.antigravity === 'string' ? existingCli.antigravity : '';
     let claudeCmd = typeof existingCli?.claude === 'string' ? existingCli.claude : '';
+    let codexCmd = typeof existingCli?.codex === 'string' ? existingCli.codex : '';
     let opencodeCmd = typeof existingCli?.opencode === 'string' ? existingCli.opencode : '';
 
     if (!(await antigravityService.isAntigravityInstalled()) && !queueProcessorService.isCommandRunnable(antigravityCmd || 'agy')) {
@@ -166,12 +168,17 @@ async function runSetupPrompts() {
       if (answer) claudeCmd = answer;
     }
 
+    if (!(await codexService.isCodexInstalled()) && !queueProcessorService.isCommandRunnable(codexCmd || (process.platform === 'win32' ? 'codex.cmd' : 'codex'))) {
+      const answer = String(await rl.question('Codex CLI not detected. Full path to codex (or blank to skip): ')).trim();
+      if (answer) codexCmd = answer;
+    }
+
     if (!(await opencodeService.isOpenCodeInstalled()) && !queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
       const answer = String(await rl.question('OpenCode CLI not detected. Full path to opencode (or blank to skip): ')).trim();
       if (answer) opencodeCmd = answer;
     }
 
-    configStore.setSetting('cliCommands', { antigravity: antigravityCmd, claude: claudeCmd, opencode: opencodeCmd });
+    configStore.setSetting('cliCommands', { antigravity: antigravityCmd, claude: claudeCmd, codex: codexCmd, opencode: opencodeCmd });
   } finally {
     rl.close();
   }

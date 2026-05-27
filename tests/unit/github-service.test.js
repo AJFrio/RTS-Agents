@@ -44,7 +44,11 @@ describe('GitHub Service', () => {
 
     expect(requestSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/repos/owner/repo/pulls?state=open'
+        path: '/repos/owner/repo/pulls?state=open',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-key',
+          'X-GitHub-Api-Version': '2022-11-28'
+        })
       }),
       expect.any(Function)
     );

@@ -2,6 +2,7 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 const configStore = require('./config-store');
+const providerHealth = require('./provider-health');
 
 class JiraService {
   /**
@@ -311,43 +312,50 @@ class JiraService {
       // Validate configuration before attempting connection
       const baseUrl = this.baseUrl;
       if (!baseUrl) {
-        return { 
-          success: false, 
-          error: 'Jira Base URL is not configured. Please enter your Jira site URL (e.g., https://your-domain.atlassian.net) in Settings.' 
-        };
+        return providerHealth.notConfigured('jira', {
+          configured: false,
+          docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+          endpointLabel: 'GET /rest/api/3/myself',
+          message: 'Jira Base URL is not configured. Please enter your Jira site URL (e.g., https://your-domain.atlassian.net) in Settings.'
+        });
       }
 
       if (!this.apiKey) {
-        return { 
-          success: false, 
-          error: 'Jira API Key is not configured. Please enter your API token in the format: email:token in Settings.' 
-        };
+        return providerHealth.notConfigured('jira', {
+          configured: false,
+          docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+          endpointLabel: 'GET /rest/api/3/myself',
+          message: 'Jira API Key is not configured. Please enter your API token in the format: email:token in Settings.'
+        });
       }
 
       // Validate URL format
       try {
         this.validateBaseUrl(baseUrl);
       } catch (urlErr) {
-        return { 
-          success: false, 
-          error: `Invalid Base URL: ${urlErr.message}\n\nExpected format: https://your-domain.atlassian.net\n\nCurrent value: ${baseUrl}` 
-        };
+        return providerHealth.fail('jira', `Invalid Base URL: ${urlErr.message}\n\nExpected format: https://your-domain.atlassian.net\n\nCurrent value: ${baseUrl}`, {
+          configured: true,
+          docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/',
+          endpointLabel: 'GET /rest/api/3/myself'
+        });
       }
 
       // Validate token format
       try {
         const authHeader = this.authHeader;
         if (!authHeader) {
-          return { 
-            success: false, 
-            error: 'Failed to create authentication header. Please check your API token format (expected: email:token).' 
-          };
+          return providerHealth.fail('jira', 'Failed to create authentication header. Please check your API token format (expected: email:token).', {
+            configured: true,
+            docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+            endpointLabel: 'GET /rest/api/3/myself'
+          });
         }
       } catch (authErr) {
-        return { 
-          success: false, 
-          error: `Authentication configuration error: ${authErr.message}\n\nPlease verify your API token is in the format: your-email@example.com:token` 
-        };
+        return providerHealth.fail('jira', `Authentication configuration error: ${authErr.message}\n\nPlease verify your API token is in the format: your-email@example.com:token`, {
+          configured: true,
+          docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+          endpointLabel: 'GET /rest/api/3/myself'
+        });
       }
 
       // Try fetching current user to verify credentials
@@ -357,10 +365,16 @@ class JiraService {
       
       // If we get here, connection was successful
       const userEmail = userInfo.emailAddress || userInfo.email || 'unknown';
-      return { 
-        success: true,
-        message: `Successfully connected to Jira as ${userEmail}`
-      };
+      return providerHealth.ok('jira', {
+        configured: true,
+        docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/',
+        endpointLabel: 'GET /rest/api/3/myself',
+        message: `Successfully connected to Jira as ${userEmail}`,
+        diagnostics: {
+          accountId: userInfo.accountId || null,
+          tokenHint: 'Atlassian API tokens expire by default; rotate if authentication starts failing.'
+        }
+      });
     } catch (err) {
       // The request() method already provides detailed error messages
       // We'll enhance them slightly for the test connection context
@@ -385,7 +399,11 @@ class JiraService {
         errorMessage += '\n3. Ensure your Jira instance is accessible';
       }
       
-      return { success: false, error: errorMessage };
+      return providerHealth.fail('jira', errorMessage, {
+        configured: !!(this.baseUrl && this.apiKey),
+        docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+        endpointLabel: 'GET /rest/api/3/myself'
+      });
     }
   }
 }

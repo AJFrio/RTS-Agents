@@ -41,6 +41,8 @@ function buildConnectedServices(state) {
     (state.settings?.antigravityPaths || []).length > 0
   )
     services.push('antigravity-local');
+  if (state.serviceInfo?.installations?.opencode || (state.settings?.opencodePaths || []).length > 0)
+    services.push('opencode-local');
   if (apiKeys.openrouter) services.push('openrouter-cloud');
   if (apiKeys.github) services.push('github-cloud');
   if ((state.settings?.githubPaths || []).length > 0) services.push('github-local');
@@ -57,7 +59,8 @@ const SERVICE_GROUPS = [
   { id: 'codex', title: 'Codex', icon: 'terminal', members: ['codex-cloud', 'codex-local'] },
   { id: 'claude', title: 'Claude', icon: 'psychology', members: ['claude-cloud', 'claude-local'] },
   { id: 'antigravity', title: 'Antigravity CLI', icon: 'computer', members: ['antigravity-local'] },
-  { id: 'opencode', title: 'OpenRouter', icon: 'smart_toy', members: ['openrouter-cloud'] },
+  { id: 'opencode', title: 'OpenCode', icon: 'smart_toy', members: ['opencode-local'] },
+  { id: 'openrouter', title: 'OpenRouter', icon: 'hub', members: ['openrouter-cloud'] },
   { id: 'github', title: 'GitHub', icon: 'source', members: ['github-cloud', 'github-local'] },
   { id: 'jira', title: 'Jira', icon: 'assignment', members: ['jira-cloud'] },
   { id: 'cloudflare', title: 'Cloudflare Sync', icon: 'sync', members: ['cloudflare-sync'] },
@@ -109,6 +112,12 @@ function getServiceStatus(serviceId, state) {
           success: !!state.serviceInfo?.installations?.antigravity,
         }
       );
+    case 'opencode-local':
+      return (
+        state.connectionStatus?.opencode || {
+          success: !!state.serviceInfo?.installations?.opencode,
+        }
+      );
     case 'openrouter-cloud':
       return state.connectionStatus?.openrouter;
     case 'github-cloud':
@@ -138,6 +147,10 @@ function getServiceSummary(serviceId, state, status) {
       return state.serviceInfo?.installations?.antigravity
         ? `${state.settings?.antigravityPaths?.length || 0} repository roots linked`
         : 'Repository roots saved, but Antigravity CLI is not detected locally';
+    case 'opencode-local':
+      return state.serviceInfo?.installations?.opencode
+        ? `${state.settings?.opencodePaths?.length || 0} repository roots linked`
+        : 'Repository roots saved, but OpenCode CLI is not detected locally';
     case 'github-local':
       return `${state.settings?.githubPaths?.length || 0} repository roots connected`;
     case 'jira-cloud':
@@ -168,6 +181,7 @@ function isDisconnectable(serviceId, state) {
   }
   if (serviceId === 'cursor-local') return (state.settings?.cursorPaths || []).length > 0;
   if (serviceId === 'codex-local') return (state.settings?.codexPaths || []).length > 0;
+  if (serviceId === 'opencode-local') return (state.settings?.opencodePaths || []).length > 0;
   if (serviceId === 'claude-local') return (state.settings?.claudePaths || []).length > 0;
   if (serviceId === 'antigravity-local') return (state.settings?.antigravityPaths || []).length > 0;
   if (serviceId === 'github-local') return (state.settings?.githubPaths || []).length > 0;
@@ -243,6 +257,10 @@ export default function SettingsPage() {
         } else if (serviceId === 'codex-local') {
           for (const pathValue of state.settings?.codexPaths || []) {
             await api.removeCodexPath(pathValue);
+          }
+        } else if (serviceId === 'opencode-local') {
+          for (const pathValue of state.settings?.opencodePaths || []) {
+            await api.removeOpenCodePath(pathValue);
           }
         } else if (serviceId === 'claude-local') {
           for (const pathValue of state.settings?.claudePaths || []) {
@@ -576,7 +594,6 @@ export default function SettingsPage() {
         checkConnectionStatus={checkConnectionStatus}
         onClose={closeOnboarding}
         onConnected={() => {
-          setOnboardingOpen(false);
           setActiveServiceId(null);
         }}
       />

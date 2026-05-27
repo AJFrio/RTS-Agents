@@ -27,7 +27,8 @@ jest.mock('../../src/main/services/claude-service', () => ({
 }));
 
 jest.mock('../../src/main/services/codex-service', () => ({
-  createTask: jest.fn(),
+  isCodexInstalled: jest.fn(),
+  startSession: jest.fn(),
   getTrackedThreads: jest.fn(),
 }));
 
@@ -140,15 +141,15 @@ describe('QueueProcessorService', () => {
     it('should process codex task', async () => {
       const task = { tool: 'codex', repo: { path: '/path/to/repo' }, prompt: 'test prompt', attachments: [] };
       cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
-      configStore.hasApiKey.mockReturnValue(true);
-      codexService.createTask.mockResolvedValue({ id: 'task1' });
+      codexService.isCodexInstalled.mockReturnValue(true);
+      codexService.startSession.mockResolvedValue({ id: 'task1' });
 
       await queueProcessorService.processQueue('ns1');
 
-      expect(codexService.createTask).toHaveBeenCalledWith({
+      expect(codexService.startSession).toHaveBeenCalledWith({
         prompt: 'test prompt',
-        repository: '/path/to/repo',
-        title: expect.any(String),
+        projectPath: '/path/to/repo',
+        command: undefined,
         attachments: []
       });
     });

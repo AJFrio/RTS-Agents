@@ -71,15 +71,15 @@ describe('Security Verification - Command Injection', () => {
 
       expect(spawnSpy).toHaveBeenCalledWith(
         expect.any(String),
-        expect.arrayContaining(['-p', prompt]),
+        expect.arrayContaining(['--print', prompt]),
         expect.objectContaining({
           shell: false
         })
       );
 
-      const call = spawnSpy.mock.calls.find(c => c[1].includes('-p'));
+      const call = spawnSpy.mock.calls.find(c => c[1].includes('--print'));
       if (call) {
-        const promptArg = call[1][call[1].indexOf('-p') + 1];
+        const promptArg = call[1][call[1].indexOf('--print') + 1];
         expect(promptArg).toBe(prompt);
         expect(promptArg).not.toMatch(/^".*"$/);
       }

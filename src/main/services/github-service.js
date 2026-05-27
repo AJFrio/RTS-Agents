@@ -1,4 +1,5 @@
 const https = require('https');
+const providerHealth = require('./provider-health');
 
 let apiKey = null;
 
@@ -8,9 +9,10 @@ const setApiKey = (key) => {
 
 const getHeaders = () => {
   return {
-    'Authorization': `token ${apiKey}`,
+    'Authorization': `Bearer ${apiKey}`,
     'User-Agent': 'RTS-Agents-Dashboard',
-    'Accept': 'application/vnd.github.v3+json'
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28'
   };
 };
 
@@ -174,10 +176,20 @@ const markPullRequestReadyForReview = async (nodeId) => {
 
 const testConnection = async () => {
   try {
-    await makeRequest('/user');
-    return { success: true };
+    const user = await makeRequest('/user');
+    return providerHealth.ok('github', {
+      configured: true,
+      docsUrl: 'https://docs.github.com/rest/authentication/authenticating-to-the-rest-api',
+      endpointLabel: 'GET /user',
+      message: `Connected to GitHub${user?.login ? ` as ${user.login}` : ''}.`,
+      diagnostics: { login: user?.login || null }
+    });
   } catch (error) {
-    return { success: false, error: error.message };
+    return providerHealth.fail('github', error, {
+      configured: !!apiKey,
+      docsUrl: 'https://docs.github.com/rest/authentication/authenticating-to-the-rest-api',
+      endpointLabel: 'GET /user'
+    });
   }
 };
 

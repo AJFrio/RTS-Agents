@@ -14,12 +14,18 @@ const PATH_PROVIDER_META = {
     installed: await claudeService.isClaudeInstalled()
   }),
   cursor: () => ({}),
-  codex: () => ({}),
+  codex: async ({ codexService }) => ({
+    installed: await codexService.isCodexInstalled()
+  }),
+  opencode: async ({ opencodeService }) => ({
+    defaultPath: opencodeService.getDefaultDataPath(),
+    installed: await opencodeService.isOpenCodeInstalled()
+  }),
   github: () => ({})
 };
 
 function registerSettingsPathHandlers(deps) {
-  const { configStore, lifecycle, antigravityService, claudeService } = deps;
+  const { configStore, lifecycle, antigravityService, claudeService, codexService, opencodeService } = deps;
   const { sendCloudflareHeartbeat, invalidateAgentDiscovery, startDiscoveryWatchers } = lifecycle;
 
   for (const provider of PROJECT_PATH_PROVIDERS) {
@@ -41,7 +47,7 @@ function registerSettingsPathHandlers(deps) {
 
     ipcMain.handle(`settings:get-${provider}-paths`, async () => {
       const metaFn = PATH_PROVIDER_META[provider];
-      const extra = metaFn ? await metaFn({ antigravityService, claudeService }) : {};
+      const extra = metaFn ? await metaFn({ antigravityService, claudeService, codexService, opencodeService }) : {};
       return {
         paths: configStore.getProjectPaths(provider),
         ...extra

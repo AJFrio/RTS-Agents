@@ -7,7 +7,7 @@ RTS Agents is 1 dashboard to access all your coding agents and Github repos acro
 
 It supports:
 - **Local CLI-backed agents**: Antigravity CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (tracks locally-launched sessions and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
-- **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI (Codex via Assistants/Threads), and Claude (Anthropic Messages API).
+- **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI Responses, and Claude (Anthropic Messages API).
 - **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
 
 ---
@@ -26,15 +26,16 @@ It supports:
   - Cursor: conversation transcript
   - Jules: activity timeline + PR output (when available)
   - Antigravity CLI: tracked launch metadata with full conversation history available in Antigravity
-  - Codex: thread messages and run history
+  - Codex: tracked local CLI launches or OpenAI Responses output
   - Claude CLI / Cloud: message history (local sessions or tracked cloud conversations)
 
 ### Create new tasks (“New Task” modal)
 Create tasks from the UI, with provider-specific options:
 - **Jules**: choose connected repo source + branch, optionally auto-create PR
 - **Cursor Cloud**: choose repository + ref/branch, optionally auto-create PR
-- **Antigravity CLI**: choose a local Git repo path, start a detached `agy -p` CLI session
-- **Codex**: create a new OpenAI thread (tracked locally in the app), prompt-only (repo optional)
+- **Antigravity CLI**: choose a local Git repo path, start a detached `agy --print` CLI session
+- **Codex CLI**: choose a local Git repo path, start a detached `codex exec` session
+- **OpenAI Responses**: create a prompt-only response task with a Codex-capable model
 - **Claude CLI**: start a detached `claude` CLI session in a local repo
 - **Claude Cloud**: prompt-only (no repository required)
 
@@ -140,20 +141,19 @@ This app stores provider credentials in a local Electron settings store. You can
 
 ### Cursor Cloud API key (required for Cursor)
 - **Used for**: listing agents, reading agent details, listing repositories, creating agents
-- **Where it’s sent**: `https://api.cursor.com/v0/...`
+- **Where it’s sent**: `https://api.cursor.com/v1/...`
 - **Auth**: HTTP Basic Auth with the API key as the username (empty password)
 - **How to get it**: from Cursor settings (the app UI hints “cursor.com/settings”)
 
-### OpenAI API key (required for Codex)
-- **Used for**: creating threads, fetching thread/runs/messages for tracked threads
+### OpenAI API key (optional for OpenAI Responses)
+- **Used for**: validating OpenAI access and creating stored Responses API tasks with Codex-capable models
 - **Where it’s sent**: `https://api.openai.com/v1/...`
 - **Header**: `Authorization: Bearer <key>`
-- **Note**: uses `OpenAI-Beta: assistants=v2`
 - **How to get it**: from OpenAI API keys (the app UI hints “platform.openai.com/api-keys”)
 
 ### Anthropic API key (required for Claude Cloud)
-- **Used for**: sending a prompt via the Anthropic Messages API
-- **Where it’s sent**: `https://api.anthropic.com/v1/messages`
+- **Used for**: validating available models and sending prompts via the Anthropic Messages API
+- **Where it’s sent**: `https://api.anthropic.com/v1/...`
 - **Header**: `x-api-key: <key>`
 - **How to get it**: from the Anthropic console (the app UI hints “console.anthropic.com”)
 
@@ -173,7 +173,7 @@ This app stores provider credentials in a local Electron settings store. You can
 
 ---
 
-## Local CLI Setup (Antigravity CLI and Claude CLI)
+## Local CLI Setup (Antigravity CLI, Claude CLI, Codex CLI, and OpenCode)
 
 These providers are **not configured via API key inside this app**. They rely on locally-installed CLIs and their session folders.
 
@@ -208,8 +208,8 @@ If Claude CLI shows as “not installed”:
 1. **Install dependencies** (`npm ci`)
 2. **Start the app** (`npm run dev` or `npm run start`)
 3. Open **Settings** and configure what you need:
-   - Add API keys for any cloud providers you want to use (Jules, Cursor, Codex, Claude Cloud, GitHub)
-   - Add **GitHub Repository Paths** so the app can find local repos for Antigravity CLI / Claude CLI tasks
+   - Add API keys for any cloud providers you want to use (Jules, Cursor, OpenAI Responses, Claude Cloud, GitHub)
+   - Add repository root paths so the app can find local repos for Antigravity CLI / Claude CLI / Codex CLI / OpenCode tasks
    - Optional: add **Antigravity CLI Paths** if you keep local repo roots in additional locations
 4. Go back to **Dashboard** and click **SYNC** to refresh.
 
@@ -220,6 +220,7 @@ If Claude CLI shows as “not installed”:
 - `npm run start`: build minified Tailwind CSS and launch Electron
 - `npm run dev`: Tailwind CSS watch + launch Electron
 - `npm run dev:headless`: run a lightweight headless device (no Electron UI) that registers to Cloudflare KV, pulls keys, and executes queued remote tasks
+- `npm run smoke:providers`: optional live provider smoke check using stored config or environment variables; reports `not_configured`, `ok`, `auth_failed`, `rate_limited`, or `stale_contract`
 - `npm run test`: Jest unit + integration tests
 - `npm run test:e2e`: Playwright E2E tests (optimized for headless Linux with `xvfb-maybe`)
 - `npm run validate`: docs structure + architecture checks + lint + unit tests (agent harness gate)
@@ -256,7 +257,7 @@ npx playwright test
   - `claude-service.js` (local session discovery + Anthropic API + start CLI session)
   - `jules-service.js` (Jules API)
   - `cursor-service.js` (Cursor Cloud API)
-  - `codex-service.js` (OpenAI Assistants/Threads; tracks created threads locally)
+  - `codex-service.js` (Codex CLI launch support plus OpenAI Responses tasks)
   - `github-service.js` (GitHub REST + GraphQL for “ready for review”)
 - **Persistence**: `electron-store` via `src/main/services/config-store.js`
   - Stores API keys, polling settings, repo paths, filters, and tracked Codex/Claude cloud IDs locally.

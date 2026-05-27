@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const providerHealth = require('../services/provider-health');
 
 function registerUtilsHandlers(deps) {
   const {
@@ -96,28 +97,39 @@ ipcMain.handle('utils:get-status', async () => {
     ]);
   
     // Local CLI status: connected if CLI is installed
-    const [antigravityInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
+    const [antigravityInstalled, claudeCliInstalled, codexInstalled, opencodeInstalled] = await Promise.all([
       antigravityService.isAntigravityInstalled(),
       claudeService.isClaudeInstalled(),
+      codexService.isCodexInstalled(),
       opencodeService.isOpenCodeInstalled()
     ]);
-    // Claude Cloud status: connected if API key is valid
-    const claudeCloudValid = claudeCloudStatus.status === 'fulfilled' && claudeCloudStatus.value.success;
-    
     return {
       antigravity: {
         success: antigravityInstalled,
         connected: antigravityInstalled,
         error: antigravityInstalled ? null : 'Antigravity CLI not found'
       },
-      openrouter: {
-        success: openRouterStatus.status === 'fulfilled' && openRouterStatus.value.success,
-        connected: openRouterStatus.status === 'fulfilled' && openRouterStatus.value.success,
-        error: openRouterStatus.status === 'fulfilled' ? openRouterStatus.value.error : openRouterStatus.reason?.message
-      },
+      openrouter: openRouterStatus.status === 'fulfilled'
+        ? openRouterStatus.value
+        : providerHealth.fail('openrouter', openRouterStatus.reason, { configured: configStore.hasApiKey('openrouter') }),
       jules: julesStatus.status === 'fulfilled' ? julesStatus.value : { success: false, error: julesStatus.reason?.message },
       cursor: cursorStatus.status === 'fulfilled' ? cursorStatus.value : { success: false, error: cursorStatus.reason?.message },
-      codex: codexStatus.status === 'fulfilled' ? codexStatus.value : { success: false, error: codexStatus.reason?.message },
+      codex: configStore.hasApiKey('codex')
+        ? (codexStatus.status === 'fulfilled' ? codexStatus.value : providerHealth.fail('codex', codexStatus.reason, { configured: true }))
+        : (codexInstalled
+          ? providerHealth.ok('codex', {
+            configured: true,
+            installed: true,
+            docsUrl: 'https://developers.openai.com/codex/noninteractive',
+            endpointLabel: 'codex --version',
+            message: 'Codex CLI is available on this machine.'
+          })
+          : providerHealth.notConfigured('codex', {
+            installed: false,
+            docsUrl: 'https://developers.openai.com/codex/noninteractive',
+            endpointLabel: 'codex --version',
+            message: 'OpenAI API key not configured and Codex CLI not found'
+          })),
       'claude-cli': {
         success: claudeCliInstalled,
         connected: claudeCliInstalled,
@@ -128,11 +140,9 @@ ipcMain.handle('utils:get-status', async () => {
         connected: opencodeInstalled,
         error: opencodeInstalled ? null : 'OpenCode CLI not found'
       },
-      'claude-cloud': {
-        success: claudeCloudValid,
-        connected: claudeCloudValid,
-        error: claudeCloudValid ? null : (configStore.hasApiKey('claude') ? 'API key invalid' : 'Not configured')
-      },
+      'claude-cloud': claudeCloudStatus.status === 'fulfilled'
+        ? claudeCloudStatus.value
+        : providerHealth.fail('claude-cloud', claudeCloudStatus.reason, { configured: configStore.hasApiKey('claude') }),
       github: githubStatus.status === 'fulfilled' ? githubStatus.value : { success: false, error: githubStatus.reason?.message },
       jira: jiraStatus.status === 'fulfilled' ? jiraStatus.value : { success: false, error: jiraStatus.reason?.message }
     };

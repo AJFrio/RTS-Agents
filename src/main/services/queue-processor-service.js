@@ -104,6 +104,7 @@ class QueueProcessorService {
       const cliCommands = configStore.getSetting('cliCommands') || {};
       const antigravityCmd = typeof cliCommands?.antigravity === 'string' ? cliCommands.antigravity : '';
       const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
+      const codexCmd = typeof cliCommands?.codex === 'string' ? cliCommands.codex : '';
       const opencodeCmd = typeof cliCommands?.opencode === 'string' ? cliCommands.opencode : '';
 
       let started;
@@ -126,13 +127,14 @@ class QueueProcessorService {
             command: claudeCmd || undefined
         });
       } else if (tool === 'codex') {
-        if (!configStore.hasApiKey('codex')) throw new Error('Codex API key not configured on target device');
-
-        started = await codexService.createTask({
+        if (!(await codexService.isCodexInstalled()) && !this.isCommandRunnable(codexCmd || 'codex')) {
+          throw new Error('Codex CLI not detected on target device');
+        }
+        started = await codexService.startSession({
           prompt,
-          repository: repoPath,
-          title: prompt.substring(0, 50),
-          attachments: attachments
+          projectPath: repoPath,
+          command: codexCmd || undefined,
+          attachments
         });
         configStore.setCodexThreads(codexService.getTrackedThreads());
       } else if (tool === 'opencode') {

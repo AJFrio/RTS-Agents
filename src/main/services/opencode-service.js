@@ -5,6 +5,7 @@ const configStore = require('./config-store');
 const projectService = require('./project-service');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
+const providerHealth = require('./provider-health');
 
 function isCommandRunnable(cmd) {
   if (!cmd) return false;
@@ -76,10 +77,22 @@ class OpenCodeService {
   }
 
   async testConnection() {
-    if (await this.isOpenCodeInstalled()) {
-      return { success: true };
+    const installed = await this.isOpenCodeInstalled();
+    if (installed) {
+      return providerHealth.ok('opencode', {
+        configured: true,
+        installed: true,
+        docsUrl: 'https://opencode.ai/docs/cli/',
+        endpointLabel: `${this.getExecutable()} --version`,
+        message: 'OpenCode CLI is available on this machine.'
+      });
     }
-    return { success: false, error: 'OpenCode CLI not found' };
+    return providerHealth.fail('opencode', 'OpenCode CLI not found', {
+      configured: false,
+      installed: false,
+      docsUrl: 'https://opencode.ai/docs/cli/',
+      endpointLabel: `${this.getExecutable()} --version`
+    });
   }
 
   _pickRunArgsFor(executable, prompt) {

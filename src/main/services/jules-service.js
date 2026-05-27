@@ -1,4 +1,5 @@
 const httpService = require('./http-service');
+const providerHealth = require('./provider-health');
 
 const BASE_URL = 'https://jules.googleapis.com/v1alpha';
 
@@ -34,9 +35,10 @@ class JulesService {
         'X-Goog-Api-Key': this.apiKey,
         'Content-Type': 'application/json'
       },
+      body,
       timeout: 30000,
       errorMessagePrefix: 'Jules API error'
-    }, body);
+    });
   }
 
   /**
@@ -91,14 +93,10 @@ class JulesService {
    * Get all agents (sessions) formatted for the dashboard
    */
   async getAllAgents() {
-    try {
-      const response = await this.listSessions(100);
-      const sessions = response.sessions || [];
+    const response = await this.listSessions(100);
+    const sessions = response.sessions || [];
 
-      return sessions.map(session => this.normalizeSession(session));
-    } catch (err) {
-      throw err;
-    }
+    return sessions.map(session => this.normalizeSession(session));
   }
 
   /**
@@ -316,10 +314,23 @@ class JulesService {
    */
   async testConnection() {
     try {
-      await this.listSources(1);
-      return { success: true };
+      const response = await this.listSources(1);
+      const sourceCount = Array.isArray(response?.sources) ? response.sources.length : 0;
+      return providerHealth.ok('jules', {
+        configured: true,
+        docsUrl: 'https://developers.google.com/jules/api',
+        endpointLabel: 'GET /v1alpha/sources?pageSize=1',
+        message: sourceCount > 0
+          ? `Connected to Jules. ${sourceCount} source${sourceCount === 1 ? '' : 's'} visible in the first page.`
+          : 'Connected to Jules. No sources were returned on the first page.',
+        diagnostics: { sourceCount }
+      });
     } catch (err) {
-      return { success: false, error: err.message };
+      return providerHealth.fail('jules', err, {
+        configured: !!this.apiKey,
+        docsUrl: 'https://developers.google.com/jules/api',
+        endpointLabel: 'GET /v1alpha/sources?pageSize=1'
+      });
     }
   }
 
@@ -378,7 +389,7 @@ class JulesService {
 
     let fullPrompt = prompt;
 
-    // Append attachments to prompt if present
+    // Jules v1alpha does not accept binary attachments; include image data URLs as prompt context.
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
       for (const attachment of attachments) {
         if (attachment?.dataUrl) {

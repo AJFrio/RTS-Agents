@@ -39,18 +39,10 @@ class CloudflareKvService {
   }
 
   async _request(relativePath, options) {
-    try {
-      return await this._makeRequest(relativePath, options, false);
-    } catch (err) {
-      // If request failed due to SSL self-signed certificate, retry insecurely
-      if (err.message && /self signed certificate|unable to get local issuer certificate/i.test(err.message)) {
-        return await this._makeRequest(relativePath, options, true);
-      }
-      throw err;
-    }
+    return this._makeRequest(relativePath, options);
   }
 
-  async _makeRequest(relativePath, { method = 'GET', headers = {}, body } = {}, insecure = false) {
+  async _makeRequest(relativePath, { method = 'GET', headers = {}, body } = {}) {
     if (!this.accountId) throw new Error('Cloudflare accountId not configured');
 
     const fullUrl = `${this.baseUrl}${relativePath}`;
@@ -63,8 +55,7 @@ class CloudflareKvService {
       headers: {
         ...this.headers,
         ...headers
-      },
-      rejectUnauthorized: !insecure
+      }
     };
 
     return new Promise((resolve, reject) => {

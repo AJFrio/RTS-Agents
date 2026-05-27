@@ -31,6 +31,7 @@ export const initialState = {
     claudePaths: [],
     cursorPaths: [],
     codexPaths: [],
+    opencodePaths: [],
     githubPaths: [],
     theme: 'system',
     displayMode: 'fullscreen',
@@ -78,6 +79,7 @@ export const initialState = {
     installations: {
       antigravity: false,
       claude: false,
+      codex: false,
       opencode: false,
     },
   },

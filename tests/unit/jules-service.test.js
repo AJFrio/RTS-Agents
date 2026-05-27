@@ -30,7 +30,8 @@ describe('JulesService', () => {
 
     // Mock httpService instead of https for these tests to bypass callback issues
     const httpService = require('../../src/main/services/http-service');
-    jest.spyOn(httpService, 'request').mockImplementation(async (url, options, body) => {
+    jest.spyOn(httpService, 'request').mockImplementation(async (url, options) => {
+      const body = options?.body;
       // If there's a body, simulate writing it
       if (body) {
         httpsRequestMock.write(JSON.stringify(body));
@@ -185,9 +186,9 @@ describe('JulesService', () => {
         expect.objectContaining({
           headers: expect.objectContaining({
             'X-Goog-Api-Key': 'test-key'
-          })
-        }),
-        null
+          }),
+          body: null
+        })
       );
     });
 

@@ -82,13 +82,14 @@ async function fetchAllAgents(deps) {
     claudeService.isClaudeInstalled(),
     opencodeService.isOpenCodeInstalled()
   ]);
+  const codexAvailable = configStore.hasApiKey('codex') || await codexService.isCodexInstalled();
   const claudeCloudAvailable = configStore.hasApiKey('claude');
 
   const settled = await Promise.allSettled([
     antigravityAvailable ? Promise.resolve(antigravityService.getAllAgents()) : Promise.resolve([]),
     configStore.hasApiKey('jules') ? julesService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('cursor') ? cursorService.getAllAgents() : Promise.resolve([]),
-    configStore.hasApiKey('codex') ? codexService.getAllAgents() : Promise.resolve([]),
+    codexAvailable ? Promise.resolve(codexService.getAllAgents()) : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAllLocalSessions(allProjectPaths) : Promise.resolve([]),
     claudeCloudAvailable ? claudeService.getAllCloudConversations() : Promise.resolve([]),
     opencodeAvailable ? Promise.resolve(opencodeService.getAllAgents()) : Promise.resolve([])
@@ -98,7 +99,7 @@ async function fetchAllAgents(deps) {
     antigravityAvailable,
     configStore.hasApiKey('jules'),
     configStore.hasApiKey('cursor'),
-    configStore.hasApiKey('codex'),
+    codexAvailable,
     claudeCliAvailable,
     claudeCloudAvailable,
     opencodeAvailable
@@ -189,10 +190,10 @@ async function fetchRepositories(deps, provider) {
       return { success: true, repositories };
     }
     case 'codex': {
-      if (!configStore.hasApiKey('codex') && configStore.getCodexPaths().length === 0) {
+      if (!configStore.hasApiKey('codex') && configStore.getCodexPaths().length === 0 && !(await codexService.isCodexInstalled())) {
         return {
           success: false,
-          error: 'OpenAI API key not configured and no local paths set',
+          error: 'OpenAI API key not configured, Codex CLI not installed, and no local paths set',
           repositories: []
         };
       }
@@ -242,8 +243,8 @@ async function fetchAllRepositories(deps) {
     claudeService.isClaudeInstalled(),
     opencodeService.isOpenCodeInstalled()
   ]);
+  const codexAvailable = configStore.hasApiKey('codex') || configStore.getCodexPaths().length > 0 || await codexService.isCodexInstalled();
   const cursorPaths = configStore.getCursorPaths();
-  const codexPaths = configStore.getCodexPaths();
 
   const settled = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.getAllSources() : Promise.resolve([]),
@@ -253,7 +254,7 @@ async function fetchAllRepositories(deps) {
     antigravityAvailable
       ? antigravityService.getAvailableProjects(allProjectPaths)
       : Promise.resolve([]),
-    (configStore.hasApiKey('codex') || codexPaths.length > 0)
+    codexAvailable
       ? codexService.getAvailableProjects(allProjectPaths)
       : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
@@ -265,7 +266,7 @@ async function fetchAllRepositories(deps) {
     configStore.hasApiKey('jules'),
     configStore.hasApiKey('cursor'),
     antigravityAvailable,
-    configStore.hasApiKey('codex'),
+    codexAvailable,
     claudeCliAvailable,
     opencodeAvailable
   ];
@@ -318,8 +319,8 @@ async function createLocalTask(deps, provider, options) {
       return { success: true, task };
     }
     case 'codex': {
-      if (!configStore.hasApiKey('codex')) {
-        throw new Error('OpenAI API key not configured');
+      if (!configStore.hasApiKey('codex') && !(await codexService.isCodexInstalled())) {
+        throw new Error('OpenAI API key not configured and Codex CLI not installed');
       }
       const task = await codexService.createTask(options);
       configStore.setCodexThreads(codexService.getTrackedThreads());

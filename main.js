@@ -158,6 +158,7 @@ function initializeServices() {
   void Promise.all([
     antigravityService.refreshInstallStatus(),
     claudeService.refreshInstallStatus(),
+    codexService.refreshInstallStatus(),
     opencodeService.refreshInstallStatus()
   ]).catch((err) => {
     console.warn('Install status warm-up failed:', err?.message || err);

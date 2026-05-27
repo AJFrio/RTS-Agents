@@ -30,6 +30,8 @@ function getExistingPaths(serviceId, state) {
       return state.settings?.cursorPaths || [];
     case 'codex-local':
       return state.settings?.codexPaths || [];
+    case 'opencode-local':
+      return state.settings?.opencodePaths || [];
     case 'github-local':
       return state.settings?.githubPaths || [];
     default:
@@ -43,6 +45,12 @@ function getInstallState(serviceId, state) {
   }
   if (serviceId === 'claude-local') {
     return state.serviceInfo?.installations?.claude;
+  }
+  if (serviceId === 'codex-local') {
+    return state.serviceInfo?.installations?.codex;
+  }
+  if (serviceId === 'opencode-local') {
+    return state.serviceInfo?.installations?.opencode;
   }
   return true;
 }
@@ -78,6 +86,7 @@ async function addPathForService(serviceId, pathValue, api) {
   if (serviceId === 'claude-local') return api.addClaudePath(pathValue);
   if (serviceId === 'cursor-local') return api.addCursorPath(pathValue);
   if (serviceId === 'codex-local') return api.addCodexPath(pathValue);
+  if (serviceId === 'opencode-local') return api.addOpenCodePath(pathValue);
   if (serviceId === 'github-local') return api.addGithubPath(pathValue);
   throw new Error(`Unsupported local service: ${serviceId}`);
 }
@@ -87,6 +96,7 @@ async function removePathForService(serviceId, pathValue, api) {
   if (serviceId === 'claude-local') return api.removeClaudePath(pathValue);
   if (serviceId === 'cursor-local') return api.removeCursorPath(pathValue);
   if (serviceId === 'codex-local') return api.removeCodexPath(pathValue);
+  if (serviceId === 'opencode-local') return api.removeOpenCodePath(pathValue);
   if (serviceId === 'github-local') return api.removeGithubPath(pathValue);
   throw new Error(`Unsupported local service: ${serviceId}`);
 }
@@ -108,6 +118,7 @@ async function verifyLocalService(serviceId, api) {
     'claude-local': 'claude-cli',
     'cursor-local': 'cursor',
     'codex-local': 'codex',
+    'opencode-local': 'opencode',
   };
 
   const result = await api.getRepositories(providerMap[serviceId]);
@@ -180,25 +191,41 @@ export default function ServiceOnboardingModal({
         if (!apiKey) {
           throw new Error('Enter an API key before continuing.');
         }
+        setFeedback({ type: 'info', message: `Saving ${service.title} credentials...` });
         await api.setApiKey(service.provider, apiKey);
+        setFeedback({ type: 'info', message: `Testing ${service.title} connection...` });
         result = await api.testApiKey(service.provider);
+        if (!result?.success) {
+          await api.removeApiKey(service.provider);
+        }
       } else if (service.kind === 'jira') {
         const baseUrl = (formValues.baseUrl || '').trim();
         const apiKey = (formValues.apiKey || '').trim();
         if (!baseUrl || !apiKey) {
           throw new Error('Enter both the Jira base URL and API token.');
         }
+        setFeedback({ type: 'info', message: 'Saving Jira settings...' });
         await api.setJiraBaseUrl(baseUrl);
         await api.setApiKey('jira', apiKey);
+        setFeedback({ type: 'info', message: 'Testing Jira connection...' });
         result = await api.testApiKey('jira');
+        if (!result?.success) {
+          await api.removeApiKey('jira');
+          await api.setJiraBaseUrl('');
+        }
       } else if (service.kind === 'cloudflare') {
         const accountId = (formValues.accountId || '').trim();
         const apiToken = (formValues.apiToken || '').trim();
         if (!accountId || !apiToken) {
           throw new Error('Enter both the Cloudflare account ID and API token.');
         }
+        setFeedback({ type: 'info', message: 'Saving Cloudflare settings...' });
         await api.setCloudflareConfig(accountId, apiToken);
+        setFeedback({ type: 'info', message: 'Testing Cloudflare KV access...' });
         result = await api.testCloudflare();
+        if (!result?.success) {
+          await api.clearCloudflareConfig();
+        }
       } else if (service.kind === 'local-path') {
         const selectedPath = (formValues.path || '').trim();
         if (!selectedPath) {
@@ -207,12 +234,17 @@ export default function ServiceOnboardingModal({
         if (service.requiresInstall && !installReady) {
           throw new Error(`${service.title} is not detected on this machine yet.`);
         }
+        setFeedback({ type: 'info', message: `Saving ${service.title} repository root...` });
         await addPathForService(service.id, selectedPath, api);
+        setFeedback({ type: 'info', message: `Verifying ${service.title} projects...` });
         result = await verifyLocalService(service.id, api);
+        if (!result?.success) {
+          await removePathForService(service.id, selectedPath, api);
+        }
       }
 
       if (!result?.success) {
-        throw new Error(result?.error || 'Verification failed.');
+        throw new Error(result?.error || result?.message || 'Verification failed.');
       }
 
       await loadSettings?.();
@@ -410,6 +442,8 @@ export default function ServiceOnboardingModal({
                 <div className={`rounded-2xl border px-4 py-3 text-sm ${
                   feedback.type === 'success'
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
+                    : feedback.type === 'info'
+                      ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-300'
                     : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300'
                 }`}>
                   {feedback.message}

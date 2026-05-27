@@ -1,45 +1,87 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { spawn, spawnSync } = require('child_process');
 const { upsertItem } = require('../utils/collection-utils');
 const httpService = require('./http-service');
+const configStore = require('./config-store');
+const { pathExists, pathExistsAny } = require('../utils/path-exists');
+const installStatus = require('../utils/install-status');
+const providerHealth = require('./provider-health');
 
 const BASE_URL = 'https://api.openai.com/v1';
-const CODEX_DEFAULT_ASSISTANT_ID = 'asst_codex';
+const CODEX_DEFAULT_MODEL = 'gpt-5-codex';
 
-// Store for tracking created thread IDs (since OpenAI doesn't have a list threads endpoint)
+// Stored in configStore as codexThreads for backward compatibility with existing installs.
 let trackedThreads = [];
+
+function isCommandRunnable(cmd, args = ['--version']) {
+  if (!cmd) return false;
+  try {
+    const r = spawnSync(String(cmd), args, {
+      shell: false,
+      stdio: 'ignore',
+      timeout: 3000,
+      windowsHide: true
+    });
+    if (r.error) return false;
+    return r.status === 0;
+  } catch {
+    return false;
+  }
+}
 
 class CodexService {
   constructor() {
     this.apiKey = null;
   }
 
-  /**
-   * Set the API key for OpenAI Codex API
-   * @param {string} apiKey 
-   */
   setApiKey(apiKey) {
     this.apiKey = apiKey;
   }
 
-  /**
-   * Make an HTTP request to the OpenAI API
-   * @param {string} endpoint 
-   * @param {string} method 
-   * @param {object} body 
-   */
+  getExecutable() {
+    const cli = configStore.getSetting('cliCommands') || {};
+    const custom = typeof cli?.codex === 'string' ? cli.codex.trim() : '';
+    if (custom) return custom;
+    return process.platform === 'win32' ? 'codex.cmd' : 'codex';
+  }
+
+  async isCodexInstalled() {
+    const cached = installStatus.getCached('codex');
+    if (cached !== undefined) {
+      return cached;
+    }
+    return this.refreshInstallStatus();
+  }
+
+  isCodexInstalledSync() {
+    const cached = installStatus.getCached('codex');
+    return cached === undefined ? false : cached;
+  }
+
+  async refreshInstallStatus() {
+    if (isCommandRunnable(this.getExecutable())) {
+      installStatus.setCached('codex', true);
+      return true;
+    }
+    const candidates = [path.join(os.homedir(), '.codex')];
+    const installed = await pathExistsAny(candidates);
+    installStatus.setCached('codex', installed);
+    return installed;
+  }
+
   async request(endpoint, method = 'GET', body = null) {
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
     const url = `${BASE_URL}${endpoint}`;
-    
+
     try {
       return await httpService.requestJson(url, method, body, {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'OpenAI-Beta': 'assistants=v2'
-      });
+        'Authorization': `Bearer ${this.apiKey}`
+      }, 60000);
     } catch (err) {
       if (err.statusCode) {
          const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
@@ -49,287 +91,266 @@ class CodexService {
     }
   }
 
-  /**
-   * Create a new thread
-   * @param {object} options - Thread creation options
-   */
-  async createThread(options = {}) {
-    const body = {};
-    
-    // Add initial messages if provided
-    if (options.messages && options.messages.length > 0) {
-      body.messages = options.messages;
+  async listModels() {
+    return this.request('/models');
+  }
+
+  async testConnection() {
+    try {
+      const response = await this.listModels();
+      const models = Array.isArray(response?.data) ? response.data : [];
+      const codexModels = models.filter((model) => String(model?.id || '').includes('codex'));
+      return providerHealth.ok('codex', {
+        configured: true,
+        installed: await this.isCodexInstalled(),
+        docsUrl: 'https://developers.openai.com/api/docs/guides/migrate-to-responses',
+        endpointLabel: 'GET /v1/models',
+        message: `Connected to OpenAI. ${codexModels.length} Codex-capable model${codexModels.length === 1 ? '' : 's'} found.`,
+        diagnostics: { modelCount: models.length, codexModelCount: codexModels.length }
+      });
+    } catch (err) {
+      return providerHealth.fail('codex', err, {
+        configured: !!this.apiKey,
+        installed: await this.isCodexInstalled(),
+        docsUrl: 'https://developers.openai.com/api/docs/guides/migrate-to-responses',
+        endpointLabel: 'GET /v1/models'
+      });
     }
-
-    // Add metadata if provided
-    if (options.metadata) {
-      body.metadata = options.metadata;
-    }
-
-    const response = await this.request('/threads', 'POST', body);
-    
-    // Track this thread ID for listing later
-    this.trackThread(response.id, options);
-    
-    return response;
   }
 
-  /**
-   * Get a specific thread by ID
-   * @param {string} threadId 
-   */
-  async getThread(threadId) {
-    return this.request(`/threads/${threadId}`);
-  }
-
-  /**
-   * List messages in a thread
-   * @param {string} threadId 
-   * @param {number} limit 
-   */
-  async listMessages(threadId, limit = 100) {
-    return this.request(`/threads/${threadId}/messages?limit=${limit}`);
-  }
-
-  /**
-   * Create a message in a thread
-   * @param {string} threadId 
-   * @param {string} content 
-   * @param {string} role 
-   */
-  async createMessage(threadId, content, role = 'user') {
-    return this.request(`/threads/${threadId}/messages`, 'POST', {
-      role: role,
-      content: content
-    });
-  }
-
-  /**
-   * Create and run a thread with an assistant
-   * @param {string} threadId 
-   * @param {object} options 
-   */
-  async createRun(threadId, options = {}) {
-    const body = {
-      assistant_id: options.assistantId || CODEX_DEFAULT_ASSISTANT_ID, // Default Codex assistant
-      ...options
-    };
-
-    return this.request(`/threads/${threadId}/runs`, 'POST', body);
-  }
-
-  /**
-   * List runs for a thread
-   * @param {string} threadId 
-   * @param {number} limit 
-   */
-  async listRuns(threadId, limit = 20) {
-    return this.request(`/threads/${threadId}/runs?limit=${limit}`);
-  }
-
-  /**
-   * Get a specific run
-   * @param {string} threadId 
-   * @param {string} runId 
-   */
-  async getRun(threadId, runId) {
-    return this.request(`/threads/${threadId}/runs/${runId}`);
-  }
-
-  /**
-   * Track a thread ID for later listing
-   * @param {string} threadId 
-   * @param {object} metadata 
-   */
-  trackThread(threadId, metadata = {}) {
-    const threadInfo = {
-      id: threadId,
-      createdAt: new Date().toISOString(),
-      prompt: metadata.prompt || metadata.messages?.[0]?.content || '',
-      repository: metadata.repository || null,
-      ...metadata
-    };
-
-    trackedThreads = upsertItem(trackedThreads, threadInfo, { limit: 100 });
-  }
-
-  /**
-   * Set tracked threads (used to restore from config)
-   * @param {Array} threads 
-   */
   setTrackedThreads(threads) {
     trackedThreads = threads || [];
   }
 
-  /**
-   * Get tracked threads
-   * @returns {Array}
-   */
   getTrackedThreads() {
     return trackedThreads;
   }
 
-  /**
-   * Get all agents (threads) formatted for the dashboard
-   * Fetches all thread details in parallel for better performance
-   */
-  async getAllAgents() {
-    try {
-      // Fetch details for all tracked threads in parallel
-      const results = await Promise.allSettled(
-        trackedThreads.map(async (tracked) => {
-          // Fetch thread and runs in parallel for each thread
-          const [thread, runsResponse] = await Promise.all([
-            this.getThread(tracked.id),
-            this.listRuns(tracked.id, 1)
-          ]);
-          const latestRun = runsResponse.data?.[0];
-          return this.normalizeThread(thread, tracked, latestRun);
-        })
-      );
+  trackThread(id, metadata = {}) {
+    const record = {
+      id,
+      type: metadata.type || 'response',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: metadata.status || 'completed',
+      prompt: metadata.prompt || '',
+      repository: metadata.repository || null,
+      branch: metadata.branch || null,
+      title: metadata.title || null,
+      responseText: metadata.responseText || null,
+      projectPath: metadata.projectPath || null,
+      ...metadata
+    };
 
-      // Filter out failed fetches and extract successful results
-      const agents = results
-        .filter((result, index) => {
-          if (result.status === 'rejected') {
-            // Thread might have been deleted, skip it
-            return false;
-          }
-          return true;
-        })
-        .map(result => result.value);
-
-      return agents;
-    } catch (err) {
-      throw err;
-    }
+    trackedThreads = upsertItem(trackedThreads, record, { limit: 100 });
+    return record;
   }
 
-  /**
-   * Normalize a Codex thread to the common AgentTask format
-   * @param {object} thread 
-   * @param {object} tracked 
-   * @param {object} latestRun 
-   */
-  normalizeThread(thread, tracked = {}, latestRun = null) {
+  getAllAgents() {
+    return trackedThreads.map((record) => this.normalizeRecord(record));
+  }
+
+  normalizeRecord(record = {}) {
     return {
-      id: `codex-${thread.id}`,
+      id: `codex-${record.id}`,
       provider: 'codex',
-      name: this.extractThreadName(tracked, thread),
-      status: this.mapStatus(latestRun),
-      prompt: tracked.prompt || '',
-      repository: tracked.repository || null,
-      branch: tracked.branch || null,
-      prUrl: tracked.prUrl || null,
-      createdAt: thread.created_at ? new Date(thread.created_at * 1000) : null,
-      updatedAt: latestRun?.created_at ? new Date(latestRun.created_at * 1000) : null,
-      summary: latestRun?.status || null,
-      rawId: thread.id,
-      webUrl: `https://platform.openai.com/playground/assistants?thread=${thread.id}`,
-      runId: latestRun?.id || null
+      name: record.title || this.extractRecordName(record),
+      status: this.mapStatus(record.status),
+      prompt: record.prompt || '',
+      repository: record.repository || record.projectPath || null,
+      branch: record.branch || null,
+      prUrl: record.prUrl || null,
+      createdAt: record.createdAt ? new Date(record.createdAt) : null,
+      updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+      summary: record.responseText || record.status || null,
+      rawId: record.id,
+      webUrl: record.responseId ? `https://platform.openai.com/logs/response/${record.responseId}` : null,
+      source: record.type || 'response'
     };
   }
 
-  /**
-   * Extract a readable name from thread/tracked data
-   */
-  extractThreadName(tracked, thread) {
-    if (tracked.title) return tracked.title;
-    if (tracked.prompt) {
-      // Take first 50 chars of prompt as name
-      return tracked.prompt.substring(0, 50) + (tracked.prompt.length > 50 ? '...' : '');
+  extractRecordName(record) {
+    if (record.prompt) {
+      return record.prompt.substring(0, 50) + (record.prompt.length > 50 ? '...' : '');
     }
-    return `Codex Thread ${thread.id.substring(0, 8)}`;
+    return `Codex ${String(record.id || '').substring(0, 8)}`;
   }
 
-  /**
-   * Map OpenAI run status to common status
-   */
-  mapStatus(run) {
-    if (!run) return 'pending';
-
-    const status = run.status?.toLowerCase();
-    
-    switch (status) {
+  mapStatus(status) {
+    switch (String(status || '').toLowerCase()) {
+      case 'running':
       case 'queued':
       case 'in_progress':
         return 'running';
       case 'completed':
+      case 'finished':
         return 'completed';
       case 'failed':
+      case 'error':
       case 'cancelled':
       case 'expired':
         return 'failed';
-      case 'requires_action':
-        return 'pending';
       default:
         return 'pending';
     }
   }
 
-  /**
-   * Get detailed thread with messages
-   * @param {string} threadId - The raw thread ID (without 'codex-' prefix)
-   */
-  async getAgentDetails(threadId) {
-    const [thread, messagesResponse, runsResponse] = await Promise.all([
-      this.getThread(threadId),
-      this.listMessages(threadId, 100),
-      this.listRuns(threadId, 10)
-    ]);
-
-    const tracked = trackedThreads.find(t => t.id === threadId) || {};
-    const latestRun = runsResponse.data?.[0];
+  async getAgentDetails(recordId) {
+    const record = trackedThreads.find((t) => t.id === recordId);
+    if (!record) {
+      throw new Error(`Codex task not found: ${recordId}`);
+    }
 
     return {
-      ...this.normalizeThread(thread, tracked, latestRun),
-      messages: (messagesResponse.data || []).map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: this.extractMessageContent(msg),
-        createdAt: msg.created_at ? new Date(msg.created_at * 1000) : null
-      })).reverse(), // Reverse to get chronological order
-      runs: (runsResponse.data || []).map(run => ({
-        id: run.id,
-        status: run.status,
-        model: run.model,
-        createdAt: run.created_at ? new Date(run.created_at * 1000) : null,
-        completedAt: run.completed_at ? new Date(run.completed_at * 1000) : null,
-        failedAt: run.failed_at ? new Date(run.failed_at * 1000) : null
-      }))
+      ...this.normalizeRecord(record),
+      messages: [
+        {
+          id: `${record.id}-prompt`,
+          role: 'user',
+          content: record.prompt || '',
+          createdAt: record.createdAt || null
+        },
+        ...(record.responseText ? [{
+          id: `${record.id}-response`,
+          role: 'assistant',
+          content: record.responseText,
+          createdAt: record.updatedAt || null
+        }] : [])
+      ],
+      runs: [{
+        id: record.responseId || record.id,
+        status: record.status || 'completed',
+        model: record.model || CODEX_DEFAULT_MODEL,
+        createdAt: record.createdAt || null,
+        completedAt: record.updatedAt || null
+      }]
     };
   }
 
-  /**
-   * Extract text content from a message
-   */
-  extractMessageContent(message) {
-    if (!message.content || message.content.length === 0) return '';
-    
-    // Messages can have multiple content blocks
-    return message.content
-      .filter(c => c.type === 'text')
-      .map(c => c.text?.value || '')
-      .join('\n');
-  }
-
-  /**
-   * Check if API key is valid by making a test request
-   */
-  async testConnection() {
-    try {
-      // Try to list models as a simple API test
-      await this.request('/models');
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
+  async createResponse(options = {}) {
+    const { prompt, repository, branch, title, model = CODEX_DEFAULT_MODEL, attachments } = options;
+    if (!prompt) {
+      throw new Error('Prompt is required');
     }
+
+    let input = prompt;
+    if (repository) input += `\n\nRepository context: ${repository}`;
+    if (branch) input += `\nBranch: ${branch}`;
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      input += `\n\nAttachments were provided as data URLs. Review them only if the selected model supports image inputs.`;
+      for (const attachment of attachments) {
+        if (attachment?.dataUrl) {
+          input += `\n${attachment.name || 'Image'}: ${attachment.dataUrl}`;
+        }
+      }
+    }
+
+    const response = await this.request('/responses', 'POST', {
+      model,
+      input,
+      store: true,
+      metadata: {
+        title: title || prompt.substring(0, 50),
+        repository: repository || '',
+        branch: branch || ''
+      }
+    });
+
+    const id = response.id || `response-${Date.now()}`;
+    const record = this.trackThread(id, {
+      id,
+      type: 'response',
+      responseId: response.id,
+      prompt,
+      repository,
+      branch,
+      title: title || prompt.substring(0, 50),
+      model,
+      status: response.status || 'completed',
+      responseText: response.output_text || this.extractResponseText(response)
+    });
+
+    return this.normalizeRecord(record);
   }
 
-  /**
-   * Get available local projects from configured paths
-   * @param {string[]} paths - Paths to scan
-   */
+  extractResponseText(response) {
+    const output = Array.isArray(response?.output) ? response.output : [];
+    return output
+      .flatMap((item) => Array.isArray(item?.content) ? item.content : [])
+      .map((content) => content?.text || '')
+      .filter(Boolean)
+      .join('\n') || null;
+  }
+
+  async startSession(options) {
+    const { prompt, projectPath, repository, command } = options;
+    const cwd = projectPath || repository;
+
+    if (!prompt) {
+      throw new Error('Prompt is required');
+    }
+    if (!cwd) {
+      throw new Error('Project path is required');
+    }
+    if (!(await pathExists(cwd))) {
+      throw new Error(`Project path does not exist: ${cwd}`);
+    }
+
+    const codexCmd = (command && String(command).trim()) ? String(command).trim() : this.getExecutable();
+    if (!isCommandRunnable(codexCmd)) {
+      throw new Error('Codex CLI not found. Install it or set a custom codex executable.');
+    }
+
+    const sessionId = `codex-cli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const args = ['exec', '--sandbox', 'workspace-write', prompt];
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(codexCmd, args, {
+        cwd,
+        shell: false,
+        detached: true,
+        stdio: 'ignore',
+        env: { ...process.env },
+        windowsHide: true
+      });
+
+      child.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+          reject(new Error('Codex CLI not found. Install it or set a custom codex executable.'));
+        } else {
+          reject(new Error(`Failed to start Codex CLI: ${err.message}`));
+        }
+      });
+
+      child.unref();
+
+      const record = this.trackThread(sessionId, {
+        id: sessionId,
+        type: 'cli',
+        status: 'running',
+        prompt,
+        projectPath: cwd,
+        repository: cwd,
+        title: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '')
+      });
+
+      setTimeout(() => {
+        resolve({
+          ...this.normalizeRecord(record),
+          message: 'Codex CLI task started in the background.'
+        });
+      }, 400);
+    });
+  }
+
+  async createTask(options = {}) {
+    const repoPath = options.projectPath || options.repository;
+    if (repoPath && await pathExists(repoPath) && await this.isCodexInstalled()) {
+      return this.startSession({ ...options, projectPath: repoPath });
+    }
+    return this.createResponse(options);
+  }
+
   async getAvailableLocalRepositories(paths = []) {
     const projects = [];
     const scannedPaths = new Set();
@@ -344,8 +365,6 @@ class CodexService {
         }
 
         const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
-
-        // Filter directories first to avoid creating unnecessary promises
         const validDirs = entries.filter(entry =>
           entry.isDirectory() &&
           !entry.name.startsWith('.') &&
@@ -359,14 +378,14 @@ class CodexService {
           try {
             await fs.promises.access(gitPath);
             return {
-              id: dirPath, // Use path as ID for local
+              id: dirPath,
               name: entry.name,
-              url: dirPath, // Use path as URL
+              url: dirPath,
               path: dirPath,
               displayName: entry.name
             };
           } catch {
-            return null; // Not a git repo or error accessing it
+            return null;
           }
         });
 
@@ -377,10 +396,7 @@ class CodexService {
       }
     }));
 
-    // Flatten results and filter nulls
     const allProjects = results.flat().filter(p => p !== null);
-
-    // Deduplicate based on path while preserving order
     for (const project of allProjects) {
       if (!scannedPaths.has(project.path)) {
         scannedPaths.add(project.path);
@@ -391,107 +407,28 @@ class CodexService {
     return projects;
   }
 
-  /**
-   * Get available repositories (for Codex, we return tracked threads as "projects")
-   * Since Codex works with local projects or GitHub, we provide a way to list recent projects
-   * @param {string[]} localPaths - Paths to scan for local repositories
-   */
   async getAvailableProjects(localPaths = []) {
-    // Return unique repositories from tracked threads
     const repos = new Map();
-    
-    for (const thread of trackedThreads) {
-      if (thread.repository) {
-        repos.set(thread.repository, {
-          id: thread.repository,
-          name: thread.repository,
-          displayName: thread.repository
+
+    for (const record of trackedThreads) {
+      const repo = record.repository || record.projectPath;
+      if (repo) {
+        repos.set(repo, {
+          id: repo,
+          name: repo,
+          displayName: repo
         });
       }
     }
 
-    // Add local repositories
     const localRepos = await this.getAvailableLocalRepositories(localPaths);
     for (const repo of localRepos) {
-      // Use path as key to avoid duplicates
       if (!repos.has(repo.path)) {
         repos.set(repo.path, repo);
       }
     }
 
     return Array.from(repos.values());
-  }
-
-  /**
-   * Create a new Codex task (thread with initial message and run)
-   * @param {object} options - Task creation options
-   * @param {string} options.prompt - The task description/prompt
-   * @param {string} [options.repository] - Repository context
-   * @param {string} [options.branch] - Branch context
-   * @param {string} [options.title] - Task title
-   */
-  async createTask(options) {
-    const { prompt, repository, branch, title, attachments } = options;
-
-    if (!prompt) {
-      throw new Error('Prompt is required');
-    }
-
-    let messageContent = prompt;
-
-    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-      messageContent = [];
-
-      // Add text prompt
-      messageContent.push({
-        type: 'text',
-        text: prompt
-      });
-
-      // Add attachments
-      for (const attachment of attachments) {
-        if (attachment.dataUrl) {
-          messageContent.push({
-            type: 'image_url',
-            image_url: {
-              url: attachment.dataUrl
-            }
-          });
-        }
-      }
-    }
-
-    // Create thread with initial message
-    const thread = await this.createThread({
-      messages: [{
-        role: 'user',
-        content: messageContent
-      }],
-      metadata: {
-        title: title || prompt.substring(0, 50),
-        repository: repository || null,
-        branch: branch || null
-      },
-      prompt: prompt,
-      repository: repository,
-      branch: branch,
-      title: title
-    });
-
-    // Track this thread
-    this.trackThread(thread.id, {
-      prompt: prompt,
-      repository: repository,
-      branch: branch,
-      title: title
-    });
-
-    return this.normalizeThread(thread, {
-      prompt: prompt,
-      repository: repository,
-      branch: branch,
-      title: title
-    });
   }
 }
 

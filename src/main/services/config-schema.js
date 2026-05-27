@@ -29,10 +29,6 @@ const schema = {
         type: 'string',
         default: ''
       },
-      cloudflare: {
-        type: 'string',
-        default: ''
-      },
       jira: {
         type: 'string',
         default: ''
@@ -156,6 +152,11 @@ const schema = {
         items: { type: 'string' },
         default: []
       },
+      opencodePaths: {
+        type: 'array',
+        items: { type: 'string' },
+        default: []
+      },
       githubPaths: {
         type: 'array',
         items: { type: 'string' },
@@ -170,6 +171,7 @@ const schema = {
         properties: {
           antigravity: { type: 'string', default: '' },
           claude: { type: 'string', default: '' },
+          codex: { type: 'string', default: '' },
           opencode: { type: 'string', default: '' }
         },
         default: {}

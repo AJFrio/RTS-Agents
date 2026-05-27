@@ -26,9 +26,10 @@ function registerSettingsHandlers(deps) {
   const { getMainWindow } = deps;
 
 ipcMain.handle('settings:get', async () => {
-    const [antigravityInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
+    const [antigravityInstalled, claudeCliInstalled, codexInstalled, opencodeInstalled] = await Promise.all([
       antigravityService.isAntigravityInstalled(),
       claudeService.isClaudeInstalled(),
+      codexService.isCodexInstalled(),
       opencodeService.isOpenCodeInstalled()
     ]);
     return {
@@ -56,6 +57,7 @@ ipcMain.handle('settings:get', async () => {
       antigravityDefaultPath: antigravityService.getDefaultDataPath(),
       antigravityPaths: configStore.getAntigravityPaths(),
       claudeCliInstalled,
+      codexInstalled,
       opencodeInstalled,
       opencodeDefaultPath: opencodeService.getDefaultDataPath(),
       claudeCloudConfigured: configStore.hasApiKey('claude'),
@@ -63,6 +65,7 @@ ipcMain.handle('settings:get', async () => {
       claudePaths: configStore.getClaudePaths(),
       cursorPaths: configStore.getCursorPaths(),
       codexPaths: configStore.getCodexPaths(),
+      opencodePaths: configStore.getOpenCodePaths(),
       githubPaths: configStore.getGithubPaths(),
       filters: configStore.getFilters(),
       selectedModel: configStore.getSelectedModel(),

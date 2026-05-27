@@ -187,6 +187,18 @@ class ConfigStore {
     return this.removeProjectPath('codex', path);
   }
 
+  getOpenCodePaths() {
+    return this.getProjectPaths('opencode');
+  }
+
+  addOpenCodePath(path) {
+    return this.addProjectPath('opencode', path);
+  }
+
+  removeOpenCodePath(path) {
+    return this.removeProjectPath('opencode', path);
+  }
+
   getGithubPaths() {
     return this.getProjectPaths('github');
   }

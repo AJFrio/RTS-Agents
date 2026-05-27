@@ -126,32 +126,20 @@ describe('Image Attachments Support', () => {
   });
 
   describe('CodexService', () => {
-    test('createTask includes images in thread messages', async () => {
+    test('createTask includes image data URLs in Responses input context', async () => {
       await codexService.createTask({
         prompt: mockPrompt,
         attachments: mockAttachments
       });
 
-      // Find the request to /threads (creation)
-      const req = requests.find(r => r.options.path === '/v1/threads' && r.options.method === 'POST');
+      const req = requests.find(r => r.options.path === '/v1/responses' && r.options.method === 'POST');
       expect(req).toBeDefined();
 
       const body = JSON.parse(req.body);
 
-      expect(body.messages).toHaveLength(1);
-      expect(body.messages[0].role).toBe('user');
-      expect(Array.isArray(body.messages[0].content)).toBe(true);
-      expect(body.messages[0].content).toHaveLength(2);
-
-      // Check text part
-      const textPart = body.messages[0].content.find(p => p.type === 'text');
-      expect(textPart).toBeDefined();
-      expect(textPart.text).toBe(mockPrompt);
-
-      // Check image part
-      const imagePart = body.messages[0].content.find(p => p.type === 'image_url');
-      expect(imagePart).toBeDefined();
-      expect(imagePart.image_url.url).toBe(mockAttachments[0].dataUrl);
+      expect(body.model).toBe('gpt-5-codex');
+      expect(body.input).toContain(mockPrompt);
+      expect(body.input).toContain(mockAttachments[0].dataUrl);
     });
 
     test('createTask handles prompt-only correctly', async () => {
@@ -159,16 +147,10 @@ describe('Image Attachments Support', () => {
         prompt: mockPrompt
       });
 
-      const req = requests.find(r => r.options.path === '/v1/threads' && r.options.method === 'POST');
+      const req = requests.find(r => r.options.path === '/v1/responses' && r.options.method === 'POST');
       const body = JSON.parse(req.body);
 
-      // Should remain as before (string) or array
-      if (Array.isArray(body.messages[0].content)) {
-          expect(body.messages[0].content[0].type).toBe('text');
-          expect(body.messages[0].content[0].text).toBe(mockPrompt);
-      } else {
-          expect(body.messages[0].content).toBe(mockPrompt);
-      }
+      expect(body.input).toBe(mockPrompt);
     });
   });
 });

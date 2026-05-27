@@ -22,9 +22,7 @@ async function fingerprintJsonDir(dirPath) {
       const dirStat = await statToken(dirPath);
       return dirStat || '';
     }
-    const tokens = await Promise.all(
-      jsonFiles.map((name) => statToken(path.join(dirPath, name)))
-    );
+    const tokens = await Promise.all(jsonFiles.map((name) => statToken(path.join(dirPath, name))));
     return tokens.filter(Boolean).join(',');
   } catch {
     return '';
@@ -64,12 +62,12 @@ function getConfigSignature(configStore) {
       jules: configStore.hasApiKey('jules'),
       cursor: configStore.hasApiKey('cursor'),
       codex: configStore.hasApiKey('codex'),
-      claude: configStore.hasApiKey('claude')
+      claude: configStore.hasApiKey('claude'),
     },
     codexThreads: (configStore.getCodexThreads?.() || []).length,
     claudeConversations: (configStore.getClaudeConversations?.() || []).length,
     opencodeSessions: (configStore.getOpenCodeSessions?.() || []).length,
-    antigravitySessions: (configStore.getAntigravitySessions?.() || []).length
+    antigravitySessions: (configStore.getAntigravitySessions?.() || []).length,
   });
 }
 
@@ -105,5 +103,5 @@ module.exports = {
   computeLocalFingerprint,
   getConfigSignature,
   fingerprintJsonDir,
-  fingerprintProjectTree
+  fingerprintProjectTree,
 };

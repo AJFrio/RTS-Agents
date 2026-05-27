@@ -22,7 +22,7 @@ function isCommandRunnable(cmd, args = ['--version']) {
       shell: false,
       stdio: 'ignore',
       timeout: 3000,
-      windowsHide: true
+      windowsHide: true,
     });
     if (r.error) return false;
     return r.status === 0;
@@ -79,13 +79,19 @@ class CodexService {
     const url = `${BASE_URL}${endpoint}`;
 
     try {
-      return await httpService.requestJson(url, method, body, {
-        'Authorization': `Bearer ${this.apiKey}`
-      }, 60000);
+      return await httpService.requestJson(
+        url,
+        method,
+        body,
+        {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        60000
+      );
     } catch (err) {
       if (err.statusCode) {
-         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
-         throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
+        const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+        throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
       }
       throw err;
     }
@@ -106,14 +112,14 @@ class CodexService {
         docsUrl: 'https://developers.openai.com/api/docs/guides/migrate-to-responses',
         endpointLabel: 'GET /v1/models',
         message: `Connected to OpenAI. ${codexModels.length} Codex-capable model${codexModels.length === 1 ? '' : 's'} found.`,
-        diagnostics: { modelCount: models.length, codexModelCount: codexModels.length }
+        diagnostics: { modelCount: models.length, codexModelCount: codexModels.length },
       });
     } catch (err) {
       return providerHealth.fail('codex', err, {
         configured: !!this.apiKey,
         installed: await this.isCodexInstalled(),
         docsUrl: 'https://developers.openai.com/api/docs/guides/migrate-to-responses',
-        endpointLabel: 'GET /v1/models'
+        endpointLabel: 'GET /v1/models',
       });
     }
   }
@@ -139,7 +145,7 @@ class CodexService {
       title: metadata.title || null,
       responseText: metadata.responseText || null,
       projectPath: metadata.projectPath || null,
-      ...metadata
+      ...metadata,
     };
 
     trackedThreads = upsertItem(trackedThreads, record, { limit: 100 });
@@ -164,8 +170,10 @@ class CodexService {
       updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
       summary: record.responseText || record.status || null,
       rawId: record.id,
-      webUrl: record.responseId ? `https://platform.openai.com/logs/response/${record.responseId}` : null,
-      source: record.type || 'response'
+      webUrl: record.responseId
+        ? `https://platform.openai.com/logs/response/${record.responseId}`
+        : null,
+      source: record.type || 'response',
     };
   }
 
@@ -208,22 +216,28 @@ class CodexService {
           id: `${record.id}-prompt`,
           role: 'user',
           content: record.prompt || '',
-          createdAt: record.createdAt || null
+          createdAt: record.createdAt || null,
         },
-        ...(record.responseText ? [{
-          id: `${record.id}-response`,
-          role: 'assistant',
-          content: record.responseText,
-          createdAt: record.updatedAt || null
-        }] : [])
+        ...(record.responseText
+          ? [
+              {
+                id: `${record.id}-response`,
+                role: 'assistant',
+                content: record.responseText,
+                createdAt: record.updatedAt || null,
+              },
+            ]
+          : []),
       ],
-      runs: [{
-        id: record.responseId || record.id,
-        status: record.status || 'completed',
-        model: record.model || CODEX_DEFAULT_MODEL,
-        createdAt: record.createdAt || null,
-        completedAt: record.updatedAt || null
-      }]
+      runs: [
+        {
+          id: record.responseId || record.id,
+          status: record.status || 'completed',
+          model: record.model || CODEX_DEFAULT_MODEL,
+          createdAt: record.createdAt || null,
+          completedAt: record.updatedAt || null,
+        },
+      ],
     };
   }
 
@@ -252,8 +266,8 @@ class CodexService {
       metadata: {
         title: title || prompt.substring(0, 50),
         repository: repository || '',
-        branch: branch || ''
-      }
+        branch: branch || '',
+      },
     });
 
     const id = response.id || `response-${Date.now()}`;
@@ -267,7 +281,7 @@ class CodexService {
       title: title || prompt.substring(0, 50),
       model,
       status: response.status || 'completed',
-      responseText: response.output_text || this.extractResponseText(response)
+      responseText: response.output_text || this.extractResponseText(response),
     });
 
     return this.normalizeRecord(record);
@@ -275,11 +289,13 @@ class CodexService {
 
   extractResponseText(response) {
     const output = Array.isArray(response?.output) ? response.output : [];
-    return output
-      .flatMap((item) => Array.isArray(item?.content) ? item.content : [])
-      .map((content) => content?.text || '')
-      .filter(Boolean)
-      .join('\n') || null;
+    return (
+      output
+        .flatMap((item) => (Array.isArray(item?.content) ? item.content : []))
+        .map((content) => content?.text || '')
+        .filter(Boolean)
+        .join('\n') || null
+    );
   }
 
   async startSession(options) {
@@ -296,7 +312,8 @@ class CodexService {
       throw new Error(`Project path does not exist: ${cwd}`);
     }
 
-    const codexCmd = (command && String(command).trim()) ? String(command).trim() : this.getExecutable();
+    const codexCmd =
+      command && String(command).trim() ? String(command).trim() : this.getExecutable();
     if (!isCommandRunnable(codexCmd)) {
       throw new Error('Codex CLI not found. Install it or set a custom codex executable.');
     }
@@ -311,7 +328,7 @@ class CodexService {
         detached: true,
         stdio: 'ignore',
         env: { ...process.env },
-        windowsHide: true
+        windowsHide: true,
       });
 
       child.on('error', (err) => {
@@ -331,13 +348,13 @@ class CodexService {
         prompt,
         projectPath: cwd,
         repository: cwd,
-        title: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : '')
+        title: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
       });
 
       setTimeout(() => {
         resolve({
           ...this.normalizeRecord(record),
-          message: 'Codex CLI task started in the background.'
+          message: 'Codex CLI task started in the background.',
         });
       }, 400);
     });
@@ -345,7 +362,7 @@ class CodexService {
 
   async createTask(options = {}) {
     const repoPath = options.projectPath || options.repository;
-    if (repoPath && await pathExists(repoPath) && await this.isCodexInstalled()) {
+    if (repoPath && (await pathExists(repoPath)) && (await this.isCodexInstalled())) {
       return this.startSession({ ...options, projectPath: repoPath });
     }
     return this.createResponse(options);
@@ -356,47 +373,48 @@ class CodexService {
     const scannedPaths = new Set();
     const uniquePaths = [...new Set(paths)];
 
-    const results = await Promise.all(uniquePaths.map(async (basePath) => {
-      try {
+    const results = await Promise.all(
+      uniquePaths.map(async (basePath) => {
         try {
-          await fs.promises.access(basePath);
-        } catch {
+          try {
+            await fs.promises.access(basePath);
+          } catch {
+            return [];
+          }
+
+          const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
+          const validDirs = entries.filter(
+            (entry) =>
+              entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules'
+          );
+
+          const dirPromises = validDirs.map(async (entry) => {
+            const dirPath = path.join(basePath, entry.name);
+            const gitPath = path.join(dirPath, '.git');
+
+            try {
+              await fs.promises.access(gitPath);
+              return {
+                id: dirPath,
+                name: entry.name,
+                url: dirPath,
+                path: dirPath,
+                displayName: entry.name,
+              };
+            } catch {
+              return null;
+            }
+          });
+
+          return Promise.all(dirPromises);
+        } catch (err) {
+          console.error(`Error scanning ${basePath}:`, err);
           return [];
         }
+      })
+    );
 
-        const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
-        const validDirs = entries.filter(entry =>
-          entry.isDirectory() &&
-          !entry.name.startsWith('.') &&
-          entry.name !== 'node_modules'
-        );
-
-        const dirPromises = validDirs.map(async (entry) => {
-          const dirPath = path.join(basePath, entry.name);
-          const gitPath = path.join(dirPath, '.git');
-
-          try {
-            await fs.promises.access(gitPath);
-            return {
-              id: dirPath,
-              name: entry.name,
-              url: dirPath,
-              path: dirPath,
-              displayName: entry.name
-            };
-          } catch {
-            return null;
-          }
-        });
-
-        return Promise.all(dirPromises);
-      } catch (err) {
-        console.error(`Error scanning ${basePath}:`, err);
-        return [];
-      }
-    }));
-
-    const allProjects = results.flat().filter(p => p !== null);
+    const allProjects = results.flat().filter((p) => p !== null);
     for (const project of allProjects) {
       if (!scannedPaths.has(project.path)) {
         scannedPaths.add(project.path);
@@ -416,7 +434,7 @@ class CodexService {
         repos.set(repo, {
           id: repo,
           name: repo,
-          displayName: repo
+          displayName: repo,
         });
       }
     }

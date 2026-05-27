@@ -1,18 +1,18 @@
 jest.mock('../../src/main/services/config-store', () => ({
-  getSetting: jest.fn(() => ({}))
+  getSetting: jest.fn(() => ({})),
 }));
 
 jest.mock('fs', () => ({
   promises: {
     readdir: jest.fn(),
     stat: jest.fn(),
-    access: jest.fn()
-  }
+    access: jest.fn(),
+  },
 }));
 
 jest.mock('child_process', () => ({
   spawn: jest.fn(),
-  spawnSync: jest.fn()
+  spawnSync: jest.fn(),
 }));
 
 const https = require('https');
@@ -37,7 +37,7 @@ describe('Codex Service', () => {
       write: jest.fn(),
       end: jest.fn(),
       destroy: jest.fn(),
-      setTimeout: jest.fn()
+      setTimeout: jest.fn(),
     };
 
     mockResponse = new EventEmitter();
@@ -54,7 +54,7 @@ describe('Codex Service', () => {
     spawnSync.mockReturnValue({ status: 0 });
     spawn.mockReturnValue({
       on: jest.fn(),
-      unref: jest.fn()
+      unref: jest.fn(),
     });
   });
 
@@ -78,7 +78,7 @@ describe('Codex Service', () => {
       expect.objectContaining({
         path: '/v1/models',
         method: 'GET',
-        headers: expect.objectContaining({ Authorization: 'Bearer test-key' })
+        headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
       }),
       expect.any(Function)
     );
@@ -97,9 +97,12 @@ describe('Codex Service', () => {
   test('testConnection returns provider health', async () => {
     const promise = codexService.testConnection();
 
-    mockResponse.emit('data', JSON.stringify({
-      data: [{ id: 'gpt-5-codex' }, { id: 'gpt-5' }]
-    }));
+    mockResponse.emit(
+      'data',
+      JSON.stringify({
+        data: [{ id: 'gpt-5-codex' }, { id: 'gpt-5' }],
+      })
+    );
     mockResponse.emit('end');
 
     const result = await promise;
@@ -107,7 +110,7 @@ describe('Codex Service', () => {
       provider: 'codex',
       success: true,
       connected: true,
-      endpointLabel: 'GET /v1/models'
+      endpointLabel: 'GET /v1/models',
     });
     expect(result.diagnostics.codexModelCount).toBe(1);
   });
@@ -117,14 +120,17 @@ describe('Codex Service', () => {
       prompt: 'Do something',
       repository: '/path/to/repo',
       branch: 'main',
-      title: 'Test Response'
+      title: 'Test Response',
     });
 
-    mockResponse.emit('data', JSON.stringify({
-      id: 'resp_123',
-      status: 'completed',
-      output_text: 'Done'
-    }));
+    mockResponse.emit(
+      'data',
+      JSON.stringify({
+        id: 'resp_123',
+        status: 'completed',
+        output_text: 'Done',
+      })
+    );
     mockResponse.emit('end');
 
     const result = await promise;
@@ -133,14 +139,14 @@ describe('Codex Service', () => {
     expect(requestSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         path: '/v1/responses',
-        method: 'POST'
+        method: 'POST',
       }),
       expect.any(Function)
     );
     expect(JSON.parse(mockRequest.write.mock.calls[0][0])).toMatchObject({
       model: 'gpt-5-codex',
       input: expect.stringContaining('Do something'),
-      store: true
+      store: true,
     });
     expect(codexService.getTrackedThreads()).toHaveLength(1);
   });
@@ -149,7 +155,7 @@ describe('Codex Service', () => {
     codexService.trackThread('resp_1', {
       prompt: 'Task 1',
       responseText: 'Completed task',
-      status: 'completed'
+      status: 'completed',
     });
 
     const details = await codexService.getAgentDetails('resp_1');
@@ -172,7 +178,7 @@ describe('Codex Service', () => {
           { name: 'repo1', isDirectory: () => true },
           { name: 'repo2', isDirectory: () => true },
           { name: 'file.txt', isDirectory: () => false },
-          { name: 'node_modules', isDirectory: () => true }
+          { name: 'node_modules', isDirectory: () => true },
         ];
       }
       return [];
@@ -188,7 +194,7 @@ describe('Codex Service', () => {
 
     const result = await codexService.startSession({
       prompt: 'Fix tests',
-      projectPath: '/path/to/repo'
+      projectPath: '/path/to/repo',
     });
 
     expect(spawn).toHaveBeenCalledWith(
@@ -196,7 +202,7 @@ describe('Codex Service', () => {
       ['exec', '--sandbox', 'workspace-write', 'Fix tests'],
       expect.objectContaining({
         cwd: '/path/to/repo',
-        detached: true
+        detached: true,
       })
     );
     expect(result.message).toBe('Codex CLI task started in the background.');

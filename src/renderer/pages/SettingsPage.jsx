@@ -41,7 +41,10 @@ function buildConnectedServices(state) {
     (state.settings?.antigravityPaths || []).length > 0
   )
     services.push('antigravity-local');
-  if (state.serviceInfo?.installations?.opencode || (state.settings?.opencodePaths || []).length > 0)
+  if (
+    state.serviceInfo?.installations?.opencode ||
+    (state.settings?.opencodePaths || []).length > 0
+  )
     services.push('opencode-local');
   if (apiKeys.openrouter) services.push('openrouter-cloud');
   if (apiKeys.github) services.push('github-cloud');

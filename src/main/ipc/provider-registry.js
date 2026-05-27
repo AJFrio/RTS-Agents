@@ -12,7 +12,7 @@ const AGENT_LIST_KEYS = [
   'codex',
   'claude-cli',
   'claude-cloud',
-  'opencode'
+  'opencode',
 ];
 
 const REPO_LIST_KEYS = [
@@ -22,7 +22,7 @@ const REPO_LIST_KEYS = [
   'codex',
   'claude-cli',
   'claude-cloud',
-  'opencode'
+  'opencode',
 ];
 
 function emptyAgentResults() {
@@ -59,7 +59,7 @@ function applySettledAgentResult(results, key, settled, shouldReportError) {
   } else if (shouldReportError) {
     results.errors.push({
       provider: key,
-      error: settled.reason?.message || 'Unknown error'
+      error: settled.reason?.message || 'Unknown error',
     });
   }
 }
@@ -72,7 +72,7 @@ async function fetchAllAgents(deps) {
     cursorService,
     codexService,
     claudeService,
-    opencodeService
+    opencodeService,
   } = deps;
 
   const results = emptyAgentResults();
@@ -80,9 +80,9 @@ async function fetchAllAgents(deps) {
   const [antigravityAvailable, claudeCliAvailable, opencodeAvailable] = await Promise.all([
     antigravityService.isAntigravityInstalled(),
     claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled()
+    opencodeService.isOpenCodeInstalled(),
   ]);
-  const codexAvailable = configStore.hasApiKey('codex') || await codexService.isCodexInstalled();
+  const codexAvailable = configStore.hasApiKey('codex') || (await codexService.isCodexInstalled());
   const claudeCloudAvailable = configStore.hasApiKey('claude');
 
   const settled = await Promise.allSettled([
@@ -92,7 +92,7 @@ async function fetchAllAgents(deps) {
     codexAvailable ? Promise.resolve(codexService.getAllAgents()) : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAllLocalSessions(allProjectPaths) : Promise.resolve([]),
     claudeCloudAvailable ? claudeService.getAllCloudConversations() : Promise.resolve([]),
-    opencodeAvailable ? Promise.resolve(opencodeService.getAllAgents()) : Promise.resolve([])
+    opencodeAvailable ? Promise.resolve(opencodeService.getAllAgents()) : Promise.resolve([]),
   ]);
 
   const reportFlags = [
@@ -102,16 +102,14 @@ async function fetchAllAgents(deps) {
     codexAvailable,
     claudeCliAvailable,
     claudeCloudAvailable,
-    opencodeAvailable
+    opencodeAvailable,
   ];
 
   settled.forEach((entry, index) => {
     applySettledAgentResult(results, AGENT_LIST_KEYS[index], entry, reportFlags[index]);
   });
 
-  const allAgents = sortAgentsByDate(
-    AGENT_LIST_KEYS.flatMap((key) => results[key])
-  );
+  const allAgents = sortAgentsByDate(AGENT_LIST_KEYS.flatMap((key) => results[key]));
 
   const counts = { total: allAgents.length };
   for (const key of AGENT_LIST_KEYS) {
@@ -128,7 +126,7 @@ async function getAgentDetails(deps, { provider, rawId, filePath }) {
     cursorService,
     codexService,
     claudeService,
-    opencodeService
+    opencodeService,
   } = deps;
 
   switch (provider) {
@@ -159,7 +157,7 @@ async function fetchRepositories(deps, provider) {
     cursorService,
     codexService,
     claudeService,
-    opencodeService
+    opencodeService,
   } = deps;
 
   switch (provider) {
@@ -175,7 +173,7 @@ async function fetchRepositories(deps, provider) {
         return {
           success: false,
           error: 'Cursor API key not configured and no local paths set',
-          repositories: []
+          repositories: [],
         };
       }
       const cursorPaths = configStore.getCursorPaths();
@@ -186,32 +184,44 @@ async function fetchRepositories(deps, provider) {
       if (!(await antigravityService.isAntigravityInstalled())) {
         return { success: false, error: 'Antigravity CLI not installed', repositories: [] };
       }
-      const repositories = await antigravityService.getAvailableProjects(configStore.getAllProjectPaths());
+      const repositories = await antigravityService.getAvailableProjects(
+        configStore.getAllProjectPaths()
+      );
       return { success: true, repositories };
     }
     case 'codex': {
-      if (!configStore.hasApiKey('codex') && configStore.getCodexPaths().length === 0 && !(await codexService.isCodexInstalled())) {
+      if (
+        !configStore.hasApiKey('codex') &&
+        configStore.getCodexPaths().length === 0 &&
+        !(await codexService.isCodexInstalled())
+      ) {
         return {
           success: false,
           error: 'OpenAI API key not configured, Codex CLI not installed, and no local paths set',
-          repositories: []
+          repositories: [],
         };
       }
-      const repositories = await codexService.getAvailableProjects(configStore.getAllProjectPaths());
+      const repositories = await codexService.getAvailableProjects(
+        configStore.getAllProjectPaths()
+      );
       return { success: true, repositories };
     }
     case 'claude-cli': {
       if (!(await claudeService.isClaudeInstalled())) {
         return { success: false, error: 'Claude CLI not installed', repositories: [] };
       }
-      const repositories = await claudeService.getAvailableProjects(configStore.getAllProjectPaths());
+      const repositories = await claudeService.getAvailableProjects(
+        configStore.getAllProjectPaths()
+      );
       return { success: true, repositories };
     }
     case 'opencode': {
       if (!(await opencodeService.isOpenCodeInstalled())) {
         return { success: false, error: 'OpenCode CLI not installed', repositories: [] };
       }
-      const repositories = await opencodeService.getAvailableProjects(configStore.getAllProjectPaths());
+      const repositories = await opencodeService.getAvailableProjects(
+        configStore.getAllProjectPaths()
+      );
       return { success: true, repositories };
     }
     case 'claude-cloud': {
@@ -233,7 +243,7 @@ async function fetchAllRepositories(deps) {
     cursorService,
     codexService,
     claudeService,
-    opencodeService
+    opencodeService,
   } = deps;
 
   const results = emptyRepoResults();
@@ -241,24 +251,25 @@ async function fetchAllRepositories(deps) {
   const [antigravityAvailable, claudeCliAvailable, opencodeAvailable] = await Promise.all([
     antigravityService.isAntigravityInstalled(),
     claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled()
+    opencodeService.isOpenCodeInstalled(),
   ]);
-  const codexAvailable = configStore.hasApiKey('codex') || configStore.getCodexPaths().length > 0 || await codexService.isCodexInstalled();
+  const codexAvailable =
+    configStore.hasApiKey('codex') ||
+    configStore.getCodexPaths().length > 0 ||
+    (await codexService.isCodexInstalled());
   const cursorPaths = configStore.getCursorPaths();
 
   const settled = await Promise.allSettled([
     configStore.hasApiKey('jules') ? julesService.getAllSources() : Promise.resolve([]),
-    (configStore.hasApiKey('cursor') || cursorPaths.length > 0)
+    configStore.hasApiKey('cursor') || cursorPaths.length > 0
       ? cursorService.getAllRepositories(cursorPaths)
       : Promise.resolve([]),
     antigravityAvailable
       ? antigravityService.getAvailableProjects(allProjectPaths)
       : Promise.resolve([]),
-    codexAvailable
-      ? codexService.getAvailableProjects(allProjectPaths)
-      : Promise.resolve([]),
+    codexAvailable ? codexService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
-    opencodeAvailable ? opencodeService.getAvailableProjects(allProjectPaths) : Promise.resolve([])
+    opencodeAvailable ? opencodeService.getAvailableProjects(allProjectPaths) : Promise.resolve([]),
   ]);
 
   const repoKeys = ['jules', 'cursor', 'antigravity', 'codex', 'claude-cli', 'opencode'];
@@ -268,7 +279,7 @@ async function fetchAllRepositories(deps) {
     antigravityAvailable,
     codexAvailable,
     claudeCliAvailable,
-    opencodeAvailable
+    opencodeAvailable,
   ];
 
   settled.forEach((entry, index) => {
@@ -292,7 +303,7 @@ async function createLocalTask(deps, provider, options) {
     cursorService,
     codexService,
     claudeService,
-    opencodeService
+    opencodeService,
   } = deps;
 
   switch (provider) {
@@ -379,7 +390,7 @@ async function createRemoteTask(deps, provider, options) {
     prompt: options.prompt,
     attachments: options.attachments,
     requestedBy: identity.name,
-    createdAt: nowIso
+    createdAt: nowIso,
   };
 
   await cloudflareKvService.enqueueDeviceTask(namespaceId, options.targetDeviceId, task);
@@ -391,8 +402,8 @@ async function createRemoteTask(deps, provider, options) {
       status: 'queued',
       provider,
       name: `Remote ${provider} task`,
-      summary: 'Queued on remote device'
-    }
+      summary: 'Queued on remote device',
+    },
   };
 }
 
@@ -441,5 +452,5 @@ module.exports = {
   fetchAllRepositories,
   createTask,
   sendTaskMessage,
-  sortAgentsByDate
+  sortAgentsByDate,
 };

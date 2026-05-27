@@ -49,10 +49,10 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
     },
     titleBarStyle: 'default',
-    show: false
+    show: false,
   });
 
   const rendererUrl = process.env.VITE_DEV_SERVER_URL;
@@ -77,23 +77,30 @@ function createWindow() {
     // Add spellcheck suggestions
     if (params.misspelledWord && params.dictionarySuggestions.length > 0) {
       for (const suggestion of params.dictionarySuggestions) {
-        menu.append(new MenuItem({
-          label: suggestion,
-          click: () => mainWindow.webContents.replaceMisspelling(suggestion)
-        }));
+        menu.append(
+          new MenuItem({
+            label: suggestion,
+            click: () => mainWindow.webContents.replaceMisspelling(suggestion),
+          })
+        );
       }
       menu.append(new MenuItem({ type: 'separator' }));
-      menu.append(new MenuItem({
-        label: 'Add to Dictionary',
-        click: () => mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
-      }));
+      menu.append(
+        new MenuItem({
+          label: 'Add to Dictionary',
+          click: () =>
+            mainWindow.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+        })
+      );
       menu.append(new MenuItem({ type: 'separator' }));
     }
 
     // Basic actions
     menu.append(new MenuItem({ label: 'Cut', role: 'cut', enabled: params.editFlags.canCut }));
     menu.append(new MenuItem({ label: 'Copy', role: 'copy', enabled: params.editFlags.canCopy }));
-    menu.append(new MenuItem({ label: 'Paste', role: 'paste', enabled: params.editFlags.canPaste }));
+    menu.append(
+      new MenuItem({ label: 'Paste', role: 'paste', enabled: params.editFlags.canPaste })
+    );
 
     // Only show if we have items
     if (menu.items.length > 0) {
@@ -159,7 +166,7 @@ function initializeServices() {
     antigravityService.refreshInstallStatus(),
     claudeService.refreshInstallStatus(),
     codexService.refreshInstallStatus(),
-    opencodeService.refreshInstallStatus()
+    opencodeService.refreshInstallStatus(),
   ]).catch((err) => {
     console.warn('Install status warm-up failed:', err?.message || err);
   });
@@ -195,11 +202,11 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     if (Array.isArray(githubPaths) && githubPaths.length > 0) {
       const scanned = await projectService.getLocalRepos(githubPaths);
       repos = (scanned || [])
-        .map(p => ({
+        .map((p) => ({
           name: p?.name || p?.id || 'unknown',
-          path: p?.path || null
+          path: p?.path || null,
         }))
-        .filter(r => !!r.path);
+        .filter((r) => !!r.path);
     }
   } catch (err) {
     console.warn('Failed to scan local repos for heartbeat:', err?.message || err);
@@ -209,7 +216,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const [antigravityInstalled, claudeInstalled, opencodeInstalled] = await Promise.all([
     antigravityService.isAntigravityInstalled(),
     claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled()
+    opencodeService.isOpenCodeInstalled(),
   ]);
 
   const availableCliTools = [];
@@ -229,15 +236,19 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     lastStatusAt: nowIso,
     tools: [{ 'CLI tools': availableCliTools }],
     repos,
-    reposUpdatedAt: nowIso
+    reposUpdatedAt: nowIso,
   };
 
-  await cloudflareKvService.heartbeat({ namespaceId, device, staleAfterMs: DEVICE_STALE_OFFLINE_MS });
+  await cloudflareKvService.heartbeat({
+    namespaceId,
+    device,
+    staleAfterMs: DEVICE_STALE_OFFLINE_MS,
+  });
 
   // On each heartbeat, opportunistically pull and execute queued remote tasks for this device.
   // Intentionally skipped while shutting down or when marking the device offline.
   if (!isQuitting && nextStatus === 'on') {
-    void queueProcessorService.processQueue(namespaceId).catch(err => {
+    void queueProcessorService.processQueue(namespaceId).catch((err) => {
       console.warn('Cloudflare queue processing failed:', err?.message || err);
     });
   }
@@ -248,12 +259,12 @@ function startCloudflareHeartbeatIfEnabled() {
   if (!configStore.hasCloudflareConfig()) return;
 
   // Fire once immediately, then periodically.
-  void sendCloudflareHeartbeat().catch(err => {
+  void sendCloudflareHeartbeat().catch((err) => {
     console.warn('Cloudflare heartbeat failed:', err?.message || err);
   });
 
   cloudflareHeartbeatInterval = setInterval(() => {
-    void sendCloudflareHeartbeat().catch(err => {
+    void sendCloudflareHeartbeat().catch((err) => {
       console.warn('Cloudflare heartbeat failed:', err?.message || err);
     });
   }, CLOUDFLARE_HEARTBEAT_INTERVAL_MS);
@@ -329,7 +340,7 @@ function startDiscoveryWatchers() {
     configStore,
     antigravityService,
     claudeService,
-    opencodeService
+    opencodeService,
   };
   agentDiscoveryCache.startWatchers(deps, () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -348,7 +359,7 @@ function invalidateAgentDiscovery() {
   void Promise.all([
     antigravityService.refreshInstallStatus(),
     claudeService.refreshInstallStatus(),
-    opencodeService.refreshInstallStatus()
+    opencodeService.refreshInstallStatus(),
   ]).catch(() => {});
 }
 
@@ -364,7 +375,7 @@ const lifecycle = {
   initializeServices,
   startDiscoveryWatchers,
   stopDiscoveryWatchers,
-  invalidateAgentDiscovery
+  invalidateAgentDiscovery,
 };
 
 const ipcExports = registerAllIpcHandlers({
@@ -388,7 +399,7 @@ const ipcExports = registerAllIpcHandlers({
   dialog,
   exec,
   spawn,
-  appRoot: __dirname
+  appRoot: __dirname,
 });
 performUpdate = ipcExports.performUpdate;
 
@@ -431,7 +442,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   void Promise.race([
     sendCloudflareOffline(),
-    new Promise(resolve => setTimeout(resolve, 2000))
+    new Promise((resolve) => setTimeout(resolve, 2000)),
   ]).finally(() => {
     app.quit();
   });

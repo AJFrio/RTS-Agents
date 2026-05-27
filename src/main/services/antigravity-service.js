@@ -14,7 +14,7 @@ function isCommandRunnable(cmd) {
       shell: false,
       stdio: 'ignore',
       timeout: 3000,
-      windowsHide: true
+      windowsHide: true,
     });
     if (r.error) return false;
     return r.status === 0;
@@ -83,14 +83,14 @@ class AntigravityService {
         installed: true,
         docsUrl: 'https://github.com/google-antigravity/antigravity-cli',
         endpointLabel: `${this.getExecutable()} --version`,
-        message: 'Antigravity CLI is available on this machine.'
+        message: 'Antigravity CLI is available on this machine.',
       });
     }
     return providerHealth.fail('antigravity', 'Antigravity CLI not found', {
       configured: false,
       installed: false,
       docsUrl: 'https://github.com/google-antigravity/antigravity-cli',
-      endpointLabel: `${this.getExecutable()} --version`
+      endpointLabel: `${this.getExecutable()} --version`,
     });
   }
 
@@ -107,7 +107,8 @@ class AntigravityService {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
-    const antigravityCmd = (command && String(command).trim()) ? String(command).trim() : this.getExecutable();
+    const antigravityCmd =
+      command && String(command).trim() ? String(command).trim() : this.getExecutable();
     const args = ['--print', prompt, '--print-timeout', '30m'];
     const sessionId = `antigravity-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -118,12 +119,16 @@ class AntigravityService {
         detached: true,
         stdio: 'ignore',
         env: { ...process.env },
-        windowsHide: true
+        windowsHide: true,
       });
 
       child.on('error', (err) => {
         if (err.code === 'ENOENT') {
-          reject(new Error('Antigravity CLI not found. Install it from https://antigravity.google or set a custom agy executable.'));
+          reject(
+            new Error(
+              'Antigravity CLI not found. Install it from https://antigravity.google or set a custom agy executable.'
+            )
+          );
         } else {
           reject(new Error(`Failed to start Antigravity CLI: ${err.message}`));
         }
@@ -138,7 +143,7 @@ class AntigravityService {
         projectPath,
         status: 'running',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       this.trackedSessions = [entry, ...this.trackedSessions].slice(0, 100);
       configStore.setAntigravitySessions(this.trackedSessions);
@@ -154,7 +159,7 @@ class AntigravityService {
           rawId: sessionId,
           filePath: null,
           message: 'Antigravity CLI task started in the background.',
-          createdAt: new Date()
+          createdAt: new Date(),
         });
       }, 400);
     });
@@ -164,7 +169,9 @@ class AntigravityService {
     return this.trackedSessions.map((t) => ({
       id: t.id,
       provider: 'antigravity',
-      name: (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) || 'Antigravity',
+      name:
+        (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) ||
+        'Antigravity',
       status: t.status || 'running',
       prompt: t.prompt,
       repository: t.projectPath,
@@ -172,7 +179,7 @@ class AntigravityService {
       filePath: t.filePath || null,
       summary: t.prompt || '',
       createdAt: t.createdAt,
-      updatedAt: t.updatedAt
+      updatedAt: t.updatedAt,
     }));
   }
 
@@ -186,10 +193,11 @@ class AntigravityService {
         { role: 'user', content: t.prompt, timestamp: t.createdAt },
         {
           role: 'assistant',
-          content: 'Session started via Antigravity CLI. For full history, use Antigravity CLI or the Antigravity desktop app in that repository.'
-        }
+          content:
+            'Session started via Antigravity CLI. For full history, use Antigravity CLI or the Antigravity desktop app in that repository.',
+        },
       ],
-      filePath: null
+      filePath: null,
     };
   }
 

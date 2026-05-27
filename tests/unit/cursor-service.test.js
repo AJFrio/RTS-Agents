@@ -12,8 +12,8 @@ jest.mock('fs', () => ({
   promises: {
     stat: mockStat,
     readdir: mockReaddir,
-    access: mockAccess
-  }
+    access: mockAccess,
+  },
 }));
 
 const cursorService = require('../../src/main/services/cursor-service');
@@ -40,7 +40,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
             { name: 'not-repo', isDirectory: () => true },
             { name: 'file.txt', isDirectory: () => false },
             { name: '.hidden', isDirectory: () => true },
-            { name: 'node_modules', isDirectory: () => true }
+            { name: 'node_modules', isDirectory: () => true },
           ];
         }
         return [];
@@ -70,14 +70,14 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     });
 
     test('should handle duplicate paths', async () => {
-        mockStat.mockImplementation(async (p) => {
-            if (p === '/path/1') return { isDirectory: () => true };
-            throw new Error('Not found');
-        });
-        mockReaddir.mockResolvedValue([]);
+      mockStat.mockImplementation(async (p) => {
+        if (p === '/path/1') return { isDirectory: () => true };
+        throw new Error('Not found');
+      });
+      mockReaddir.mockResolvedValue([]);
 
-        await cursorService.getAvailableLocalRepositories(['/path/1', '/path/1']);
-        expect(mockStat).toHaveBeenCalledTimes(1);
+      await cursorService.getAvailableLocalRepositories(['/path/1', '/path/1']);
+      expect(mockStat).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -90,7 +90,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     test('testConnection probes /v1/me and returns health details', async () => {
       httpService.requestJson.mockResolvedValue({
         apiKeyName: 'Test Key',
-        userEmail: 'dev@example.com'
+        userEmail: 'dev@example.com',
       });
 
       const result = await cursorService.testConnection();
@@ -105,7 +105,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       expect(result).toMatchObject({
         provider: 'cursor',
         success: true,
-        endpointLabel: 'GET /v1/me'
+        endpointLabel: 'GET /v1/me',
       });
     });
 
@@ -113,14 +113,16 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       httpService.requestJson.mockImplementation(async (url) => {
         if (url.includes('/agents?')) {
           return {
-            items: [{
-              id: 'bc-1',
-              name: 'Agent',
-              status: 'ACTIVE',
-              url: 'https://cursor.com/agents/bc-1',
-              createdAt: '2026-04-13T18:30:00.000Z',
-              latestRunId: 'run-1'
-            }]
+            items: [
+              {
+                id: 'bc-1',
+                name: 'Agent',
+                status: 'ACTIVE',
+                url: 'https://cursor.com/agents/bc-1',
+                createdAt: '2026-04-13T18:30:00.000Z',
+                latestRunId: 'run-1',
+              },
+            ],
           };
         }
         if (url.includes('/runs/run-1')) {
@@ -129,7 +131,15 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
             status: 'FINISHED',
             updatedAt: '2026-04-13T18:45:00.000Z',
             result: 'Done',
-            git: { branches: [{ repoUrl: 'github.com/o/r', branch: 'cursor/fix', prUrl: 'https://github.com/o/r/pull/1' }] }
+            git: {
+              branches: [
+                {
+                  repoUrl: 'github.com/o/r',
+                  branch: 'cursor/fix',
+                  prUrl: 'https://github.com/o/r/pull/1',
+                },
+              ],
+            },
           };
         }
         return {};
@@ -142,14 +152,18 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
         id: 'cursor-bc-1',
         status: 'completed',
         branch: 'cursor/fix',
-        prUrl: 'https://github.com/o/r/pull/1'
+        prUrl: 'https://github.com/o/r/pull/1',
       });
     });
 
     test('createAgent sends v1 repos payload', async () => {
       httpService.requestJson.mockResolvedValue({
-        agent: { id: 'bc-2', status: 'ACTIVE', repos: [{ url: 'https://github.com/o/r', startingRef: 'main' }] },
-        run: { id: 'run-2', status: 'CREATING' }
+        agent: {
+          id: 'bc-2',
+          status: 'ACTIVE',
+          repos: [{ url: 'https://github.com/o/r', startingRef: 'main' }],
+        },
+        run: { id: 'run-2', status: 'CREATING' },
       });
 
       const result = await cursorService.createAgent({
@@ -157,7 +171,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
         repository: 'https://github.com/o/r',
         ref: 'main',
         autoCreatePr: true,
-        model: 'composer-2'
+        model: 'composer-2',
       });
 
       expect(httpService.requestJson).toHaveBeenCalledWith(
@@ -167,7 +181,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
           prompt: { text: 'Fix bug' },
           repos: [{ url: 'https://github.com/o/r', startingRef: 'main' }],
           autoCreatePR: true,
-          model: { id: 'composer-2' }
+          model: { id: 'composer-2' },
         }),
         expect.any(Object),
         60000

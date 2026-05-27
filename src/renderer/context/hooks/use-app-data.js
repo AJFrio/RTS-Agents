@@ -22,19 +22,24 @@ export function useAppData(api, state, dispatch) {
           theme: result.settings?.theme ?? 'system',
           displayMode: result.settings?.displayMode ?? 'fullscreen',
           jiraBaseUrl: result.jiraBaseUrl ?? '',
-          selectedModel: result.selectedModel ?? result.settings?.selectedModel ?? 'openrouter/openai/gpt-4o',
+          selectedModel:
+            result.selectedModel ?? result.settings?.selectedModel ?? 'openrouter/openai/gpt-4o',
         },
       });
       dispatch({
         type: 'SET_CONFIGURED_SERVICES',
         payload: {
-          antigravity: result.antigravityInstalled || (result.antigravityPaths?.length > 0) || false,
+          antigravity: result.antigravityInstalled || result.antigravityPaths?.length > 0 || false,
           jules: !!result.apiKeys?.jules,
-          cursor: !!result.apiKeys?.cursor || (result.cursorPaths?.length > 0) || false,
-          codex: !!result.apiKeys?.codex || result.codexInstalled || (result.codexPaths?.length > 0) || false,
-          'claude-cli': result.claudeCliInstalled || (result.claudePaths?.length > 0) || false,
+          cursor: !!result.apiKeys?.cursor || result.cursorPaths?.length > 0 || false,
+          codex:
+            !!result.apiKeys?.codex ||
+            result.codexInstalled ||
+            result.codexPaths?.length > 0 ||
+            false,
+          'claude-cli': result.claudeCliInstalled || result.claudePaths?.length > 0 || false,
           'claude-cloud': result.claudeCloudConfigured || !!result.apiKeys?.claude,
-          opencode: !!result.opencodeInstalled || (result.opencodePaths?.length > 0) || false,
+          opencode: !!result.opencodeInstalled || result.opencodePaths?.length > 0 || false,
           openrouter: !!result.apiKeys?.openrouter,
           github: !!result.apiKeys?.github,
           jira: !!result.apiKeys?.jira && !!(result.jiraBaseUrl || ''),
@@ -43,23 +48,36 @@ export function useAppData(api, state, dispatch) {
       dispatch({
         type: 'SET_CAPABILITIES',
         payload: {
-          antigravity: { cloud: false, local: !!(result.antigravityInstalled || result.antigravityPaths?.length) },
+          antigravity: {
+            cloud: false,
+            local: !!(result.antigravityInstalled || result.antigravityPaths?.length),
+          },
           jules: { cloud: !!result.apiKeys?.jules, local: false },
-          cursor: { cloud: !!result.apiKeys?.cursor, local: !!(result.cursorPaths?.length) },
-          codex: { cloud: !!result.apiKeys?.codex, local: !!(result.codexInstalled || result.codexPaths?.length) },
+          cursor: { cloud: !!result.apiKeys?.cursor, local: !!result.cursorPaths?.length },
+          codex: {
+            cloud: !!result.apiKeys?.codex,
+            local: !!(result.codexInstalled || result.codexPaths?.length),
+          },
           claude: {
             cloud: !!(result.claudeCloudConfigured || result.apiKeys?.claude),
             local: !!(result.claudeCliInstalled || result.claudePaths?.length),
           },
-          opencode: { cloud: false, local: !!(result.opencodeInstalled || result.opencodePaths?.length) },
-          github: { cloud: !!result.apiKeys?.github, local: !!(result.githubPaths?.length) },
+          opencode: {
+            cloud: false,
+            local: !!(result.opencodeInstalled || result.opencodePaths?.length),
+          },
+          github: { cloud: !!result.apiKeys?.github, local: !!result.githubPaths?.length },
         },
       });
       dispatch({
         type: 'SET_SERVICE_INFO',
         payload: {
           apiKeys: result.apiKeys ?? {},
-          cloudflare: result.cloudflare ?? { configured: false, accountId: '', namespaceTitle: 'rtsa' },
+          cloudflare: result.cloudflare ?? {
+            configured: false,
+            accountId: '',
+            namespaceTitle: 'rtsa',
+          },
           installations: {
             antigravity: !!result.antigravityInstalled,
             claude: !!result.claudeCliInstalled,
@@ -92,8 +110,8 @@ export function useAppData(api, state, dispatch) {
   const loadAgents = useCallback(
     async (arg = false) => {
       if (!api) return;
-      const silent = typeof arg === 'boolean' ? arg : arg.silent ?? false;
-      const force = typeof arg === 'object' && arg !== null ? arg.force ?? false : false;
+      const silent = typeof arg === 'boolean' ? arg : (arg.silent ?? false);
+      const force = typeof arg === 'object' && arg !== null ? (arg.force ?? false) : false;
 
       if (!silent && state.agents.length === 0) {
         dispatch({ type: 'SET_LOADING', payload: true });
@@ -137,7 +155,10 @@ export function useAppData(api, state, dispatch) {
         }
       } catch (err) {
         console.error('Error loading agents:', err);
-        dispatch({ type: 'SET_AGENTS', payload: { errors: [{ provider: 'system', error: err.message }] } });
+        dispatch({
+          type: 'SET_AGENTS',
+          payload: { errors: [{ provider: 'system', error: err.message }] },
+        });
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
         dispatch({ type: 'SET_REFRESHING', payload: false });

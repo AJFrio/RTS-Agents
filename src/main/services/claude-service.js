@@ -92,37 +92,37 @@ class ClaudeService {
             return {
               hash: entry.name,
               path: projectPath,
-              sessionsPath: sessionsPath
+              sessionsPath: sessionsPath,
             };
-          } catch { }
+          } catch {}
 
           try {
             await fsPromises.access(chatsPath);
             return {
               hash: entry.name,
               path: projectPath,
-              sessionsPath: chatsPath
+              sessionsPath: chatsPath,
             };
-          } catch { }
+          } catch {}
 
           try {
             // Check if the directory itself contains session files
             const files = await fsPromises.readdir(projectPath);
-            const hasSessionFiles = files.some(f => f.endsWith('.json'));
+            const hasSessionFiles = files.some((f) => f.endsWith('.json'));
             if (hasSessionFiles) {
               return {
                 hash: entry.name,
                 path: projectPath,
-                sessionsPath: projectPath
+                sessionsPath: projectPath,
               };
             }
-          } catch { }
+          } catch {}
 
           return null;
         });
 
         const results = await Promise.all(entryPromises);
-        return results.filter(r => r !== null);
+        return results.filter((r) => r !== null);
       } catch (err) {
         // Ignore errors
         return [];
@@ -130,7 +130,7 @@ class ClaudeService {
     });
 
     const allResults = await Promise.all(pathPromises);
-    allResults.forEach(res => projects.push(...res));
+    allResults.forEach((res) => projects.push(...res));
 
     return projects;
   }
@@ -150,22 +150,26 @@ class ClaudeService {
     }
 
     try {
-      const files = (await fsPromises.readdir(sessionsPath)).filter(f => f.endsWith('.json'));
+      const files = (await fsPromises.readdir(sessionsPath)).filter((f) => f.endsWith('.json'));
 
       const sessionPromises = files.map(async (file) => {
         try {
           const filePath = path.join(sessionsPath, file);
           const [stats, content] = await Promise.all([
             fsPromises.stat(filePath),
-            fsPromises.readFile(filePath, 'utf-8')
+            fsPromises.readFile(filePath, 'utf-8'),
           ]);
           const session = JSON.parse(content);
 
           // Use session timestamps if available, fall back to file stats
-          const createdAt = session.startTime || session.created_at ? 
-            new Date(session.startTime || session.created_at) : stats.birthtime;
-          const updatedAt = session.lastUpdated || session.updated_at ? 
-            new Date(session.lastUpdated || session.updated_at) : stats.mtime;
+          const createdAt =
+            session.startTime || session.created_at
+              ? new Date(session.startTime || session.created_at)
+              : stats.birthtime;
+          const updatedAt =
+            session.lastUpdated || session.updated_at
+              ? new Date(session.lastUpdated || session.updated_at)
+              : stats.mtime;
 
           return {
             id: `claude-local-${path.basename(projectPath)}-${file.replace('.json', '')}`,
@@ -180,7 +184,7 @@ class ClaudeService {
             summary: this.extractSummary(session),
             filePath: filePath,
             projectHash: path.basename(projectPath),
-            messageCount: this.countMessages(session)
+            messageCount: this.countMessages(session),
           };
         } catch (err) {
           return null;
@@ -188,7 +192,7 @@ class ClaudeService {
       });
 
       const results = await Promise.all(sessionPromises);
-      return results.filter(s => s !== null);
+      return results.filter((s) => s !== null);
     } catch (err) {
       // Ignore error
     }
@@ -218,7 +222,7 @@ class ClaudeService {
 
   /**
    * Set the API key for Anthropic API
-   * @param {string} apiKey 
+   * @param {string} apiKey
    */
   setApiKey(apiKey) {
     this.apiKey = apiKey;
@@ -226,9 +230,9 @@ class ClaudeService {
 
   /**
    * Make an HTTP request to the Anthropic API
-   * @param {string} endpoint 
-   * @param {string} method 
-   * @param {object} body 
+   * @param {string} endpoint
+   * @param {string} method
+   * @param {object} body
    */
   async request(endpoint, method = 'GET', body = null) {
     if (!this.apiKey) {
@@ -238,14 +242,20 @@ class ClaudeService {
     const url = `${ANTHROPIC_API_URL}${endpoint}`;
 
     try {
-      return await httpService.requestJson(url, method, body, {
-        'x-api-key': this.apiKey,
-        'anthropic-version': ANTHROPIC_API_VERSION
-      }, 60000);
+      return await httpService.requestJson(
+        url,
+        method,
+        body,
+        {
+          'x-api-key': this.apiKey,
+          'anthropic-version': ANTHROPIC_API_VERSION,
+        },
+        60000
+      );
     } catch (err) {
       if (err.statusCode) {
-         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
-         throw new Error(`Anthropic API error: ${err.statusCode} - ${dataStr}`);
+        const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+        throw new Error(`Anthropic API error: ${err.statusCode} - ${dataStr}`);
       }
       throw err;
     }
@@ -261,7 +271,7 @@ class ClaudeService {
       model: options.model || CLAUDE_DEFAULT_MODEL,
       max_tokens: options.max_tokens || 4096,
       messages: messages,
-      ...options
+      ...options,
     };
 
     // Remove custom options that aren't part of the API
@@ -288,13 +298,13 @@ class ClaudeService {
         docsUrl: 'https://platform.claude.com/docs/en/api/authentication/overview',
         endpointLabel: 'GET /v1/models',
         message: `Connected to Anthropic. ${models.length} models available.`,
-        diagnostics: { modelCount: models.length }
+        diagnostics: { modelCount: models.length },
       });
     } catch (err) {
       return providerHealth.fail('claude-cloud', err, {
         configured: !!this.apiKey,
         docsUrl: 'https://platform.claude.com/docs/en/api/authentication/overview',
-        endpointLabel: 'GET /v1/models'
+        endpointLabel: 'GET /v1/models',
       });
     }
   }
@@ -305,8 +315,8 @@ class ClaudeService {
 
   /**
    * Track a conversation ID for later listing
-   * @param {string} conversationId 
-   * @param {object} metadata 
+   * @param {string} conversationId
+   * @param {object} metadata
    */
   trackConversation(conversationId, metadata = {}) {
     const conversationInfo = {
@@ -317,7 +327,7 @@ class ClaudeService {
       title: metadata.title || null,
       messages: metadata.messages || [],
       lastResponse: metadata.lastResponse || null,
-      ...metadata
+      ...metadata,
     };
 
     trackedConversations = upsertItem(trackedConversations, conversationInfo, { limit: 100 });
@@ -325,7 +335,7 @@ class ClaudeService {
 
   /**
    * Set tracked conversations (used to restore from config)
-   * @param {Array} conversations 
+   * @param {Array} conversations
    */
   setTrackedConversations(conversations) {
     trackedConversations = conversations || [];
@@ -344,12 +354,12 @@ class ClaudeService {
    */
   async getAllCloudConversations() {
     // Return tracked conversations normalized to AgentTask format
-    return trackedConversations.map(conv => this.normalizeCloudConversation(conv));
+    return trackedConversations.map((conv) => this.normalizeCloudConversation(conv));
   }
 
   /**
    * Normalize a cloud conversation to the common AgentTask format
-   * @param {object} conversation 
+   * @param {object} conversation
    */
   normalizeCloudConversation(conversation) {
     return {
@@ -366,7 +376,7 @@ class ClaudeService {
       updatedAt: conversation.updatedAt ? new Date(conversation.updatedAt) : null,
       summary: conversation.lastResponse?.content?.[0]?.text?.substring(0, 200) || null,
       rawId: conversation.id,
-      messages: conversation.messages || []
+      messages: conversation.messages || [],
     };
   }
 
@@ -458,7 +468,7 @@ class ClaudeService {
     try {
       const [content, stats] = await Promise.all([
         fsPromises.readFile(filePath, 'utf-8'),
-        fsPromises.stat(filePath)
+        fsPromises.stat(filePath),
       ]);
       const session = JSON.parse(content);
 
@@ -481,7 +491,7 @@ class ClaudeService {
 
         // File info
         filePath: filePath,
-        fileSize: stats.size
+        fileSize: stats.size,
       };
     } catch (err) {
       return null;
@@ -493,8 +503,8 @@ class ClaudeService {
    * @param {string} conversationId - The conversation ID
    */
   async getCloudConversationDetails(conversationId) {
-    const conversation = trackedConversations.find(c => c.id === conversationId);
-    
+    const conversation = trackedConversations.find((c) => c.id === conversationId);
+
     if (!conversation) {
       throw new Error(`Conversation not found: ${conversationId}`);
     }
@@ -505,8 +515,8 @@ class ClaudeService {
         id: `msg-${idx}`,
         role: msg.role,
         content: typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '',
-        timestamp: null
-      }))
+        timestamp: null,
+      })),
     };
   }
 
@@ -551,7 +561,7 @@ class ClaudeService {
       // Add text prompt
       messageContent.push({
         type: 'text',
-        text: prompt
+        text: prompt,
       });
 
       // Add attachments
@@ -564,23 +574,21 @@ class ClaudeService {
               source: {
                 type: 'base64',
                 media_type: match[1],
-                data: match[2]
-              }
+                data: match[2],
+              },
             });
           }
         }
       }
     }
 
-    const messages = [
-      { role: 'user', content: messageContent }
-    ];
+    const messages = [{ role: 'user', content: messageContent }];
 
     try {
       // Make the API request
       const response = await this.createMessage(messages, {
         model: CLAUDE_DEFAULT_MODEL,
-        max_tokens: 4096
+        max_tokens: 4096,
       });
 
       // Track this conversation
@@ -591,7 +599,7 @@ class ClaudeService {
         messages: messages,
         lastResponse: response,
         status: 'completed',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       });
 
       return this.normalizeCloudConversation({
@@ -603,7 +611,7 @@ class ClaudeService {
         lastResponse: response,
         status: 'completed',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       });
     } catch (err) {
       // Track failed conversation
@@ -613,7 +621,7 @@ class ClaudeService {
         title: title,
         messages: messages,
         status: 'failed',
-        error: err.message
+        error: err.message,
       });
       throw err;
     }
@@ -653,21 +661,26 @@ class ClaudeService {
     const args = ['-p', prompt, '--allowedTools', allowedTools];
 
     return new Promise((resolve, reject) => {
-      const claudeCmd = (command && String(command).trim())
-        ? String(command).trim()
-        : (process.platform === 'win32' ? 'claude.cmd' : 'claude');
+      const claudeCmd =
+        command && String(command).trim()
+          ? String(command).trim()
+          : process.platform === 'win32'
+            ? 'claude.cmd'
+            : 'claude';
 
       const child = spawn(claudeCmd, args, {
         cwd: projectPath,
         shell: false,
         detached: true,
         stdio: 'ignore',
-        windowsHide: true
+        windowsHide: true,
       });
 
       child.on('error', (err) => {
         if (err.code === 'ENOENT') {
-          reject(new Error('Claude Code CLI not found. Please ensure it is installed and in your PATH.'));
+          reject(
+            new Error('Claude Code CLI not found. Please ensure it is installed and in your PATH.')
+          );
         } else {
           reject(new Error(`Failed to start Claude Code CLI: ${err.message}`));
         }
@@ -689,7 +702,7 @@ class ClaudeService {
           prompt: prompt,
           repository: projectPath,
           createdAt: new Date(),
-          message: 'Claude Code CLI session started. The task is running in the background.'
+          message: 'Claude Code CLI session started. The task is running in the background.',
         });
       }, 500);
     });
@@ -741,7 +754,7 @@ class ClaudeService {
                 path: dirPath,
                 claudePath: null,
                 displayName: entry.name,
-                hasExistingSessions: false
+                hasExistingSessions: false,
               };
             }
           } catch {
@@ -751,7 +764,7 @@ class ClaudeService {
         });
 
         const results = await Promise.all(entryPromises);
-        return results.filter(r => r !== null);
+        return results.filter((r) => r !== null);
       } catch (err) {
         // Ignore error
         return [];
@@ -759,7 +772,7 @@ class ClaudeService {
     });
 
     const allResults = await Promise.all(pathPromises);
-    allResults.forEach(res => projects.push(...res));
+    allResults.forEach((res) => projects.push(...res));
 
     return projects;
   }
@@ -814,9 +827,10 @@ class ClaudeService {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msgType = messages[i].type || messages[i].role;
       if ((msgType === 'assistant' || msgType === 'claude') && messages[i].content) {
-        const content = typeof messages[i].content === 'string'
-          ? messages[i].content
-          : messages[i].content[0]?.text || '';
+        const content =
+          typeof messages[i].content === 'string'
+            ? messages[i].content
+            : messages[i].content[0]?.text || '';
         if (content.trim().length === 0) continue;
         return content.substring(0, 200) + (content.length > 200 ? '...' : '');
       }
@@ -880,23 +894,25 @@ class ClaudeService {
   parseMessages(session) {
     const messages = session.messages || session.conversation || [];
     return messages
-      .filter(msg => {
+      .filter((msg) => {
         const msgType = msg.type || msg.role;
         if (msgType !== 'user' && msgType !== 'claude' && msgType !== 'assistant') {
           return false;
         }
-        const content = typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '';
+        const content =
+          typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '';
         return content.trim().length > 0;
       })
       .map((msg, idx) => {
         const msgType = msg.type || msg.role;
-        const normalizedRole = (msgType === 'claude' || msgType === 'assistant') ? 'assistant' : msgType;
+        const normalizedRole =
+          msgType === 'claude' || msgType === 'assistant' ? 'assistant' : msgType;
 
         return {
           id: msg.id || `msg-${idx}`,
           role: normalizedRole,
           content: typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '',
-          timestamp: msg.timestamp || null
+          timestamp: msg.timestamp || null,
         };
       });
   }

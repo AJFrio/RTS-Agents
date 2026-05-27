@@ -2,7 +2,9 @@ const child_process = require('child_process');
 const fs = require('fs');
 
 // Create spy before requiring services
-const spawnSpy = jest.spyOn(child_process, 'spawn').mockReturnValue({ unref: jest.fn(), on: jest.fn() });
+const spawnSpy = jest
+  .spyOn(child_process, 'spawn')
+  .mockReturnValue({ unref: jest.fn(), on: jest.fn() });
 const spawnSyncSpy = jest.spyOn(child_process, 'spawnSync').mockReturnValue({ status: 0 });
 
 jest.mock('fs', () => ({
@@ -40,12 +42,12 @@ describe('Security Verification - Command Injection', () => {
         expect.any(String),
         expect.arrayContaining(['-p', prompt]),
         expect.objectContaining({
-          shell: false
+          shell: false,
         })
       );
 
       // Verify no manual quoting of the prompt argument
-      const call = spawnSpy.mock.calls.find(c => c[1].includes('-p'));
+      const call = spawnSpy.mock.calls.find((c) => c[1].includes('-p'));
       if (call) {
         const promptArg = call[1][call[1].indexOf('-p') + 1];
         expect(promptArg).toBe(prompt);
@@ -73,11 +75,11 @@ describe('Security Verification - Command Injection', () => {
         expect.any(String),
         expect.arrayContaining(['--print', prompt]),
         expect.objectContaining({
-          shell: false
+          shell: false,
         })
       );
 
-      const call = spawnSpy.mock.calls.find(c => c[1].includes('--print'));
+      const call = spawnSpy.mock.calls.find((c) => c[1].includes('--print'));
       if (call) {
         const promptArg = call[1][call[1].indexOf('--print') + 1];
         expect(promptArg).toBe(prompt);
@@ -94,7 +96,7 @@ describe('Security Verification - Command Injection', () => {
         'some-cmd',
         ['--version'],
         expect.objectContaining({
-          shell: false
+          shell: false,
         })
       );
     });

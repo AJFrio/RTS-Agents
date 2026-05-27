@@ -14,7 +14,7 @@ function isCommandRunnable(cmd) {
       shell: false,
       stdio: 'ignore',
       timeout: 2000,
-      windowsHide: true
+      windowsHide: true,
     });
     if (r.error) return false;
     return r.status === 0;
@@ -84,19 +84,23 @@ class OpenCodeService {
         installed: true,
         docsUrl: 'https://opencode.ai/docs/cli/',
         endpointLabel: `${this.getExecutable()} --version`,
-        message: 'OpenCode CLI is available on this machine.'
+        message: 'OpenCode CLI is available on this machine.',
       });
     }
     return providerHealth.fail('opencode', 'OpenCode CLI not found', {
       configured: false,
       installed: false,
       docsUrl: 'https://opencode.ai/docs/cli/',
-      endpointLabel: `${this.getExecutable()} --version`
+      endpointLabel: `${this.getExecutable()} --version`,
     });
   }
 
   _pickRunArgsFor(executable, prompt) {
-    const h = spawnSync(executable, ['run', '-h'], { stdio: 'ignore', windowsHide: true, timeout: 6000 });
+    const h = spawnSync(executable, ['run', '-h'], {
+      stdio: 'ignore',
+      windowsHide: true,
+      timeout: 6000,
+    });
     if (h.error) {
       if (h.error.code === 'ENOENT') {
         return { error: 'OpenCode executable not found' };
@@ -126,7 +130,8 @@ class OpenCodeService {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
-    const opencodeCmd = (command && String(command).trim()) ? String(command).trim() : this.getExecutable();
+    const opencodeCmd =
+      command && String(command).trim() ? String(command).trim() : this.getExecutable();
     const run = this._pickRunArgsFor(opencodeCmd, prompt);
     if (run.error) {
       throw new Error(run.error);
@@ -142,12 +147,16 @@ class OpenCodeService {
         detached: true,
         stdio: 'ignore',
         env: { ...process.env },
-        windowsHide: true
+        windowsHide: true,
       });
 
       child.on('error', (err) => {
         if (err.code === 'ENOENT') {
-          reject(new Error('OpenCode CLI not found. Install from https://opencode.ai or set a custom executable in headless/CLI settings.'));
+          reject(
+            new Error(
+              'OpenCode CLI not found. Install from https://opencode.ai or set a custom executable in headless/CLI settings.'
+            )
+          );
         } else {
           reject(new Error(`Failed to start OpenCode: ${err.message}`));
         }
@@ -162,7 +171,7 @@ class OpenCodeService {
         projectPath,
         status: 'running',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       this.trackedSessions = [entry, ...this.trackedSessions].slice(0, 100);
       configStore.setOpenCodeSessions(this.trackedSessions);
@@ -178,7 +187,7 @@ class OpenCodeService {
           rawId: sessionId,
           filePath: null,
           message: 'OpenCode task started in the background.',
-          createdAt: new Date()
+          createdAt: new Date(),
         });
       }, 400);
     });
@@ -188,7 +197,8 @@ class OpenCodeService {
     return this.trackedSessions.map((t) => ({
       id: t.id,
       provider: 'opencode',
-      name: (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) || 'OpenCode',
+      name:
+        (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) || 'OpenCode',
       status: t.status || 'running',
       prompt: t.prompt,
       repository: t.projectPath,
@@ -196,7 +206,7 @@ class OpenCodeService {
       filePath: t.filePath || null,
       summary: t.prompt || '',
       createdAt: t.createdAt,
-      updatedAt: t.updatedAt
+      updatedAt: t.updatedAt,
     }));
   }
 
@@ -210,10 +220,11 @@ class OpenCodeService {
         { role: 'user', content: t.prompt, timestamp: t.createdAt },
         {
           role: 'assistant',
-          content: 'Session started via OpenCode CLI. For full history, use the OpenCode UI or your terminal in that repository.'
-        }
+          content:
+            'Session started via OpenCode CLI. For full history, use the OpenCode UI or your terminal in that repository.',
+        },
       ],
-      filePath: null
+      filePath: null,
     };
   }
 

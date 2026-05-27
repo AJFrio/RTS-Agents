@@ -2,7 +2,7 @@ const SECRET_PATTERNS = [
   /Bearer\s+[A-Za-z0-9._~+/=-]+/gi,
   /Basic\s+[A-Za-z0-9._~+/=-]+/gi,
   /X-Goog-Api-Key:\s*[A-Za-z0-9._~+/=-]+/gi,
-  /x-api-key:\s*[A-Za-z0-9._~+/=-]+/gi
+  /x-api-key:\s*[A-Za-z0-9._~+/=-]+/gi,
 ];
 
 function redact(value) {
@@ -10,7 +10,8 @@ function redact(value) {
   if (typeof value !== 'string') return value;
 
   return SECRET_PATTERNS.reduce(
-    (current, pattern) => current.replace(pattern, (match) => match.split(/\s+/)[0] + ' [redacted]'),
+    (current, pattern) =>
+      current.replace(pattern, (match) => match.split(/\s+/)[0] + ' [redacted]'),
     value
   );
 }
@@ -48,13 +49,12 @@ function providerHealth(provider, options = {}) {
     error,
     docsUrl = null,
     endpointLabel = null,
-    diagnostics = null
+    diagnostics = null,
   } = options;
 
   const isConnected = typeof connected === 'boolean' ? connected : !!success;
   const normalizedStatus =
-    status ||
-    (isConnected ? 'ok' : configured || installed ? 'error' : 'not_configured');
+    status || (isConnected ? 'ok' : configured || installed ? 'error' : 'not_configured');
   const normalizedError = errorMessage(error);
 
   return {
@@ -69,7 +69,7 @@ function providerHealth(provider, options = {}) {
     checkedAt: new Date().toISOString(),
     docsUrl,
     endpointLabel,
-    diagnostics: diagnostics ? redactObject(diagnostics) : null
+    diagnostics: diagnostics ? redactObject(diagnostics) : null,
   };
 }
 
@@ -78,7 +78,7 @@ function ok(provider, options = {}) {
     ...options,
     success: true,
     connected: true,
-    status: options.status || 'ok'
+    status: options.status || 'ok',
   });
 }
 
@@ -88,7 +88,7 @@ function fail(provider, error, options = {}) {
     success: false,
     connected: false,
     status: options.status || 'error',
-    error
+    error,
   });
 }
 
@@ -101,7 +101,7 @@ function notConfigured(provider, options = {}) {
     connected: false,
     status: 'not_configured',
     message,
-    error: options.error || message
+    error: options.error || message,
   });
 }
 
@@ -111,5 +111,5 @@ module.exports = {
   fail,
   notConfigured,
   redact,
-  redactObject
+  redactObject,
 };

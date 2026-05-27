@@ -20,20 +20,26 @@ class OpenRouterService {
     const url = `${BASE_URL}${endpoint}`;
 
     try {
-      return await httpService.requestJson(url, method, body, {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'https://rts-agents.com', // Required by OpenRouter
-        'X-Title': 'RTS Agents'
-      }, 60000);
+      return await httpService.requestJson(
+        url,
+        method,
+        body,
+        {
+          Authorization: `Bearer ${this.apiKey}`,
+          'HTTP-Referer': 'https://rts-agents.com', // Required by OpenRouter
+          'X-Title': 'RTS Agents',
+        },
+        60000
+      );
     } catch (err) {
       if (err.statusCode) {
         // Try to use specific error message from OpenRouter
         if (err.data && err.data.error && err.data.error.message) {
-            throw new Error(`OpenRouter API error: ${err.data.error.message}`);
+          throw new Error(`OpenRouter API error: ${err.data.error.message}`);
         }
 
-         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
-         throw new Error(`OpenRouter API error: ${err.statusCode} - ${dataStr}`);
+        const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
+        throw new Error(`OpenRouter API error: ${err.statusCode} - ${dataStr}`);
       }
       throw err;
     }
@@ -42,7 +48,7 @@ class OpenRouterService {
   async chat(messages, model = 'openai/gpt-4o', tools = null) {
     const body = {
       model: model,
-      messages: messages
+      messages: messages,
     };
 
     if (tools) {
@@ -54,21 +60,21 @@ class OpenRouterService {
 
   async testConnection() {
     try {
-        const response = await this.request('/models');
-        const modelCount = Array.isArray(response?.data) ? response.data.length : 0;
-        return providerHealth.ok('openrouter', {
-          configured: true,
-          docsUrl: 'https://openrouter.ai/docs/api-reference/list-available-models',
-          endpointLabel: 'GET /api/v1/models',
-          message: `Connected to OpenRouter. ${modelCount} models available.`,
-          diagnostics: { modelCount }
-        });
+      const response = await this.request('/models');
+      const modelCount = Array.isArray(response?.data) ? response.data.length : 0;
+      return providerHealth.ok('openrouter', {
+        configured: true,
+        docsUrl: 'https://openrouter.ai/docs/api-reference/list-available-models',
+        endpointLabel: 'GET /api/v1/models',
+        message: `Connected to OpenRouter. ${modelCount} models available.`,
+        diagnostics: { modelCount },
+      });
     } catch (err) {
-        return providerHealth.fail('openrouter', err, {
-          configured: !!this.apiKey,
-          docsUrl: 'https://openrouter.ai/docs/api-reference/list-available-models',
-          endpointLabel: 'GET /api/v1/models'
-        });
+      return providerHealth.fail('openrouter', err, {
+        configured: !!this.apiKey,
+        docsUrl: 'https://openrouter.ai/docs/api-reference/list-available-models',
+        endpointLabel: 'GET /api/v1/models',
+      });
     }
   }
 
@@ -80,10 +86,10 @@ class OpenRouterService {
     try {
       const response = await this.request('/models');
       if (response && Array.isArray(response.data)) {
-        return response.data.map(m => ({
+        return response.data.map((m) => ({
           id: 'openrouter/' + m.id,
           name: m.name || m.id,
-          provider: 'openrouter'
+          provider: 'openrouter',
         }));
       }
       return [];

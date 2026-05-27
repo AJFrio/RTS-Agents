@@ -5,7 +5,7 @@ describe('provider-health', () => {
     const result = providerHealth.ok('jules', {
       configured: true,
       endpointLabel: 'GET /sources',
-      docsUrl: 'https://example.com/docs'
+      docsUrl: 'https://example.com/docs',
     });
 
     expect(result).toMatchObject({
@@ -15,7 +15,7 @@ describe('provider-health', () => {
       configured: true,
       status: 'ok',
       endpointLabel: 'GET /sources',
-      docsUrl: 'https://example.com/docs'
+      docsUrl: 'https://example.com/docs',
     });
     expect(result.checkedAt).toEqual(expect.any(String));
   });
@@ -26,8 +26,8 @@ describe('provider-health', () => {
       diagnostics: {
         apiKey: 'secret',
         nested: { token: 'secret2' },
-        header: 'Basic abc123'
-      }
+        header: 'Basic abc123',
+      },
     });
 
     expect(result.error).not.toContain('ghp_secret_token');

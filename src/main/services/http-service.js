@@ -18,7 +18,7 @@ class HttpService {
       headers = {},
       body = null,
       timeout = 30000,
-      errorMessagePrefix = null
+      errorMessagePrefix = null,
     } = options;
 
     let urlObj;
@@ -36,13 +36,13 @@ class HttpService {
         port: urlObj.port,
         path: urlObj.pathname + urlObj.search,
         method: method,
-        headers: headers
+        headers: headers,
       };
 
       const req = requestModule.request(reqOptions, (res) => {
         let data = '';
 
-        res.on('data', chunk => {
+        res.on('data', (chunk) => {
           data += chunk;
         });
 
@@ -60,12 +60,12 @@ class HttpService {
           } else {
             // Try parsing anyway as some APIs return JSON without correct content-type
             try {
-               // Only try if it looks like JSON to avoid parsing numbers/booleans inadvertently
-               if (data && (data.startsWith('{') || data.startsWith('['))) {
-                 parsedData = JSON.parse(data);
-               }
+              // Only try if it looks like JSON to avoid parsing numbers/booleans inadvertently
+              if (data && (data.startsWith('{') || data.startsWith('['))) {
+                parsedData = JSON.parse(data);
+              }
             } catch (e) {
-               // Ignore
+              // Ignore
             }
           }
 
@@ -114,15 +114,15 @@ class HttpService {
    */
   async requestJson(url, method = 'GET', body = null, headers = {}, timeout = 30000) {
     const jsonHeaders = {
-        'Content-Type': 'application/json',
-        ...headers
+      'Content-Type': 'application/json',
+      ...headers,
     };
 
     return this.request(url, {
-        method,
-        body,
-        headers: jsonHeaders,
-        timeout
+      method,
+      body,
+      headers: jsonHeaders,
+      timeout,
     });
   }
 
@@ -132,7 +132,8 @@ class HttpService {
     if (typeof data === 'object') {
       if (data.error?.message) return data.error.message;
       if (data.message) return data.message;
-      if (Array.isArray(data.errors)) return data.errors.map((entry) => entry.message || String(entry)).join('; ');
+      if (Array.isArray(data.errors))
+        return data.errors.map((entry) => entry.message || String(entry)).join('; ');
       try {
         return JSON.stringify(data);
       } catch {

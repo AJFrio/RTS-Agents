@@ -22,9 +22,15 @@ class CursorService {
     const auth = Buffer.from(`${this.apiKey}:`).toString('base64');
 
     try {
-      return await httpService.requestJson(`${BASE_URL}${endpoint}`, method, body, {
-        'Authorization': `Basic ${auth}`
-      }, 60000);
+      return await httpService.requestJson(
+        `${BASE_URL}${endpoint}`,
+        method,
+        body,
+        {
+          Authorization: `Basic ${auth}`,
+        },
+        60000
+      );
     } catch (err) {
       if (err.statusCode) {
         const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
@@ -70,9 +76,7 @@ class CursorService {
       })
     );
 
-    return settled
-      .filter((result) => result.status === 'fulfilled')
-      .map((result) => result.value);
+    return settled.filter((result) => result.status === 'fulfilled').map((result) => result.value);
   }
 
   normalizeAgent(agent, run = null) {
@@ -87,17 +91,19 @@ class CursorService {
       status: this.mapStatus(run?.status || agent.status),
       prompt: '',
       repository,
-      branch: pushedBranch?.branch || agent.repos?.[0]?.startingRef || agent.target?.branchName || null,
+      branch:
+        pushedBranch?.branch || agent.repos?.[0]?.startingRef || agent.target?.branchName || null,
       prUrl: pullRequest?.prUrl || agent.target?.prUrl || null,
       createdAt: agent.createdAt ? new Date(agent.createdAt) : null,
-      updatedAt: (run?.updatedAt || agent.updatedAt) ? new Date(run?.updatedAt || agent.updatedAt) : null,
+      updatedAt:
+        run?.updatedAt || agent.updatedAt ? new Date(run?.updatedAt || agent.updatedAt) : null,
       summary: run?.result || agent.summary || null,
       rawId: agent.id,
       webUrl: agent.url || `https://cursor.com/agents/${agent.id}`,
       url: agent.url || agent.target?.url || null,
       ref: agent.repos?.[0]?.startingRef || agent.source?.ref || null,
       autoCreatePr: agent.autoCreatePR || agent.target?.autoCreatePr || false,
-      latestRunId: agent.latestRunId || run?.id || null
+      latestRunId: agent.latestRunId || run?.id || null,
     };
   }
 
@@ -113,7 +119,7 @@ class CursorService {
       EXPIRED: 'failed',
       STOPPED: 'stopped',
       ACTIVE: 'running',
-      ARCHIVED: 'stopped'
+      ARCHIVED: 'stopped',
     };
 
     return statusMap[String(status).toUpperCase()] || 'pending';
@@ -129,20 +135,24 @@ class CursorService {
 
     return {
       ...this.normalizeAgent(agent, latestRun),
-      conversation: latestRun?.result ? [{
-        id: latestRun.id,
-        type: 'assistant_message',
-        text: latestRun.result,
-        isUser: false
-      }] : [],
+      conversation: latestRun?.result
+        ? [
+            {
+              id: latestRun.id,
+              type: 'assistant_message',
+              text: latestRun.result,
+              isUser: false,
+            },
+          ]
+        : [],
       runs: runs.map((run) => ({
         id: run.id,
         status: run.status,
         createdAt: run.createdAt,
         updatedAt: run.updatedAt,
         result: run.result || null,
-        git: run.git || null
-      }))
+        git: run.git || null,
+      })),
     };
   }
 
@@ -166,13 +176,13 @@ class CursorService {
         docsUrl: 'https://cursor.com/docs/cloud-agent/api/endpoints',
         endpointLabel: 'GET /v1/me',
         message: `Connected to Cursor${info?.userEmail ? ` as ${info.userEmail}` : ''}.`,
-        diagnostics: { apiKeyName: info?.apiKeyName || null, userEmail: info?.userEmail || null }
+        diagnostics: { apiKeyName: info?.apiKeyName || null, userEmail: info?.userEmail || null },
       });
     } catch (err) {
       return providerHealth.fail('cursor', err, {
         configured: !!this.apiKey,
         docsUrl: 'https://cursor.com/docs/cloud-agent/api/endpoints',
-        endpointLabel: 'GET /v1/me'
+        endpointLabel: 'GET /v1/me',
       });
     }
   }
@@ -181,41 +191,45 @@ class CursorService {
     const scannedPaths = new Set();
     const uniquePaths = [...new Set(paths)];
 
-    const pathResults = await Promise.all(uniquePaths.map(async (basePath) => {
-      try {
-        const stats = await fs.promises.stat(basePath).catch(() => null);
-        if (!stats || !stats.isDirectory()) return [];
+    const pathResults = await Promise.all(
+      uniquePaths.map(async (basePath) => {
+        try {
+          const stats = await fs.promises.stat(basePath).catch(() => null);
+          if (!stats || !stats.isDirectory()) return [];
 
-        const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
+          const entries = await fs.promises.readdir(basePath, { withFileTypes: true });
 
-        const entryResults = await Promise.all(entries.map(async (entry) => {
-          if (!entry.isDirectory()) return null;
-          if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
+          const entryResults = await Promise.all(
+            entries.map(async (entry) => {
+              if (!entry.isDirectory()) return null;
+              if (entry.name.startsWith('.') || entry.name === 'node_modules') return null;
 
-          const dirPath = path.join(basePath, entry.name);
-          const gitPath = path.join(dirPath, '.git');
+              const dirPath = path.join(basePath, entry.name);
+              const gitPath = path.join(dirPath, '.git');
 
-          try {
-            await fs.promises.access(gitPath);
-            return {
-              id: dirPath,
-              name: entry.name,
-              url: dirPath,
-              path: dirPath,
-              defaultBranch: 'main',
-              displayName: entry.name
-            };
-          } catch {
-            return null;
-          }
-        }));
+              try {
+                await fs.promises.access(gitPath);
+                return {
+                  id: dirPath,
+                  name: entry.name,
+                  url: dirPath,
+                  path: dirPath,
+                  defaultBranch: 'main',
+                  displayName: entry.name,
+                };
+              } catch {
+                return null;
+              }
+            })
+          );
 
-        return entryResults.filter(Boolean);
-      } catch (err) {
-        console.error(`Error scanning ${basePath}:`, err);
-        return [];
-      }
-    }));
+          return entryResults.filter(Boolean);
+        } catch (err) {
+          console.error(`Error scanning ${basePath}:`, err);
+          return [];
+        }
+      })
+    );
 
     const projects = [];
     const flattened = pathResults.flat();
@@ -237,12 +251,12 @@ class CursorService {
         const response = await this.listRepositories();
         const repos = response.items || response.repositories || response || [];
 
-        cloudRepos = repos.map(repo => ({
+        cloudRepos = repos.map((repo) => ({
           id: repo.url || repo.repository,
           name: repo.name || this.extractRepoName(repo.url || repo.repository),
           url: repo.url || repo.repository,
           defaultBranch: repo.defaultBranch || 'main',
-          displayName: this.extractRepoName(repo.url || repo.repository)
+          displayName: this.extractRepoName(repo.url || repo.repository),
         }));
       }
     } catch (err) {
@@ -271,13 +285,15 @@ class CursorService {
 
     const body = {
       prompt: {
-        text: prompt
+        text: prompt,
       },
-      repos: [{
-        url: repository,
-        startingRef: branchName || ref
-      }],
-      autoCreatePR: autoCreatePr
+      repos: [
+        {
+          url: repository,
+          startingRef: branchName || ref,
+        },
+      ],
+      autoCreatePR: autoCreatePr,
     };
 
     if (model) {
@@ -295,8 +311,8 @@ class CursorService {
 
     return this.request(`/agents/${agentId}/runs`, 'POST', {
       prompt: {
-        text: message
-      }
+        text: message,
+      },
     });
   }
 }

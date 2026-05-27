@@ -27,7 +27,7 @@ export default function Header() {
 
   const handleRefresh = useCallback(() => {
     if (currentView === 'dashboard') {
-      loadAgents(false);
+      loadAgents({ silent: false, force: true });
       loadRemoteQueueActivity();
     } else if (currentView === 'branches') loadBranches();
     else if (currentView === 'pull-requests') loadAllPrs();

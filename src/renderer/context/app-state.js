@@ -3,6 +3,7 @@ export const VIEWS = ['agent', 'dashboard', 'branches', 'pull-requests', 'comput
 export const initialState = {
   currentView: 'dashboard',
   agents: [],
+  agentListRevision: 0,
   filteredAgents: [],
   filters: {
     providers: {
@@ -166,9 +167,30 @@ export function appReducer(state, action) {
       return {
         ...state,
         agents: action.payload.agents ?? state.agents,
+        agentListRevision: action.payload.revision ?? state.agentListRevision,
         counts: action.payload.counts ?? state.counts,
         errors: action.payload.errors ?? state.errors,
       };
+    case 'MERGE_AGENTS_DELTA': {
+      const { added = [], updated = [], removed = [] } = action.payload.delta || {};
+      const byId = new Map(state.agents.map((a) => [a.id, a]));
+      for (const id of removed) {
+        byId.delete(id);
+      }
+      for (const agent of updated) {
+        byId.set(agent.id, agent);
+      }
+      for (const agent of added) {
+        byId.set(agent.id, agent);
+      }
+      return {
+        ...state,
+        agents: [...byId.values()],
+        agentListRevision: action.payload.revision ?? state.agentListRevision,
+        counts: action.payload.counts ?? state.counts,
+        errors: action.payload.errors ?? state.errors,
+      };
+    }
     case 'SET_FILTERED_AGENTS':
       return { ...state, filteredAgents: action.payload };
     case 'SET_FILTERS':

@@ -26,29 +26,29 @@ jest.mock('os', () => ({
 // Now import the mocked module.
 const fs = require('fs');
 const fsPromises = fs.promises;
+const installStatus = require('../../src/main/utils/install-status');
 const geminiService = require('../../src/main/services/gemini-service');
 
 describe('GeminiService Unit Tests', () => {
   const mockHomeDir = '/mock/home';
 
   beforeEach(() => {
-    // Clear mock history before each test
     jest.clearAllMocks();
+    installStatus.clearInstallStatusCache();
   });
 
   describe('isGeminiInstalled', () => {
-    test('should return true if base directory exists', () => {
-      // Control the mock
-      fs.existsSync.mockReturnValue(true);
+    test('should return true if base directory exists', async () => {
+      fsPromises.access.mockResolvedValue(undefined);
 
-      expect(geminiService.isGeminiInstalled()).toBe(true);
-      expect(fs.existsSync).toHaveBeenCalled();
+      await expect(geminiService.isGeminiInstalled()).resolves.toBe(true);
+      expect(fsPromises.access).toHaveBeenCalled();
     });
 
-    test('should return false if base directory does not exist', () => {
-      fs.existsSync.mockReturnValue(false);
+    test('should return false if base directory does not exist', async () => {
+      fsPromises.access.mockRejectedValue(new Error('ENOENT'));
 
-      expect(geminiService.isGeminiInstalled()).toBe(false);
+      await expect(geminiService.isGeminiInstalled()).resolves.toBe(false);
     });
   });
 

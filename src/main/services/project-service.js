@@ -1,7 +1,7 @@
-const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const { execFile } = require('child_process');
+const { pathExists } = require('../utils/path-exists');
 
 class ProjectService {
   execAsync(file, args = [], options = {}) {
@@ -25,12 +25,12 @@ class ProjectService {
     if (!baseDir) throw new Error('Missing base directory');
     if (!repoName) throw new Error('Missing repository name');
 
-    if (!fs.existsSync(baseDir)) {
+    if (!(await pathExists(baseDir))) {
       throw new Error(`Base directory does not exist: ${baseDir}`);
     }
 
     const repoPath = path.join(baseDir, repoName);
-    if (fs.existsSync(repoPath)) {
+    if (await pathExists(repoPath)) {
       throw new Error(`Target path already exists: ${repoPath}`);
     }
 
@@ -112,7 +112,7 @@ class ProjectService {
     }
 
     const filePath = path.join(repoPath, fileName);
-    if (!fs.existsSync(filePath)) {
+    if (!(await pathExists(filePath))) {
       return null;
     }
 
@@ -127,10 +127,10 @@ class ProjectService {
 
   async pullRepo(repoPath) {
     if (!repoPath || typeof repoPath !== 'string') throw new Error('Missing repository path');
-    if (!fs.existsSync(repoPath)) throw new Error(`Repository path does not exist: ${repoPath}`);
+    if (!(await pathExists(repoPath))) throw new Error(`Repository path does not exist: ${repoPath}`);
 
     const gitDir = path.join(repoPath, '.git');
-    if (!fs.existsSync(gitDir)) throw new Error(`Not a git repository: ${repoPath}`);
+    if (!(await pathExists(gitDir))) throw new Error(`Not a git repository: ${repoPath}`);
 
     // Check remote URL to understand authentication requirements
     let remoteUrl = null;

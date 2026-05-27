@@ -1,7 +1,7 @@
 const { ipcRenderer } = require('electron');
 
 module.exports = {
-  getAgents: () => ipcRenderer.invoke('agents:get-all'),
+  getAgents: (options) => ipcRenderer.invoke('agents:get-all', options || {}),
   getAgentDetails: (provider, rawId, filePath) =>
     ipcRenderer.invoke('agents:get-details', { provider, rawId, filePath }),
   onRefreshTick: (callback) => {

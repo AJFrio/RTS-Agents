@@ -17,7 +17,9 @@ function registerSettingsHandlers(deps) {
   } = deps;
   const {
     startPolling,
-    stopPolling
+    stopPolling,
+    invalidateAgentDiscovery,
+    startDiscoveryWatchers
   } = lifecycle;
   const { getMainWindow } = deps;
 
@@ -38,6 +40,11 @@ function registerSettingsHandlers(deps) {
   }
 
 ipcMain.handle('settings:get', async () => {
+    const [geminiInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
+      geminiService.isGeminiInstalled(),
+      claudeService.isClaudeInstalled(),
+      opencodeService.isOpenCodeInstalled()
+    ]);
     return {
       settings: configStore.getAllSettings(),
       apiKeys: {
@@ -61,10 +68,10 @@ ipcMain.handle('settings:get', async () => {
           namespaceTitle: cfg?.namespaceTitle || 'rtsa'
         };
       })(),
-      geminiInstalled: geminiService.isGeminiInstalled(),
+      geminiInstalled,
       geminiDefaultPath: geminiService.getDefaultPath(),
-      claudeCliInstalled: claudeService.isClaudeInstalled(),
-      opencodeInstalled: opencodeService.isOpenCodeInstalled(),
+      claudeCliInstalled,
+      opencodeInstalled,
       opencodeDefaultPath: opencodeService.getDefaultDataPath(),
       claudeCloudConfigured: configStore.hasApiKey('claude'),
       claudeDefaultPath: claudeService.getDefaultPath(),
@@ -82,6 +89,7 @@ ipcMain.handle('settings:get', async () => {
    * Save API key
    */
 ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
+    invalidateAgentDiscovery();
     configStore.setApiKey(provider, key);
     
     // Update service with new key
@@ -145,6 +153,7 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
    * Remove API key (disconnect)
    */
 ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
+    invalidateAgentDiscovery();
     configStore.removeApiKey(provider);
     
     // Clear the API key from the service
@@ -180,6 +189,9 @@ ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
       configStore.setPollingInterval(interval);
     }
     
+    invalidateAgentDiscovery();
+    startDiscoveryWatchers();
+
     // Restart polling with new settings
     if (configStore.isAutoPollingEnabled()) {
       startPolling();

@@ -108,7 +108,7 @@ class QueueProcessorService {
 
       let started;
       if (tool === 'gemini') {
-        if (!geminiService.isGeminiInstalled() && !this.isCommandRunnable(geminiCmd || 'gemini')) {
+        if (!(await geminiService.isGeminiInstalled()) && !this.isCommandRunnable(geminiCmd || 'gemini')) {
           throw new Error('Gemini CLI not detected on target device');
         }
         started = await geminiService.startSession({
@@ -136,7 +136,7 @@ class QueueProcessorService {
         });
         configStore.setCodexThreads(codexService.getTrackedThreads());
       } else if (tool === 'opencode') {
-        if (!opencodeService.isOpenCodeInstalled() && !this.isCommandRunnable(opencodeCmd || 'opencode')) {
+        if (!(await opencodeService.isOpenCodeInstalled()) && !this.isCommandRunnable(opencodeCmd || 'opencode')) {
           throw new Error('OpenCode CLI not detected on target device');
         }
         started = await opencodeService.startSession({

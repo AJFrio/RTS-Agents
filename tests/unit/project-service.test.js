@@ -12,6 +12,10 @@ const mockAccess = jest.fn();
 const mockExecFile = jest.fn();
 
 // Mock modules
+jest.mock('../../src/main/utils/path-exists', () => ({
+  pathExists: jest.fn()
+}));
+
 jest.mock('fs', () => ({
   existsSync: mockExistsSync,
   readdirSync: mockReaddirSync
@@ -27,6 +31,8 @@ jest.mock('child_process', () => ({
   execFile: mockExecFile
 }));
 
+const { pathExists } = require('../../src/main/utils/path-exists');
+
 // Require service
 const projectService = require('../../src/main/services/project-service');
 
@@ -41,11 +47,7 @@ describe('ProjectService Unit Tests', () => {
       const name = 'new-repo';
       const repoPath = path.join(dir, name);
 
-      mockExistsSync.mockImplementation((p) => {
-        if (p === dir) return true;
-        if (p === repoPath) return false;
-        return false;
-      });
+      pathExists.mockImplementation(async (p) => p === dir);
 
       mockExecFile.mockImplementation((file, args, opts, cb) => cb(null, 'stdout', 'stderr'));
 
@@ -57,7 +59,7 @@ describe('ProjectService Unit Tests', () => {
     });
 
     test('should fail if base dir does not exist', async () => {
-      mockExistsSync.mockReturnValue(false);
+      pathExists.mockResolvedValue(false);
       await expect(projectService.createLocalRepo({ directory: '/bad', name: 'repo' }))
         .rejects.toThrow('Base directory does not exist');
     });
@@ -104,11 +106,7 @@ describe('ProjectService Unit Tests', () => {
   describe('pullRepo', () => {
     test('should pull repo successfully', async () => {
       const repoPath = '/path/to/repo';
-      mockExistsSync.mockImplementation((p) => {
-        if (p === repoPath) return true;
-        if (p.endsWith('.git')) return true;
-        return false;
-      });
+      pathExists.mockImplementation(async (p) => p === repoPath || p.endsWith('.git'));
 
       mockExecFile.mockImplementation((file, args, opts, cb) => cb(null, 'stdout', 'stderr'));
 
@@ -119,10 +117,7 @@ describe('ProjectService Unit Tests', () => {
 
     test('should fail if not a git repo', async () => {
       const repoPath = '/path/to/repo';
-      mockExistsSync.mockImplementation((p) => {
-        if (p === repoPath) return true;
-        return false; // .git missing
-      });
+      pathExists.mockImplementation(async (p) => p === repoPath);
 
       await expect(projectService.pullRepo(repoPath)).rejects.toThrow('Not a git repository');
     });

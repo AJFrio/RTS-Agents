@@ -4,8 +4,8 @@ Graded **B** = acceptable for daily use, **C** = works but known debt, **D** = r
 
 | Domain | Layer | Grade | Gaps |
 |--------|-------|-------|------|
-| Dashboard / task list | Renderer + IPC | B | Large IPC payloads; filter perf |
-| Agent discovery (CLI) | Main services | C | Sync FS; full rescans |
+| Dashboard / task list | Renderer + IPC | B | Delta IPC; filter still runs on merge |
+| Agent discovery (CLI) | Main services | B | Mtime cache + watchers; cloud still polled on interval |
 | Cloud providers (Jules, Cursor, Codex, Claude API) | Main services | B | Error UX varies by provider |
 | Agent orchestrator | Main | B | Recursive tool loop; depth limits |
 | GitHub PR utilities | Main + renderer | B | Token scope docs only in README |

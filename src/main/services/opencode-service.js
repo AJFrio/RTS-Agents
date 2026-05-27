@@ -1,9 +1,10 @@
-const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn, spawnSync } = require('child_process');
 const configStore = require('./config-store');
 const geminiService = require('./gemini-service');
+const { pathExists, pathExistsAny } = require('../utils/path-exists');
+const installStatus = require('../utils/install-status');
 
 function isCommandRunnable(cmd) {
   if (!cmd) return false;
@@ -44,24 +45,38 @@ class OpenCodeService {
   /**
    * Heuristic: CLI on PATH, or a typical config directory from an install.
    */
-  isOpenCodeInstalled() {
+  async isOpenCodeInstalled() {
+    const cached = installStatus.getCached('opencode');
+    if (cached !== undefined) {
+      return cached;
+    }
+    return this.refreshInstallStatus();
+  }
+
+  /** @returns {boolean} Last known install state (false until warmed). */
+  isOpenCodeInstalledSync() {
+    const cached = installStatus.getCached('opencode');
+    return cached === undefined ? false : cached;
+  }
+
+  async refreshInstallStatus() {
     if (isCommandRunnable(this.getExecutable())) {
+      installStatus.setCached('opencode', true);
       return true;
     }
     const home = os.homedir();
     const candidates = [path.join(home, '.opencode'), path.join(home, '.config', 'opencode')];
-    if (candidates.some((p) => fs.existsSync(p))) {
-      return true;
-    }
-    return false;
+    const installed = await pathExistsAny(candidates);
+    installStatus.setCached('opencode', installed);
+    return installed;
   }
 
   getDefaultDataPath() {
     return path.join(os.homedir(), '.opencode');
   }
 
-  testConnection() {
-    if (this.isOpenCodeInstalled()) {
+  async testConnection() {
+    if (await this.isOpenCodeInstalled()) {
       return { success: true };
     }
     return { success: false, error: 'OpenCode CLI not found' };
@@ -94,10 +109,7 @@ class OpenCodeService {
       throw new Error('Project path is required');
     }
 
-    const fsPromises = fs.promises;
-    try {
-      await fsPromises.access(projectPath);
-    } catch (err) {
+    if (!(await pathExists(projectPath))) {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
@@ -193,7 +205,7 @@ class OpenCodeService {
   }
 
   async getAvailableProjects(additionalPaths = []) {
-    if (!this.isOpenCodeInstalled()) {
+    if (!(await this.isOpenCodeInstalled())) {
       return [];
     }
     return geminiService.getAvailableProjects(additionalPaths);

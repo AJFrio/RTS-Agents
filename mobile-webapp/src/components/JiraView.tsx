@@ -10,7 +10,8 @@ import { jiraService } from '../services/jira-service';
 import type { JiraBoard, JiraIssue } from '../services/jira-service';
 import JiraIssueModal from './JiraIssueModal';
 import JiraFilterModal from './JiraFilterModal';
-import JiraTicketItem, { getAssignee } from './JiraTicketItem';
+import JiraTicketItem from './JiraTicketItem';
+import { getAssignee } from './jira-utils';
 
 export default function JiraView() {
   const { state, dispatch } = useApp();
@@ -268,7 +269,7 @@ export default function JiraView() {
         selectedAssignee={filterAssignee}
         selectedStatus={filterStatus}
         showAllTickets={false} // No longer relevant for sprint filtering
-        onFilterChange={(assignee, status, _) => handleFilterChange(assignee, status)}
+        onFilterChange={(assignee, status) => handleFilterChange(assignee, status)}
         onClearFilters={clearFilters}
         onClose={() => setShowFilterModal(false)}
       />

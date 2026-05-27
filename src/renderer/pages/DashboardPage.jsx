@@ -17,7 +17,7 @@ import {
 
 function formatShortTool(tool) {
   if (!tool) return '';
-  if (tool === 'antigravity' || tool === 'gemini') return 'Antigravity CLI';
+  if (tool === 'antigravity') return 'Antigravity CLI';
   if (tool === 'claude-cli') return 'Claude CLI';
   if (tool === 'opencode') return 'OpenCode';
   return String(tool);

@@ -1,6 +1,6 @@
 # RTS Agents — Agent map
 
-**RTS Agents** is an Electron agent-orchestration dashboard: monitor and dispatch coding tasks across Jules, Cursor, Gemini, Claude, Codex, OpenCode, GitHub, and multi-device Cloudflare sync.
+**RTS Agents** is an Electron agent-orchestration dashboard: monitor and dispatch coding tasks across Jules, Cursor, Antigravity, Claude, Codex, OpenCode, GitHub, and multi-device Cloudflare sync.
 
 This file is the **table of contents**. Detailed guidance lives under `docs/` (system of record). Do not duplicate long manuals here.
 

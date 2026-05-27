@@ -46,7 +46,7 @@ def test_notification_system(page: Page):
         window.electronAPI = {
             getAgents: async () => ({
                 agents: window.mockAgents || [],
-                counts: { gemini: 0, jules: 0, cursor: 0, total: 0 },
+                counts: { antigravity: 0, jules: 0, cursor: 0, total: 0 },
                 errors: []
             }),
             getSettings: async () => ({ settings: {} }),

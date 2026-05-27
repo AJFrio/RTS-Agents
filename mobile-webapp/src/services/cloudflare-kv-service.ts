@@ -58,14 +58,14 @@ class CloudflareKvService {
     return !!(this.config?.accountId && this.config?.apiToken);
   }
 
-  private async request(
+  private async request<T = unknown>(
     path: string,
     options: {
       method?: string;
       headers?: Record<string, string>;
       body?: string;
     } = {}
-  ): Promise<any> {
+  ): Promise<T> {
     if (!this.config?.accountId || !this.config?.apiToken) {
       throw new Error('Cloudflare KV not configured');
     }
@@ -88,14 +88,14 @@ class CloudflareKvService {
 
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
-      return response.json();
+      return response.json() as Promise<T>;
     }
 
-    return response.text();
+    return response.text() as Promise<T>;
   }
 
   async listNamespaces(page = 1, perPage = 100): Promise<CloudflareApiResponse<Namespace[]>> {
-    return this.request(`/namespaces?page=${page}&per_page=${perPage}`);
+    return this.request<CloudflareApiResponse<Namespace[]>>(`/namespaces?page=${page}&per_page=${perPage}`);
   }
 
   async findNamespaceIdByTitle(title = DEFAULT_NAMESPACE_TITLE): Promise<string | null> {
@@ -131,7 +131,7 @@ class CloudflareKvService {
     if (!namespaceId) throw new Error('Missing Cloudflare KV namespaceId');
     if (!key) throw new Error('Missing Cloudflare KV key');
 
-    return this.request(`/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`);
+    return this.request<string>(`/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`);
   }
 
   async getValueJson<T>(namespaceId: string, key: string, fallback: T | null = null): Promise<T | null> {

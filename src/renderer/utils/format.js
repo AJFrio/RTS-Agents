@@ -50,7 +50,6 @@ export function getProviderDot(provider) {
     cursor: 'bg-blue-500',
     codex: 'bg-cyan-500',
     'claude-cloud': 'bg-amber-500',
-    gemini: 'bg-teal-500',
     'claude-cli': 'bg-orange-500',
     opencode: 'bg-violet-500',
   };

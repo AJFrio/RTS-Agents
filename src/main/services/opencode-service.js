@@ -2,7 +2,7 @@ const path = require('path');
 const os = require('os');
 const { spawn, spawnSync } = require('child_process');
 const configStore = require('./config-store');
-const geminiService = require('./gemini-service');
+const projectService = require('./project-service');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 
@@ -208,7 +208,7 @@ class OpenCodeService {
     if (!(await this.isOpenCodeInstalled())) {
       return [];
     }
-    return geminiService.getAvailableProjects(additionalPaths);
+    return projectService.getLocalRepos(additionalPaths);
   }
 }
 

@@ -6,7 +6,7 @@ Reduce main-process blocking and IPC churn during agent polling by async install
 
 ## Acceptance criteria
 
-- [x] No `existsSync` in Gemini/Claude/OpenCode install probes or ProjectService hot paths
+- [x] No `existsSync` in Antigravity/Claude/OpenCode install probes or ProjectService hot paths
 - [x] Polling skips full provider fetch when local fingerprint and cloud config are unchanged
 - [x] `agents:get-all` supports `sinceRevision` and returns `unchanged` or `delta` payloads
 - [x] Renderer merges deltas and memoizes dashboard cards

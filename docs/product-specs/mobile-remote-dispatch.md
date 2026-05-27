@@ -15,7 +15,7 @@ The mobile PWA views tasks and dispatches work to registered desktop instances v
 
 ## Limitations (documented)
 
-- No local Gemini/Claude CLI execution on phone
+- No local Antigravity/Claude CLI execution on phone
 - GitHub on mobile is read-oriented vs desktop
 
 ## Implementation pointers

@@ -119,32 +119,6 @@ export const SERVICE_CATALOG = [
     ],
   },
   {
-    id: 'openai-cloud',
-    title: 'OpenAI',
-    subtitle: 'Model provider',
-    category: 'Model Providers',
-    kind: 'cloud-api-key',
-    provider: 'openai',
-    icon: 'api',
-    description: 'Connect OpenAI for orchestrator model access and API validation.',
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenAI API key' },
-    ],
-  },
-  {
-    id: 'gemini-api',
-    title: 'Gemini API',
-    subtitle: 'Model provider',
-    category: 'Model Providers',
-    kind: 'cloud-api-key',
-    provider: 'gemini',
-    icon: 'token',
-    description: 'Connect the Gemini API for model access outside the local CLI.',
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Gemini API key' },
-    ],
-  },
-  {
     id: 'github-cloud',
     title: 'GitHub',
     subtitle: 'Cloud integration',

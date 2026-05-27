@@ -2,7 +2,7 @@
 
 ## Known risks (see also UPDATES.md / tech-debt-tracker)
 
-1. **Synchronous FS in main** — `gemini-service`, `claude-service`, `project-service` use sync `fs` in discovery loops → main-thread stalls at scale.
+1. **Synchronous FS in main** — `claude-service` and `project-service` discovery loops can still stall the main process at scale.
 2. **Full-list polling** — Periodic refresh rescans and ships entire agent lists over IPC → renderer churn.
 3. **Orchestrator recursion** — `agent-orchestrator.chat` uses recursion for tool turns; prefer iterative loop for deep chains.
 

@@ -125,7 +125,7 @@ function ComputerCard({ computer, onDispatchTask }: ComputerCardProps) {
             )}
             {/* Fallback for unknown tools */}
             {Array.from(availableTools).map(tool => {
-               if (['Antigravity CLI', 'Gemini CLI', 'claude CLI', 'Codex CLI', 'cursor CLI', 'OpenCode CLI'].includes(tool)) return null;
+               if (['Antigravity CLI', 'claude CLI', 'Codex CLI', 'cursor CLI', 'OpenCode CLI'].includes(tool)) return null;
                return (
                 <span key={tool} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/30 text-slate-500 dark:text-slate-400 text-xs uppercase">
                   {tool}

@@ -174,20 +174,16 @@ class CursorService {
   }
 
   async getAllRepositories(): Promise<Repository[]> {
-    try {
-      const response = await this.listRepositories();
-      const repos = Array.isArray(response) ? response : (response.repositories || []);
+    const response = await this.listRepositories();
+    const repos = Array.isArray(response) ? response : (response.repositories || []);
 
-      return repos.map(repo => ({
-        id: repo.url || repo.repository || '',
-        name: repo.name || this.extractRepoName(repo.url || repo.repository || ''),
-        url: repo.url || repo.repository,
-        defaultBranch: repo.defaultBranch || 'main',
-        displayName: this.extractRepoName(repo.url || repo.repository || ''),
-      }));
-    } catch (err) {
-      throw err;
-    }
+    return repos.map(repo => ({
+      id: repo.url || repo.repository || '',
+      name: repo.name || this.extractRepoName(repo.url || repo.repository || ''),
+      url: repo.url || repo.repository,
+      defaultBranch: repo.defaultBranch || 'main',
+      displayName: this.extractRepoName(repo.url || repo.repository || ''),
+    }));
   }
 
   private extractRepoName(url: string): string {

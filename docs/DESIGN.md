@@ -2,7 +2,7 @@
 
 ## Product intent
 
-RTS Agents reduces context switching between coding agents (Jules, Cursor, Gemini, Claude, Codex, OpenCode, etc.) and GitHub. Users should see **one task list**, drill into **provider-specific detail**, and **start work** without leaving the app.
+RTS Agents reduces context switching between coding agents (Jules, Cursor, Antigravity, Claude, Codex, OpenCode, etc.) and GitHub. Users should see **one task list**, drill into **provider-specific detail**, and **start work** without leaving the app.
 
 ## UX principles
 

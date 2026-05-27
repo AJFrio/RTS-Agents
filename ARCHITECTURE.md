@@ -36,7 +36,7 @@ Main process (main.js, CommonJS)
 
 | Domain | Main services | Renderer areas |
 |--------|---------------|----------------|
-| Agent discovery | `gemini-service`, `claude-service`, `opencode-service`, `jules-service`, `cursor-service`, `codex-service` | Dashboard, AgentPage |
+| Agent discovery | `antigravity-service`, `claude-service`, `opencode-service`, `jules-service`, `cursor-service`, `codex-service` | Dashboard, AgentPage |
 | Task creation | same + `project-service` | NewTaskModal |
 | Orchestration | `agent-orchestrator`, `openrouter-service` | Agent chat / tools |
 | GitHub | `github-service` | BranchesPage, PullRequestsPage, PrModal |

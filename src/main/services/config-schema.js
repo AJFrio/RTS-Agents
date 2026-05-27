@@ -17,15 +17,7 @@ const schema = {
         type: 'string',
         default: ''
       },
-      openai: {
-        type: 'string',
-        default: ''
-      },
       openrouter: {
-        type: 'string',
-        default: ''
-      },
-      gemini: {
         type: 'string',
         default: ''
       },
@@ -144,11 +136,6 @@ const schema = {
         type: 'boolean',
         default: true
       },
-      geminiPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        default: []
-      },
       antigravityPaths: {
         type: 'array',
         items: { type: 'string' },
@@ -182,7 +169,6 @@ const schema = {
         type: 'object',
         properties: {
           antigravity: { type: 'string', default: '' },
-          gemini: { type: 'string', default: '' },
           claude: { type: 'string', default: '' },
           opencode: { type: 'string', default: '' }
         },

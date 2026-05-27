@@ -11,7 +11,6 @@ describe('agent-discovery-cache', () => {
       getPollingInterval: () => 30000,
       getAllProjectPaths: () => [],
       getAntigravityPaths: () => [],
-      getGeminiPaths: () => [],
       getClaudePaths: () => [],
       hasApiKey: () => false,
       getCodexThreads: () => [],
@@ -20,7 +19,6 @@ describe('agent-discovery-cache', () => {
       getAntigravitySessions: () => []
     },
     antigravityService: { getDefaultDataPath: () => '/mock/.gemini/antigravity-cli' },
-    geminiService: { getDefaultPath: () => '/mock/.gemini/tmp' },
     claudeService: { getDefaultPath: () => '/mock/.claude' }
   };
 

@@ -84,7 +84,6 @@ export default function Settings() {
     if (configuredServices.codex) ids.push('codex');
     if (configuredServices.claude) ids.push('claude');
     if (configuredServices.openrouter) ids.push('openrouter');
-    if (configuredServices.gemini) ids.push('gemini');
     if (configuredServices.github) ids.push('github');
     if (configuredServices.jira || !!settings.jiraBaseUrl?.trim()) ids.push('jira');
     if (configuredServices.cloudflare) ids.push('cloudflare');

@@ -89,8 +89,6 @@ class StorageService {
       github: this.hasApiKey('github'),
       cloudflare: this.hasCloudflareConfig(),
       openrouter: this.hasApiKey('openrouter'),
-      openai: this.hasApiKey('openai'),
-      gemini: this.hasApiKey('gemini'),
     };
   }
 

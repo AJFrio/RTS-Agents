@@ -173,14 +173,13 @@ This app stores provider credentials in a local Electron settings store. You can
 
 ---
 
-## Local CLI setup (Antigravity CLI and Claude CLI)
+## Local CLI Setup (Antigravity CLI and Claude CLI)
 
 These providers are **not configured via API key inside this app**. They rely on locally-installed CLIs and their session folders.
 
 ### Antigravity CLI
 - **Detected by**: `agy --version` or an Antigravity data directory under your home directory:
   - Windows example: `%LOCALAPPDATA%\Antigravity`
-  - Cross-platform settings example: `~/.gemini/antigravity-cli`
 - **Starts tasks by running** (detached): `agy -p "<prompt>" --print-timeout 30m`
   - `-p` / `--print` runs a single non-interactive prompt
 - **Project selection**:
@@ -253,7 +252,7 @@ npx playwright test
 - **Renderer UI**: `src/renderer/app.js`
   - Dashboard UI + Settings + New Task modal + GitHub view
 - **Provider services**: `src/main/services/*.js`
-  - `gemini-service.js` (local session discovery + start session)
+  - `antigravity-service.js` (Antigravity CLI task start + tracked sessions)
   - `claude-service.js` (local session discovery + Anthropic API + start CLI session)
   - `jules-service.js` (Jules API)
   - `cursor-service.js` (Cursor Cloud API)
@@ -270,7 +269,7 @@ npx playwright test
 - Open **Settings** and use the provider’s **TEST** button.
 - Confirm your key/token is valid and has the necessary permissions.
 
-### Gemini / Claude CLI is not detected
+### Antigravity / Claude CLI Is Not Detected
 - Ensure the CLI is installed and available in `PATH`.
 - Run the CLI once manually to create its home directory under your user profile.
 

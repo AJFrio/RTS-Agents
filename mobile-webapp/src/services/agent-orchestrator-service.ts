@@ -1,56 +1,57 @@
 import { openRouterService } from './openrouter-service';
-import { geminiService } from './gemini-service';
+import type { OpenRouterChatMessage } from './openrouter-service';
 import { storageService } from './storage-service';
 import { cloudflareKvService } from './cloudflare-kv-service';
+import type { Computer } from '../store/types';
+
+interface ToolArgs {
+  computer_id?: string;
+  repo_path?: string;
+  task_description?: string;
+  provider?: string;
+}
+
+interface ToolCall {
+  tool: string;
+  args: ToolArgs;
+}
+
+interface MobileComputerSummary {
+  id: string;
+  name: string;
+  status: Computer['status'];
+  lastHeartbeat?: string;
+  repos: string[];
+}
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Unknown error';
+}
+
+function isToolCall(value: unknown): value is ToolCall {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { tool?: unknown; args?: unknown };
+  return typeof candidate.tool === 'string' && !!candidate.args && typeof candidate.args === 'object';
+}
 
 class AgentOrchestratorService {
 
   async getAvailableModels() {
-    const models: any[] = [];
-    const errors: any[] = [];
+    const models: Array<{ id: string; name: string; provider: string }> = [];
+    const errors: Array<{ provider: string; error: string }> = [];
 
-    // Check configuration and fetch models in parallel
-    const promises: Promise<void | number>[] = [];
-
-    // OpenRouter
     if (storageService.hasApiKey('openrouter')) {
-      promises.push(
-        openRouterService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'openrouter', error: err.message }))
-      );
+      try {
+        models.push(...await openRouterService.getModels());
+      } catch (err) {
+        errors.push({ provider: 'openrouter', error: getErrorMessage(err) });
+      }
     }
-
-    // OpenAI (Codex)
-    if (storageService.hasApiKey('openai') || storageService.hasApiKey('codex')) {
-      // Note: codexService in mobile app might not have getModels exposed or implemented similarly to electron
-      // Assuming codexService connects to OpenAI, we might need to implement getModels there or here.
-      // For now, let's assume codexService is for Assistants API, not generic Chat.
-      // If we want generic OpenAI models, we should probably add getModels to codexService or create OpenAIService.
-      // Re-using codexService for now if it supports it, otherwise skipping or mocking.
-       // TODO: Implement getModels in codexService if needed, or use OpenRouter for everything.
-    }
-
-    // Anthropic (Claude)
-    if (storageService.hasApiKey('claude')) {
-       // Similarly, check if claudeService supports getModels.
-    }
-
-    // Gemini
-    if (storageService.hasApiKey('gemini')) {
-      promises.push(
-        geminiService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'gemini', error: err.message }))
-      );
-    }
-
-    await Promise.all(promises);
 
     return { models, errors };
   }
 
-  async chat(messages: any[], selectedModel: string): Promise<any> {
+  async chat(messages: OpenRouterChatMessage[], selectedModel: string): Promise<OpenRouterChatMessage> {
     // 1. Prepare messages (append system prompt if not present)
     const systemPrompt = `You are an intelligent agent orchestrator for the RTS Agents system.
 Your goal is to help the user accomplish coding tasks by dispatching them to the correct environment and repository.
@@ -59,7 +60,7 @@ You have access to the following tools:
 1. list_computers(): Returns a list of available computers and their status.
 2. list_repos(computer_id): Returns a list of repositories available on a specific computer.
 3. start_task(computer_id, repo_path, task_description, provider): Starts a coding task.
-   - provider should be one of: 'jules', 'cursor', 'gemini', 'codex', 'claude-cli', 'opencode'.
+   - provider should be one of: 'jules', 'cursor', 'antigravity', 'codex', 'claude-cli', 'opencode'.
 
 Workflow:
 - If the user asks to do something, first understand WHICH environment and repo they are talking about.
@@ -74,7 +75,7 @@ Only output ONE tool call at a time. Stop and wait for the result.
 If you don't need to use a tool, just reply with text.
 `;
 
-    let fullMessages = [...messages];
+    const fullMessages = [...messages];
     if (fullMessages.length === 0 || fullMessages[0].role !== 'system') {
       fullMessages.unshift({ role: 'system', content: systemPrompt });
     }
@@ -83,12 +84,6 @@ If you don't need to use a tool, just reply with text.
     let model = selectedModel;
     if (selectedModel.startsWith('openrouter/')) {
         model = selectedModel.replace('openrouter/', '');
-    } else if (selectedModel.startsWith('openai/')) {
-        model = selectedModel.replace('openai/', '');
-    } else if (selectedModel.startsWith('anthropic/')) {
-        model = selectedModel.replace('anthropic/', '');
-    } else if (selectedModel.startsWith('gemini/')) {
-        model = selectedModel.replace('gemini/', '');
     }
 
     try {
@@ -104,16 +99,18 @@ If you don't need to use a tool, just reply with text.
         }
 
         const content = response.choices[0].message.content;
-        let toolCall = null;
+        let toolCall: ToolCall | null = null;
         try {
             // fast/simple check for JSON block
             const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
             if (jsonMatch) {
-                toolCall = JSON.parse(jsonMatch[0]);
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (isToolCall(parsed)) toolCall = parsed;
             } else if (content.trim().startsWith('{')) {
-                toolCall = JSON.parse(content);
+                const parsed = JSON.parse(content);
+                if (isToolCall(parsed)) toolCall = parsed;
             }
-        } catch (e) {
+        } catch {
             // Not valid JSON, treat as text
         }
 
@@ -141,19 +138,20 @@ If you don't need to use a tool, just reply with text.
 
         return response.choices[0].message;
 
-    } catch (err: any) {
+    } catch (err) {
         console.error("Orchestrator error:", err);
-        return { role: 'assistant', content: "I encountered an error: " + err.message };
+        return { role: 'assistant', content: "I encountered an error: " + getErrorMessage(err) };
     }
   }
 
-  async executeTool(toolCall: any) {
+  async executeTool(toolCall: ToolCall) {
     const { tool, args } = toolCall;
 
     switch (tool) {
         case 'list_computers':
             return await this.listComputers();
         case 'list_repos':
+            if (!args.computer_id) return { error: "Missing computer_id." };
             return await this.listRepos(args.computer_id);
         case 'start_task':
             return await this.startTask(args);
@@ -162,7 +160,7 @@ If you don't need to use a tool, just reply with text.
     }
   }
 
-  async listComputers() {
+  async listComputers(): Promise<MobileComputerSummary[] | { error: string }> {
     try {
         if (!cloudflareKvService.isConfigured()) {
              return { error: "Cloudflare KV not configured. Cannot list computers." };
@@ -177,8 +175,8 @@ If you don't need to use a tool, just reply with text.
             lastHeartbeat: d.lastHeartbeat,
             repos: d.repos ? d.repos.map(r => r.name) : []
         }));
-    } catch (err: any) {
-        return { error: err.message };
+    } catch (err) {
+        return { error: getErrorMessage(err) };
     }
   }
 
@@ -192,15 +190,19 @@ If you don't need to use a tool, just reply with text.
 
         if (!device) return { error: "Computer not found" };
         return device.repos || [];
-    } catch (err: any) {
-        return { error: err.message };
+    } catch (err) {
+        return { error: getErrorMessage(err) };
     }
   }
 
-  async startTask(args: any) {
+  async startTask(args: ToolArgs) {
     // args: { computer_id, repo_path, task_description, provider }
     // Dispatch remote task via Cloudflare KV
     try {
+        if (!args.computer_id || !args.repo_path || !args.task_description) {
+            return { error: "Missing required task arguments." };
+        }
+
         await cloudflareKvService.ensureNamespace();
 
         const task = {
@@ -213,8 +215,8 @@ If you don't need to use a tool, just reply with text.
 
         return { success: true, message: "Task dispatched to remote device." };
 
-    } catch (err: any) {
-        return { error: err.message };
+    } catch (err) {
+        return { error: getErrorMessage(err) };
     }
   }
 }

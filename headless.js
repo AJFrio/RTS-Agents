@@ -16,10 +16,10 @@ const readline = require('readline/promises');
 // Services (same ones used by Electron main)
 const configStore = require('./src/main/services/config-store');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
-const geminiService = require('./src/main/services/gemini-service');
 const antigravityService = require('./src/main/services/antigravity-service');
 const claudeService = require('./src/main/services/claude-service');
 const opencodeService = require('./src/main/services/opencode-service');
+const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
@@ -58,7 +58,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   try {
     const githubPaths = configStore.getGithubPaths();
     if (Array.isArray(githubPaths) && githubPaths.length > 0) {
-      const scanned = await geminiService.getAvailableProjects(githubPaths);
+      const scanned = await projectService.getLocalRepos(githubPaths);
       repos = (scanned || [])
         .map(p => ({ name: p?.name || p?.id || 'unknown', path: p?.path || null }))
         .filter(r => !!r.path);

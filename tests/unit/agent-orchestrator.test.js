@@ -13,24 +13,12 @@ jest.mock('../../src/main/services/cloudflare-kv-service', () => ({
   ensureNamespace: jest.fn(),
   getValueJson: jest.fn()
 }));
-jest.mock('../../src/main/services/codex-service', () => ({
-  getModels: jest.fn()
-}));
-jest.mock('../../src/main/services/claude-service', () => ({
-  getModels: jest.fn()
-}));
-jest.mock('../../src/main/services/gemini-service', () => ({
-  getModels: jest.fn()
-}));
 
 describe('AgentOrchestrator', () => {
   let agentOrchestrator;
   let configStore;
   let openRouterService;
   let cloudflareKvService;
-  let codexService;
-  let claudeService;
-  let geminiService;
 
   beforeEach(() => {
     jest.resetModules();
@@ -38,20 +26,13 @@ describe('AgentOrchestrator', () => {
     configStore = require('../../src/main/services/config-store');
     openRouterService = require('../../src/main/services/openrouter-service');
     cloudflareKvService = require('../../src/main/services/cloudflare-kv-service');
-    codexService = require('../../src/main/services/codex-service');
-    claudeService = require('../../src/main/services/claude-service');
-    geminiService = require('../../src/main/services/gemini-service');
 
     configStore.hasApiKey.mockReturnValue(true);
     configStore.hasCloudflareConfig.mockReturnValue(true);
     cloudflareKvService.ensureNamespace.mockResolvedValue('ns-123');
     cloudflareKvService.getValueJson.mockResolvedValue([]);
 
-    // Default mocks for model services
     openRouterService.getModels.mockResolvedValue([]);
-    codexService.getModels.mockResolvedValue([]);
-    claudeService.getModels.mockResolvedValue([]);
-    geminiService.getModels.mockResolvedValue([]);
   });
 
   test('chat sends message to OpenRouter with system prompt', async () => {
@@ -123,62 +104,46 @@ describe('AgentOrchestrator', () => {
   });
 
   describe('getAvailableModels', () => {
-    test('fetches models from all configured providers', async () => {
+    test('fetches models from OpenRouter only', async () => {
       // Setup
       configStore.hasApiKey.mockReturnValue(true);
 
       openRouterService.getModels.mockResolvedValue(['or-1', 'or-2']);
-      codexService.getModels.mockResolvedValue(['cx-1']);
-      claudeService.getModels.mockResolvedValue(['cl-1']);
-      geminiService.getModels.mockResolvedValue(['gm-1']);
 
       // Execute
       const result = await agentOrchestrator.getAvailableModels();
 
       // Verify
       expect(result.errors).toHaveLength(0);
-      expect(result.models).toHaveLength(5);
-      expect(result.models).toEqual(expect.arrayContaining(['or-1', 'or-2', 'cx-1', 'cl-1', 'gm-1']));
+      expect(result.models).toEqual(['or-1', 'or-2']);
 
       expect(openRouterService.getModels).toHaveBeenCalled();
-      expect(codexService.getModels).toHaveBeenCalled();
-      expect(claudeService.getModels).toHaveBeenCalled();
-      expect(geminiService.getModels).toHaveBeenCalled();
     });
 
-    test('only calls configured providers', async () => {
-      // Setup: Only OpenRouter configured
-      configStore.hasApiKey.mockImplementation((key) => key === 'openrouter');
-
-      openRouterService.getModels.mockResolvedValue(['or-1']);
+    test('returns no models when OpenRouter is not configured', async () => {
+      configStore.hasApiKey.mockReturnValue(false);
 
       // Execute
       const result = await agentOrchestrator.getAvailableModels();
 
       // Verify
-      expect(result.models).toEqual(['or-1']);
-      expect(openRouterService.getModels).toHaveBeenCalled();
-      expect(codexService.getModels).not.toHaveBeenCalled();
-      expect(claudeService.getModels).not.toHaveBeenCalled();
-      expect(geminiService.getModels).not.toHaveBeenCalled();
+      expect(result.models).toEqual([]);
+      expect(openRouterService.getModels).not.toHaveBeenCalled();
     });
 
-    test('handles provider errors gracefully', async () => {
+    test('handles OpenRouter errors gracefully', async () => {
       // Setup
       configStore.hasApiKey.mockReturnValue(true);
 
-      openRouterService.getModels.mockResolvedValue(['or-1']);
-      codexService.getModels.mockRejectedValue(new Error('Auth failed'));
-      claudeService.getModels.mockResolvedValue(['cl-1']);
-      geminiService.getModels.mockResolvedValue(['gm-1']);
+      openRouterService.getModels.mockRejectedValue(new Error('Auth failed'));
 
       // Execute
       const result = await agentOrchestrator.getAvailableModels();
 
       // Verify
-      expect(result.models).toEqual(expect.arrayContaining(['or-1', 'cl-1', 'gm-1']));
+      expect(result.models).toEqual([]);
       expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toEqual({ provider: 'openai', error: 'Auth failed' });
+      expect(result.errors[0]).toEqual({ provider: 'openrouter', error: 'Auth failed' });
     });
   });
 });

@@ -4,7 +4,6 @@ export type MobileServiceId =
   | 'codex'
   | 'claude'
   | 'openrouter'
-  | 'gemini'
   | 'github'
   | 'jira'
   | 'cloudflare';
@@ -63,14 +62,6 @@ export const MOBILE_SERVICE_CATALOG: MobileServiceDefinition[] = [
     icon: 'hub',
     description: 'Connect OpenRouter for orchestrator model access on mobile.',
     fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenRouter API key' }],
-  },
-  {
-    id: 'gemini',
-    title: 'Gemini API',
-    subtitle: 'Model provider',
-    icon: 'token',
-    description: 'Connect Gemini API access for model selection and orchestration support.',
-    fields: [{ key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter Gemini API key' }],
   },
   {
     id: 'github',

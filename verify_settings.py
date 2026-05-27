@@ -17,7 +17,6 @@ def verify_settings_page(page: Page):
                     pollingInterval: 30000,
                     githubPaths: [],
                     cursorPaths: [],
-                    geminiPaths: [],
                     claudePaths: [],
                     codexPaths: [],
                     filters: {},

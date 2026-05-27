@@ -27,8 +27,7 @@ export function getAvailableTools(computer: Computer | undefined): Set<string> {
 export function hasTool(computer: Computer | undefined, toolId: string): boolean {
   const tools = getAvailableTools(computer);
 
-  if (toolId === 'antigravity') return tools.has('Antigravity CLI') || tools.has('Gemini CLI');
-  if (toolId === 'gemini') return tools.has('Gemini CLI') || tools.has('Antigravity CLI');
+  if (toolId === 'antigravity') return tools.has('Antigravity CLI');
   if (toolId === 'claude-cli') return tools.has('claude CLI');
   if (toolId === 'opencode') return tools.has('OpenCode CLI');
   if (toolId === 'codex') return tools.has('Codex CLI');

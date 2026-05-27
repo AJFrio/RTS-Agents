@@ -4,7 +4,6 @@ const { exec, spawn } = require('child_process');
 
 // Services
 const configStore = require('./src/main/services/config-store');
-const geminiService = require('./src/main/services/gemini-service');
 const julesService = require('./src/main/services/jules-service');
 const cursorService = require('./src/main/services/cursor-service');
 const codexService = require('./src/main/services/codex-service');
@@ -117,7 +116,6 @@ function initializeServices() {
   const codexKey = configStore.getApiKey('codex');
   const claudeKey = configStore.getApiKey('claude');
   const openRouterKey = configStore.getApiKey('openrouter');
-  const geminiKey = configStore.getApiKey('gemini');
 
   if (julesKey) {
     julesService.setApiKey(julesKey);
@@ -140,9 +138,6 @@ function initializeServices() {
   if (openRouterKey) {
     openRouterService.setApiKey(openRouterKey);
   }
-  if (geminiKey) {
-    geminiService.setApiKey(geminiKey);
-  }
 
   const opencodeSessions = configStore.getOpenCodeSessions();
   opencodeService.setTrackedSessions(opencodeSessions);
@@ -162,7 +157,6 @@ function initializeServices() {
 
   void Promise.all([
     antigravityService.refreshInstallStatus(),
-    geminiService.refreshInstallStatus(),
     claudeService.refreshInstallStatus(),
     opencodeService.refreshInstallStatus()
   ]).catch((err) => {
@@ -198,7 +192,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   try {
     const githubPaths = configStore.getGithubPaths();
     if (Array.isArray(githubPaths) && githubPaths.length > 0) {
-      const scanned = await geminiService.getAvailableProjects(githubPaths);
+      const scanned = await projectService.getLocalRepos(githubPaths);
       repos = (scanned || [])
         .map(p => ({
           name: p?.name || p?.id || 'unknown',
@@ -333,7 +327,6 @@ function startDiscoveryWatchers() {
   const deps = {
     configStore,
     antigravityService,
-    geminiService,
     claudeService,
     opencodeService
   };
@@ -353,7 +346,6 @@ function invalidateAgentDiscovery() {
   agentDiscoveryCache.invalidate();
   void Promise.all([
     antigravityService.refreshInstallStatus(),
-    geminiService.refreshInstallStatus(),
     claudeService.refreshInstallStatus(),
     opencodeService.refreshInstallStatus()
   ]).catch(() => {});
@@ -377,7 +369,6 @@ const lifecycle = {
 const ipcExports = registerAllIpcHandlers({
   configStore,
   antigravityService,
-  geminiService,
   julesService,
   cursorService,
   codexService,

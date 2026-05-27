@@ -69,7 +69,6 @@ class ProjectService {
                 id: entry.name,
                 name: entry.name,
                 path: dirPath,
-                geminiPath: null,
                 displayName: entry.name,
                 hasExistingSessions: false
               };

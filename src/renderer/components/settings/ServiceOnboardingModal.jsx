@@ -30,6 +30,8 @@ function getExistingPaths(serviceId, state) {
       return state.settings?.cursorPaths || [];
     case 'codex-local':
       return state.settings?.codexPaths || [];
+    case 'opencode-local':
+      return state.settings?.opencodePaths || [];
     case 'github-local':
       return state.settings?.githubPaths || [];
     default:
@@ -43,6 +45,12 @@ function getInstallState(serviceId, state) {
   }
   if (serviceId === 'claude-local') {
     return state.serviceInfo?.installations?.claude;
+  }
+  if (serviceId === 'codex-local') {
+    return state.serviceInfo?.installations?.codex;
+  }
+  if (serviceId === 'opencode-local') {
+    return state.serviceInfo?.installations?.opencode;
   }
   return true;
 }
@@ -78,6 +86,7 @@ async function addPathForService(serviceId, pathValue, api) {
   if (serviceId === 'claude-local') return api.addClaudePath(pathValue);
   if (serviceId === 'cursor-local') return api.addCursorPath(pathValue);
   if (serviceId === 'codex-local') return api.addCodexPath(pathValue);
+  if (serviceId === 'opencode-local') return api.addOpenCodePath(pathValue);
   if (serviceId === 'github-local') return api.addGithubPath(pathValue);
   throw new Error(`Unsupported local service: ${serviceId}`);
 }
@@ -87,6 +96,7 @@ async function removePathForService(serviceId, pathValue, api) {
   if (serviceId === 'claude-local') return api.removeClaudePath(pathValue);
   if (serviceId === 'cursor-local') return api.removeCursorPath(pathValue);
   if (serviceId === 'codex-local') return api.removeCodexPath(pathValue);
+  if (serviceId === 'opencode-local') return api.removeOpenCodePath(pathValue);
   if (serviceId === 'github-local') return api.removeGithubPath(pathValue);
   throw new Error(`Unsupported local service: ${serviceId}`);
 }
@@ -108,11 +118,15 @@ async function verifyLocalService(serviceId, api) {
     'claude-local': 'claude-cli',
     'cursor-local': 'cursor',
     'codex-local': 'codex',
+    'opencode-local': 'opencode',
   };
 
   const result = await api.getRepositories(providerMap[serviceId]);
   if (result?.success === false) {
-    return { success: false, error: result.error || 'Unable to verify repositories for this service' };
+    return {
+      success: false,
+      error: result.error || 'Unable to verify repositories for this service',
+    };
   }
 
   return {
@@ -180,25 +194,41 @@ export default function ServiceOnboardingModal({
         if (!apiKey) {
           throw new Error('Enter an API key before continuing.');
         }
+        setFeedback({ type: 'info', message: `Saving ${service.title} credentials...` });
         await api.setApiKey(service.provider, apiKey);
+        setFeedback({ type: 'info', message: `Testing ${service.title} connection...` });
         result = await api.testApiKey(service.provider);
+        if (!result?.success) {
+          await api.removeApiKey(service.provider);
+        }
       } else if (service.kind === 'jira') {
         const baseUrl = (formValues.baseUrl || '').trim();
         const apiKey = (formValues.apiKey || '').trim();
         if (!baseUrl || !apiKey) {
           throw new Error('Enter both the Jira base URL and API token.');
         }
+        setFeedback({ type: 'info', message: 'Saving Jira settings...' });
         await api.setJiraBaseUrl(baseUrl);
         await api.setApiKey('jira', apiKey);
+        setFeedback({ type: 'info', message: 'Testing Jira connection...' });
         result = await api.testApiKey('jira');
+        if (!result?.success) {
+          await api.removeApiKey('jira');
+          await api.setJiraBaseUrl('');
+        }
       } else if (service.kind === 'cloudflare') {
         const accountId = (formValues.accountId || '').trim();
         const apiToken = (formValues.apiToken || '').trim();
         if (!accountId || !apiToken) {
           throw new Error('Enter both the Cloudflare account ID and API token.');
         }
+        setFeedback({ type: 'info', message: 'Saving Cloudflare settings...' });
         await api.setCloudflareConfig(accountId, apiToken);
+        setFeedback({ type: 'info', message: 'Testing Cloudflare KV access...' });
         result = await api.testCloudflare();
+        if (!result?.success) {
+          await api.clearCloudflareConfig();
+        }
       } else if (service.kind === 'local-path') {
         const selectedPath = (formValues.path || '').trim();
         if (!selectedPath) {
@@ -207,12 +237,17 @@ export default function ServiceOnboardingModal({
         if (service.requiresInstall && !installReady) {
           throw new Error(`${service.title} is not detected on this machine yet.`);
         }
+        setFeedback({ type: 'info', message: `Saving ${service.title} repository root...` });
         await addPathForService(service.id, selectedPath, api);
+        setFeedback({ type: 'info', message: `Verifying ${service.title} projects...` });
         result = await verifyLocalService(service.id, api);
+        if (!result?.success) {
+          await removePathForService(service.id, selectedPath, api);
+        }
       }
 
       if (!result?.success) {
-        throw new Error(result?.error || 'Verification failed.');
+        throw new Error(result?.error || result?.message || 'Verification failed.');
       }
 
       await loadSettings?.();
@@ -291,7 +326,8 @@ export default function ServiceOnboardingModal({
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">Service Onboarding</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Connect assistants and integrations one service at a time, and verify each one before you leave.
+              Connect assistants and integrations one service at a time, and verify each one before
+              you leave.
             </p>
           </div>
           <Button variant="ghost" onClick={onClose} disabled={closeBlocked}>
@@ -303,7 +339,9 @@ export default function ServiceOnboardingModal({
           <div className="border-r border-slate-200 dark:border-border-dark overflow-y-auto p-4 bg-slate-50/80 dark:bg-[#0c0f14]">
             {Object.entries(groupedServices).map(([category, services]) => (
               <div key={category} className="mb-6">
-                <div className="text-[11px] font-black tracking-[0.24em] uppercase text-slate-400 mb-3">{category}</div>
+                <div className="text-[11px] font-black tracking-[0.24em] uppercase text-slate-400 mb-3">
+                  {category}
+                </div>
                 <div className="space-y-2">
                   {services.map((entry) => {
                     const selected = entry.id === activeServiceId;
@@ -319,10 +357,16 @@ export default function ServiceOnboardingModal({
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className="material-symbols-outlined text-slate-500">{entry.icon}</span>
+                          <span className="material-symbols-outlined text-slate-500">
+                            {entry.icon}
+                          </span>
                           <div>
-                            <div className="font-semibold text-slate-900 dark:text-white">{entry.title}</div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">{entry.subtitle}</div>
+                            <div className="font-semibold text-slate-900 dark:text-white">
+                              {entry.title}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                              {entry.subtitle}
+                            </div>
                           </div>
                         </div>
                       </button>
@@ -338,13 +382,21 @@ export default function ServiceOnboardingModal({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <span className="material-symbols-outlined text-primary text-2xl">{service.icon}</span>
+                    <span className="material-symbols-outlined text-primary text-2xl">
+                      {service.icon}
+                    </span>
                     <div>
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{service.title}</h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{service.subtitle}</p>
+                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                        {service.title}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {service.subtitle}
+                      </p>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">{service.description}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
+                    {service.description}
+                  </p>
                 </div>
                 {serviceConnected && (
                   <Button variant="secondary" onClick={handleDisconnect} disabled={busy}>
@@ -354,11 +406,13 @@ export default function ServiceOnboardingModal({
               </div>
 
               {service.requiresInstall && (
-                <div className={`rounded-2xl border px-4 py-3 text-sm ${
-                  installReady
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
-                    : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300'
-                }`}>
+                <div
+                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                    installReady
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
+                      : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300'
+                  }`}
+                >
                   {installReady
                     ? `${service.title} is detected on this machine.`
                     : `${service.title} is not detected yet. Install it locally before completing this step.`}
@@ -389,15 +443,23 @@ export default function ServiceOnboardingModal({
 
               {existingPaths.length > 0 && (
                 <div className="space-y-3">
-                  <div className="text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">Connected Paths</div>
+                  <div className="text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">
+                    Connected Paths
+                  </div>
                   <div className="space-y-2">
                     {existingPaths.map((pathValue) => (
                       <div
                         key={pathValue}
                         className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-[#0d1118] px-4 py-3"
                       >
-                        <span className="truncate text-sm text-slate-700 dark:text-slate-300">{pathValue}</span>
-                        <Button variant="ghost" onClick={() => handleRemovePath(pathValue)} disabled={busy}>
+                        <span className="truncate text-sm text-slate-700 dark:text-slate-300">
+                          {pathValue}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleRemovePath(pathValue)}
+                          disabled={busy}
+                        >
                           <span className="material-symbols-outlined text-sm">close</span>
                         </Button>
                       </div>
@@ -407,18 +469,24 @@ export default function ServiceOnboardingModal({
               )}
 
               {feedback && (
-                <div className={`rounded-2xl border px-4 py-3 text-sm ${
-                  feedback.type === 'success'
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
-                    : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300'
-                }`}>
+                <div
+                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                    feedback.type === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
+                      : feedback.type === 'info'
+                        ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-300'
+                        : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300'
+                  }`}
+                >
                   {feedback.message}
                 </div>
               )}
 
               <div className="flex items-center justify-between pt-4">
                 <div className="text-sm text-slate-500 dark:text-slate-400">
-                  {closeBlocked ? 'Connect at least one service to finish onboarding.' : 'You can return later to connect more services.'}
+                  {closeBlocked
+                    ? 'Connect at least one service to finish onboarding.'
+                    : 'You can return later to connect more services.'}
                 </div>
                 <div className="flex gap-3">
                   <Button variant="secondary" onClick={onClose} disabled={closeBlocked || busy}>

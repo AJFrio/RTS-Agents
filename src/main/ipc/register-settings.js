@@ -1,7 +1,15 @@
 const { ipcMain } = require('electron');
 const { registerSettingsPathHandlers } = require('./register-settings-paths');
 
-const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'codex', 'claude', 'github', 'jira', 'openrouter']);
+const API_KEY_PROVIDERS = new Set([
+  'jules',
+  'cursor',
+  'codex',
+  'claude',
+  'github',
+  'jira',
+  'openrouter',
+]);
 
 function registerSettingsHandlers(deps) {
   const {
@@ -15,22 +23,19 @@ function registerSettingsHandlers(deps) {
     jiraService,
     opencodeService,
     antigravityService,
-    lifecycle
+    lifecycle,
   } = deps;
-  const {
-    startPolling,
-    stopPolling,
-    invalidateAgentDiscovery,
-    startDiscoveryWatchers
-  } = lifecycle;
+  const { startPolling, stopPolling, invalidateAgentDiscovery, startDiscoveryWatchers } = lifecycle;
   const { getMainWindow } = deps;
 
-ipcMain.handle('settings:get', async () => {
-    const [antigravityInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
-      antigravityService.isAntigravityInstalled(),
-      claudeService.isClaudeInstalled(),
-      opencodeService.isOpenCodeInstalled()
-    ]);
+  ipcMain.handle('settings:get', async () => {
+    const [antigravityInstalled, claudeCliInstalled, codexInstalled, opencodeInstalled] =
+      await Promise.all([
+        antigravityService.isAntigravityInstalled(),
+        claudeService.isClaudeInstalled(),
+        codexService.isCodexInstalled(),
+        opencodeService.isOpenCodeInstalled(),
+      ]);
     return {
       settings: configStore.getAllSettings(),
       apiKeys: {
@@ -41,7 +46,7 @@ ipcMain.handle('settings:get', async () => {
         claude: configStore.hasApiKey('claude'),
         github: configStore.hasApiKey('github'),
         jira: configStore.hasApiKey('jira'),
-        cloudflare: configStore.hasCloudflareConfig()
+        cloudflare: configStore.hasCloudflareConfig(),
       },
       jiraBaseUrl: configStore.getJiraBaseUrl(),
       cloudflare: (() => {
@@ -49,13 +54,14 @@ ipcMain.handle('settings:get', async () => {
         return {
           configured: configStore.hasCloudflareConfig(),
           accountId: cfg?.accountId || '',
-          namespaceTitle: cfg?.namespaceTitle || 'rtsa'
+          namespaceTitle: cfg?.namespaceTitle || 'rtsa',
         };
       })(),
       antigravityInstalled,
       antigravityDefaultPath: antigravityService.getDefaultDataPath(),
       antigravityPaths: configStore.getAntigravityPaths(),
       claudeCliInstalled,
+      codexInstalled,
       opencodeInstalled,
       opencodeDefaultPath: opencodeService.getDefaultDataPath(),
       claudeCloudConfigured: configStore.hasApiKey('claude'),
@@ -63,24 +69,25 @@ ipcMain.handle('settings:get', async () => {
       claudePaths: configStore.getClaudePaths(),
       cursorPaths: configStore.getCursorPaths(),
       codexPaths: configStore.getCodexPaths(),
+      opencodePaths: configStore.getOpenCodePaths(),
       githubPaths: configStore.getGithubPaths(),
       filters: configStore.getFilters(),
       selectedModel: configStore.getSelectedModel(),
-      localDeviceId: configStore.getOrCreateDeviceIdentity().id
+      localDeviceId: configStore.getOrCreateDeviceIdentity().id,
     };
   });
-  
+
   /**
    * Save API key
    */
-ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
+  ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     if (!API_KEY_PROVIDERS.has(provider)) {
       return { success: false, error: 'Unknown provider' };
     }
 
     invalidateAgentDiscovery();
     configStore.setApiKey(provider, key);
-    
+
     // Update service with new key
     if (provider === 'jules') {
       julesService.setApiKey(key);
@@ -101,15 +108,15 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
     } else if (provider === 'openrouter') {
       openRouterService.setApiKey(key);
     }
-    
+
     return { success: true };
   });
-  
-ipcMain.handle('settings:set-jira-base-url', async (event, { url }) => {
+
+  ipcMain.handle('settings:set-jira-base-url', async (event, { url }) => {
     configStore.setJiraBaseUrl(url);
     return { success: true };
   });
-ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
+  ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
     try {
       if (!API_KEY_PROVIDERS.has(provider)) {
         return { success: false, error: 'Unknown provider' };
@@ -135,18 +142,18 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
       return { success: false, error: err.message };
     }
   });
-  
+
   /**
    * Remove API key (disconnect)
    */
-ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
+  ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
     if (!API_KEY_PROVIDERS.has(provider)) {
       return { success: false, error: 'Unknown provider' };
     }
 
     invalidateAgentDiscovery();
     configStore.removeApiKey(provider);
-    
+
     // Clear the API key from the service
     if (provider === 'jules') {
       julesService.setApiKey(null);
@@ -167,17 +174,17 @@ ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
     } else if (provider === 'openrouter') {
       openRouterService.setApiKey(null);
     }
-    
+
     return { success: true };
   });
-ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
+  ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
     if (typeof enabled === 'boolean') {
       configStore.setAutoPolling(enabled);
     }
     if (typeof interval === 'number') {
       configStore.setPollingInterval(interval);
     }
-    
+
     invalidateAgentDiscovery();
     startDiscoveryWatchers();
 
@@ -187,45 +194,45 @@ ipcMain.handle('settings:set-polling', async (event, { enabled, interval }) => {
     } else {
       stopPolling();
     }
-    
+
     return { success: true };
   });
-  
+
   /**
    * Set application theme
    */
-ipcMain.handle('settings:set-theme', async (event, { theme }) => {
+  ipcMain.handle('settings:set-theme', async (event, { theme }) => {
     configStore.setSetting('theme', theme);
     return { success: true };
   });
-  
+
   /**
    * Set display mode
    */
-ipcMain.handle('settings:set-display-mode', async (event, { mode }) => {
+  ipcMain.handle('settings:set-display-mode', async (event, { mode }) => {
     configStore.setDisplayMode(mode);
     if (getMainWindow() && !getMainWindow().isDestroyed()) {
       getMainWindow().setFullScreen(mode === 'fullscreen');
     }
     return { success: true };
   });
-  
+
   /**
    * Save filters
    */
-ipcMain.handle('settings:save-filters', async (event, { filters }) => {
+  ipcMain.handle('settings:save-filters', async (event, { filters }) => {
     configStore.setFilters(filters);
     return { success: true };
   });
-  
+
   /**
    * Set selected model
    */
-ipcMain.handle('settings:set-model', async (event, { model }) => {
+  ipcMain.handle('settings:set-model', async (event, { model }) => {
     configStore.setSelectedModel(model);
     return { success: true };
   });
-  
+
   registerSettingsPathHandlers(deps);
 }
 

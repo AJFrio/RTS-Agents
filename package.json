@@ -18,6 +18,7 @@
     "validate:docs": "node scripts/validate-docs.js",
     "validate:architecture": "node scripts/validate-architecture.js",
     "validate": "npm run validate:docs && npm run validate:architecture && npm run lint && npm run test:ci",
+    "smoke:providers": "node scripts/provider-smoke.js",
     "docs:generate": "node -e \"console.log('No generators yet; see docs/generated/README.md')\""
   },
   "keywords": [

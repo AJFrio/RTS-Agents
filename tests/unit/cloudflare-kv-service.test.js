@@ -11,7 +11,7 @@ describe('Cloudflare KV Service', () => {
     mockRequest = {
       on: jest.fn(),
       write: jest.fn(),
-      end: jest.fn()
+      end: jest.fn(),
     };
     mockResponse = new EventEmitter();
     mockResponse.statusCode = 200;
@@ -24,41 +24,25 @@ describe('Cloudflare KV Service', () => {
     jest.restoreAllMocks();
   });
 
-  test('retries with rejectUnauthorized: false on SSL error', async () => {
-    let callCount = 0;
-
-    requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
-      callCount++;
-
-      if (callCount === 1) {
-        const req = {
-          on: (event, cb) => {
-            if (event === 'error') {
-              process.nextTick(() => cb(new Error('self signed certificate in certificate chain')));
-            }
-          },
-          write: jest.fn(),
-          end: jest.fn()
-        };
-        return req;
-      }
-
-      if (callCount === 2) {
-        process.nextTick(() => {
-          callback(mockResponse);
-          mockResponse.emit('data', JSON.stringify({ success: true, result: [] }));
-          mockResponse.emit('end');
-        });
-        return mockRequest;
-      }
+  test('does not retry insecurely on SSL errors', async () => {
+    requestSpy = jest.spyOn(https, 'request').mockImplementation(() => {
+      const req = {
+        on: (event, cb) => {
+          if (event === 'error') {
+            process.nextTick(() => cb(new Error('self signed certificate in certificate chain')));
+          }
+        },
+        write: jest.fn(),
+        end: jest.fn(),
+      };
+      return req;
     });
 
-    const result = await cloudflareKvService.listNamespaces();
-
-    expect(callCount).toBe(2);
-    expect(result.success).toBe(true);
-    expect(requestSpy.mock.calls[0][0]).toMatchObject({ rejectUnauthorized: true });
-    expect(requestSpy.mock.calls[1][0]).toMatchObject({ rejectUnauthorized: false });
+    await expect(cloudflareKvService.listNamespaces()).rejects.toThrow(
+      'Cloudflare KV request error: self signed certificate in certificate chain'
+    );
+    expect(requestSpy).toHaveBeenCalledTimes(1);
+    expect(requestSpy.mock.calls[0][0]).not.toHaveProperty('rejectUnauthorized', false);
   });
 
   test('throws other errors without retry', async () => {
@@ -70,23 +54,26 @@ describe('Cloudflare KV Service', () => {
           }
         },
         write: jest.fn(),
-        end: jest.fn()
+        end: jest.fn(),
       };
       return req;
     });
 
-    await expect(cloudflareKvService.listNamespaces())
-      .rejects.toThrow('Cloudflare KV request error: Some other network error');
+    await expect(cloudflareKvService.listNamespaces()).rejects.toThrow(
+      'Cloudflare KV request error: Some other network error'
+    );
 
     expect(requestSpy).toHaveBeenCalledTimes(1);
   });
 
   describe('putValue', () => {
     test('throws if namespaceId or key are missing', async () => {
-      await expect(cloudflareKvService.putValue(null, 'key', 'value'))
-        .rejects.toThrow('Missing Cloudflare KV namespaceId');
-      await expect(cloudflareKvService.putValue('ns', null, 'value'))
-        .rejects.toThrow('Missing Cloudflare KV key');
+      await expect(cloudflareKvService.putValue(null, 'key', 'value')).rejects.toThrow(
+        'Missing Cloudflare KV namespaceId'
+      );
+      await expect(cloudflareKvService.putValue('ns', null, 'value')).rejects.toThrow(
+        'Missing Cloudflare KV key'
+      );
     });
 
     test('PUTs string values to the values endpoint', async () => {
@@ -135,8 +122,9 @@ describe('Cloudflare KV Service', () => {
         return mockRequest;
       });
 
-      await expect(cloudflareKvService.putValue('my-ns', 'my-key', 'val'))
-        .rejects.toThrow('Cloudflare KV request failed (400)');
+      await expect(cloudflareKvService.putValue('my-ns', 'my-key', 'val')).rejects.toThrow(
+        'Cloudflare KV request failed (400)'
+      );
     });
   });
 

@@ -2,6 +2,7 @@ const https = require('https');
 const http = require('http');
 const { URL } = require('url');
 const configStore = require('./config-store');
+const providerHealth = require('./provider-health');
 
 class JiraService {
   /**
@@ -10,22 +11,22 @@ class JiraService {
    */
   normalizeBaseUrl(url) {
     if (!url) return null;
-    
+
     // Trim whitespace
     let normalized = url.trim();
-    
+
     // Remove trailing slashes
     normalized = normalized.replace(/\/+$/, '');
-    
+
     // Remove common API paths if accidentally included
     // e.g., https://domain.atlassian.net/rest/api/3 -> https://domain.atlassian.net
     normalized = normalized.replace(/\/rest\/api\/[23](\/.*)?$/, '');
     normalized = normalized.replace(/\/rest\/agile\/[0-9.]+(\/.*)?$/, '');
-    
+
     // Remove Jira page paths (e.g., /jira/software/projects/... or /jira/...)
     // This handles cases where users paste full page URLs instead of just the base URL
     normalized = normalized.replace(/\/jira(\/.*)?$/, '');
-    
+
     return normalized;
   }
 
@@ -39,7 +40,7 @@ class JiraService {
 
     try {
       const urlObj = new URL(url);
-      
+
       // Ensure it's HTTPS (Jira Cloud requires HTTPS)
       if (urlObj.protocol !== 'https:') {
         throw new Error('Jira Base URL must use HTTPS (e.g., https://your-domain.atlassian.net)');
@@ -48,7 +49,9 @@ class JiraService {
       return true;
     } catch (err) {
       if (err.message.includes('Invalid URL')) {
-        throw new Error(`Invalid Jira Base URL format. Expected format: https://your-domain.atlassian.net (got: ${url})`);
+        throw new Error(
+          `Invalid Jira Base URL format. Expected format: https://your-domain.atlassian.net (got: ${url})`
+        );
       }
       throw err;
     }
@@ -57,7 +60,7 @@ class JiraService {
   get baseUrl() {
     const url = configStore.getJiraBaseUrl();
     if (!url) return null;
-    
+
     const normalized = this.normalizeBaseUrl(url);
     try {
       this.validateBaseUrl(normalized);
@@ -75,27 +78,31 @@ class JiraService {
   get authHeader() {
     const key = this.apiKey;
     if (!key) return null;
-    
+
     if (key.includes(':')) {
       // Split by first colon and trim both parts to handle potential copy-paste whitespace
       const splitIndex = key.indexOf(':');
       const email = key.substring(0, splitIndex).trim();
       const token = key.substring(splitIndex + 1).trim();
-      
+
       // Validate that both email and token are present
       if (!email || !token) {
-        throw new Error('Jira API key format is invalid. Expected format: email:token (both email and token are required)');
+        throw new Error(
+          'Jira API key format is invalid. Expected format: email:token (both email and token are required)'
+        );
       }
-      
+
       // Basic validation: email should contain @
       if (!email.includes('@')) {
-        throw new Error('Jira API key email appears invalid. Expected format: your-email@example.com:token');
+        throw new Error(
+          'Jira API key email appears invalid. Expected format: your-email@example.com:token'
+        );
       }
-      
+
       const cleanKey = `${email}:${token}`;
       return `Basic ${Buffer.from(cleanKey).toString('base64')}`;
     }
-    
+
     // If no colon, assume it's a Bearer token (for OAuth or other auth methods)
     return `Bearer ${key.trim()}`;
   }
@@ -104,9 +111,11 @@ class JiraService {
     // Validate base URL
     const baseUrl = this.baseUrl;
     if (!baseUrl) {
-      throw new Error('Jira Base URL not configured. Please enter your Jira site URL (e.g., https://your-domain.atlassian.net)');
+      throw new Error(
+        'Jira Base URL not configured. Please enter your Jira site URL (e.g., https://your-domain.atlassian.net)'
+      );
     }
-    
+
     try {
       this.validateBaseUrl(baseUrl);
     } catch (err) {
@@ -115,7 +124,9 @@ class JiraService {
 
     // Validate API key
     if (!this.apiKey) {
-      throw new Error('Jira API Key not configured. Please enter your API token in the format: email:token');
+      throw new Error(
+        'Jira API Key not configured. Please enter your API token in the format: email:token'
+      );
     }
 
     // Validate auth header can be created
@@ -134,9 +145,11 @@ class JiraService {
     try {
       urlObj = new URL(fullUrl);
     } catch (err) {
-      throw new Error(`Invalid URL constructed: ${fullUrl}. Base URL: ${baseUrl}, Endpoint: ${endpoint}`);
+      throw new Error(
+        `Invalid URL constructed: ${fullUrl}. Base URL: ${baseUrl}, Endpoint: ${endpoint}`
+      );
     }
-    
+
     const requestModule = urlObj.protocol === 'http:' ? http : https;
 
     const options = {
@@ -145,16 +158,16 @@ class JiraService {
       path: urlObj.pathname + urlObj.search,
       method,
       headers: {
-        'Authorization': authHeader,
+        Authorization: authHeader,
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
+        Accept: 'application/json',
+      },
     };
 
     return new Promise((resolve, reject) => {
       const req = requestModule.request(options, (res) => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', (chunk) => (data += chunk));
         res.on('end', () => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             try {
@@ -166,7 +179,7 @@ class JiraService {
             // Provide detailed error information
             let errorMessage = `Jira API Error ${res.statusCode}`;
             let errorDetails = null;
-            
+
             try {
               const errorData = JSON.parse(data);
               if (errorData.errorMessages && errorData.errorMessages.length > 0) {
@@ -191,13 +204,16 @@ class JiraService {
               if (apiKey && apiKey.includes(':')) {
                 const token = apiKey.split(':')[1]?.trim();
                 if (token && (token.length > 100 || token.startsWith('ATATT'))) {
-                  tokenHint = '\n\n⚠️ IMPORTANT: Your token appears to be an OAuth token (long token starting with ATATT).';
+                  tokenHint =
+                    '\n\n⚠️ IMPORTANT: Your token appears to be an OAuth token (long token starting with ATATT).';
                   tokenHint += '\nOAuth tokens should NOT be used with email:token format.';
-                  tokenHint += '\nTry entering just the token (without email:) - it will use Bearer authentication.';
-                  tokenHint += '\nOr generate a new API token at: https://id.atlassian.com/manage-profile/security/api-tokens';
+                  tokenHint +=
+                    '\nTry entering just the token (without email:) - it will use Bearer authentication.';
+                  tokenHint +=
+                    '\nOr generate a new API token at: https://id.atlassian.com/manage-profile/security/api-tokens';
                 }
               }
-              
+
               errorMessage = 'Authentication failed (401). Please check:';
               errorMessage += '\n1. Your email address matches your Atlassian account exactly';
               errorMessage += '\n2. Your API token is valid and not expired/revoked';
@@ -208,7 +224,8 @@ class JiraService {
                 errorMessage += `\n\nJira error: ${errorDetails}`;
               }
             } else if (res.statusCode === 403) {
-              errorMessage = 'Access forbidden (403). Your API token may not have the required permissions.';
+              errorMessage =
+                'Access forbidden (403). Your API token may not have the required permissions.';
               if (errorDetails) {
                 errorMessage += `\n\nJira error: ${errorDetails}`;
               }
@@ -226,27 +243,34 @@ class JiraService {
           }
         });
       });
-      
+
       req.on('error', (err) => {
         let errorMessage = `Jira request failed: ${err.message}`;
-        
+
         // Provide helpful context for common network errors
         if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') {
           errorMessage += `\n\nUnable to resolve hostname "${urlObj.hostname}". Please verify your Jira Base URL is correct.`;
         } else if (err.code === 'ECONNREFUSED') {
           errorMessage += `\n\nConnection refused. Please verify your Jira Base URL is correct and the service is accessible.`;
-        } else if (err.code === 'CERT_HAS_EXPIRED' || err.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE') {
+        } else if (
+          err.code === 'CERT_HAS_EXPIRED' ||
+          err.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+        ) {
           errorMessage += `\n\nSSL certificate error. Please verify your Jira Base URL uses a valid HTTPS certificate.`;
         }
-        
+
         reject(new Error(errorMessage));
       });
-      
+
       req.setTimeout(30000, () => {
         req.destroy();
-        reject(new Error(`Jira request timeout after 30 seconds. Please check your network connection and Jira Base URL.`));
+        reject(
+          new Error(
+            `Jira request timeout after 30 seconds. Please check your network connection and Jira Base URL.`
+          )
+        );
       });
-      
+
       if (body) req.write(JSON.stringify(body));
       req.end();
     });
@@ -254,7 +278,7 @@ class JiraService {
 
   async listBoards() {
     const res = await this.request('/rest/agile/1.0/board?maxResults=50');
-    return (res.values || []).map(b => ({ id: b.id, name: b.name, type: b.type }));
+    return (res.values || []).map((b) => ({ id: b.id, name: b.name, type: b.type }));
   }
 
   async listSprints(boardId) {
@@ -285,9 +309,7 @@ class JiraService {
   }
 
   async getIssueComments(issueKey) {
-    return await this.request(
-      `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`
-    );
+    return await this.request(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`);
   }
 
   async assignIssue(issueIdOrKey, accountId) {
@@ -296,7 +318,7 @@ class JiraService {
     }
 
     const body = {
-      accountId
+      accountId,
     };
 
     return await this.request(
@@ -311,81 +333,119 @@ class JiraService {
       // Validate configuration before attempting connection
       const baseUrl = this.baseUrl;
       if (!baseUrl) {
-        return { 
-          success: false, 
-          error: 'Jira Base URL is not configured. Please enter your Jira site URL (e.g., https://your-domain.atlassian.net) in Settings.' 
-        };
+        return providerHealth.notConfigured('jira', {
+          configured: false,
+          docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+          endpointLabel: 'GET /rest/api/3/myself',
+          message:
+            'Jira Base URL is not configured. Please enter your Jira site URL (e.g., https://your-domain.atlassian.net) in Settings.',
+        });
       }
 
       if (!this.apiKey) {
-        return { 
-          success: false, 
-          error: 'Jira API Key is not configured. Please enter your API token in the format: email:token in Settings.' 
-        };
+        return providerHealth.notConfigured('jira', {
+          configured: false,
+          docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+          endpointLabel: 'GET /rest/api/3/myself',
+          message:
+            'Jira API Key is not configured. Please enter your API token in the format: email:token in Settings.',
+        });
       }
 
       // Validate URL format
       try {
         this.validateBaseUrl(baseUrl);
       } catch (urlErr) {
-        return { 
-          success: false, 
-          error: `Invalid Base URL: ${urlErr.message}\n\nExpected format: https://your-domain.atlassian.net\n\nCurrent value: ${baseUrl}` 
-        };
+        return providerHealth.fail(
+          'jira',
+          `Invalid Base URL: ${urlErr.message}\n\nExpected format: https://your-domain.atlassian.net\n\nCurrent value: ${baseUrl}`,
+          {
+            configured: true,
+            docsUrl:
+              'https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/',
+            endpointLabel: 'GET /rest/api/3/myself',
+          }
+        );
       }
 
       // Validate token format
       try {
         const authHeader = this.authHeader;
         if (!authHeader) {
-          return { 
-            success: false, 
-            error: 'Failed to create authentication header. Please check your API token format (expected: email:token).' 
-          };
+          return providerHealth.fail(
+            'jira',
+            'Failed to create authentication header. Please check your API token format (expected: email:token).',
+            {
+              configured: true,
+              docsUrl:
+                'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+              endpointLabel: 'GET /rest/api/3/myself',
+            }
+          );
         }
       } catch (authErr) {
-        return { 
-          success: false, 
-          error: `Authentication configuration error: ${authErr.message}\n\nPlease verify your API token is in the format: your-email@example.com:token` 
-        };
+        return providerHealth.fail(
+          'jira',
+          `Authentication configuration error: ${authErr.message}\n\nPlease verify your API token is in the format: your-email@example.com:token`,
+          {
+            configured: true,
+            docsUrl:
+              'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+            endpointLabel: 'GET /rest/api/3/myself',
+          }
+        );
       }
 
       // Try fetching current user to verify credentials
       // Using /rest/api/3/myself for Jira Cloud
       // For Jira Server/Data Center, this endpoint should still work
       const userInfo = await this.request('/rest/api/3/myself');
-      
+
       // If we get here, connection was successful
       const userEmail = userInfo.emailAddress || userInfo.email || 'unknown';
-      return { 
-        success: true,
-        message: `Successfully connected to Jira as ${userEmail}`
-      };
+      return providerHealth.ok('jira', {
+        configured: true,
+        docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-myself/',
+        endpointLabel: 'GET /rest/api/3/myself',
+        message: `Successfully connected to Jira as ${userEmail}`,
+        diagnostics: {
+          accountId: userInfo.accountId || null,
+          tokenHint:
+            'Atlassian API tokens expire by default; rotate if authentication starts failing.',
+        },
+      });
     } catch (err) {
       // The request() method already provides detailed error messages
       // We'll enhance them slightly for the test connection context
       let errorMessage = err.message;
-      
+
       // Add troubleshooting tips for common issues
       if (errorMessage.includes('401') || errorMessage.includes('Authentication failed')) {
         errorMessage += '\n\nTroubleshooting:';
         errorMessage += '\n1. Verify your email address matches your Jira account';
         errorMessage += '\n2. Check that your API token is still valid (tokens can expire)';
         errorMessage += '\n3. Ensure the token format is exactly: email:token (no extra spaces)';
-        errorMessage += '\n4. You can create a new API token at: https://id.atlassian.com/manage-profile/security/api-tokens';
+        errorMessage +=
+          '\n4. You can create a new API token at: https://id.atlassian.com/manage-profile/security/api-tokens';
       } else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
         errorMessage += '\n\nTroubleshooting:';
-        errorMessage += '\n1. Verify your Base URL is correct (should be: https://your-domain.atlassian.net)';
+        errorMessage +=
+          '\n1. Verify your Base URL is correct (should be: https://your-domain.atlassian.net)';
         errorMessage += '\n2. Do not include /rest/api/3 or any paths in the Base URL';
-        errorMessage += '\n3. Ensure you are using a Jira Cloud instance (not Jira Server/Data Center)';
+        errorMessage +=
+          '\n3. Ensure you are using a Jira Cloud instance (not Jira Server/Data Center)';
       } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('resolve hostname')) {
         errorMessage += '\n\nTroubleshooting:';
         errorMessage += '\n1. Check your internet connection';
         errorMessage += '\n2. Verify the Base URL hostname is correct';
         errorMessage += '\n3. Ensure your Jira instance is accessible';
       }
-      
-      return { success: false, error: errorMessage };
+
+      return providerHealth.fail('jira', errorMessage, {
+        configured: !!(this.baseUrl && this.apiKey),
+        docsUrl: 'https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/',
+        endpointLabel: 'GET /rest/api/3/myself',
+      });
     }
   }
 }

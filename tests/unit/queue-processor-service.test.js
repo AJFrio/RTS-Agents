@@ -27,7 +27,8 @@ jest.mock('../../src/main/services/claude-service', () => ({
 }));
 
 jest.mock('../../src/main/services/codex-service', () => ({
-  createTask: jest.fn(),
+  isCodexInstalled: jest.fn(),
+  startSession: jest.fn(),
   getTrackedThreads: jest.fn(),
 }));
 
@@ -38,7 +39,7 @@ jest.mock('../../src/main/services/project-service', () => ({
 jest.mock('child_process', () => ({
   spawnSync: jest.fn(),
   exec: jest.fn(),
-  spawn: jest.fn()
+  spawn: jest.fn(),
 }));
 
 const queueProcessorService = require('../../src/main/services/queue-processor-service');
@@ -69,13 +70,13 @@ describe('QueueProcessorService', () => {
     });
 
     it('should return false for failed command', () => {
-        spawnSync.mockReturnValue({ status: 1 });
-        expect(queueProcessorService.isCommandRunnable('git')).toBe(false);
+      spawnSync.mockReturnValue({ status: 1 });
+      expect(queueProcessorService.isCommandRunnable('git')).toBe(false);
     });
 
     it('should return false on error', () => {
-        spawnSync.mockReturnValue({ error: new Error('fail') });
-        expect(queueProcessorService.isCommandRunnable('git')).toBe(false);
+      spawnSync.mockReturnValue({ error: new Error('fail') });
+      expect(queueProcessorService.isCommandRunnable('git')).toBe(false);
     });
   });
 
@@ -99,7 +100,10 @@ describe('QueueProcessorService', () => {
 
       await queueProcessorService.processQueue('ns1');
 
-      expect(projectService.createLocalRepo).toHaveBeenCalledWith({ directory: '/tmp/github', name: 'new-repo' });
+      expect(projectService.createLocalRepo).toHaveBeenCalledWith({
+        directory: '/tmp/github',
+        name: 'new-repo',
+      });
       expect(cloudflareKvService.setDeviceTaskStatus).toHaveBeenCalledWith(
         'ns1',
         'device1',
@@ -118,7 +122,7 @@ describe('QueueProcessorService', () => {
       expect(antigravityService.startSession).toHaveBeenCalledWith({
         prompt: 'test prompt',
         projectPath: '/path/to/repo',
-        command: undefined
+        command: undefined,
       });
     });
 
@@ -133,23 +137,28 @@ describe('QueueProcessorService', () => {
       expect(claudeService.startLocalSession).toHaveBeenCalledWith({
         prompt: 'test prompt',
         projectPath: '/path/to/repo',
-        command: undefined
+        command: undefined,
       });
     });
 
     it('should process codex task', async () => {
-      const task = { tool: 'codex', repo: { path: '/path/to/repo' }, prompt: 'test prompt', attachments: [] };
+      const task = {
+        tool: 'codex',
+        repo: { path: '/path/to/repo' },
+        prompt: 'test prompt',
+        attachments: [],
+      };
       cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
-      configStore.hasApiKey.mockReturnValue(true);
-      codexService.createTask.mockResolvedValue({ id: 'task1' });
+      codexService.isCodexInstalled.mockReturnValue(true);
+      codexService.startSession.mockResolvedValue({ id: 'task1' });
 
       await queueProcessorService.processQueue('ns1');
 
-      expect(codexService.createTask).toHaveBeenCalledWith({
+      expect(codexService.startSession).toHaveBeenCalledWith({
         prompt: 'test prompt',
-        repository: '/path/to/repo',
-        title: expect.any(String),
-        attachments: []
+        projectPath: '/path/to/repo',
+        command: undefined,
+        attachments: [],
       });
     });
 
@@ -162,7 +171,10 @@ describe('QueueProcessorService', () => {
       expect(cloudflareKvService.setDeviceTaskStatus).toHaveBeenCalledWith(
         'ns1',
         'device1',
-        expect.objectContaining({ status: 'error', error: expect.stringContaining('Unsupported queued tool') })
+        expect.objectContaining({
+          status: 'error',
+          error: expect.stringContaining('Unsupported queued tool'),
+        })
       );
     });
   });

@@ -1,4 +1,5 @@
 const https = require('https');
+const providerHealth = require('./provider-health');
 
 let apiKey = null;
 
@@ -8,9 +9,10 @@ const setApiKey = (key) => {
 
 const getHeaders = () => {
   return {
-    'Authorization': `token ${apiKey}`,
+    Authorization: `Bearer ${apiKey}`,
     'User-Agent': 'RTS-Agents-Dashboard',
-    'Accept': 'application/vnd.github.v3+json'
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
   };
 };
 
@@ -26,13 +28,13 @@ const makeRequest = (path, method = 'GET', body = null) => {
       method: method,
       headers: {
         ...getHeaders(),
-        ...(body ? { 'Content-Type': 'application/json' } : {})
-      }
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
     };
 
     const req = https.request(options, (res) => {
       let data = '';
-      res.on('data', (chunk) => data += chunk);
+      res.on('data', (chunk) => (data += chunk));
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
@@ -73,12 +75,17 @@ const getUserOrgs = async () => {
   return makeRequest('/user/orgs?per_page=100');
 };
 
-const createRepository = async ({ ownerType = 'user', owner, name, private: isPrivate = false } = {}) => {
+const createRepository = async ({
+  ownerType = 'user',
+  owner,
+  name,
+  private: isPrivate = false,
+} = {}) => {
   if (!name) throw new Error('Repository name is required');
 
   const payload = {
     name,
-    private: !!isPrivate
+    private: !!isPrivate,
   };
 
   if (ownerType === 'org') {
@@ -99,7 +106,7 @@ const getBranches = async (owner, repo) => {
 };
 
 const getPullRequestDetails = async (owner, repo, pullNumber) => {
-    return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
+  return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
 };
 
 const getRepoFile = async (owner, repo, path) => {
@@ -126,8 +133,8 @@ const getAllPullRequests = async () => {
   }
 
   // Fetch PRs for all repos in parallel
-  const prPromises = repos.map(repo =>
-    getPullRequests(repo.owner.login, repo.name).catch(err => {
+  const prPromises = repos.map((repo) =>
+    getPullRequests(repo.owner.login, repo.name).catch((err) => {
       console.warn(`Failed to fetch PRs for ${repo.full_name}:`, err.message);
       return [];
     })
@@ -142,13 +149,13 @@ const getAllPullRequests = async () => {
 
 const mergePullRequest = async (owner, repo, pullNumber, method = 'merge') => {
   return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}/merge`, 'PUT', {
-    merge_method: method
+    merge_method: method,
   });
 };
 
 const closePullRequest = async (owner, repo, pullNumber) => {
   return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`, 'PATCH', {
-    state: 'closed'
+    state: 'closed',
   });
 };
 
@@ -166,7 +173,7 @@ const markPullRequestReadyForReview = async (nodeId) => {
 
   const payload = {
     query,
-    variables: { id: nodeId }
+    variables: { id: nodeId },
   };
 
   return makeRequest('/graphql', 'POST', payload);
@@ -174,10 +181,20 @@ const markPullRequestReadyForReview = async (nodeId) => {
 
 const testConnection = async () => {
   try {
-    await makeRequest('/user');
-    return { success: true };
+    const user = await makeRequest('/user');
+    return providerHealth.ok('github', {
+      configured: true,
+      docsUrl: 'https://docs.github.com/rest/authentication/authenticating-to-the-rest-api',
+      endpointLabel: 'GET /user',
+      message: `Connected to GitHub${user?.login ? ` as ${user.login}` : ''}.`,
+      diagnostics: { login: user?.login || null },
+    });
   } catch (error) {
-    return { success: false, error: error.message };
+    return providerHealth.fail('github', error, {
+      configured: !!apiKey,
+      docsUrl: 'https://docs.github.com/rest/authentication/authenticating-to-the-rest-api',
+      endpointLabel: 'GET /user',
+    });
   }
 };
 
@@ -195,5 +212,5 @@ module.exports = {
   mergePullRequest,
   closePullRequest,
   markPullRequestReadyForReview,
-  testConnection
+  testConnection,
 };

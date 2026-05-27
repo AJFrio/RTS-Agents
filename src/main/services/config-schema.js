@@ -7,38 +7,34 @@ const schema = {
     properties: {
       cursor: {
         type: 'string',
-        default: ''
+        default: '',
       },
       jules: {
         type: 'string',
-        default: ''
+        default: '',
       },
       codex: {
         type: 'string',
-        default: ''
+        default: '',
       },
       openrouter: {
         type: 'string',
-        default: ''
+        default: '',
       },
       claude: {
         type: 'string',
-        default: ''
+        default: '',
       },
       github: {
         type: 'string',
-        default: ''
-      },
-      cloudflare: {
-        type: 'string',
-        default: ''
+        default: '',
       },
       jira: {
         type: 'string',
-        default: ''
-      }
+        default: '',
+      },
     },
-    default: {}
+    default: {},
   },
   cloudflare: {
     type: 'object',
@@ -46,17 +42,17 @@ const schema = {
       accountId: { type: 'string', default: '' },
       apiToken: { type: 'string', default: '' },
       namespaceId: { type: 'string', default: '' },
-      namespaceTitle: { type: 'string', default: 'rtsa' }
+      namespaceTitle: { type: 'string', default: 'rtsa' },
     },
-    default: {}
+    default: {},
   },
   device: {
     type: 'object',
     properties: {
       id: { type: 'string', default: '' },
-      name: { type: 'string', default: '' }
+      name: { type: 'string', default: '' },
     },
-    default: {}
+    default: {},
   },
   codexThreads: {
     type: 'array',
@@ -68,10 +64,10 @@ const schema = {
         prompt: { type: 'string' },
         repository: { type: 'string' },
         branch: { type: 'string' },
-        title: { type: 'string' }
-      }
+        title: { type: 'string' },
+      },
     },
-    default: []
+    default: [],
   },
   claudeConversations: {
     type: 'array',
@@ -84,10 +80,10 @@ const schema = {
         prompt: { type: 'string' },
         repository: { type: 'string' },
         title: { type: 'string' },
-        status: { type: 'string' }
-      }
+        status: { type: 'string' },
+      },
     },
-    default: []
+    default: [],
   },
   opencodeSessions: {
     type: 'array',
@@ -101,10 +97,10 @@ const schema = {
         status: { type: 'string' },
         filePath: { type: 'string' },
         createdAt: { type: 'string' },
-        updatedAt: { type: 'string' }
-      }
+        updatedAt: { type: 'string' },
+      },
     },
-    default: []
+    default: [],
   },
   antigravitySessions: {
     type: 'array',
@@ -118,10 +114,10 @@ const schema = {
         status: { type: 'string' },
         filePath: { type: 'string' },
         createdAt: { type: 'string' },
-        updatedAt: { type: 'string' }
-      }
+        updatedAt: { type: 'string' },
+      },
     },
-    default: []
+    default: [],
   },
   settings: {
     type: 'object',
@@ -130,89 +126,95 @@ const schema = {
         type: 'number',
         default: 30000,
         minimum: 5000,
-        maximum: 300000
+        maximum: 300000,
       },
       autoPolling: {
         type: 'boolean',
-        default: true
+        default: true,
       },
       antigravityPaths: {
         type: 'array',
         items: { type: 'string' },
-        default: []
+        default: [],
       },
       claudePaths: {
         type: 'array',
         items: { type: 'string' },
-        default: []
+        default: [],
       },
       cursorPaths: {
         type: 'array',
         items: { type: 'string' },
-        default: []
+        default: [],
       },
       codexPaths: {
         type: 'array',
         items: { type: 'string' },
-        default: []
+        default: [],
+      },
+      opencodePaths: {
+        type: 'array',
+        items: { type: 'string' },
+        default: [],
       },
       githubPaths: {
         type: 'array',
         items: { type: 'string' },
-        default: []
+        default: [],
       },
       jiraBaseUrl: {
         type: 'string',
-        default: ''
+        default: '',
       },
       cliCommands: {
         type: 'object',
         properties: {
           antigravity: { type: 'string', default: '' },
           claude: { type: 'string', default: '' },
-          opencode: { type: 'string', default: '' }
+          codex: { type: 'string', default: '' },
+          opencode: { type: 'string', default: '' },
         },
-        default: {}
+        default: {},
       },
       theme: {
         type: 'string',
         enum: ['light', 'dark', 'system'],
-        default: 'system'
+        default: 'system',
       },
       displayMode: {
         type: 'string',
         enum: ['fullscreen', 'windowed'],
-        default: 'fullscreen'
+        default: 'fullscreen',
       },
       filters: {
         type: 'object',
         properties: {
           providers: {
             type: 'object',
-            default: {}
+            default: {},
           },
           statuses: {
             type: 'object',
-            default: {}
+            default: {},
           },
           search: {
             type: 'string',
-            default: ''
-          }
+            default: '',
+          },
         },
-        default: {}
+        default: {},
       },
       selectedModel: {
         type: 'string',
-        default: 'openrouter/openai/gpt-4o'
-      }
+        default: 'openrouter/openai/gpt-4o',
+      },
     },
-    default: {}
+    default: {},
   },
   sessionOutputs: {
     type: 'object',
-    default: {}
-  }
+    default: {},
+  },
 };
 
 module.exports = { schema };

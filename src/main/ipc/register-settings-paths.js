@@ -7,19 +7,32 @@ const { PROJECT_PATH_PROVIDERS } = require('../services/config-path-registry');
 const PATH_PROVIDER_META = {
   antigravity: async ({ antigravityService }) => ({
     defaultPath: antigravityService.getDefaultDataPath(),
-    installed: await antigravityService.isAntigravityInstalled()
+    installed: await antigravityService.isAntigravityInstalled(),
   }),
   claude: async ({ claudeService }) => ({
     defaultPath: claudeService.getDefaultPath(),
-    installed: await claudeService.isClaudeInstalled()
+    installed: await claudeService.isClaudeInstalled(),
   }),
   cursor: () => ({}),
-  codex: () => ({}),
-  github: () => ({})
+  codex: async ({ codexService }) => ({
+    installed: await codexService.isCodexInstalled(),
+  }),
+  opencode: async ({ opencodeService }) => ({
+    defaultPath: opencodeService.getDefaultDataPath(),
+    installed: await opencodeService.isOpenCodeInstalled(),
+  }),
+  github: () => ({}),
 };
 
 function registerSettingsPathHandlers(deps) {
-  const { configStore, lifecycle, antigravityService, claudeService } = deps;
+  const {
+    configStore,
+    lifecycle,
+    antigravityService,
+    claudeService,
+    codexService,
+    opencodeService,
+  } = deps;
   const { sendCloudflareHeartbeat, invalidateAgentDiscovery, startDiscoveryWatchers } = lifecycle;
 
   for (const provider of PROJECT_PATH_PROVIDERS) {
@@ -41,10 +54,12 @@ function registerSettingsPathHandlers(deps) {
 
     ipcMain.handle(`settings:get-${provider}-paths`, async () => {
       const metaFn = PATH_PROVIDER_META[provider];
-      const extra = metaFn ? await metaFn({ antigravityService, claudeService }) : {};
+      const extra = metaFn
+        ? await metaFn({ antigravityService, claudeService, codexService, opencodeService })
+        : {};
       return {
         paths: configStore.getProjectPaths(provider),
-        ...extra
+        ...extra,
       };
     });
   }
@@ -52,7 +67,7 @@ function registerSettingsPathHandlers(deps) {
   ipcMain.handle('settings:get-all-project-paths', async () => {
     return {
       paths: configStore.getAllProjectPaths(),
-      ...configStore.getProjectPathsByProvider()
+      ...configStore.getProjectPathsByProvider(),
     };
   });
 }

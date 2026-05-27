@@ -1,13 +1,13 @@
 <img width="1916" height="997" alt="image" src="https://github.com/user-attachments/assets/ac16d7c3-f19b-4fca-8cf2-3a8571655820" />
 
-
 ## RTS Agents
 
 RTS Agents is 1 dashboard to access all your coding agents and Github repos across all your service providers and devices
 
 It supports:
+
 - **Local CLI-backed agents**: Antigravity CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (tracks locally-launched sessions and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
-- **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI (Codex via Assistants/Threads), and Claude (Anthropic Messages API).
+- **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI Responses, and Claude (Anthropic Messages API).
 - **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
 
 ---
@@ -15,6 +15,7 @@ It supports:
 ## What it can do
 
 ### Dashboard
+
 - **Unified task list** across providers (Antigravity, OpenCode, Jules, Cursor, Codex, Claude CLI, Claude Cloud)
 - **Search + filtering** by provider and status
 - **Pagination** for large task sets
@@ -22,24 +23,30 @@ It supports:
 - **Task completion notifications** (in-app toast + sound when a task transitions to completed)
 
 ### Task details
+
 - Click a task card to view **provider-specific details**, such as:
   - Cursor: conversation transcript
   - Jules: activity timeline + PR output (when available)
   - Antigravity CLI: tracked launch metadata with full conversation history available in Antigravity
-  - Codex: thread messages and run history
+  - Codex: tracked local CLI launches or OpenAI Responses output
   - Claude CLI / Cloud: message history (local sessions or tracked cloud conversations)
 
 ### Create new tasks (“New Task” modal)
+
 Create tasks from the UI, with provider-specific options:
+
 - **Jules**: choose connected repo source + branch, optionally auto-create PR
 - **Cursor Cloud**: choose repository + ref/branch, optionally auto-create PR
-- **Antigravity CLI**: choose a local Git repo path, start a detached `agy -p` CLI session
-- **Codex**: create a new OpenAI thread (tracked locally in the app), prompt-only (repo optional)
+- **Antigravity CLI**: choose a local Git repo path, start a detached `agy --print` CLI session
+- **Codex CLI**: choose a local Git repo path, start a detached `codex exec` session
+- **OpenAI Responses**: create a prompt-only response task with a Codex-capable model
 - **Claude CLI**: start a detached `claude` CLI session in a local repo
 - **Claude Cloud**: prompt-only (no repository required)
 
 ### GitHub “Branches” view
+
 When configured with a GitHub token, you can:
+
 - List your GitHub repositories (sorted by updated time)
 - View open PRs for a repo
 - Open PR details
@@ -48,7 +55,6 @@ When configured with a GitHub token, you can:
 
 <img width="1908" height="991" alt="image" src="https://github.com/user-attachments/assets/cb1e9388-2f88-452b-a774-36781bddd934" />
 
-
 ---
 
 ## Mobile Companion App (PWA)
@@ -56,12 +62,14 @@ When configured with a GitHub token, you can:
 The repository includes a mobile-optimized Progressive Web App (PWA) in the `mobile-webapp/` directory.
 
 ### Capabilities
+
 - **Remote Control**: View connected desktop instances and dispatch tasks to them via Cloudflare KV.
 - **Unified Dashboard**: View and filter tasks across all providers, similar to the desktop app.
 - **Cloud Agents**: Create and monitor tasks for cloud providers (Jules, Cursor, Codex, Claude Cloud) directly from your phone.
 - **GitHub**: View repositories and branches (read-only).
 
 ### Limitations
+
 - **No Local Execution**: It cannot run local CLI tools (Antigravity/Claude CLI) directly. Instead, it dispatches these tasks to your running desktop instances.
 - **Requires Cloudflare KV**: Syncing between desktop and mobile requires Cloudflare KV configuration.
 - **Read-Only Device Status**: It views other devices but does not register itself as a compute node.
@@ -90,11 +98,13 @@ The repository includes a mobile-optimized Progressive Web App (PWA) in the `mob
 ## Installation
 
 ### Prerequisites
+
 - **Node.js**: recommended **Node 18+** (Electron 28 runtime)
 - **npm** (bundled with Node)
 - **Git** (required for cloning and for the in-app “Update & Restart” feature)
 
 Optional, depending on features you use:
+
 - **Antigravity CLI** (for local Antigravity sessions + creating Antigravity tasks)
 - **Claude Code CLI** (for Claude local sessions + creating Claude CLI tasks)
 
@@ -133,31 +143,35 @@ npm run dev
 This app stores provider credentials in a local Electron settings store. You can configure keys in **Settings → API Command Keys**.
 
 ### Jules API key (required for Jules)
+
 - **Used for**: listing sessions, listing sources/repos, creating sessions, reading activities
 - **Where it’s sent**: `https://jules.googleapis.com/v1alpha/...`
 - **Header**: `X-Goog-Api-Key: <key>`
 - **How to get it**: from your Jules console / configuration (the app UI hints “Jules console settings”)
 
 ### Cursor Cloud API key (required for Cursor)
+
 - **Used for**: listing agents, reading agent details, listing repositories, creating agents
-- **Where it’s sent**: `https://api.cursor.com/v0/...`
+- **Where it’s sent**: `https://api.cursor.com/v1/...`
 - **Auth**: HTTP Basic Auth with the API key as the username (empty password)
 - **How to get it**: from Cursor settings (the app UI hints “cursor.com/settings”)
 
-### OpenAI API key (required for Codex)
-- **Used for**: creating threads, fetching thread/runs/messages for tracked threads
+### OpenAI API key (optional for OpenAI Responses)
+
+- **Used for**: validating OpenAI access and creating stored Responses API tasks with Codex-capable models
 - **Where it’s sent**: `https://api.openai.com/v1/...`
 - **Header**: `Authorization: Bearer <key>`
-- **Note**: uses `OpenAI-Beta: assistants=v2`
 - **How to get it**: from OpenAI API keys (the app UI hints “platform.openai.com/api-keys”)
 
 ### Anthropic API key (required for Claude Cloud)
-- **Used for**: sending a prompt via the Anthropic Messages API
-- **Where it’s sent**: `https://api.anthropic.com/v1/messages`
+
+- **Used for**: validating available models and sending prompts via the Anthropic Messages API
+- **Where it’s sent**: `https://api.anthropic.com/v1/...`
 - **Header**: `x-api-key: <key>`
 - **How to get it**: from the Anthropic console (the app UI hints “console.anthropic.com”)
 
 ### GitHub Personal Access Token (required for GitHub view + PR actions)
+
 - **Used for**:
   - Listing your repos
   - Listing PRs and branches
@@ -173,11 +187,12 @@ This app stores provider credentials in a local Electron settings store. You can
 
 ---
 
-## Local CLI Setup (Antigravity CLI and Claude CLI)
+## Local CLI Setup (Antigravity CLI, Claude CLI, Codex CLI, and OpenCode)
 
 These providers are **not configured via API key inside this app**. They rely on locally-installed CLIs and their session folders.
 
 ### Antigravity CLI
+
 - **Detected by**: `agy --version` or an Antigravity data directory under your home directory:
   - Windows example: `%LOCALAPPDATA%\Antigravity`
 - **Starts tasks by running** (detached): `agy -p "<prompt>" --print-timeout 30m`
@@ -187,10 +202,12 @@ These providers are **not configured via API key inside this app**. They rely on
   - The New Task modal will list repos found under those paths (directories containing `.git`)
 
 If Antigravity shows as “not installed”:
+
 - Ensure you have installed Antigravity CLI and authenticated it at least once.
 - Ensure `agy` is available on your `PATH`, or set a custom executable path for headless mode.
 
 ### Claude Code CLI
+
 - **Detected by**: existence of a Claude data directory under your home directory:
   - Windows example: `C:\Users\<you>\.claude\`
 - **Reads local sessions from**:
@@ -198,6 +215,7 @@ If Antigravity shows as “not installed”:
 - **Starts tasks by running** (detached): `claude -p "<prompt>" --allowedTools "Read,Edit,Bash"`
 
 If Claude CLI shows as “not installed”:
+
 - Ensure Claude Code CLI is installed and that you’ve run it at least once so it creates its home folder.
 - Ensure `claude` is available on your `PATH` (the app will run `claude` / `claude.cmd` depending on OS).
 
@@ -208,8 +226,8 @@ If Claude CLI shows as “not installed”:
 1. **Install dependencies** (`npm ci`)
 2. **Start the app** (`npm run dev` or `npm run start`)
 3. Open **Settings** and configure what you need:
-   - Add API keys for any cloud providers you want to use (Jules, Cursor, Codex, Claude Cloud, GitHub)
-   - Add **GitHub Repository Paths** so the app can find local repos for Antigravity CLI / Claude CLI tasks
+   - Add API keys for any cloud providers you want to use (Jules, Cursor, OpenAI Responses, Claude Cloud, GitHub)
+   - Add repository root paths so the app can find local repos for Antigravity CLI / Claude CLI / Codex CLI / OpenCode tasks
    - Optional: add **Antigravity CLI Paths** if you keep local repo roots in additional locations
 4. Go back to **Dashboard** and click **SYNC** to refresh.
 
@@ -220,6 +238,7 @@ If Claude CLI shows as “not installed”:
 - `npm run start`: build minified Tailwind CSS and launch Electron
 - `npm run dev`: Tailwind CSS watch + launch Electron
 - `npm run dev:headless`: run a lightweight headless device (no Electron UI) that registers to Cloudflare KV, pulls keys, and executes queued remote tasks
+- `npm run smoke:providers`: optional live provider smoke check using stored config or environment variables; reports `not_configured`, `ok`, `auth_failed`, `rate_limited`, or `stale_contract`
 - `npm run test`: Jest unit + integration tests
 - `npm run test:e2e`: Playwright E2E tests (optimized for headless Linux with `xvfb-maybe`)
 - `npm run validate`: docs structure + architecture checks + lint + unit tests (agent harness gate)
@@ -231,6 +250,7 @@ If Claude CLI shows as “not installed”:
 Structured knowledge for coding agents lives under [`docs/`](docs/) with [`AGENTS.md`](AGENTS.md) as the entry map. See [Harness engineering](https://openai.com/index/harness-engineering/) for the methodology.
 
 ### Running Playwright on Windows
+
 The provided `test:e2e` script uses `env` and `xvfb-maybe`, which are typically not available on Windows.
 
 On Windows, install browsers and run Playwright directly:
@@ -256,7 +276,7 @@ npx playwright test
   - `claude-service.js` (local session discovery + Anthropic API + start CLI session)
   - `jules-service.js` (Jules API)
   - `cursor-service.js` (Cursor Cloud API)
-  - `codex-service.js` (OpenAI Assistants/Threads; tracks created threads locally)
+  - `codex-service.js` (Codex CLI launch support plus OpenAI Responses tasks)
   - `github-service.js` (GitHub REST + GraphQL for “ready for review”)
 - **Persistence**: `electron-store` via `src/main/services/config-store.js`
   - Stores API keys, polling settings, repo paths, filters, and tracked Codex/Claude cloud IDs locally.
@@ -266,15 +286,19 @@ npx playwright test
 ## Troubleshooting
 
 ### A provider shows “Offline” or “Error”
+
 - Open **Settings** and use the provider’s **TEST** button.
 - Confirm your key/token is valid and has the necessary permissions.
 
 ### Antigravity / Claude CLI Is Not Detected
+
 - Ensure the CLI is installed and available in `PATH`.
 - Run the CLI once manually to create its home directory under your user profile.
 
 ### “Update & Restart” does not work
+
 The app runs `git pull` in the current working directory and then relaunches.
+
 - Ensure the app is running from a **git clone** with a configured remote
 - Ensure `git` is installed and available in `PATH`
 - Ensure your environment has permission to pull from the remote

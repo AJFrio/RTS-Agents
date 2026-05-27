@@ -14,7 +14,8 @@ module.exports = {
   getQueueActivity: () => ipcRenderer.invoke('queue:get-activity'),
   pushKeysToCloudflare: () => ipcRenderer.invoke('cloudflare:push-keys'),
   pullKeysFromCloudflare: () => ipcRenderer.invoke('cloudflare:pull-keys'),
-  setPolling: (enabled, interval) => ipcRenderer.invoke('settings:set-polling', { enabled, interval }),
+  setPolling: (enabled, interval) =>
+    ipcRenderer.invoke('settings:set-polling', { enabled, interval }),
   setTheme: (theme) => ipcRenderer.invoke('settings:set-theme', { theme }),
   setDisplayMode: (mode) => ipcRenderer.invoke('settings:set-display-mode', { mode }),
   saveFilters: (filters) => ipcRenderer.invoke('settings:save-filters', { filters }),
@@ -31,9 +32,12 @@ module.exports = {
   addCodexPath: (path) => ipcRenderer.invoke('settings:add-codex-path', { path }),
   removeCodexPath: (path) => ipcRenderer.invoke('settings:remove-codex-path', { path }),
   getCodexPaths: () => ipcRenderer.invoke('settings:get-codex-paths'),
+  addOpenCodePath: (path) => ipcRenderer.invoke('settings:add-opencode-path', { path }),
+  removeOpenCodePath: (path) => ipcRenderer.invoke('settings:remove-opencode-path', { path }),
+  getOpenCodePaths: () => ipcRenderer.invoke('settings:get-opencode-paths'),
   addGithubPath: (path) => ipcRenderer.invoke('settings:add-github-path', { path }),
   removeGithubPath: (path) => ipcRenderer.invoke('settings:remove-github-path', { path }),
   getGithubPaths: () => ipcRenderer.invoke('settings:get-github-paths'),
   getAllProjectPaths: () => ipcRenderer.invoke('settings:get-all-project-paths'),
-  updateApp: () => ipcRenderer.invoke('app:update')
+  updateApp: () => ipcRenderer.invoke('app:update'),
 };

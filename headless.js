@@ -19,6 +19,7 @@ const cloudflareKvService = require('./src/main/services/cloudflare-kv-service')
 const antigravityService = require('./src/main/services/antigravity-service');
 const claudeService = require('./src/main/services/claude-service');
 const opencodeService = require('./src/main/services/opencode-service');
+const codexService = require('./src/main/services/codex-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 
@@ -60,22 +61,23 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     if (Array.isArray(githubPaths) && githubPaths.length > 0) {
       const scanned = await projectService.getLocalRepos(githubPaths);
       repos = (scanned || [])
-        .map(p => ({ name: p?.name || p?.id || 'unknown', path: p?.path || null }))
-        .filter(r => !!r.path);
+        .map((p) => ({ name: p?.name || p?.id || 'unknown', path: p?.path || null }))
+        .filter((r) => !!r.path);
     }
   } catch (err) {
     repos = [];
   }
 
   const cliCommands = configStore.getSetting('cliCommands') || {};
-  const antigravityCmd = typeof cliCommands?.antigravity === 'string' ? cliCommands.antigravity : '';
+  const antigravityCmd =
+    typeof cliCommands?.antigravity === 'string' ? cliCommands.antigravity : '';
   const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
   const opencodeCmd = typeof cliCommands?.opencode === 'string' ? cliCommands.opencode : '';
 
   const [antigravityInstalled, claudeInstalled, opencodeInstalled] = await Promise.all([
     antigravityService.isAntigravityInstalled(),
     claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled()
+    opencodeService.isOpenCodeInstalled(),
   ]);
 
   const availableCliTools = [];
@@ -85,7 +87,12 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   if (claudeInstalled || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
     availableCliTools.push('claude CLI');
   }
-  if (opencodeInstalled || queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
+  if (
+    opencodeInstalled ||
+    queueProcessorService.isCommandRunnable(
+      opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode')
+    )
+  ) {
     availableCliTools.push('OpenCode CLI');
   }
 
@@ -99,10 +106,14 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     lastStatusAt: nowIso,
     tools: [{ 'CLI tools': availableCliTools }],
     repos,
-    reposUpdatedAt: nowIso
+    reposUpdatedAt: nowIso,
   };
 
-  await cloudflareKvService.heartbeat({ namespaceId, device, staleAfterMs: DEVICE_STALE_OFFLINE_MS });
+  await cloudflareKvService.heartbeat({
+    namespaceId,
+    device,
+    staleAfterMs: DEVICE_STALE_OFFLINE_MS,
+  });
 }
 
 async function runSetupPrompts() {
@@ -124,7 +135,10 @@ async function runSetupPrompts() {
     }
 
     if (nextAccountId && nextApiToken) {
-      const next = configStore.setCloudflareConfig({ accountId: nextAccountId, apiToken: nextApiToken });
+      const next = configStore.setCloudflareConfig({
+        accountId: nextAccountId,
+        apiToken: nextApiToken,
+      });
       cloudflareKvService.setConfig({ accountId: next.accountId, apiToken: next.apiToken });
     }
 
@@ -144,7 +158,9 @@ async function runSetupPrompts() {
     // GitHub repo paths
     const githubPaths = configStore.getGithubPaths();
     if (!Array.isArray(githubPaths) || githubPaths.length === 0) {
-      const answer = String(await rl.question('Path to your GitHub repos folder (e.g. /home/user/github): ')).trim();
+      const answer = String(
+        await rl.question('Path to your GitHub repos folder (e.g. /home/user/github): ')
+      ).trim();
       if (answer) {
         configStore.addGithubPath(answer);
       }
@@ -152,26 +168,66 @@ async function runSetupPrompts() {
 
     // CLI command overrides (optional)
     const existingCli = configStore.getSetting('cliCommands') || {};
-    let antigravityCmd = typeof existingCli?.antigravity === 'string' ? existingCli.antigravity : '';
+    let antigravityCmd =
+      typeof existingCli?.antigravity === 'string' ? existingCli.antigravity : '';
     let claudeCmd = typeof existingCli?.claude === 'string' ? existingCli.claude : '';
+    let codexCmd = typeof existingCli?.codex === 'string' ? existingCli.codex : '';
     let opencodeCmd = typeof existingCli?.opencode === 'string' ? existingCli.opencode : '';
 
-    if (!(await antigravityService.isAntigravityInstalled()) && !queueProcessorService.isCommandRunnable(antigravityCmd || 'agy')) {
-      const answer = String(await rl.question('Antigravity CLI not detected. Full path to agy executable (or blank to skip): ')).trim();
+    if (
+      !(await antigravityService.isAntigravityInstalled()) &&
+      !queueProcessorService.isCommandRunnable(antigravityCmd || 'agy')
+    ) {
+      const answer = String(
+        await rl.question(
+          'Antigravity CLI not detected. Full path to agy executable (or blank to skip): '
+        )
+      ).trim();
       if (answer) antigravityCmd = answer;
     }
 
-    if (!(await claudeService.isClaudeInstalled()) && !queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
-      const answer = String(await rl.question('Claude CLI not detected. Full path to claude executable (or blank to skip): ')).trim();
+    if (
+      !(await claudeService.isClaudeInstalled()) &&
+      !queueProcessorService.isCommandRunnable(claudeCmd || 'claude')
+    ) {
+      const answer = String(
+        await rl.question(
+          'Claude CLI not detected. Full path to claude executable (or blank to skip): '
+        )
+      ).trim();
       if (answer) claudeCmd = answer;
     }
 
-    if (!(await opencodeService.isOpenCodeInstalled()) && !queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
-      const answer = String(await rl.question('OpenCode CLI not detected. Full path to opencode (or blank to skip): ')).trim();
+    if (
+      !(await codexService.isCodexInstalled()) &&
+      !queueProcessorService.isCommandRunnable(
+        codexCmd || (process.platform === 'win32' ? 'codex.cmd' : 'codex')
+      )
+    ) {
+      const answer = String(
+        await rl.question('Codex CLI not detected. Full path to codex (or blank to skip): ')
+      ).trim();
+      if (answer) codexCmd = answer;
+    }
+
+    if (
+      !(await opencodeService.isOpenCodeInstalled()) &&
+      !queueProcessorService.isCommandRunnable(
+        opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode')
+      )
+    ) {
+      const answer = String(
+        await rl.question('OpenCode CLI not detected. Full path to opencode (or blank to skip): ')
+      ).trim();
       if (answer) opencodeCmd = answer;
     }
 
-    configStore.setSetting('cliCommands', { antigravity: antigravityCmd, claude: claudeCmd, opencode: opencodeCmd });
+    configStore.setSetting('cliCommands', {
+      antigravity: antigravityCmd,
+      claude: claudeCmd,
+      codex: codexCmd,
+      opencode: opencodeCmd,
+    });
   } finally {
     rl.close();
   }
@@ -192,14 +248,16 @@ function startHttpServer() {
     if (req.method === 'GET' && url.startsWith('/status')) {
       const cf = configStore.getCloudflareConfig() || {};
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        ok: true,
-        deviceId: identity.id,
-        deviceType: 'headless',
-        cloudflareConfigured: !!(cf.accountId && cf.apiToken),
-        namespaceId: cf.namespaceId || null,
-        githubPaths: configStore.getGithubPaths()
-      }));
+      res.end(
+        JSON.stringify({
+          ok: true,
+          deviceId: identity.id,
+          deviceType: 'headless',
+          cloudflareConfigured: !!(cf.accountId && cf.apiToken),
+          namespaceId: cf.namespaceId || null,
+          githubPaths: configStore.getGithubPaths(),
+        })
+      );
       return;
     }
     res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -273,4 +331,3 @@ main().catch(async (err) => {
     process.exit(1);
   }
 });
-

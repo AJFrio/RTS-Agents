@@ -34,23 +34,15 @@ class CloudflareKvService {
   get headers() {
     if (!this.apiToken) throw new Error('Cloudflare apiToken not configured');
     return {
-      Authorization: `Bearer ${this.apiToken}`
+      Authorization: `Bearer ${this.apiToken}`,
     };
   }
 
   async _request(relativePath, options) {
-    try {
-      return await this._makeRequest(relativePath, options, false);
-    } catch (err) {
-      // If request failed due to SSL self-signed certificate, retry insecurely
-      if (err.message && /self signed certificate|unable to get local issuer certificate/i.test(err.message)) {
-        return await this._makeRequest(relativePath, options, true);
-      }
-      throw err;
-    }
+    return this._makeRequest(relativePath, options);
   }
 
-  async _makeRequest(relativePath, { method = 'GET', headers = {}, body } = {}, insecure = false) {
+  async _makeRequest(relativePath, { method = 'GET', headers = {}, body } = {}) {
     if (!this.accountId) throw new Error('Cloudflare accountId not configured');
 
     const fullUrl = `${this.baseUrl}${relativePath}`;
@@ -62,15 +54,14 @@ class CloudflareKvService {
       method,
       headers: {
         ...this.headers,
-        ...headers
+        ...headers,
       },
-      rejectUnauthorized: !insecure
     };
 
     return new Promise((resolve, reject) => {
       const req = https.request(requestOptions, (res) => {
         let data = '';
-        res.on('data', (chunk) => data += chunk);
+        res.on('data', (chunk) => (data += chunk));
 
         res.on('end', () => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -86,11 +77,15 @@ class CloudflareKvService {
               // Emulate fetch response for .text()
               resolve({
                 text: async () => data,
-                json: async () => JSON.parse(data)
+                json: async () => JSON.parse(data),
               });
             }
           } else {
-             reject(new Error(`Cloudflare KV request failed (${res.statusCode}): ${data || res.statusMessage}`));
+            reject(
+              new Error(
+                `Cloudflare KV request failed (${res.statusCode}): ${data || res.statusMessage}`
+              )
+            );
           }
         });
       });
@@ -107,10 +102,12 @@ class CloudflareKvService {
   async listNamespaces({ page = 1, perPage = 100 } = {}) {
     const json = await this._request(`/namespaces?page=${page}&per_page=${perPage}`, {
       method: 'GET',
-      headers: { Accept: 'application/json' }
+      headers: { Accept: 'application/json' },
     });
     if (!json?.success) {
-      throw new Error(`Cloudflare KV list namespaces failed: ${JSON.stringify(json?.errors || [])}`);
+      throw new Error(
+        `Cloudflare KV list namespaces failed: ${JSON.stringify(json?.errors || [])}`
+      );
     }
     return json;
   }
@@ -119,7 +116,7 @@ class CloudflareKvService {
     let page = 1;
     while (true) {
       const json = await this.listNamespaces({ page, perPage: 100 });
-      const found = (json.result || []).find(ns => ns?.title === title);
+      const found = (json.result || []).find((ns) => ns?.title === title);
       if (found?.id) return found.id;
       const info = json.result_info || {};
       const totalPages = info.total_pages || 1;
@@ -133,12 +130,14 @@ class CloudflareKvService {
       method: 'POST',
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ title })
+      body: JSON.stringify({ title }),
     });
     if (!json?.success) {
-      throw new Error(`Cloudflare KV create namespace failed: ${JSON.stringify(json?.errors || [])}`);
+      throw new Error(
+        `Cloudflare KV create namespace failed: ${JSON.stringify(json?.errors || [])}`
+      );
     }
     return json.result?.id;
   }
@@ -159,9 +158,9 @@ class CloudflareKvService {
     await this._request(`/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'text/plain'
+        'Content-Type': 'text/plain',
       },
-      body
+      body,
     });
     return { success: true };
   }
@@ -170,9 +169,12 @@ class CloudflareKvService {
     if (!namespaceId) throw new Error('Missing Cloudflare KV namespaceId');
     if (!key) throw new Error('Missing Cloudflare KV key');
 
-    const res = await this._request(`/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`, {
-      method: 'GET'
-    });
+    const res = await this._request(
+      `/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`,
+      {
+        method: 'GET',
+      }
+    );
     return await res.text();
   }
 
@@ -203,7 +205,7 @@ class CloudflareKvService {
 
   upsertDevice(devices, device) {
     const next = Array.isArray(devices) ? [...devices] : [];
-    const idx = next.findIndex(d => d?.id && d.id === device.id);
+    const idx = next.findIndex((d) => d?.id && d.id === device.id);
     if (idx >= 0) {
       next[idx] = { ...next[idx], ...device };
     } else {
@@ -231,7 +233,7 @@ class CloudflareKvService {
     // Opportunistically mark other devices OFF if their last heartbeat is stale.
     // This allows "crashed" devices to be flipped OFF by any active device.
     if (typeof staleAfterMs === 'number' && staleAfterMs > 0) {
-      next = next.map(d => {
+      next = next.map((d) => {
         if (!d?.id) return d;
         if (d.id === device.id) return d;
 
@@ -244,7 +246,7 @@ class CloudflareKvService {
             ...d,
             status: 'off',
             lastStatusAt: nowIso,
-            offReason: 'stale-heartbeat'
+            offReason: 'stale-heartbeat',
           };
         }
         return d;

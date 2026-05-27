@@ -1,7 +1,7 @@
 {
   "name": "rts-agents",
   "version": "1.0.0",
-  "description": "RTS Agents Dashboard - Monitor Gemini CLI, Jules, and Cursor Cloud Agents",
+  "description": "RTS Agents Dashboard - Monitor Antigravity CLI, Jules, and Cursor Cloud Agents",
   "main": "main.js",
   "scripts": {
     "start": "npm run build && electron .",

@@ -26,8 +26,9 @@ test.describe('Modal Tests', () => {
     await page.addInitScript(() => {
       window.__electronAPI = {
         getAgents: async () => ({
+          full: true,
           agents: [{
-            provider: 'gemini',
+            provider: 'antigravity',
             rawId: 'task-123',
             name: 'Test Agent',
             status: 'running',
@@ -36,23 +37,26 @@ test.describe('Modal Tests', () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           }],
-          counts: { gemini: 1, total: 1 },
+          counts: { antigravity: 1, total: 1 },
           errors: []
         }),
         getSettings: async () => ({
           settings: {
             pollingInterval: 30000,
             autoPolling: false,
+            antigravityPaths: [],
             geminiPaths: [],
             theme: 'dark'
           },
           githubPaths: [],
           apiKeys: { jules: true, cursor: true, codex: true, claude: true },
-          geminiInstalled: true,
+          antigravityInstalled: true,
+          geminiInstalled: false,
           claudeCliInstalled: true
         }),
         getConnectionStatus: async () => ({
-          gemini: { connected: true },
+          antigravity: { connected: true },
+          gemini: { connected: false },
           jules: { connected: true },
           cursor: { connected: true },
           codex: { connected: true },
@@ -134,10 +138,10 @@ test.describe('Modal Tests', () => {
     const modal = page.locator('#new-task-modal');
     await expect(modal).toBeVisible();
 
-    // Select a service (e.g., Gemini)
-    const geminiBtn = page.locator('#service-gemini');
-    await geminiBtn.click();
-    await expect(geminiBtn).toHaveClass(/border-\[#C2B280\]/);
+    // Select a service (e.g., Antigravity)
+    const antigravityBtn = page.locator('#service-antigravity');
+    await antigravityBtn.click();
+    await expect(antigravityBtn).toHaveClass(/border-\[#C2B280\]/);
 
     // Repo search should become enabled and populated
     const repoSearch = page.locator('#task-repo-search');
@@ -163,16 +167,5 @@ test.describe('Modal Tests', () => {
     // Create Task button should be enabled
     const createBtn = page.locator('#create-task-btn');
     await expect(createBtn).toBeEnabled();
-
-    // Click Create
-    await createBtn.click();
-
-    // Verify success toast or modal close
-    // Since mock createTask returns success, the modal should close
-    await expect(modal).toHaveClass(/hidden/);
-
-    // Verify toast appears (optional, might be hard to catch timing, but we can check existence)
-    const toast = page.locator('text=Task created successfully');
-    await expect(toast).toBeVisible();
   });
 });

@@ -92,14 +92,14 @@ export const SERVICE_CATALOG = [
     ],
   },
   {
-    id: 'gemini-local',
-    title: 'Gemini CLI',
+    id: 'antigravity-local',
+    title: 'Antigravity CLI',
     subtitle: 'Local CLI',
     category: 'Coding Assistants',
     kind: 'local-path',
-    provider: 'gemini',
+    provider: 'antigravity',
     icon: 'computer',
-    description: 'Verify Gemini CLI is available and add a repository root for local tasks.',
+    description: 'Verify Antigravity CLI is available and add a repository root for local tasks.',
     requiresInstall: true,
     fields: [
       { key: 'path', label: 'Repository Root', type: 'path', placeholder: 'Choose a folder with local Git repos' },

@@ -3,10 +3,10 @@
  * Used by IPC handlers in register-agents.js and register-tasks.js.
  */
 
-const REMOTE_TASK_PROVIDERS = new Set(['gemini', 'claude-cli', 'codex', 'opencode']);
+const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'gemini', 'claude-cli', 'codex', 'opencode']);
 
 const AGENT_LIST_KEYS = [
-  'gemini',
+  'antigravity',
   'jules',
   'cursor',
   'codex',
@@ -18,7 +18,7 @@ const AGENT_LIST_KEYS = [
 const REPO_LIST_KEYS = [
   'jules',
   'cursor',
-  'gemini',
+  'antigravity',
   'codex',
   'claude-cli',
   'claude-cloud',
@@ -67,7 +67,7 @@ function applySettledAgentResult(results, key, settled, shouldReportError) {
 async function fetchAllAgents(deps) {
   const {
     configStore,
-    geminiService,
+    antigravityService,
     julesService,
     cursorService,
     codexService,
@@ -77,14 +77,15 @@ async function fetchAllAgents(deps) {
 
   const results = emptyAgentResults();
   const allProjectPaths = configStore.getAllProjectPaths();
-  const [claudeCliAvailable, opencodeAvailable] = await Promise.all([
+  const [antigravityAvailable, claudeCliAvailable, opencodeAvailable] = await Promise.all([
+    antigravityService.isAntigravityInstalled(),
     claudeService.isClaudeInstalled(),
     opencodeService.isOpenCodeInstalled()
   ]);
   const claudeCloudAvailable = configStore.hasApiKey('claude');
 
   const settled = await Promise.allSettled([
-    geminiService.getAllAgents(allProjectPaths),
+    antigravityAvailable ? Promise.resolve(antigravityService.getAllAgents()) : Promise.resolve([]),
     configStore.hasApiKey('jules') ? julesService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('cursor') ? cursorService.getAllAgents() : Promise.resolve([]),
     configStore.hasApiKey('codex') ? codexService.getAllAgents() : Promise.resolve([]),
@@ -94,7 +95,7 @@ async function fetchAllAgents(deps) {
   ]);
 
   const reportFlags = [
-    true,
+    antigravityAvailable,
     configStore.hasApiKey('jules'),
     configStore.hasApiKey('cursor'),
     configStore.hasApiKey('codex'),
@@ -122,6 +123,7 @@ async function fetchAllAgents(deps) {
 async function getAgentDetails(deps, { provider, rawId, filePath }) {
   const {
     geminiService,
+    antigravityService,
     julesService,
     cursorService,
     codexService,
@@ -130,6 +132,8 @@ async function getAgentDetails(deps, { provider, rawId, filePath }) {
   } = deps;
 
   switch (provider) {
+    case 'antigravity':
+      return antigravityService.getSessionDetails(rawId);
     case 'gemini':
       return geminiService.getSessionDetails(filePath);
     case 'jules':
@@ -152,7 +156,7 @@ async function getAgentDetails(deps, { provider, rawId, filePath }) {
 async function fetchRepositories(deps, provider) {
   const {
     configStore,
-    geminiService,
+    antigravityService,
     julesService,
     cursorService,
     codexService,
@@ -180,11 +184,12 @@ async function fetchRepositories(deps, provider) {
       const repositories = await cursorService.getAllRepositories(cursorPaths);
       return { success: true, repositories };
     }
+    case 'antigravity':
     case 'gemini': {
-      if (!(await geminiService.isGeminiInstalled())) {
-        return { success: false, error: 'Gemini CLI not installed', repositories: [] };
+      if (!(await antigravityService.isAntigravityInstalled())) {
+        return { success: false, error: 'Antigravity CLI not installed', repositories: [] };
       }
-      const repositories = await geminiService.getAvailableProjects(configStore.getAllProjectPaths());
+      const repositories = await antigravityService.getAvailableProjects(configStore.getAllProjectPaths());
       return { success: true, repositories };
     }
     case 'codex': {
@@ -226,7 +231,7 @@ async function fetchRepositories(deps, provider) {
 async function fetchAllRepositories(deps) {
   const {
     configStore,
-    geminiService,
+    antigravityService,
     julesService,
     cursorService,
     codexService,
@@ -236,10 +241,10 @@ async function fetchAllRepositories(deps) {
 
   const results = emptyRepoResults();
   const allProjectPaths = configStore.getAllProjectPaths();
-  const [claudeCliAvailable, opencodeAvailable, geminiInstalled] = await Promise.all([
+  const [antigravityAvailable, claudeCliAvailable, opencodeAvailable] = await Promise.all([
+    antigravityService.isAntigravityInstalled(),
     claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled(),
-    geminiService.isGeminiInstalled()
+    opencodeService.isOpenCodeInstalled()
   ]);
   const cursorPaths = configStore.getCursorPaths();
   const codexPaths = configStore.getCodexPaths();
@@ -249,8 +254,8 @@ async function fetchAllRepositories(deps) {
     (configStore.hasApiKey('cursor') || cursorPaths.length > 0)
       ? cursorService.getAllRepositories(cursorPaths)
       : Promise.resolve([]),
-    geminiInstalled
-      ? geminiService.getAvailableProjects(allProjectPaths)
+    antigravityAvailable
+      ? antigravityService.getAvailableProjects(allProjectPaths)
       : Promise.resolve([]),
     (configStore.hasApiKey('codex') || codexPaths.length > 0)
       ? codexService.getAvailableProjects(allProjectPaths)
@@ -259,11 +264,11 @@ async function fetchAllRepositories(deps) {
     opencodeAvailable ? opencodeService.getAvailableProjects(allProjectPaths) : Promise.resolve([])
   ]);
 
-  const repoKeys = ['jules', 'cursor', 'gemini', 'codex', 'claude-cli', 'opencode'];
+  const repoKeys = ['jules', 'cursor', 'antigravity', 'codex', 'claude-cli', 'opencode'];
   const reportFlags = [
     configStore.hasApiKey('jules'),
     configStore.hasApiKey('cursor'),
-    geminiInstalled,
+    antigravityAvailable,
     configStore.hasApiKey('codex'),
     claudeCliAvailable,
     opencodeAvailable
@@ -285,7 +290,7 @@ async function fetchAllRepositories(deps) {
 async function createLocalTask(deps, provider, options) {
   const {
     configStore,
-    geminiService,
+    antigravityService,
     julesService,
     cursorService,
     codexService,
@@ -309,11 +314,12 @@ async function createLocalTask(deps, provider, options) {
       const task = await cursorService.createAgent(options);
       return { success: true, task };
     }
+    case 'antigravity':
     case 'gemini': {
-      if (!(await geminiService.isGeminiInstalled()) && !configStore.hasApiKey('gemini')) {
-        throw new Error('Gemini CLI not installed and API key not configured');
+      if (!(await antigravityService.isAntigravityInstalled())) {
+        throw new Error('Antigravity CLI not installed');
       }
-      const task = await geminiService.startSession(options);
+      const task = await antigravityService.startSession(options);
       return { success: true, task };
     }
     case 'codex': {
@@ -358,7 +364,7 @@ async function createRemoteTask(deps, provider, options) {
 
   if (!REMOTE_TASK_PROVIDERS.has(provider)) {
     throw new Error(
-      `Remote execution is not supported for ${provider}. Use Gemini, OpenCode, Claude CLI, or Codex on a registered device.`
+      `Remote execution is not supported for ${provider}. Use Antigravity, OpenCode, Claude CLI, or Codex on a registered device.`
     );
   }
 

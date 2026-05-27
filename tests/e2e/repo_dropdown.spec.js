@@ -49,6 +49,8 @@ test.describe('Repository Dropdown Navigation', () => {
     const modal = window.locator('#new-task-modal');
     await expect(modal).toBeVisible();
 
+    await window.click('#environment-cloud');
+
     // Select a service (e.g., Jules)
     await window.click('#service-jules');
 

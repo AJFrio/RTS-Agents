@@ -114,7 +114,7 @@ test.describe('Merge conflict actions', () => {
     await page.waitForLoadState('domcontentloaded');
   });
 
-  test('Shows GitHub + Fix buttons and Fix pre-fills a task', async () => {
+  test('Shows GitHub button and disabled merge button for conflicted PRs', async () => {
     // Go to branches view
     await page.click('button[data-view="branches"]');
     await expect(page.locator('#view-branches')).toBeVisible();
@@ -128,10 +128,9 @@ test.describe('Merge conflict actions', () => {
     await page.locator('.pr-card').first().click();
     await expect(page.locator('#pr-modal')).toBeVisible();
 
-    // Conflict state shows action buttons
+    // Conflict state shows available actions
     await expect(page.locator('#merge-btn')).toBeDisabled();
     await expect(page.locator('#merge-github-btn')).toBeVisible();
-    await expect(page.locator('#merge-fix-btn')).toBeVisible();
 
     // GitHub button opens PR url
     await page.click('#merge-github-btn');
@@ -139,15 +138,6 @@ test.describe('Merge conflict actions', () => {
       return page.evaluate(() => window.__openedExternal.slice());
     }).toContain('https://github.com/acme/demo-repo/pull/7');
 
-    // Fix button opens New Task modal, prefilled repo/branch/prompt
-    await page.click('#merge-fix-btn');
-    await expect(page.locator('#new-task-modal')).toBeVisible();
-
-    await expect(page.locator('#task-repo-search')).toHaveValue('DEMO-REPO');
-    await expect(page.locator('#task-branch')).toHaveValue('feature-1');
-    await expect(page.locator('#task-prompt')).toHaveValue(/merge conflicts/i);
-    await expect(page.locator('#task-prompt')).toHaveValue(/https:\/\/github\.com\/acme\/demo-repo\/pull\/7/);
-    await expect(page.locator('#create-task-btn')).toBeEnabled();
   });
 });
 

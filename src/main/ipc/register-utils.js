@@ -3,6 +3,7 @@ const { ipcMain } = require('electron');
 function registerUtilsHandlers(deps) {
   const {
     configStore,
+    antigravityService,
     geminiService,
     julesService,
     cursorService,
@@ -113,10 +114,10 @@ ipcMain.handle('utils:get-status', async () => {
       configStore.hasApiKey('gemini') ? geminiService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
     ]);
   
-    // Claude CLI status: connected if CLI is installed
-    const [claudeCliInstalled, geminiInstalled, opencodeInstalled] = await Promise.all([
+    // Local CLI status: connected if CLI is installed
+    const [antigravityInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
+      antigravityService.isAntigravityInstalled(),
       claudeService.isClaudeInstalled(),
-      geminiService.isGeminiInstalled(),
       opencodeService.isOpenCodeInstalled()
     ]);
     // Claude Cloud status: connected if API key is valid
@@ -124,14 +125,17 @@ ipcMain.handle('utils:get-status', async () => {
     const geminiApiValid = geminiApiStatus.status === 'fulfilled' && geminiApiStatus.value.success;
     
     return {
+      antigravity: {
+        success: antigravityInstalled,
+        connected: antigravityInstalled,
+        error: antigravityInstalled ? null : 'Antigravity CLI not found'
+      },
       gemini: {
-        success: geminiInstalled || geminiApiValid,
-        connected: geminiInstalled || geminiApiValid,
-        error: geminiInstalled
+        success: geminiApiValid,
+        connected: geminiApiValid,
+        error: geminiApiValid
           ? null
-          : geminiApiValid
-            ? null
-            : (configStore.hasApiKey('gemini') ? (geminiApiStatus.value?.error || 'Gemini API key invalid') : 'Gemini CLI not found & API Key missing')
+          : (configStore.hasApiKey('gemini') ? (geminiApiStatus.value?.error || 'Gemini API key invalid') : 'Not configured')
       },
       openrouter: {
         success: openRouterStatus.status === 'fulfilled' && openRouterStatus.value.success,

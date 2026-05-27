@@ -5,6 +5,10 @@ const { PROJECT_PATH_PROVIDERS } = require('../services/config-path-registry');
  * Provider-specific metadata returned by settings:get-*-paths handlers.
  */
 const PATH_PROVIDER_META = {
+  antigravity: async ({ antigravityService }) => ({
+    defaultPath: antigravityService.getDefaultDataPath(),
+    installed: await antigravityService.isAntigravityInstalled()
+  }),
   gemini: async ({ geminiService }) => ({
     defaultPath: geminiService.getDefaultPath(),
     installed: await geminiService.isGeminiInstalled()
@@ -19,7 +23,7 @@ const PATH_PROVIDER_META = {
 };
 
 function registerSettingsPathHandlers(deps) {
-  const { configStore, lifecycle, geminiService, claudeService } = deps;
+  const { configStore, lifecycle, antigravityService, geminiService, claudeService } = deps;
   const { sendCloudflareHeartbeat, invalidateAgentDiscovery, startDiscoveryWatchers } = lifecycle;
 
   for (const provider of PROJECT_PATH_PROVIDERS) {
@@ -41,7 +45,7 @@ function registerSettingsPathHandlers(deps) {
 
     ipcMain.handle(`settings:get-${provider}-paths`, async () => {
       const metaFn = PATH_PROVIDER_META[provider];
-      const extra = metaFn ? await metaFn({ geminiService, claudeService }) : {};
+      const extra = metaFn ? await metaFn({ antigravityService, geminiService, claudeService }) : {};
       return {
         paths: configStore.getProjectPaths(provider),
         ...extra

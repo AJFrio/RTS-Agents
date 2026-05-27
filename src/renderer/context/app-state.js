@@ -7,7 +7,7 @@ export const initialState = {
   filteredAgents: [],
   filters: {
     providers: {
-      gemini: true,
+      antigravity: true,
       jules: true,
       cursor: true,
       codex: true,
@@ -27,6 +27,7 @@ export const initialState = {
   settings: {
     pollingInterval: 30000,
     autoPolling: true,
+    antigravityPaths: [],
     geminiPaths: [],
     claudePaths: [],
     cursorPaths: [],
@@ -38,7 +39,7 @@ export const initialState = {
     selectedModel: 'openrouter/openai/gpt-4o',
   },
   counts: {
-    gemini: 0,
+    antigravity: 0,
     jules: 0,
     cursor: 0,
     codex: 0,
@@ -48,7 +49,7 @@ export const initialState = {
     total: 0,
   },
   configuredServices: {
-    gemini: false,
+    antigravity: false,
     jules: false,
     cursor: false,
     codex: false,
@@ -61,7 +62,7 @@ export const initialState = {
     jira: false,
   },
   capabilities: {
-    gemini: { cloud: false, local: false },
+    antigravity: { cloud: false, local: false },
     jules: { cloud: false, local: false },
     cursor: { cloud: false, local: false },
     codex: { cloud: false, local: false },
@@ -77,6 +78,7 @@ export const initialState = {
       namespaceTitle: 'rtsa',
     },
     installations: {
+      antigravity: false,
       gemini: false,
       claude: false,
       opencode: false,

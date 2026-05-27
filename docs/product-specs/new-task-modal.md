@@ -12,7 +12,7 @@ Users create new work from the UI with provider-specific fields.
 |----------|----------------|
 | Jules | Repo source, branch, optional auto-PR |
 | Cursor cloud | Repository, ref, optional auto-PR |
-| Gemini CLI | Local git repo path |
+| Antigravity CLI | Local git repo path |
 | Codex | Prompt; repo optional |
 | Claude CLI | Local repo path |
 | Claude cloud | Prompt only |

@@ -55,6 +55,7 @@ async function fingerprintProjectTree(basePath) {
 function getConfigSignature(configStore) {
   return JSON.stringify({
     paths: configStore.getAllProjectPaths(),
+    antigravityPaths: configStore.getAntigravityPaths?.() ?? [],
     geminiPaths: configStore.getGeminiPaths?.() ?? [],
     claudePaths: configStore.getClaudePaths?.() ?? [],
     cursorPaths: configStore.getCursorPaths?.() ?? [],
@@ -67,7 +68,8 @@ function getConfigSignature(configStore) {
     },
     codexThreads: (configStore.getCodexThreads?.() || []).length,
     claudeConversations: (configStore.getClaudeConversations?.() || []).length,
-    opencodeSessions: (configStore.getOpenCodeSessions?.() || []).length
+    opencodeSessions: (configStore.getOpenCodeSessions?.() || []).length,
+    antigravitySessions: (configStore.getAntigravitySessions?.() || []).length
   });
 }
 
@@ -77,8 +79,14 @@ function getConfigSignature(configStore) {
  * @returns {Promise<string>}
  */
 async function computeLocalFingerprint(deps) {
-  const { configStore, geminiService } = deps;
+  const { configStore, antigravityService, geminiService } = deps;
   const parts = [];
+
+  parts.push(await statToken(antigravityService.getDefaultDataPath()));
+  parts.push(await fingerprintProjectTree(antigravityService.getDefaultDataPath()));
+  for (const extra of configStore.getAntigravityPaths?.() || []) {
+    parts.push(await fingerprintProjectTree(extra));
+  }
 
   parts.push(await statToken(geminiService.getDefaultPath()));
   parts.push(await fingerprintProjectTree(geminiService.getDefaultPath()));

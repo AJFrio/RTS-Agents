@@ -16,7 +16,7 @@ jest.mock('fs', () => ({
 
 // Require services AFTER mocking/spying
 let claudeService = require('../../src/main/services/claude-service');
-let geminiService = require('../../src/main/services/gemini-service');
+let antigravityService = require('../../src/main/services/antigravity-service');
 let queueProcessorService = require('../../src/main/services/queue-processor-service');
 
 describe('Security Verification - Command Injection', () => {
@@ -25,7 +25,7 @@ describe('Security Verification - Command Injection', () => {
     spawnSpy.mockClear();
     spawnSyncSpy.mockClear();
     claudeService = require('../../src/main/services/claude-service');
-    geminiService = require('../../src/main/services/gemini-service');
+    antigravityService = require('../../src/main/services/antigravity-service');
     queueProcessorService = require('../../src/main/services/queue-processor-service');
   });
 
@@ -54,7 +54,7 @@ describe('Security Verification - Command Injection', () => {
     });
   });
 
-  describe('GeminiService', () => {
+  describe('AntigravityService', () => {
     it('should NOT use shell: true and NOT manually quote arguments in startSession', async () => {
       const prompt = 'test prompt " with quotes';
       const projectPath = '/tmp/project';
@@ -64,7 +64,7 @@ describe('Security Verification - Command Injection', () => {
       jest.spyOn(fsPromises, 'access').mockResolvedValue(undefined);
 
       try {
-        await geminiService.startSession({ prompt, projectPath });
+        await antigravityService.startSession({ prompt, projectPath });
       } catch (e) {
         console.error('startSession error:', e);
       }

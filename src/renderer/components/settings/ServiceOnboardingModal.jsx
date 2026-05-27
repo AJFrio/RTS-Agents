@@ -22,8 +22,8 @@ function getInitialValues(service, state) {
 
 function getExistingPaths(serviceId, state) {
   switch (serviceId) {
-    case 'gemini-local':
-      return state.settings?.geminiPaths || [];
+    case 'antigravity-local':
+      return state.settings?.antigravityPaths || [];
     case 'claude-local':
       return state.settings?.claudePaths || [];
     case 'cursor-local':
@@ -38,8 +38,8 @@ function getExistingPaths(serviceId, state) {
 }
 
 function getInstallState(serviceId, state) {
-  if (serviceId === 'gemini-local') {
-    return state.serviceInfo?.installations?.gemini;
+  if (serviceId === 'antigravity-local') {
+    return state.serviceInfo?.installations?.antigravity;
   }
   if (serviceId === 'claude-local') {
     return state.serviceInfo?.installations?.claude;
@@ -47,8 +47,34 @@ function getInstallState(serviceId, state) {
   return true;
 }
 
+function isServiceConnected(service, state, existingPaths) {
+  if (!service) return false;
+
+  if (service.kind === 'local-path') {
+    return existingPaths.length > 0;
+  }
+
+  if (service.kind === 'cloud-api-key') {
+    return !!state.serviceInfo?.apiKeys?.[service.provider];
+  }
+
+  if (service.kind === 'jira') {
+    return !!(state.serviceInfo?.apiKeys?.jira || state.settings?.jiraBaseUrl);
+  }
+
+  if (service.kind === 'cloudflare') {
+    return !!(
+      state.serviceInfo?.cloudflare?.configured ||
+      state.serviceInfo?.cloudflare?.accountId ||
+      state.computers?.configured
+    );
+  }
+
+  return false;
+}
+
 async function addPathForService(serviceId, pathValue, api) {
-  if (serviceId === 'gemini-local') return api.addGeminiPath(pathValue);
+  if (serviceId === 'antigravity-local') return api.addAntigravityPath(pathValue);
   if (serviceId === 'claude-local') return api.addClaudePath(pathValue);
   if (serviceId === 'cursor-local') return api.addCursorPath(pathValue);
   if (serviceId === 'codex-local') return api.addCodexPath(pathValue);
@@ -57,7 +83,7 @@ async function addPathForService(serviceId, pathValue, api) {
 }
 
 async function removePathForService(serviceId, pathValue, api) {
-  if (serviceId === 'gemini-local') return api.removeGeminiPath(pathValue);
+  if (serviceId === 'antigravity-local') return api.removeAntigravityPath(pathValue);
   if (serviceId === 'claude-local') return api.removeClaudePath(pathValue);
   if (serviceId === 'cursor-local') return api.removeCursorPath(pathValue);
   if (serviceId === 'codex-local') return api.removeCodexPath(pathValue);
@@ -78,7 +104,7 @@ async function verifyLocalService(serviceId, api) {
   }
 
   const providerMap = {
-    'gemini-local': 'gemini',
+    'antigravity-local': 'antigravity',
     'claude-local': 'claude-cli',
     'cursor-local': 'cursor',
     'codex-local': 'codex',
@@ -127,6 +153,7 @@ export default function ServiceOnboardingModal({
   const existingPaths = getExistingPaths(activeServiceId, state);
   const installReady = getInstallState(activeServiceId, state);
   const closeBlocked = requiredConnection && !hasConnectedServices;
+  const serviceConnected = isServiceConnected(service, state, existingPaths);
 
   const updateValue = (key, value) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
@@ -319,9 +346,11 @@ export default function ServiceOnboardingModal({
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">{service.description}</p>
                 </div>
-                <Button variant="secondary" onClick={handleDisconnect} disabled={busy}>
-                  Disconnect
-                </Button>
+                {serviceConnected && (
+                  <Button variant="secondary" onClick={handleDisconnect} disabled={busy}>
+                    Disconnect
+                  </Button>
+                )}
               </div>
 
               {service.requiresInstall && (

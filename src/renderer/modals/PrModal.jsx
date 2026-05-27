@@ -63,7 +63,7 @@ export default function PrModal({ pr, onClose, api }) {
 
   return (
     <Modal open={!!pr} onClose={onClose}>
-      <div className="bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl rounded-2xl">
+      <div id="pr-modal" className="bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl rounded-2xl">
         <div className="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-start bg-white dark:bg-black/40">
           <div className="flex-1 mr-8">
             <div className="flex items-center gap-3 mb-2">
@@ -121,14 +121,14 @@ export default function PrModal({ pr, onClose, api }) {
             <div className="flex items-center gap-2">
               {state === 'open' && (
                 <>
-                  <Button variant="secondary" onClick={() => api?.openExternal?.(data?.html_url)}>
+                  <Button id="merge-github-btn" variant="secondary" onClick={() => api?.openExternal?.(data?.html_url)}>
                     <span className="material-symbols-outlined text-sm">open_in_new</span>
                     GITHUB
                   </Button>
                   <Button variant="danger" onClick={handleClosePr} disabled={merging}>
                     CLOSE PR
                   </Button>
-                  <Button variant="primary" onClick={handleMerge} disabled={!mergeable || merging}>
+                  <Button id="merge-btn" variant="primary" onClick={handleMerge} disabled={!mergeable || merging}>
                     <span className="material-symbols-outlined text-sm">merge</span>
                     MERGE
                   </Button>

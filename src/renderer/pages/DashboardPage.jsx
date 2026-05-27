@@ -17,6 +17,7 @@ import {
 
 function formatShortTool(tool) {
   if (!tool) return '';
+  if (tool === 'antigravity' || tool === 'gemini') return 'Antigravity CLI';
   if (tool === 'claude-cli') return 'Claude CLI';
   if (tool === 'opencode') return 'OpenCode';
   return String(tool);
@@ -145,7 +146,7 @@ export default function DashboardPage() {
         <EmptyState
           icon="computer"
           title="No Agents Detected"
-          subtitle="Configure API command keys in Settings to establish connection with Jules and Cursor Cloud, or verify Gemini CLI installation for local operations."
+          subtitle="Configure API keys in Settings to establish cloud connections, or verify Antigravity CLI installation for local operations."
           actionLabel="Open Settings"
           onAction={() => setView('settings')}
         />

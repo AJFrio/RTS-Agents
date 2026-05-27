@@ -28,8 +28,8 @@ function setCachedRepos(provider, repos) {
 }
 
 const CLOUD_PROVIDERS = ['jules', 'cursor', 'codex', 'claude-cloud'];
-const LOCAL_PROVIDERS = ['gemini', 'cursor', 'codex', 'claude-cli', 'opencode'];
-const REMOTE_PROVIDERS = ['gemini', 'claude-cli', 'codex', 'opencode'];
+const LOCAL_PROVIDERS = ['antigravity', 'cursor', 'codex', 'claude-cli', 'opencode'];
+const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode'];
 
 function capabilityForProvider(state, provider) {
   if (provider === 'claude-cloud' || provider === 'claude-cli') {
@@ -233,7 +233,7 @@ export default function NewTaskModal({ open, onClose, api }) {
   const selectedRepoDisplay = useMemo(() => {
     if (!selectedRepo) return '';
     const r = repos.find((x) => (x.id ?? x.path) === selectedRepo);
-    return r ? (r.name || r.displayName || r.id || r.path || selectedRepo) : selectedRepo;
+    return r ? (r.displayName || (r.name ? String(r.name).toUpperCase() : null) || r.id || r.path || selectedRepo) : selectedRepo;
   }, [repos, selectedRepo]);
 
   const repoListRef = React.useRef(null);
@@ -440,6 +440,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                   { id: 'remote', label: 'Remote', icon: 'dns' },
                 ].map(({ id, label, icon }) => (
                   <button
+                    id={`environment-${id}`}
                     key={id}
                     type="button"
                     onClick={() => handleEnvironmentChange(id)}
@@ -479,10 +480,15 @@ export default function NewTaskModal({ open, onClose, api }) {
                     const isSelected = selectedService?.provider === id;
                     return (
                       <button
+                        id={`service-${id}`}
                         key={id}
                         type="button"
                         onClick={() => setSelectedService({ provider: id })}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm border transition-colors ${
+                          isSelected
+                            ? 'border-[#C2B280] bg-[#C2B280]/10'
+                            : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                        }`}
                         aria-pressed={isSelected}
                       >
                         <span className={`shrink-0 w-2 h-2 rounded-full ${isSelected ? 'bg-green-500' : 'bg-slate-400 dark:bg-slate-500'}`} aria-hidden />
@@ -511,6 +517,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                   <div className="relative">
                     <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg">
                       <input
+                        id="task-repo-search"
                         type="text"
                         value={repoDropdownOpen ? repoSearch : selectedRepoDisplay}
                         onChange={(e) => {
@@ -550,6 +557,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                           onClick={() => setRepoDropdownOpen(false)}
                         />
                         <ul
+                          id="repo-dropdown"
                           ref={repoListRef}
                           className="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-border-dark rounded-lg shadow-lg py-1"
                           role="listbox"
@@ -559,7 +567,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                           ) : (
                             filteredRepos.map((r, index) => {
                               const value = r.id ?? r.path;
-                              const label = r.name || r.displayName || r.id || r.path || value;
+                              const label = r.displayName || (r.name ? String(r.name).toUpperCase() : null) || r.id || r.path || value;
                               const isHighlighted = index === highlightedIndex;
                               const isSelected = selectedRepo === value;
                               return (
@@ -573,8 +581,8 @@ export default function NewTaskModal({ open, onClose, api }) {
                                       setRepoSearch('');
                                       setRepoDropdownOpen(false);
                                     }}
-                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                                      isHighlighted ? 'bg-slate-100 dark:bg-slate-800' : ''
+                                    className={`repo-option w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                                      isHighlighted ? 'active-repo-option bg-[#C2B280]/20 dark:bg-slate-800' : ''
                                     } ${isSelected ? 'text-primary font-medium' : ''}`}
                                   >
                                     {label}
@@ -640,7 +648,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                     }
                   }}
                   placeholder="Describe the Task..."
-                  className="w-full min-h-[360px] bg-transparent border-none p-6 text-slate-900 dark:text-slate-100 text-base resize-none focus:ring-0 placeholder:text-slate-400"
+                  className="w-full min-h-[360px] bg-transparent border-none p-6 font-sans text-sm text-slate-900 dark:text-slate-100 resize-none focus:ring-0 placeholder:text-slate-400"
                   aria-label="Task description"
                 />
 
@@ -725,6 +733,7 @@ export default function NewTaskModal({ open, onClose, api }) {
               Cancel
             </Button>
             <Button
+              id="create-task-btn"
               variant="primary"
               onClick={handleSubmit}
               disabled={!selectedService || !prompt.trim() || creating || (environment === 'remote' && !targetDeviceId)}

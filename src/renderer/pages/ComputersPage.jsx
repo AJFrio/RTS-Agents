@@ -6,11 +6,13 @@ import { Card } from '../components/ui/Card.jsx';
 import { formatTimeAgo } from '../utils/format.js';
 
 function pickPreferredProvider(tools) {
-  if (!Array.isArray(tools)) return 'gemini';
+  if (!Array.isArray(tools)) return 'antigravity';
+  if (tools.includes('Antigravity CLI')) return 'antigravity';
+  if (tools.includes('Gemini CLI')) return 'antigravity';
   if (tools.includes('OpenCode CLI')) return 'opencode';
   if (tools.includes('claude CLI')) return 'claude-cli';
   if (tools.includes('Codex CLI')) return 'codex';
-  return 'gemini';
+  return 'antigravity';
 }
 
 function ComputerCard({ device, onQueueTask, isThisDevice }) {
@@ -59,9 +61,9 @@ function ComputerCard({ device, onQueueTask, isThisDevice }) {
         <div>
           <div className="text-[9px] technical-font text-slate-500 mb-2">LOCAL_CLI_TOOLS</div>
           <div className="flex flex-wrap gap-2">
-            {tools.includes?.('Gemini CLI') && (
+            {(tools.includes?.('Antigravity CLI') || tools.includes?.('Gemini CLI')) && (
               <span className="px-2 py-0.5 text-[10px] technical-font border border-emerald-500 text-emerald-500">
-                GEMINI_CLI
+                ANTIGRAVITY_CLI
               </span>
             )}
             {tools.includes?.('claude CLI') && (

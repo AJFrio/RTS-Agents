@@ -87,6 +87,7 @@ class ConfigStore {
   }
 
   getAllSettings() {
+    this.migrateGeminiPathsToAntigravity();
     return this.store.get('settings', {});
   }
 
@@ -136,6 +137,7 @@ class ConfigStore {
   }
 
   getProjectPathsByProvider() {
+    this.migrateGeminiPathsToAntigravity();
     return pathRegistry.getPathsByProvider(this.store);
   }
 
@@ -149,6 +151,33 @@ class ConfigStore {
 
   removeGeminiPath(path) {
     return this.removeProjectPath('gemini', path);
+  }
+
+  migrateGeminiPathsToAntigravity() {
+    const legacyPaths = this.getProjectPaths('gemini');
+    if (!Array.isArray(legacyPaths) || legacyPaths.length === 0) {
+      return this.getProjectPaths('antigravity');
+    }
+
+    const antigravityPaths = this.getProjectPaths('antigravity');
+    const merged = [...new Set([...antigravityPaths, ...legacyPaths])];
+    this.store.set('settings.antigravityPaths', merged);
+    this.store.set('settings.geminiPaths', []);
+    return merged;
+  }
+
+  getAntigravityPaths() {
+    return this.migrateGeminiPathsToAntigravity();
+  }
+
+  addAntigravityPath(path) {
+    this.migrateGeminiPathsToAntigravity();
+    return this.addProjectPath('antigravity', path);
+  }
+
+  removeAntigravityPath(path) {
+    this.migrateGeminiPathsToAntigravity();
+    return this.removeProjectPath('antigravity', path);
   }
 
   getClaudePaths() {
@@ -200,6 +229,7 @@ class ConfigStore {
   }
 
   getAllProjectPaths() {
+    this.migrateGeminiPathsToAntigravity();
     return pathRegistry.getAllProjectPaths(this.store);
   }
 
@@ -280,6 +310,14 @@ class ConfigStore {
 
   setOpenCodeSessions(sessions) {
     this.store.set('opencodeSessions', sessions || []);
+  }
+
+  getAntigravitySessions() {
+    return this.store.get('antigravitySessions', []);
+  }
+
+  setAntigravitySessions(sessions) {
+    this.store.set('antigravitySessions', sessions || []);
   }
 
   saveSessionOutput(sessionId, output) {

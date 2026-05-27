@@ -1,6 +1,35 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
+function normalizeModel(model) {
+  if (!model) return null;
+
+  if (typeof model === 'string') {
+    const provider = model.includes('/') ? model.split('/')[0] : 'other';
+    return { id: model, name: model, provider };
+  }
+
+  if (typeof model.id !== 'string' || !model.id.trim()) {
+    return null;
+  }
+
+  const provider = typeof model.provider === 'string' && model.provider.trim()
+    ? model.provider
+    : model.id.includes('/') ? model.id.split('/')[0] : 'other';
+
+  return {
+    ...model,
+    id: model.id,
+    name: typeof model.name === 'string' && model.name.trim() ? model.name : model.id,
+    provider,
+  };
+}
+
+function normalizeModels(result) {
+  if (!Array.isArray(result?.models)) return [];
+  return result.models.map(normalizeModel).filter(Boolean);
+}
+
 export default function ModelSelector({ value, onChange }) {
   const { api } = useApp();
   const [models, setModels] = useState([]);
@@ -14,11 +43,18 @@ export default function ModelSelector({ value, onChange }) {
   // Fetch models on mount
   useEffect(() => {
     let mounted = true;
+
+    if (!api?.orchestratorGetModels) {
+      setModels([]);
+      setLoading(false);
+      return () => { mounted = false; };
+    }
+
     setLoading(true);
     api.orchestratorGetModels()
       .then(result => {
-        if (mounted && result && result.models) {
-          setModels(result.models);
+        if (mounted) {
+          setModels(normalizeModels(result));
         }
       })
       .catch(err => console.error("Failed to load models", err))

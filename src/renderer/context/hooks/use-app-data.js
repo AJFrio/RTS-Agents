@@ -13,6 +13,7 @@ export function useAppData(api, state, dispatch) {
         payload: {
           pollingInterval: result.settings?.pollingInterval ?? 30000,
           autoPolling: result.settings?.autoPolling !== false,
+          antigravityPaths: result.settings?.antigravityPaths ?? result.antigravityPaths ?? [],
           geminiPaths: result.settings?.geminiPaths ?? [],
           claudePaths: result.settings?.claudePaths ?? [],
           cursorPaths: result.settings?.cursorPaths ?? [],
@@ -27,7 +28,7 @@ export function useAppData(api, state, dispatch) {
       dispatch({
         type: 'SET_CONFIGURED_SERVICES',
         payload: {
-          gemini: result.geminiInstalled || (result.geminiPaths?.length > 0) || false,
+          antigravity: result.antigravityInstalled || (result.antigravityPaths?.length > 0) || false,
           jules: !!result.apiKeys?.jules,
           cursor: !!result.apiKeys?.cursor || (result.cursorPaths?.length > 0) || false,
           codex: !!result.apiKeys?.codex || (result.codexPaths?.length > 0) || false,
@@ -43,7 +44,7 @@ export function useAppData(api, state, dispatch) {
       dispatch({
         type: 'SET_CAPABILITIES',
         payload: {
-          gemini: { cloud: false, local: !!(result.geminiInstalled || result.geminiPaths?.length) },
+          antigravity: { cloud: false, local: !!(result.antigravityInstalled || result.antigravityPaths?.length) },
           jules: { cloud: !!result.apiKeys?.jules, local: false },
           cursor: { cloud: !!result.apiKeys?.cursor, local: !!(result.cursorPaths?.length) },
           codex: { cloud: !!result.apiKeys?.codex, local: !!(result.codexPaths?.length) },
@@ -61,6 +62,7 @@ export function useAppData(api, state, dispatch) {
           apiKeys: result.apiKeys ?? {},
           cloudflare: result.cloudflare ?? { configured: false, accountId: '', namespaceTitle: 'rtsa' },
           installations: {
+            antigravity: !!result.antigravityInstalled,
             gemini: !!result.geminiInstalled,
             claude: !!result.claudeCliInstalled,
             opencode: !!result.opencodeInstalled,

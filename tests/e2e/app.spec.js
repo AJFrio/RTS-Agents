@@ -51,15 +51,9 @@ test.describe('E2E Tests', () => {
       const settingsView = await window.locator('#view-settings');
       await expect(settingsView).toBeVisible();
 
-      // Check for API key inputs
-      const julesKeyInput = await window.locator('#jules-api-key');
-      await expect(julesKeyInput).toBeVisible();
-
-      // Check for Cloudflare KV inputs
-      const cloudflareAccountId = await window.locator('#cloudflare-account-id');
-      await expect(cloudflareAccountId).toBeVisible();
-      const cloudflareApiToken = await window.locator('#cloudflare-api-token');
-      await expect(cloudflareApiToken).toBeVisible();
+      // Settings now uses connected-service cards plus guided onboarding.
+      await expect(settingsView).toContainText('Connected Services');
+      await expect(settingsView.getByRole('button', { name: /add service/i })).toBeVisible();
   });
 
   test('Should navigate to Computers view', async () => {

@@ -13,6 +13,7 @@ function registerSettingsHandlers(deps) {
     githubService,
     jiraService,
     opencodeService,
+    antigravityService,
     lifecycle
   } = deps;
   const {
@@ -40,7 +41,8 @@ function registerSettingsHandlers(deps) {
   }
 
 ipcMain.handle('settings:get', async () => {
-    const [geminiInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
+    const [antigravityInstalled, geminiInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
+      antigravityService.isAntigravityInstalled(),
       geminiService.isGeminiInstalled(),
       claudeService.isClaudeInstalled(),
       opencodeService.isOpenCodeInstalled()
@@ -70,6 +72,9 @@ ipcMain.handle('settings:get', async () => {
       })(),
       geminiInstalled,
       geminiDefaultPath: geminiService.getDefaultPath(),
+      antigravityInstalled,
+      antigravityDefaultPath: antigravityService.getDefaultDataPath(),
+      antigravityPaths: configStore.getAntigravityPaths(),
       claudeCliInstalled,
       opencodeInstalled,
       opencodeDefaultPath: opencodeService.getDefaultDataPath(),

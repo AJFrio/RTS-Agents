@@ -17,6 +17,8 @@ const jiraService = require('./src/main/services/jira-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 const opencodeService = require('./src/main/services/opencode-service');
+const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
+const { clearInstallStatusCache } = require('./src/main/utils/install-status');
 
 const { registerAllIpcHandlers } = require('./src/main/ipc');
 
@@ -64,6 +66,7 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     initializeServices();
+    startDiscoveryWatchers();
     startPollingIfEnabled();
     startCloudflareHeartbeatIfEnabled();
   });
@@ -153,6 +156,14 @@ function initializeServices() {
   if (cf?.accountId && cf?.apiToken) {
     cloudflareKvService.setConfig({ accountId: cf.accountId, apiToken: cf.apiToken });
   }
+
+  void Promise.all([
+    geminiService.refreshInstallStatus(),
+    claudeService.refreshInstallStatus(),
+    opencodeService.refreshInstallStatus()
+  ]).catch((err) => {
+    console.warn('Install status warm-up failed:', err?.message || err);
+  });
 }
 
 async function ensureCloudflareNamespaceId() {
@@ -196,11 +207,17 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     repos = [];
   }
 
+  const [claudeInstalled, geminiInstalled, opencodeInstalled] = await Promise.all([
+    claudeService.isClaudeInstalled(),
+    geminiService.isGeminiInstalled(),
+    opencodeService.isOpenCodeInstalled()
+  ]);
+
   const availableCliTools = [];
   if (configStore.getCodexPaths().length > 0) availableCliTools.push('Codex CLI');
-  if (claudeService.isClaudeInstalled()) availableCliTools.push('claude CLI');
-  if (geminiService.isGeminiInstalled()) availableCliTools.push('Gemini CLI');
-  if (opencodeService.isOpenCodeInstalled()) availableCliTools.push('OpenCode CLI');
+  if (claudeInstalled) availableCliTools.push('claude CLI');
+  if (geminiInstalled) availableCliTools.push('Gemini CLI');
+  if (opencodeInstalled) availableCliTools.push('OpenCode CLI');
   if (configStore.getCursorPaths().length > 0) availableCliTools.push('cursor CLI');
 
   const device = {
@@ -308,6 +325,34 @@ function stopAutoUpdateTimer() {
   }
 }
 
+function startDiscoveryWatchers() {
+  const deps = {
+    configStore,
+    geminiService,
+    claudeService,
+    opencodeService
+  };
+  agentDiscoveryCache.startWatchers(deps, () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('agents:refresh-tick');
+    }
+  });
+}
+
+function stopDiscoveryWatchers() {
+  agentDiscoveryCache.stopWatchers();
+}
+
+function invalidateAgentDiscovery() {
+  clearInstallStatusCache();
+  agentDiscoveryCache.invalidate();
+  void Promise.all([
+    geminiService.refreshInstallStatus(),
+    claudeService.refreshInstallStatus(),
+    opencodeService.refreshInstallStatus()
+  ]).catch(() => {});
+}
+
 const lifecycle = {
   ensureCloudflareNamespaceId,
   sendCloudflareHeartbeat,
@@ -317,7 +362,10 @@ const lifecycle = {
   startPolling,
   stopPolling,
   startPollingIfEnabled,
-  initializeServices
+  initializeServices,
+  startDiscoveryWatchers,
+  stopDiscoveryWatchers,
+  invalidateAgentDiscovery
 };
 
 const ipcExports = registerAllIpcHandlers({
@@ -363,6 +411,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   stopPolling();
+  stopDiscoveryWatchers();
   stopCloudflareHeartbeat();
   stopAutoUpdateTimer();
   if (process.platform !== 'darwin') {
@@ -372,6 +421,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', (event) => {
   stopPolling();
+  stopDiscoveryWatchers();
   stopCloudflareHeartbeat();
   stopAutoUpdateTimer();
 

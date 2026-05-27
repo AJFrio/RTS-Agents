@@ -77,9 +77,11 @@ async function fetchAllAgents(deps) {
 
   const results = emptyAgentResults();
   const allProjectPaths = configStore.getAllProjectPaths();
-  const claudeCliAvailable = claudeService.isClaudeInstalled();
+  const [claudeCliAvailable, opencodeAvailable] = await Promise.all([
+    claudeService.isClaudeInstalled(),
+    opencodeService.isOpenCodeInstalled()
+  ]);
   const claudeCloudAvailable = configStore.hasApiKey('claude');
-  const opencodeAvailable = opencodeService.isOpenCodeInstalled();
 
   const settled = await Promise.allSettled([
     geminiService.getAllAgents(allProjectPaths),
@@ -179,7 +181,7 @@ async function fetchRepositories(deps, provider) {
       return { success: true, repositories };
     }
     case 'gemini': {
-      if (!geminiService.isGeminiInstalled()) {
+      if (!(await geminiService.isGeminiInstalled())) {
         return { success: false, error: 'Gemini CLI not installed', repositories: [] };
       }
       const repositories = await geminiService.getAvailableProjects(configStore.getAllProjectPaths());
@@ -197,14 +199,14 @@ async function fetchRepositories(deps, provider) {
       return { success: true, repositories };
     }
     case 'claude-cli': {
-      if (!claudeService.isClaudeInstalled()) {
+      if (!(await claudeService.isClaudeInstalled())) {
         return { success: false, error: 'Claude CLI not installed', repositories: [] };
       }
       const repositories = await claudeService.getAvailableProjects(configStore.getAllProjectPaths());
       return { success: true, repositories };
     }
     case 'opencode': {
-      if (!opencodeService.isOpenCodeInstalled()) {
+      if (!(await opencodeService.isOpenCodeInstalled())) {
         return { success: false, error: 'OpenCode CLI not installed', repositories: [] };
       }
       const repositories = await opencodeService.getAvailableProjects(configStore.getAllProjectPaths());
@@ -234,8 +236,11 @@ async function fetchAllRepositories(deps) {
 
   const results = emptyRepoResults();
   const allProjectPaths = configStore.getAllProjectPaths();
-  const claudeCliAvailable = claudeService.isClaudeInstalled();
-  const opencodeAvailable = opencodeService.isOpenCodeInstalled();
+  const [claudeCliAvailable, opencodeAvailable, geminiInstalled] = await Promise.all([
+    claudeService.isClaudeInstalled(),
+    opencodeService.isOpenCodeInstalled(),
+    geminiService.isGeminiInstalled()
+  ]);
   const cursorPaths = configStore.getCursorPaths();
   const codexPaths = configStore.getCodexPaths();
 
@@ -244,7 +249,7 @@ async function fetchAllRepositories(deps) {
     (configStore.hasApiKey('cursor') || cursorPaths.length > 0)
       ? cursorService.getAllRepositories(cursorPaths)
       : Promise.resolve([]),
-    geminiService.isGeminiInstalled()
+    geminiInstalled
       ? geminiService.getAvailableProjects(allProjectPaths)
       : Promise.resolve([]),
     (configStore.hasApiKey('codex') || codexPaths.length > 0)
@@ -258,7 +263,7 @@ async function fetchAllRepositories(deps) {
   const reportFlags = [
     configStore.hasApiKey('jules'),
     configStore.hasApiKey('cursor'),
-    geminiService.isGeminiInstalled(),
+    geminiInstalled,
     configStore.hasApiKey('codex'),
     claudeCliAvailable,
     opencodeAvailable
@@ -305,7 +310,7 @@ async function createLocalTask(deps, provider, options) {
       return { success: true, task };
     }
     case 'gemini': {
-      if (!geminiService.isGeminiInstalled() && !configStore.hasApiKey('gemini')) {
+      if (!(await geminiService.isGeminiInstalled()) && !configStore.hasApiKey('gemini')) {
         throw new Error('Gemini CLI not installed and API key not configured');
       }
       const task = await geminiService.startSession(options);
@@ -320,14 +325,14 @@ async function createLocalTask(deps, provider, options) {
       return { success: true, task };
     }
     case 'claude-cli': {
-      if (!claudeService.isClaudeInstalled()) {
+      if (!(await claudeService.isClaudeInstalled())) {
         throw new Error('Claude CLI not installed');
       }
       const task = await claudeService.startLocalSession(options);
       return { success: true, task: { ...task, provider: 'claude-cli' } };
     }
     case 'opencode': {
-      if (!opencodeService.isOpenCodeInstalled()) {
+      if (!(await opencodeService.isOpenCodeInstalled())) {
         throw new Error('OpenCode CLI not installed or not on PATH');
       }
       const task = await opencodeService.startSession(options);

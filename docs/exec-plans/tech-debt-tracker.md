@@ -6,10 +6,6 @@ Synced from [UPDATES.md](../../UPDATES.md) performance findings. Remove items he
 
 | ID | Issue | Suggested fix | Priority |
 |----|-------|---------------|----------|
-| TD-001 | Sync FS in Gemini/Claude/Project services blocks main thread | `fs.promises` + `Promise.all` in discovery | High |
-| TD-002 | 30s full poll rescans everything | File watchers or mtime cache | High |
-| TD-003 | Full agent list over IPC every poll | Pagination or delta updates | Medium |
-
 ## Harness / DX
 
 | ID | Issue | Suggested fix | Priority |
@@ -27,5 +23,6 @@ Synced from [UPDATES.md](../../UPDATES.md) performance findings. Remove items he
 | TD-013 | 2026-05-26 | KV unit tests target `putValue` / `getValueText`; re-enabled in `test:ci` |
 | TD-015 | 2026-05-26 | Removed `continue-on-error` on GHA e2e job (xvfb-maybe unchanged) |
 | TD-012 | 2026-05-26 | IPC handlers in `src/main/ipc/register-*.js`; preload split under `src/preload/` |
-
-_Partial TD-001 (2026-05-26): Claude session scan paths use `fs.promises`; Gemini discovery was already async. Remaining sync checks: `existsSync` for install probes and infrequent project-service paths._
+| TD-001 | 2026-05-26 | Async install probes (`pathExists`); ProjectService uses async existence checks |
+| TD-002 | 2026-05-26 | `agent-discovery-fingerprint` + `fs.watch` debounce; skip fetch when fingerprint stable |
+| TD-003 | 2026-05-26 | `agents:get-all` revision + delta; renderer `MERGE_AGENTS_DELTA`; `React.memo` on cards |

@@ -89,22 +89,51 @@ export function useAppData(api, state, dispatch) {
   }, [api, dispatch]);
 
   const loadAgents = useCallback(
-    async (silent = false) => {
+    async (arg = false) => {
       if (!api) return;
+      const silent = typeof arg === 'boolean' ? arg : arg.silent ?? false;
+      const force = typeof arg === 'object' && arg !== null ? arg.force ?? false : false;
+
       if (!silent && state.agents.length === 0) {
         dispatch({ type: 'SET_LOADING', payload: true });
       }
       dispatch({ type: 'SET_REFRESHING', payload: true });
       try {
-        const result = await api.getAgents();
-        dispatch({
-          type: 'SET_AGENTS',
-          payload: {
-            agents: result.agents ?? [],
-            counts: result.counts ?? state.counts,
-            errors: result.errors ?? [],
-          },
+        const result = await api.getAgents({
+          sinceRevision: state.agentListRevision,
+          force: force || (!silent && state.agents.length === 0),
         });
+
+        if (result?.unchanged) {
+          return;
+        }
+
+        const payload = {
+          revision: result.revision,
+          counts: result.counts ?? state.counts,
+          errors: result.errors ?? [],
+        };
+
+        if (result.full) {
+          dispatch({
+            type: 'SET_AGENTS',
+            payload: {
+              ...payload,
+              agents: result.agents ?? [],
+            },
+          });
+          return;
+        }
+
+        if (result.delta) {
+          dispatch({
+            type: 'MERGE_AGENTS_DELTA',
+            payload: {
+              ...payload,
+              delta: result.delta,
+            },
+          });
+        }
       } catch (err) {
         console.error('Error loading agents:', err);
         dispatch({ type: 'SET_AGENTS', payload: { errors: [{ provider: 'system', error: err.message }] } });
@@ -113,7 +142,7 @@ export function useAppData(api, state, dispatch) {
         dispatch({ type: 'SET_REFRESHING', payload: false });
       }
     },
-    [api, dispatch, state.agents.length, state.counts]
+    [api, dispatch, state.agents.length, state.agentListRevision, state.counts]
   );
 
   const checkConnectionStatus = useCallback(async () => {

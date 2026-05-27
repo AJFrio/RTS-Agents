@@ -66,7 +66,7 @@ function RemoteQueueStrip({ activity }) {
   );
 }
 
-function AgentCardItem({ agent, onClick }) {
+const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
   const style = getStatusStyle(agent.status);
   const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
   const statusLabel = getStatusLabel(agent.status);
@@ -111,7 +111,7 @@ function AgentCardItem({ agent, onClick }) {
       )}
     </AgentCard>
   );
-}
+});
 
 export default function DashboardPage() {
   const { state, dispatch, setView, openAgentModal } = useApp();

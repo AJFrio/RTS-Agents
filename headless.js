@@ -71,14 +71,20 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
   const opencodeCmd = typeof cliCommands?.opencode === 'string' ? cliCommands.opencode : '';
 
+  const [geminiInstalled, claudeInstalled, opencodeInstalled] = await Promise.all([
+    geminiService.isGeminiInstalled(),
+    claudeService.isClaudeInstalled(),
+    opencodeService.isOpenCodeInstalled()
+  ]);
+
   const availableCliTools = [];
-  if (geminiService.isGeminiInstalled() || queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
+  if (geminiInstalled || queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
     availableCliTools.push('Gemini CLI');
   }
-  if (claudeService.isClaudeInstalled() || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
+  if (claudeInstalled || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
     availableCliTools.push('claude CLI');
   }
-  if (opencodeService.isOpenCodeInstalled() || queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
+  if (opencodeInstalled || queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
     availableCliTools.push('OpenCode CLI');
   }
 
@@ -149,17 +155,17 @@ async function runSetupPrompts() {
     let claudeCmd = typeof existingCli?.claude === 'string' ? existingCli.claude : '';
     let opencodeCmd = typeof existingCli?.opencode === 'string' ? existingCli.opencode : '';
 
-    if (!geminiService.isGeminiInstalled() && !queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
+    if (!(await geminiService.isGeminiInstalled()) && !queueProcessorService.isCommandRunnable(geminiCmd || 'gemini')) {
       const answer = String(await rl.question('Gemini CLI not detected. Full path to gemini executable (or blank to skip): ')).trim();
       if (answer) geminiCmd = answer;
     }
 
-    if (!claudeService.isClaudeInstalled() && !queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
+    if (!(await claudeService.isClaudeInstalled()) && !queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
       const answer = String(await rl.question('Claude CLI not detected. Full path to claude executable (or blank to skip): ')).trim();
       if (answer) claudeCmd = answer;
     }
 
-    if (!opencodeService.isOpenCodeInstalled() && !queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
+    if (!(await opencodeService.isOpenCodeInstalled()) && !queueProcessorService.isCommandRunnable(opencodeCmd || (process.platform === 'win32' ? 'opencode.cmd' : 'opencode'))) {
       const answer = String(await rl.question('OpenCode CLI not detected. Full path to opencode (or blank to skip): ')).trim();
       if (answer) opencodeCmd = answer;
     }

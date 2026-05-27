@@ -5,13 +5,13 @@ const { PROJECT_PATH_PROVIDERS } = require('../services/config-path-registry');
  * Provider-specific metadata returned by settings:get-*-paths handlers.
  */
 const PATH_PROVIDER_META = {
-  gemini: ({ geminiService }) => ({
+  gemini: async ({ geminiService }) => ({
     defaultPath: geminiService.getDefaultPath(),
-    installed: geminiService.isGeminiInstalled()
+    installed: await geminiService.isGeminiInstalled()
   }),
-  claude: ({ claudeService }) => ({
+  claude: async ({ claudeService }) => ({
     defaultPath: claudeService.getDefaultPath(),
-    installed: claudeService.isClaudeInstalled()
+    installed: await claudeService.isClaudeInstalled()
   }),
   cursor: () => ({}),
   codex: () => ({}),
@@ -20,24 +20,28 @@ const PATH_PROVIDER_META = {
 
 function registerSettingsPathHandlers(deps) {
   const { configStore, lifecycle, geminiService, claudeService } = deps;
-  const { sendCloudflareHeartbeat } = lifecycle;
+  const { sendCloudflareHeartbeat, invalidateAgentDiscovery, startDiscoveryWatchers } = lifecycle;
 
   for (const provider of PROJECT_PATH_PROVIDERS) {
     ipcMain.handle(`settings:add-${provider}-path`, async (event, { path: projectPath }) => {
       const paths = configStore.addProjectPath(provider, projectPath);
+      invalidateAgentDiscovery();
+      startDiscoveryWatchers();
       void sendCloudflareHeartbeat().catch(console.error);
       return { success: true, paths };
     });
 
     ipcMain.handle(`settings:remove-${provider}-path`, async (event, { path: projectPath }) => {
       const paths = configStore.removeProjectPath(provider, projectPath);
+      invalidateAgentDiscovery();
+      startDiscoveryWatchers();
       void sendCloudflareHeartbeat().catch(console.error);
       return { success: true, paths };
     });
 
     ipcMain.handle(`settings:get-${provider}-paths`, async () => {
       const metaFn = PATH_PROVIDER_META[provider];
-      const extra = metaFn ? metaFn({ geminiService, claudeService }) : {};
+      const extra = metaFn ? await metaFn({ geminiService, claudeService }) : {};
       return {
         paths: configStore.getProjectPaths(provider),
         ...extra

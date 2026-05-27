@@ -114,10 +114,13 @@ ipcMain.handle('utils:get-status', async () => {
     ]);
   
     // Claude CLI status: connected if CLI is installed
-    const claudeCliInstalled = claudeService.isClaudeInstalled();
+    const [claudeCliInstalled, geminiInstalled, opencodeInstalled] = await Promise.all([
+      claudeService.isClaudeInstalled(),
+      geminiService.isGeminiInstalled(),
+      opencodeService.isOpenCodeInstalled()
+    ]);
     // Claude Cloud status: connected if API key is valid
     const claudeCloudValid = claudeCloudStatus.status === 'fulfilled' && claudeCloudStatus.value.success;
-    const geminiInstalled = geminiService.isGeminiInstalled();
     const geminiApiValid = geminiApiStatus.status === 'fulfilled' && geminiApiStatus.value.success;
     
     return {
@@ -148,10 +151,11 @@ ipcMain.handle('utils:get-status', async () => {
         connected: claudeCliInstalled,
         error: claudeCliInstalled ? null : 'Claude CLI not installed'
       },
-      opencode: (() => {
-        const o = opencodeService.isOpenCodeInstalled();
-        return { success: o, connected: o, error: o ? null : 'OpenCode CLI not found' };
-      })(),
+      opencode: {
+        success: opencodeInstalled,
+        connected: opencodeInstalled,
+        error: opencodeInstalled ? null : 'OpenCode CLI not found'
+      },
       'claude-cloud': {
         success: claudeCloudValid,
         connected: claudeCloudValid,

@@ -1,9 +1,10 @@
-const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const { upsertItem } = require('../utils/collection-utils');
 const httpService = require('./http-service');
+const { pathExists } = require('../utils/path-exists');
+const installStatus = require('../utils/install-status');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -33,10 +34,26 @@ class ClaudeService {
   }
 
   /**
-   * Check if Claude Code CLI is installed
+   * Check if Claude Code CLI is installed (async; warms install cache).
    */
-  isClaudeInstalled() {
-    return fs.existsSync(CLAUDE_HOME);
+  async isClaudeInstalled() {
+    const cached = installStatus.getCached('claude');
+    if (cached !== undefined) {
+      return cached;
+    }
+    return this.refreshInstallStatus();
+  }
+
+  /** @returns {boolean} Last known install state (false until warmed). */
+  isClaudeInstalledSync() {
+    const cached = installStatus.getCached('claude');
+    return cached === undefined ? false : cached;
+  }
+
+  async refreshInstallStatus() {
+    const installed = await pathExists(CLAUDE_HOME);
+    installStatus.setCached('claude', installed);
+    return installed;
   }
 
   /**
@@ -400,7 +417,7 @@ class ClaudeService {
     const results = [];
 
     // Get local sessions if CLI is installed
-    if (this.isClaudeInstalled()) {
+    if (await this.isClaudeInstalled()) {
       try {
         const localSessions = await this.getAllLocalSessions(additionalPaths);
         results.push(...localSessions);
@@ -527,7 +544,7 @@ class ClaudeService {
     }
 
     // If projectPath is provided and CLI is installed, start a local session
-    if (projectPath && this.isClaudeInstalled()) {
+    if (projectPath && (await this.isClaudeInstalled())) {
       return this.startLocalSession(options);
     }
 

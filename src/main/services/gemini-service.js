@@ -1,8 +1,9 @@
-const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
 const httpService = require('./http-service');
+const { pathExists } = require('../utils/path-exists');
+const installStatus = require('../utils/install-status');
 
 class GeminiService {
   constructor() {
@@ -77,10 +78,26 @@ class GeminiService {
   }
 
   /**
-   * Check if Gemini CLI directory exists
+   * Check if Gemini CLI directory exists (async; warms install cache).
    */
-  isGeminiInstalled() {
-    return fs.existsSync(this.baseDir);
+  async isGeminiInstalled() {
+    const cached = installStatus.getCached('gemini');
+    if (cached !== undefined) {
+      return cached;
+    }
+    return this.refreshInstallStatus();
+  }
+
+  /** @returns {boolean} Last known install state (false until warmed). */
+  isGeminiInstalledSync() {
+    const cached = installStatus.getCached('gemini');
+    return cached === undefined ? false : cached;
+  }
+
+  async refreshInstallStatus() {
+    const installed = await pathExists(this.baseDir);
+    installStatus.setCached('gemini', installed);
+    return installed;
   }
 
   /**

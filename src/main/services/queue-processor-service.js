@@ -49,7 +49,7 @@ class QueueProcessorService {
 
       const baseStatus = {
         status: 'starting',
-        tool: item?.tool === 'gemini' ? 'antigravity' : item?.tool || null,
+        tool: item?.tool || null,
         repo: item?.repo || null,
         prompt: item?.prompt || null,
         requestedBy: item?.requestedBy || null,
@@ -60,7 +60,7 @@ class QueueProcessorService {
 
       await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, baseStatus);
 
-      const tool = item?.tool === 'gemini' ? 'antigravity' : item?.tool;
+      const tool = item?.tool;
       if (!tool) throw new Error('Queued task missing tool');
 
       // Project/repo creation tasks

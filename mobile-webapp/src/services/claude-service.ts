@@ -137,7 +137,7 @@ class ClaudeService {
       if (stored) {
         trackedConversations = JSON.parse(stored);
       }
-    } catch (err) {
+    } catch {
       // Ignore error
     }
   }
@@ -145,7 +145,7 @@ class ClaudeService {
   saveTrackedConversations() {
     try {
       localStorage.setItem('claude_tracked_conversations', JSON.stringify(trackedConversations));
-    } catch (err) {
+    } catch {
       // Ignore error
     }
   }

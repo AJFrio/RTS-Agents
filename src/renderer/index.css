@@ -40,7 +40,6 @@
     @apply inline-flex items-center px-2 py-0.5 text-xs font-medium border;
   }
   .provider-badge.antigravity { @apply border-emerald-500 text-emerald-500; }
-  .provider-badge.gemini { @apply border-teal-500 text-teal-500; }
   .provider-badge.jules { @apply border-primary text-primary; }
   .provider-badge.cursor { @apply border-blue-500 text-blue-500; }
   .provider-badge.codex { @apply border-cyan-500 text-cyan-500; }

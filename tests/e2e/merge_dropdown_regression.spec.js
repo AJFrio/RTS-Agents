@@ -27,7 +27,6 @@ test.describe('Merge workflow should not break inputs/dropdowns', () => {
           settings: { theme: 'dark', pollingInterval: 30000, autoPolling: false },
           githubPaths: [],
           apiKeys: { github: true, jules: true, cursor: true, codex: true, claude: true },
-          geminiInstalled: true,
           claudeCliInstalled: true
         }),
         getConnectionStatus: async () => ({

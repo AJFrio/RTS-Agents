@@ -28,7 +28,6 @@ export const initialState = {
     pollingInterval: 30000,
     autoPolling: true,
     antigravityPaths: [],
-    geminiPaths: [],
     claudePaths: [],
     cursorPaths: [],
     codexPaths: [],
@@ -57,7 +56,6 @@ export const initialState = {
     'claude-cloud': false,
     opencode: false,
     openrouter: false,
-    openai: false,
     github: false,
     jira: false,
   },
@@ -79,7 +77,6 @@ export const initialState = {
     },
     installations: {
       antigravity: false,
-      gemini: false,
       claude: false,
       opencode: false,
     },

@@ -7,6 +7,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../store/AppContext';
 
+interface OrchestratorResponse {
+  content: string;
+}
+
 interface Message {
   id: number;
   sender: 'user' | 'assistant';
@@ -55,7 +59,7 @@ export default function AgentView() {
         content: m.content || m.text
       }));
 
-      const response: any = await agentOrchestratorService.chat(history, selectedModel);
+      const response = await agentOrchestratorService.chat(history, selectedModel) as OrchestratorResponse;
 
       if (response) {
         const assistantMsg: Message = {
@@ -67,12 +71,13 @@ export default function AgentView() {
         };
         setMessages(prev => [...prev, assistantMsg]);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'assistant',
-        text: `Error: ${err.message}`,
+        text: `Error: ${message}`,
         isError: true
       }]);
     } finally {

@@ -1,5 +1,29 @@
 const BASE_URL = 'https://openrouter.ai/api/v1';
 
+export interface OpenRouterChatMessage {
+  role: string;
+  content: string;
+}
+
+export interface OpenRouterChatResponse {
+  choices: Array<{
+    message: OpenRouterChatMessage;
+  }>;
+}
+
+interface OpenRouterErrorResponse {
+  error?: {
+    message?: string;
+  };
+}
+
+interface OpenRouterModelsResponse {
+  data?: Array<{
+    id: string;
+    name?: string;
+  }>;
+}
+
 class OpenRouterService {
   private apiKey: string | null = null;
 
@@ -15,7 +39,7 @@ class OpenRouterService {
     return !!this.apiKey;
   }
 
-  private async request(endpoint: string, method = 'GET', body: unknown = null) {
+  private async request<T = unknown>(endpoint: string, method = 'GET', body: unknown = null): Promise<T> {
     if (!this.apiKey) {
       throw new Error('OpenRouter API key not configured');
     }
@@ -36,7 +60,7 @@ class OpenRouterService {
     if (!response.ok) {
         let errorMessage = `OpenRouter API error: ${response.status}`;
         try {
-            const errorData = await response.json();
+            const errorData = await response.json() as OpenRouterErrorResponse;
             if (errorData?.error?.message) {
                 errorMessage = `OpenRouter API error: ${errorData.error.message}`;
             } else {
@@ -50,11 +74,15 @@ class OpenRouterService {
         throw new Error(errorMessage);
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   }
 
-  async chat(messages: Array<{role: string, content: string}>, model = 'openai/gpt-4o', tools = null) {
-    const body: any = {
+  async chat(messages: OpenRouterChatMessage[], model = 'openai/gpt-4o', tools: unknown = null): Promise<OpenRouterChatResponse> {
+    const body: {
+      model: string;
+      messages: OpenRouterChatMessage[];
+      tools?: unknown;
+    } = {
       model: model,
       messages: messages
     };
@@ -63,7 +91,7 @@ class OpenRouterService {
       body.tools = tools;
     }
 
-    return this.request('/chat/completions', 'POST', body);
+    return this.request<OpenRouterChatResponse>('/chat/completions', 'POST', body);
   }
 
   async testConnection(): Promise<{ success: boolean; error?: string }> {
@@ -81,9 +109,9 @@ class OpenRouterService {
     }
 
     try {
-      const response = await this.request('/models');
+      const response = await this.request<OpenRouterModelsResponse>('/models');
       if (response && Array.isArray(response.data)) {
-        return response.data.map((m: any) => ({
+        return response.data.map((m) => ({
           id: 'openrouter/' + m.id,
           name: m.name || m.id,
           provider: 'openrouter'

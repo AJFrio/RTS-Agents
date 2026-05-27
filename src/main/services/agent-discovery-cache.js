@@ -40,14 +40,13 @@ class AgentDiscoveryCache {
   }
 
   collectWatchRoots(deps) {
-    const { configStore, antigravityService, geminiService, claudeService } = deps;
+    const { configStore, antigravityService, claudeService } = deps;
     const roots = new Set();
     const add = (p) => {
       if (p && typeof p === 'string') roots.add(p);
     };
 
     add(antigravityService.getDefaultDataPath());
-    add(geminiService.getDefaultPath());
     add(claudeService.getDefaultPath());
     add(path.join(os.homedir(), '.claude', 'projects'));
     add(path.join(os.homedir(), '.opencode'));
@@ -56,7 +55,6 @@ class AgentDiscoveryCache {
       add(p);
     }
     for (const p of configStore.getAntigravityPaths?.() || []) add(p);
-    for (const p of configStore.getGeminiPaths?.() || []) add(p);
     for (const p of configStore.getClaudePaths?.() || []) add(p);
 
     return [...roots];

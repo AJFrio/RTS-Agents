@@ -26,7 +26,6 @@ import {
   cloudflareKvService,
   storageService,
   openRouterService,
-  geminiService,
   agentOrchestratorService,
 } from '../services';
 
@@ -289,7 +288,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const jiraKey = storageService.getApiKey('jira');
     const githubKey = storageService.getApiKey('github');
     const openRouterKey = storageService.getApiKey('openrouter');
-    const geminiKey = storageService.getApiKey('gemini');
 
     const cfConfig = storageService.getCloudflareConfig();
     const appSettings = storageService.getSettings();
@@ -301,7 +299,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (jiraKey) jiraService.setApiKey(jiraKey);
     if (githubKey) githubService.setApiKey(githubKey);
     if (openRouterKey) openRouterService.setApiKey(openRouterKey);
-    if (geminiKey) geminiService.setApiKey(geminiKey);
 
     if (cfConfig) cloudflareKvService.setConfig(cfConfig);
     jiraService.setBaseUrl(appSettings.jiraBaseUrl || null);
@@ -335,9 +332,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       case 'openrouter':
         openRouterService.setApiKey(key);
         break;
-      case 'gemini':
-        geminiService.setApiKey(key);
-        break;
     }
 
     dispatch({ type: 'SET_CONFIGURED_SERVICES', payload: storageService.getApiKeyStatus() });
@@ -360,8 +354,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return githubService.testConnection();
       case 'openrouter':
         return openRouterService.testConnection();
-      case 'gemini':
-        return geminiService.testConnection();
       default:
         return { success: false, error: 'Unknown provider' };
     }
@@ -411,8 +403,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         githubToken: 'github',
         openrouter: 'openrouter',
         openrouterApiKey: 'openrouter',
-        gemini: 'gemini',
-        geminiApiKey: 'gemini',
       };
 
       for (const [kvKey, value] of Object.entries(keys)) {
@@ -421,7 +411,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const provider = keyMapping[kvKey] || kvKey;
         
         // Only import recognized providers
-        if (['jules', 'cursor', 'codex', 'claude', 'jira', 'github', 'openrouter', 'gemini'].includes(provider)) {
+        if (['jules', 'cursor', 'codex', 'claude', 'jira', 'github', 'openrouter'].includes(provider)) {
           storageService.setApiKey(provider, value);
           
           // Update the service
@@ -446,9 +436,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               break;
             case 'openrouter':
               openRouterService.setApiKey(value);
-              break;
-            case 'gemini':
-              geminiService.setApiKey(value);
               break;
           }
           
@@ -555,7 +542,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const newIds = readyAgents.filter(a => !lastReadyTaskIds.current.has(a.id));
       if (newIds.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
         try {
-          // eslint-disable-next-line no-new
           new Notification('RTS Agents', {
             body: `${readyAgents.length} tasks ready for review`,
             icon: '/icons/icon-192x192.png'
@@ -845,6 +831,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 // Hook
 // ============================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useApp() {
   const context = useContext(AppContext);
   if (!context) {

@@ -87,7 +87,6 @@ class ConfigStore {
   }
 
   getAllSettings() {
-    this.migrateGeminiPathsToAntigravity();
     return this.store.get('settings', {});
   }
 
@@ -137,46 +136,18 @@ class ConfigStore {
   }
 
   getProjectPathsByProvider() {
-    this.migrateGeminiPathsToAntigravity();
     return pathRegistry.getPathsByProvider(this.store);
   }
 
-  getGeminiPaths() {
-    return this.getProjectPaths('gemini');
-  }
-
-  addGeminiPath(path) {
-    return this.addProjectPath('gemini', path);
-  }
-
-  removeGeminiPath(path) {
-    return this.removeProjectPath('gemini', path);
-  }
-
-  migrateGeminiPathsToAntigravity() {
-    const legacyPaths = this.getProjectPaths('gemini');
-    if (!Array.isArray(legacyPaths) || legacyPaths.length === 0) {
-      return this.getProjectPaths('antigravity');
-    }
-
-    const antigravityPaths = this.getProjectPaths('antigravity');
-    const merged = [...new Set([...antigravityPaths, ...legacyPaths])];
-    this.store.set('settings.antigravityPaths', merged);
-    this.store.set('settings.geminiPaths', []);
-    return merged;
-  }
-
   getAntigravityPaths() {
-    return this.migrateGeminiPathsToAntigravity();
+    return this.getProjectPaths('antigravity');
   }
 
   addAntigravityPath(path) {
-    this.migrateGeminiPathsToAntigravity();
     return this.addProjectPath('antigravity', path);
   }
 
   removeAntigravityPath(path) {
-    this.migrateGeminiPathsToAntigravity();
     return this.removeProjectPath('antigravity', path);
   }
 
@@ -229,7 +200,6 @@ class ConfigStore {
   }
 
   getAllProjectPaths() {
-    this.migrateGeminiPathsToAntigravity();
     return pathRegistry.getAllProjectPaths(this.store);
   }
 

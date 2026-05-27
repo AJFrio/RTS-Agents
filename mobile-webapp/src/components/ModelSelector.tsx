@@ -12,6 +12,10 @@ interface ModelSelectorProps {
   onChange: (model: string) => void;
 }
 
+interface AvailableModelsResult {
+  models?: Model[];
+}
+
 export default function ModelSelector({ value, onChange }: ModelSelectorProps) {
   const { agentOrchestratorService } = useApp();
   const [models, setModels] = useState<Model[]>([]);
@@ -27,12 +31,12 @@ export default function ModelSelector({ value, onChange }: ModelSelectorProps) {
     let mounted = true;
     setLoading(true);
     agentOrchestratorService.getAvailableModels()
-      .then((result: any) => {
+      .then((result: AvailableModelsResult) => {
         if (mounted && result && result.models) {
           setModels(result.models);
         }
       })
-      .catch((err: any) => console.error("Failed to load models", err))
+      .catch((err: unknown) => console.error("Failed to load models", err))
       .finally(() => {
         if (mounted) setLoading(false);
       });

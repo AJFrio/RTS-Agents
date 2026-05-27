@@ -1,9 +1,6 @@
 const openRouterService = require('./openrouter-service');
 const cloudflareKvService = require('./cloudflare-kv-service');
 const configStore = require('./config-store');
-const codexService = require('./codex-service');
-const claudeService = require('./claude-service');
-const geminiService = require('./gemini-service');
 
 class AgentOrchestrator {
   constructor() {
@@ -18,48 +15,14 @@ class AgentOrchestrator {
     const models = [];
     const errors = [];
 
-    // Check configuration and fetch models in parallel
-    const promises = [];
-
-    // OpenRouter
     if (configStore.hasApiKey('openrouter')) {
-      promises.push(
-        openRouterService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'openrouter', error: err.message }))
-      );
+      try {
+        models.push(...await openRouterService.getModels());
+      } catch (err) {
+        errors.push({ provider: 'openrouter', error: err.message });
+      }
     }
 
-    // OpenAI (Codex)
-    if (configStore.hasApiKey('openai') || configStore.hasApiKey('codex')) {
-      promises.push(
-        codexService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'openai', error: err.message }))
-      );
-    }
-
-    // Anthropic (Claude)
-    if (configStore.hasApiKey('claude')) {
-      promises.push(
-        claudeService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'anthropic', error: err.message }))
-      );
-    }
-
-    // Gemini
-    if (configStore.hasApiKey('gemini')) {
-      promises.push(
-        geminiService.getModels()
-          .then(list => models.push(...list))
-          .catch(err => errors.push({ provider: 'gemini', error: err.message }))
-      );
-    }
-
-    await Promise.all(promises);
-
-    // If no keys configured, return empty list
     return { models, errors };
   }
 
@@ -74,14 +37,14 @@ You have access to the following tools:
 1. list_computers(): Returns a list of available computers and their status.
 2. list_repos(computer_id): Returns a list of repositories available on a specific computer.
 3. start_task(computer_id, repo_path, task_description, provider): Starts a coding task.
-   - provider should be one of: 'jules', 'cursor', 'gemini', 'codex', 'claude-cli', 'opencode'.
+   - provider should be one of: 'jules', 'cursor', 'antigravity', 'codex', 'claude-cli', 'opencode'.
 
 Workflow:
 - If the user asks to do something, first understand WHICH environment and repo they are talking about.
 - If you don't know the environment, use list_computers() to see what's available.
 - If you know the environment but not the repo, use list_repos(computer_id).
 - Once you have the details, confirm with the user if needed, or proceed to start_task.
-- If the user mentions a specific tool/agent (like "Use Jules"), respect that. Otherwise pick the most appropriate one (default to 'jules' or 'gemini').
+- If the user mentions a specific tool/agent (like "Use Jules"), respect that. Otherwise pick the most appropriate one (default to 'jules' or 'antigravity').
 
 When using tools, output a JSON object in the format:
 {"tool": "tool_name", "args": {...}}
@@ -99,46 +62,13 @@ If you don't need to use a tool, just reply with text.
     let model = selectedModel;
     if (selectedModel.startsWith('openrouter/')) {
         model = selectedModel.replace('openrouter/', '');
-    } else if (selectedModel.startsWith('openai/')) {
-        model = selectedModel.replace('openai/', '');
-    } else if (selectedModel.startsWith('anthropic/')) {
-        model = selectedModel.replace('anthropic/', '');
-    } else if (selectedModel.startsWith('gemini/')) {
-        model = selectedModel.replace('gemini/', '');
     }
 
     try {
         let conversation = fullMessages;
         let toolTurns = 0;
 
-        // We use OpenRouterService as the generic gateway
-        // If the user provided a specific key for OpenAI/Gemini/Anthropic in the future,
-        // we might want to use their specific services, but OpenRouterService is a good unified interface
-        // if we route through it.
-        // HOWEVER, OpenRouterService requires an OpenRouter API key.
-        // If the user selected "openai/gpt-4o" but only provided an OpenAI key (not OpenRouter),
-        // this will fail if we force it through OpenRouterService.
-
-        // Check keys. If we have OpenRouter key, use OpenRouterService.
-        // If not, and we have OpenAI key and it's an OpenAI model, use generic OpenAI fetch?
-        // Since I only implemented OpenRouterService (which expects OpenRouter key),
-        // I should probably support using the provider keys directly if OpenRouter key is missing?
-        // Or just assume the user uses OpenRouter for the "Meta-Agent".
-        // The user asked for "model api key section... for openrouter, anthropic, openai, gemini".
-        // This implies they might want to use those direct keys.
-
-        // For simplicity in this iteration, I will assume OpenRouter is the primary "Orchestrator" brain
-        // OR I will hack OpenRouterService to accept a different Base URL/Key if needed.
-        // Actually, OpenRouterService is just a fetch wrapper. I can instantiate it with different config?
-        // No, it's a singleton.
-
-        // Let's assume for V1 that the Orchestrator uses OpenRouter.
-        // If the user wants to use their OpenAI key, they should probably put it in OpenRouter or I need a generic LLM service.
-        // I'll stick to OpenRouterService for now. If it fails (no key), I'll return an error.
-
         if (!configStore.hasApiKey('openrouter')) {
-             // Fallback: If OpenAI key exists and model is openai, maybe try to use it?
-             // But I haven't implemented a generic OpenAI chat service (CodexService is assistants).
              return { role: 'assistant', content: "Please configure an OpenRouter API key in Settings to use the Agent Orchestrator." };
         }
 
@@ -159,7 +89,7 @@ If you don't need to use a tool, just reply with text.
                 } else if (content.trim().startsWith('{')) {
                     toolCall = JSON.parse(content);
                 }
-            } catch (e) {
+            } catch {
                 // Not valid JSON, treat as text
             }
 

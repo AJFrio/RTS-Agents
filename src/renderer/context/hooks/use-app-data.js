@@ -14,7 +14,6 @@ export function useAppData(api, state, dispatch) {
           pollingInterval: result.settings?.pollingInterval ?? 30000,
           autoPolling: result.settings?.autoPolling !== false,
           antigravityPaths: result.settings?.antigravityPaths ?? result.antigravityPaths ?? [],
-          geminiPaths: result.settings?.geminiPaths ?? [],
           claudePaths: result.settings?.claudePaths ?? [],
           cursorPaths: result.settings?.cursorPaths ?? [],
           codexPaths: result.settings?.codexPaths ?? [],
@@ -36,7 +35,6 @@ export function useAppData(api, state, dispatch) {
           'claude-cloud': result.claudeCloudConfigured || !!result.apiKeys?.claude,
           opencode: !!result.opencodeInstalled,
           openrouter: !!result.apiKeys?.openrouter,
-          openai: !!result.apiKeys?.openai,
           github: !!result.apiKeys?.github,
           jira: !!result.apiKeys?.jira && !!(result.jiraBaseUrl || ''),
         },
@@ -63,7 +61,6 @@ export function useAppData(api, state, dispatch) {
           cloudflare: result.cloudflare ?? { configured: false, accountId: '', namespaceTitle: 'rtsa' },
           installations: {
             antigravity: !!result.antigravityInstalled,
-            gemini: !!result.geminiInstalled,
             claude: !!result.claudeCliInstalled,
             opencode: !!result.opencodeInstalled,
           },

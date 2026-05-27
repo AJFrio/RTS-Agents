@@ -45,18 +45,15 @@ test.describe('Modal Tests', () => {
             pollingInterval: 30000,
             autoPolling: false,
             antigravityPaths: [],
-            geminiPaths: [],
             theme: 'dark'
           },
           githubPaths: [],
           apiKeys: { jules: true, cursor: true, codex: true, claude: true },
           antigravityInstalled: true,
-          geminiInstalled: false,
           claudeCliInstalled: true
         }),
         getConnectionStatus: async () => ({
           antigravity: { connected: true },
-          gemini: { connected: false },
           jules: { connected: true },
           cursor: { connected: true },
           codex: { connected: true },

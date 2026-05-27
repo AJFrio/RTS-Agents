@@ -154,8 +154,6 @@ export interface ApiKeyStatus {
   github: boolean;
   cloudflare: boolean;
   openrouter: boolean;
-  openai: boolean;
-  gemini: boolean;
   [key: string]: boolean;
 }
 

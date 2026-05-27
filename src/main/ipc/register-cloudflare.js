@@ -1,5 +1,16 @@
 const { ipcMain } = require('electron');
 
+const SYNCED_API_KEY_PROVIDERS = new Set([
+  'jules',
+  'cursor',
+  'codex',
+  'openrouter',
+  'claude',
+  'github',
+  'jira',
+  'cloudflare'
+]);
+
 function registerCloudflareHandlers(deps) {
   const { configStore, cloudflareKvService, lifecycle } = deps;
   const {
@@ -122,7 +133,10 @@ ipcMain.handle('cloudflare:push-keys', async () => {
       }
       const namespaceId = await ensureCloudflareNamespaceId();
       const keys = configStore.getAllApiKeys();
-      await cloudflareKvService.pushKeys(namespaceId, keys);
+      const supportedKeys = Object.fromEntries(
+        Object.entries(keys).filter(([provider, key]) => SYNCED_API_KEY_PROVIDERS.has(provider) && key)
+      );
+      await cloudflareKvService.pushKeys(namespaceId, supportedKeys);
       return { success: true };
     } catch (err) {
       return { success: false, error: err?.message || 'Unknown error' };
@@ -139,6 +153,7 @@ ipcMain.handle('cloudflare:pull-keys', async () => {
   
       // Update local configStore with pulled keys
       for (const [provider, key] of Object.entries(keys)) {
+        if (!SYNCED_API_KEY_PROVIDERS.has(provider)) continue;
         configStore.setApiKey(provider, key);
       }
   

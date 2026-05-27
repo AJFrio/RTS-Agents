@@ -1,10 +1,11 @@
 const { ipcMain } = require('electron');
 const { registerSettingsPathHandlers } = require('./register-settings-paths');
 
+const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'codex', 'claude', 'github', 'jira', 'openrouter']);
+
 function registerSettingsHandlers(deps) {
   const {
     configStore,
-    geminiService,
     julesService,
     cursorService,
     codexService,
@@ -24,26 +25,9 @@ function registerSettingsHandlers(deps) {
   } = lifecycle;
   const { getMainWindow } = deps;
 
-  async function testOpenAiApiKeyConnection() {
-    const openAiKey = configStore.getApiKey('openai');
-    if (!openAiKey) {
-      return { success: false, error: 'Not configured' };
-    }
-
-    const existingCodexKey = configStore.getApiKey('codex');
-
-    try {
-      codexService.setApiKey(openAiKey);
-      return await codexService.testConnection();
-    } finally {
-      codexService.setApiKey(existingCodexKey || null);
-    }
-  }
-
 ipcMain.handle('settings:get', async () => {
-    const [antigravityInstalled, geminiInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
+    const [antigravityInstalled, claudeCliInstalled, opencodeInstalled] = await Promise.all([
       antigravityService.isAntigravityInstalled(),
-      geminiService.isGeminiInstalled(),
       claudeService.isClaudeInstalled(),
       opencodeService.isOpenCodeInstalled()
     ]);
@@ -53,9 +37,7 @@ ipcMain.handle('settings:get', async () => {
         jules: configStore.hasApiKey('jules'),
         cursor: configStore.hasApiKey('cursor'),
         codex: configStore.hasApiKey('codex'),
-        openai: configStore.hasApiKey('openai'),
         openrouter: configStore.hasApiKey('openrouter'),
-        gemini: configStore.hasApiKey('gemini'),
         claude: configStore.hasApiKey('claude'),
         github: configStore.hasApiKey('github'),
         jira: configStore.hasApiKey('jira'),
@@ -70,8 +52,6 @@ ipcMain.handle('settings:get', async () => {
           namespaceTitle: cfg?.namespaceTitle || 'rtsa'
         };
       })(),
-      geminiInstalled,
-      geminiDefaultPath: geminiService.getDefaultPath(),
       antigravityInstalled,
       antigravityDefaultPath: antigravityService.getDefaultDataPath(),
       antigravityPaths: configStore.getAntigravityPaths(),
@@ -94,6 +74,10 @@ ipcMain.handle('settings:get', async () => {
    * Save API key
    */
 ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
+    if (!API_KEY_PROVIDERS.has(provider)) {
+      return { success: false, error: 'Unknown provider' };
+    }
+
     invalidateAgentDiscovery();
     configStore.setApiKey(provider, key);
     
@@ -116,8 +100,6 @@ ipcMain.handle('settings:set-api-key', async (event, { provider, key }) => {
       githubService.setApiKey(key);
     } else if (provider === 'openrouter') {
       openRouterService.setApiKey(key);
-    } else if (provider === 'gemini') {
-      geminiService.setApiKey(key);
     }
     
     return { success: true };
@@ -129,6 +111,10 @@ ipcMain.handle('settings:set-jira-base-url', async (event, { url }) => {
   });
 ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
     try {
+      if (!API_KEY_PROVIDERS.has(provider)) {
+        return { success: false, error: 'Unknown provider' };
+      }
+
       if (provider === 'jules') {
         return await julesService.testConnection();
       } else if (provider === 'cursor') {
@@ -143,10 +129,6 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
         return await jiraService.testConnection();
       } else if (provider === 'openrouter') {
         return await openRouterService.testConnection();
-      } else if (provider === 'gemini') {
-        return await geminiService.testConnection();
-      } else if (provider === 'openai') {
-        return await testOpenAiApiKeyConnection();
       }
       return { success: false, error: 'Unknown provider' };
     } catch (err) {
@@ -158,6 +140,10 @@ ipcMain.handle('settings:test-api-key', async (event, { provider }) => {
    * Remove API key (disconnect)
    */
 ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
+    if (!API_KEY_PROVIDERS.has(provider)) {
+      return { success: false, error: 'Unknown provider' };
+    }
+
     invalidateAgentDiscovery();
     configStore.removeApiKey(provider);
     
@@ -180,8 +166,6 @@ ipcMain.handle('settings:remove-api-key', async (event, { provider }) => {
       githubService.setApiKey(null);
     } else if (provider === 'openrouter') {
       openRouterService.setApiKey(null);
-    } else if (provider === 'gemini') {
-      geminiService.setApiKey(null);
     }
     
     return { success: true };

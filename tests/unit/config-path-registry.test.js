@@ -17,14 +17,14 @@ describe('config-path-registry', () => {
   });
 
   test('addPath deduplicates and removePath filters', () => {
-    pathRegistry.addPath(store, 'gemini', '/a');
-    pathRegistry.addPath(store, 'gemini', '/a');
-    pathRegistry.addPath(store, 'gemini', '/b');
+    pathRegistry.addPath(store, 'antigravity', '/a');
+    pathRegistry.addPath(store, 'antigravity', '/a');
+    pathRegistry.addPath(store, 'antigravity', '/b');
 
-    expect(pathRegistry.getPaths(store, 'gemini')).toEqual(['/a', '/b']);
+    expect(pathRegistry.getPaths(store, 'antigravity')).toEqual(['/a', '/b']);
 
-    pathRegistry.removePath(store, 'gemini', '/a');
-    expect(pathRegistry.getPaths(store, 'gemini')).toEqual(['/b']);
+    pathRegistry.removePath(store, 'antigravity', '/a');
+    expect(pathRegistry.getPaths(store, 'antigravity')).toEqual(['/b']);
   });
 
   test('getAllProjectPaths merges and deduplicates providers', () => {

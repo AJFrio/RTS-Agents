@@ -3,7 +3,7 @@
  * Used by IPC handlers in register-agents.js and register-tasks.js.
  */
 
-const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'gemini', 'claude-cli', 'codex', 'opencode']);
+const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'claude-cli', 'codex', 'opencode']);
 
 const AGENT_LIST_KEYS = [
   'antigravity',
@@ -122,7 +122,6 @@ async function fetchAllAgents(deps) {
 
 async function getAgentDetails(deps, { provider, rawId, filePath }) {
   const {
-    geminiService,
     antigravityService,
     julesService,
     cursorService,
@@ -134,8 +133,6 @@ async function getAgentDetails(deps, { provider, rawId, filePath }) {
   switch (provider) {
     case 'antigravity':
       return antigravityService.getSessionDetails(rawId);
-    case 'gemini':
-      return geminiService.getSessionDetails(filePath);
     case 'jules':
       return julesService.getAgentDetails(rawId);
     case 'cursor':
@@ -184,8 +181,7 @@ async function fetchRepositories(deps, provider) {
       const repositories = await cursorService.getAllRepositories(cursorPaths);
       return { success: true, repositories };
     }
-    case 'antigravity':
-    case 'gemini': {
+    case 'antigravity': {
       if (!(await antigravityService.isAntigravityInstalled())) {
         return { success: false, error: 'Antigravity CLI not installed', repositories: [] };
       }
@@ -314,8 +310,7 @@ async function createLocalTask(deps, provider, options) {
       const task = await cursorService.createAgent(options);
       return { success: true, task };
     }
-    case 'antigravity':
-    case 'gemini': {
+    case 'antigravity': {
       if (!(await antigravityService.isAntigravityInstalled())) {
         throw new Error('Antigravity CLI not installed');
       }

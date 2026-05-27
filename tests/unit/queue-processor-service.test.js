@@ -122,21 +122,6 @@ describe('QueueProcessorService', () => {
       });
     });
 
-    it('should process legacy gemini tasks through antigravity', async () => {
-      const task = { tool: 'gemini', repo: { path: '/path/to/repo' }, prompt: 'test prompt' };
-      cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
-      antigravityService.isAntigravityInstalled.mockReturnValue(true);
-      antigravityService.startSession.mockResolvedValue({ id: 'session1' });
-
-      await queueProcessorService.processQueue('ns1');
-
-      expect(antigravityService.startSession).toHaveBeenCalledWith({
-        prompt: 'test prompt',
-        projectPath: '/path/to/repo',
-        command: undefined
-      });
-    });
-
     it('should process claude-cli task', async () => {
       const task = { tool: 'claude-cli', repo: { path: '/path/to/repo' }, prompt: 'test prompt' };
       cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);

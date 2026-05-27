@@ -4,7 +4,6 @@ function registerUtilsHandlers(deps) {
   const {
     configStore,
     antigravityService,
-    geminiService,
     julesService,
     cursorService,
     codexService,
@@ -21,22 +20,6 @@ function registerUtilsHandlers(deps) {
     getMainWindow,
     appRoot
   } = deps;
-
-  async function testOpenAiApiKeyConnection() {
-    const openAiKey = configStore.getApiKey('openai');
-    if (!openAiKey) {
-      return { success: false, error: 'Not configured' };
-    }
-
-    const existingCodexKey = configStore.getApiKey('codex');
-
-    try {
-      codexService.setApiKey(openAiKey);
-      return await codexService.testConnection();
-    } finally {
-      codexService.setApiKey(existingCodexKey || null);
-    }
-  }
 
   function performUpdate() {
     console.log('Update requested. Executing git stash, git pull, npm install...');
@@ -102,16 +85,14 @@ ipcMain.handle('dialog:open-directory', async () => {
    * Get provider connection status
    */
 ipcMain.handle('utils:get-status', async () => {
-    const [julesStatus, cursorStatus, codexStatus, claudeCloudStatus, githubStatus, jiraStatus, openRouterStatus, openAiStatus, geminiApiStatus] = await Promise.allSettled([
+    const [julesStatus, cursorStatus, codexStatus, claudeCloudStatus, githubStatus, jiraStatus, openRouterStatus] = await Promise.allSettled([
       configStore.hasApiKey('jules') ? julesService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('cursor') ? cursorService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('codex') ? codexService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('claude') ? claudeService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('github') ? githubService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('jira') ? jiraService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
-      configStore.hasApiKey('openrouter') ? openRouterService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
-      configStore.hasApiKey('openai') ? testOpenAiApiKeyConnection() : Promise.resolve({ success: false, error: 'Not configured' }),
-      configStore.hasApiKey('gemini') ? geminiService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
+      configStore.hasApiKey('openrouter') ? openRouterService.testConnection() : Promise.resolve({ success: false, error: 'Not configured' })
     ]);
   
     // Local CLI status: connected if CLI is installed
@@ -122,7 +103,6 @@ ipcMain.handle('utils:get-status', async () => {
     ]);
     // Claude Cloud status: connected if API key is valid
     const claudeCloudValid = claudeCloudStatus.status === 'fulfilled' && claudeCloudStatus.value.success;
-    const geminiApiValid = geminiApiStatus.status === 'fulfilled' && geminiApiStatus.value.success;
     
     return {
       antigravity: {
@@ -130,22 +110,10 @@ ipcMain.handle('utils:get-status', async () => {
         connected: antigravityInstalled,
         error: antigravityInstalled ? null : 'Antigravity CLI not found'
       },
-      gemini: {
-        success: geminiApiValid,
-        connected: geminiApiValid,
-        error: geminiApiValid
-          ? null
-          : (configStore.hasApiKey('gemini') ? (geminiApiStatus.value?.error || 'Gemini API key invalid') : 'Not configured')
-      },
       openrouter: {
         success: openRouterStatus.status === 'fulfilled' && openRouterStatus.value.success,
         connected: openRouterStatus.status === 'fulfilled' && openRouterStatus.value.success,
         error: openRouterStatus.status === 'fulfilled' ? openRouterStatus.value.error : openRouterStatus.reason?.message
-      },
-      openai: {
-        success: openAiStatus.status === 'fulfilled' && openAiStatus.value.success,
-        connected: openAiStatus.status === 'fulfilled' && openAiStatus.value.success,
-        error: openAiStatus.status === 'fulfilled' ? openAiStatus.value.error : openAiStatus.reason?.message
       },
       jules: julesStatus.status === 'fulfilled' ? julesStatus.value : { success: false, error: julesStatus.reason?.message },
       cursor: cursorStatus.status === 'fulfilled' ? cursorStatus.value : { success: false, error: cursorStatus.reason?.message },

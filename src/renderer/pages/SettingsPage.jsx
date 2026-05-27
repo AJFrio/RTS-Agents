@@ -27,9 +27,7 @@ function buildConnectedServices(state) {
   if (apiKeys.claude) services.push('claude-cloud');
   if (state.serviceInfo?.installations?.claude || (state.settings?.claudePaths || []).length > 0) services.push('claude-local');
   if (state.serviceInfo?.installations?.antigravity || (state.settings?.antigravityPaths || []).length > 0) services.push('antigravity-local');
-  if (apiKeys.gemini) services.push('gemini-api');
   if (apiKeys.openrouter) services.push('openrouter-cloud');
-  if (apiKeys.openai) services.push('openai-cloud');
   if (apiKeys.github) services.push('github-cloud');
   if ((state.settings?.githubPaths || []).length > 0) services.push('github-local');
   if (apiKeys.jira || state.settings?.jiraBaseUrl) services.push('jira-cloud');
@@ -52,12 +50,8 @@ function getServiceStatus(serviceId, state) {
       return state.connectionStatus?.['claude-cli'] || { success: !!state.serviceInfo?.installations?.claude };
     case 'antigravity-local':
       return state.connectionStatus?.antigravity || { success: !!state.serviceInfo?.installations?.antigravity };
-    case 'gemini-api':
-      return state.connectionStatus?.gemini;
     case 'openrouter-cloud':
       return state.connectionStatus?.openrouter;
-    case 'openai-cloud':
-      return state.connectionStatus?.openai;
     case 'github-cloud':
       return state.connectionStatus?.github;
     case 'jira-cloud':
@@ -97,7 +91,7 @@ function getServiceSummary(serviceId, state, status) {
 }
 
 function isDisconnectable(serviceId, state) {
-  if (['jules-cloud', 'cursor-cloud', 'codex-cloud', 'claude-cloud', 'gemini-api', 'openrouter-cloud', 'openai-cloud', 'github-cloud', 'jira-cloud', 'cloudflare-sync'].includes(serviceId)) {
+  if (['jules-cloud', 'cursor-cloud', 'codex-cloud', 'claude-cloud', 'openrouter-cloud', 'github-cloud', 'jira-cloud', 'cloudflare-sync'].includes(serviceId)) {
     return true;
   }
   if (serviceId === 'cursor-local') return (state.settings?.cursorPaths || []).length > 0;
@@ -151,12 +145,8 @@ export default function SettingsPage() {
         await api.removeApiKey('codex');
       } else if (serviceId === 'claude-cloud') {
         await api.removeApiKey('claude');
-      } else if (serviceId === 'gemini-api') {
-        await api.removeApiKey('gemini');
       } else if (serviceId === 'openrouter-cloud') {
         await api.removeApiKey('openrouter');
-      } else if (serviceId === 'openai-cloud') {
-        await api.removeApiKey('openai');
       } else if (serviceId === 'github-cloud') {
         await api.removeApiKey('github');
       } else if (serviceId === 'jira-cloud') {

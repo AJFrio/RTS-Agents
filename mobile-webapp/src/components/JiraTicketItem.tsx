@@ -1,9 +1,6 @@
 import React from 'react';
 import type { JiraIssue } from '../services/jira-service';
-
-export function getAssignee(issue: JiraIssue): string {
-  return issue.fields?.assignee?.displayName || 'Unassigned';
-}
+import { getAssignee } from './jira-utils';
 
 interface JiraTicketItemProps {
   issue: JiraIssue;

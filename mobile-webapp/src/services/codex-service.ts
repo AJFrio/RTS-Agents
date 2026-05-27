@@ -174,7 +174,7 @@ class CodexService {
       if (stored) {
         trackedThreads = JSON.parse(stored);
       }
-    } catch (err) {
+    } catch {
       // Ignore error
     }
   }
@@ -182,7 +182,7 @@ class CodexService {
   saveTrackedThreads() {
     try {
       localStorage.setItem('codex_tracked_threads', JSON.stringify(trackedThreads));
-    } catch (err) {
+    } catch {
       // Ignore error
     }
   }

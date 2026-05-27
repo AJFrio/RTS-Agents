@@ -2,7 +2,6 @@ import React from 'react';
 
 const PROVIDER_CLASS = {
   antigravity: 'provider-badge antigravity border-emerald-500 text-emerald-500',
-  gemini: 'provider-badge gemini border-teal-500 text-teal-500',
   jules: 'provider-badge jules border-primary text-primary',
   cursor: 'provider-badge cursor border-blue-500 text-blue-500',
   codex: 'provider-badge codex border-cyan-500 text-cyan-500',

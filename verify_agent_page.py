@@ -20,13 +20,13 @@ def run(playwright):
         getSettings: () => Promise.resolve({
             settings: {
                 pollingInterval: 30000, autoPolling: false,
-                geminiPaths: [], claudePaths: [], cursorPaths: [], codexPaths: [], githubPaths: [],
+                claudePaths: [], cursorPaths: [], codexPaths: [], githubPaths: [],
                 theme: 'light', displayMode: 'fullscreen', jiraBaseUrl: ''
             },
             apiKeys: {},
             filters: { providers: {}, statuses: {}, search: '' },
-            geminiInstalled: false, claudeCliInstalled: false, claudeCloudConfigured: false,
-            geminiDefaultPath: '', claudeDefaultPath: '',
+            claudeCliInstalled: false, claudeCloudConfigured: false,
+            claudeDefaultPath: '',
             claudePaths: [], cursorPaths: [], codexPaths: [], githubPaths: [],
             localDeviceId: 'mock-device'
         }),
@@ -44,9 +44,6 @@ def run(playwright):
         setTheme: () => Promise.resolve(),
         setDisplayMode: () => Promise.resolve(),
         saveFilters: () => Promise.resolve(),
-        addGeminiPath: () => Promise.resolve(),
-        removeGeminiPath: () => Promise.resolve(),
-        getGeminiPaths: () => Promise.resolve(),
         addClaudePath: () => Promise.resolve(),
         removeClaudePath: () => Promise.resolve(),
         getClaudePaths: () => Promise.resolve(),

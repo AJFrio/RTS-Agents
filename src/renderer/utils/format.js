@@ -58,6 +58,19 @@ export function getProviderDot(provider) {
   return map[provider] || 'bg-primary';
 }
 
+export function getProviderText(provider) {
+  const map = {
+    antigravity: 'text-emerald-600 dark:text-emerald-300',
+    jules: 'text-primary',
+    cursor: 'text-blue-600 dark:text-blue-300',
+    codex: 'text-cyan-600 dark:text-cyan-300',
+    'claude-cloud': 'text-amber-600 dark:text-amber-300',
+    'claude-cli': 'text-orange-600 dark:text-orange-300',
+    opencode: 'text-violet-600 dark:text-violet-300',
+  };
+  return map[provider] || 'text-slate-600 dark:text-slate-300';
+}
+
 export function extractRepoName(url) {
   if (!url) return '';
   const match = String(url).match(/github\.com\/([^/]+[/][^/]+)/);

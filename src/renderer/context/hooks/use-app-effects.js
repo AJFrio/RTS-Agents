@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Bootstrap, polling refresh, and agent filter side effects.
@@ -13,22 +13,42 @@ export function useAppEffects({
   fetchComputers,
   loadRemoteQueueActivity,
 }) {
+  const bootstrapActionsRef = useRef({
+    loadSettings,
+    loadAgents,
+    checkConnectionStatus,
+    fetchComputers,
+    loadRemoteQueueActivity,
+  });
+  const previousFiltersRef = useRef(state.filters);
+
+  useEffect(() => {
+    bootstrapActionsRef.current = {
+      loadSettings,
+      loadAgents,
+      checkConnectionStatus,
+      fetchComputers,
+      loadRemoteQueueActivity,
+    };
+  }, [loadSettings, loadAgents, checkConnectionStatus, fetchComputers, loadRemoteQueueActivity]);
+
   useEffect(() => {
     if (!api) return;
     let mounted = true;
     (async () => {
-      await loadSettings();
+      const actions = bootstrapActionsRef.current;
+      await actions.loadSettings();
       if (!mounted) return;
-      await loadAgents();
+      await actions.loadAgents();
       if (!mounted) return;
-      await checkConnectionStatus();
-      fetchComputers();
-      loadRemoteQueueActivity();
+      await actions.checkConnectionStatus();
+      actions.fetchComputers();
+      actions.loadRemoteQueueActivity();
     })();
     return () => {
       mounted = false;
     };
-  }, [api, loadSettings, loadAgents, checkConnectionStatus, fetchComputers, loadRemoteQueueActivity]);
+  }, [api]);
 
   useEffect(() => {
     if (!api?.onRefreshTick) return;
@@ -56,6 +76,9 @@ export function useAppEffects({
       return true;
     });
     dispatch({ type: 'SET_FILTERED_AGENTS', payload: filtered });
-    dispatch({ type: 'SET_PAGINATION', payload: { currentPage: 1 } });
+    if (previousFiltersRef.current !== filters) {
+      dispatch({ type: 'SET_PAGINATION', payload: { currentPage: 1 } });
+      previousFiltersRef.current = filters;
+    }
   }, [state.agents, state.filters, dispatch]);
 }

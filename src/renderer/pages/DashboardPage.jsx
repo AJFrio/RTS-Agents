@@ -9,10 +9,10 @@ import Pagination from '../components/ui/Pagination.jsx';
 import {
   getProviderDisplayName,
   getProviderDot,
-  getStatusStyle,
   getStatusLabel,
   formatTimeAgo,
   extractRepoName,
+  getProviderText,
 } from '../utils/format.js';
 
 function formatShortTool(tool) {
@@ -61,7 +61,7 @@ function RemoteActivityRow({ activity }) {
   );
 }
 
-function SummaryStrip({ agents, counts, filters, dispatch }) {
+function SummaryStrip({ agents, counts, filters, dispatch, api }) {
   const statusCounts = agents.reduce((acc, agent) => {
     const key = agent.status === 'stopped' ? 'failed' : agent.status || 'pending';
     acc[key] = (acc[key] || 0) + 1;
@@ -73,6 +73,15 @@ function SummaryStrip({ agents, counts, filters, dispatch }) {
     { id: 'completed', label: 'Complete', icon: 'check_circle' },
     { id: 'failed', label: 'Needs review', icon: 'error' },
   ];
+
+  const updateStatusFilter = (id, enabled) => {
+    const next = { statuses: { ...filters.statuses, [id]: !enabled } };
+    dispatch({
+      type: 'SET_FILTERS',
+      payload: next,
+    });
+    api?.saveFilters?.({ ...filters, ...next })?.catch(console.error);
+  };
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -88,12 +97,7 @@ function SummaryStrip({ agents, counts, filters, dispatch }) {
           <button
             key={item.id}
             type="button"
-            onClick={() =>
-              dispatch({
-                type: 'SET_FILTERS',
-                payload: { statuses: { ...filters.statuses, [item.id]: !enabled } },
-              })
-            }
+            onClick={() => updateStatusFilter(item.id, enabled)}
             className={`rounded-lg border p-3 text-left transition-all ${
               enabled
                 ? 'border-slate-200 bg-white dark:border-border-dark dark:bg-card-dark'
@@ -119,18 +123,18 @@ function SummaryStrip({ agents, counts, filters, dispatch }) {
 }
 
 const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
-  const style = getStatusStyle(agent.status);
   const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
   const statusLabel = getStatusLabel(agent.status);
   const providerName = getProviderDisplayName(agent.provider);
   const dot = getProviderDot(agent.provider);
+  const providerText = getProviderText(agent.provider);
 
   return (
-    <AgentCard onClick={onClick}>
+    <AgentCard className="min-h-[156px]" onClick={onClick}>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
-          <span className={`truncate text-xs font-medium ${style.text}`}>{providerName}</span>
+          <span className={`truncate text-xs font-medium ${providerText}`}>{providerName}</span>
         </div>
         <StatusBadge status={agent.status}>{statusLabel}</StatusBadge>
       </div>
@@ -158,10 +162,12 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
         </div>
       </div>
       {agent.prUrl && (
-        <div className="mt-3 border-t border-slate-200 pt-2 dark:border-border-dark">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-            <span className="material-symbols-outlined text-sm">merge</span>
-            <span>PR available</span>
+        <div className="mt-auto pt-3">
+          <div className="border-t border-slate-200 pt-2 dark:border-border-dark">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="material-symbols-outlined text-sm">merge</span>
+              <span>PR available</span>
+            </div>
           </div>
         </div>
       )}
@@ -170,7 +176,7 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
 });
 
 export default function DashboardPage() {
-  const { state, dispatch, setView, openAgentModal } = useApp();
+  const { state, dispatch, api, setView, openAgentModal } = useApp();
   const { filteredAgents, loading, errors, pagination, remoteQueue } = state;
   const { currentPage, pageSize } = pagination;
 
@@ -225,6 +231,7 @@ export default function DashboardPage() {
         counts={state.counts}
         filters={state.filters}
         dispatch={dispatch}
+        api={api}
       />
       <RemoteActivityRow activity={remoteQueue} />
       <ErrorBanner errors={errors} />

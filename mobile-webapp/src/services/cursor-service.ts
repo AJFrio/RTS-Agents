@@ -3,7 +3,7 @@
  * Port of the Electron app's Cursor service for web/mobile
  */
 
-import type { AgentTask, AgentDetails, Repository, ConversationMessage } from '../store/types';
+import type { Activity, AgentTask, AgentDetails, Repository, ConversationMessage } from '../store/types';
 
 const BASE_URL = '/api/cursor';
 
@@ -13,6 +13,14 @@ interface CursorAgent {
   status?: string;
   summary?: string;
   createdAt?: string;
+  updatedAt?: string;
+  latestRunId?: string;
+  url?: string;
+  repos?: Array<{
+    url?: string;
+    startingRef?: string;
+    prUrl?: string;
+  }>;
   source?: {
     repository?: string;
     ref?: string;
@@ -25,10 +33,21 @@ interface CursorAgent {
   };
 }
 
-interface CursorMessage {
+interface CursorRun {
   id: string;
-  type: string;
-  text: string;
+  agentId?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  durationMs?: number;
+  result?: string;
+  git?: {
+    branches?: Array<{
+      repoUrl?: string;
+      branch?: string;
+      prUrl?: string;
+    }>;
+  };
 }
 
 interface CursorRepository {
@@ -36,6 +55,15 @@ interface CursorRepository {
   repository?: string;
   name?: string;
   defaultBranch?: string;
+}
+
+interface CursorListResponse<T> {
+  items?: T[];
+  agents?: T[];
+  runs?: T[];
+  repositories?: T[];
+  nextCursor?: string;
+  cursor?: string;
 }
 
 class CursorService {
@@ -75,91 +103,166 @@ class CursorService {
     return response.json();
   }
 
-  async listAgents(limit = 100, cursor?: string): Promise<{ agents?: CursorAgent[]; cursor?: string }> {
-    let endpoint = `/agents?limit=${limit}`;
+  async listAgents(limit = 100, cursor?: string): Promise<CursorListResponse<CursorAgent>> {
+    let endpoint = `/agents?limit=${encodeURIComponent(String(limit))}`;
     if (cursor) {
-      endpoint += `&cursor=${cursor}`;
+      endpoint += `&cursor=${encodeURIComponent(cursor)}`;
     }
     return this.request(endpoint);
   }
 
   async getAgent(agentId: string): Promise<CursorAgent> {
-    return this.request(`/agents/${agentId}`);
+    return this.request(`/agents/${encodeURIComponent(agentId)}`);
   }
 
-  async getConversation(agentId: string): Promise<{ messages?: CursorMessage[] }> {
-    return this.request(`/agents/${agentId}/conversation`);
+  async listRuns(agentId: string, limit = 20, cursor?: string): Promise<CursorListResponse<CursorRun>> {
+    let endpoint = `/agents/${encodeURIComponent(agentId)}/runs?limit=${encodeURIComponent(String(limit))}`;
+    if (cursor) {
+      endpoint += `&cursor=${encodeURIComponent(cursor)}`;
+    }
+    return this.request(endpoint);
+  }
+
+  async getRun(agentId: string, runId: string): Promise<CursorRun> {
+    const response = await this.request<CursorRun | { run?: CursorRun }>(
+      `/agents/${encodeURIComponent(agentId)}/runs/${encodeURIComponent(runId)}`
+    );
+    return this.unwrapRun(response) || { id: runId };
   }
 
   async getApiKeyInfo(): Promise<unknown> {
     return this.request('/me');
   }
 
-  async listRepositories(): Promise<{ repositories?: CursorRepository[] } | CursorRepository[]> {
+  async listRepositories(): Promise<CursorListResponse<CursorRepository> | CursorRepository[]> {
     return this.request('/repositories');
   }
 
-  normalizeAgent(agent: CursorAgent): AgentTask {
+  normalizeAgent(agent: CursorAgent, run: CursorRun | null = null): AgentTask {
+    const pushedBranch = run?.git?.branches?.find(entry => entry.branch);
+    const pullRequest = run?.git?.branches?.find(entry => entry.prUrl);
+    const repository = agent.repos?.[0]?.url || agent.source?.repository || null;
+
     return {
       id: `cursor-${agent.id}`,
       provider: 'cursor',
       name: agent.name || 'Cursor Cloud Agent',
-      status: this.mapStatus(agent.status),
+      status: run ? this.mapRunStatus(run.status) : this.mapAgentStatus(agent.status, !!agent.latestRunId),
       prompt: '',
-      repository: agent.source?.repository || null,
-      branch: agent.target?.branchName || null,
-      prUrl: agent.target?.prUrl || null,
+      repository,
+      branch: pushedBranch?.branch || agent.repos?.[0]?.startingRef || agent.target?.branchName || null,
+      prUrl: pullRequest?.prUrl || agent.target?.prUrl || null,
       createdAt: agent.createdAt ? new Date(agent.createdAt) : null,
-      updatedAt: null,
-      summary: agent.summary || null,
+      updatedAt: run?.updatedAt || agent.updatedAt ? new Date(run?.updatedAt || agent.updatedAt || '') : null,
+      summary: run?.result || agent.summary || null,
       rawId: agent.id,
-      webUrl: `https://cursor.com/agents/${agent.id}`,
+      webUrl: agent.url || `https://cursor.com/agents/${agent.id}`,
     };
   }
 
-  private mapStatus(status?: string): AgentTask['status'] {
+  private mapRunStatus(status?: string): AgentTask['status'] {
     if (!status) return 'pending';
 
     const statusMap: Record<string, AgentTask['status']> = {
-      'CREATING': 'pending',
-      'RUNNING': 'running',
-      'FINISHED': 'completed',
-      'STOPPED': 'stopped',
+      CREATING: 'pending',
+      RUNNING: 'running',
+      FINISHED: 'completed',
+      ERROR: 'failed',
+      FAILED: 'failed',
+      CANCELLED: 'stopped',
+      EXPIRED: 'failed',
+      STOPPED: 'stopped',
     };
 
     return statusMap[status.toUpperCase()] || 'pending';
   }
 
+  private mapAgentStatus(status?: string, hasRun = false): AgentTask['status'] {
+    if (!status) return hasRun ? 'completed' : 'pending';
+
+    const statusMap: Record<string, AgentTask['status']> = {
+      ACTIVE: hasRun ? 'completed' : 'pending',
+      ARCHIVED: 'stopped',
+      CREATING: 'pending',
+      RUNNING: 'running',
+      FINISHED: 'completed',
+      ERROR: 'failed',
+      FAILED: 'failed',
+      CANCELLED: 'stopped',
+      EXPIRED: 'failed',
+      STOPPED: 'stopped',
+    };
+
+    return statusMap[status.toUpperCase()] || (hasRun ? 'completed' : 'pending');
+  }
+
+  private extractListItems<T>(response: CursorListResponse<T> | T[] | null | undefined): T[] {
+    if (!response) return [];
+    if (Array.isArray(response)) return response;
+    return response.items || response.agents || response.runs || response.repositories || [];
+  }
+
+  private unwrapRun(response: CursorRun | { run?: CursorRun } | null | undefined): CursorRun | null {
+    if (!response) return null;
+    if (Object.prototype.hasOwnProperty.call(response, 'run')) {
+      return (response as { run?: CursorRun }).run || null;
+    }
+    return response as CursorRun;
+  }
+
+  private async getLatestRun(agent: CursorAgent): Promise<CursorRun | null> {
+    if (!agent.id) return null;
+
+    if (agent.latestRunId) {
+      const run = await this.getRun(agent.id, agent.latestRunId).catch(() => null);
+      if (run) return run;
+    }
+
+    const runsResponse = await this.listRuns(agent.id, 1).catch(() => null);
+    const runs = this.extractListItems<CursorRun>(runsResponse);
+    return this.unwrapRun(runs[0]);
+  }
+
   async getAllAgents(): Promise<AgentTask[]> {
     const response = await this.listAgents(100);
-    const agents = response.agents || [];
-    return agents.map(agent => this.normalizeAgent(agent));
+    const agents = this.extractListItems<CursorAgent>(response);
+    const settled = await Promise.allSettled(
+      agents.map(async agent => this.normalizeAgent(agent, await this.getLatestRun(agent)))
+    );
+    return settled
+      .filter((result): result is PromiseFulfilledResult<AgentTask> => result.status === 'fulfilled')
+      .map(result => result.value);
   }
 
   async getAgentDetails(agentId: string): Promise<AgentDetails> {
-    const [agent, conversationResponse] = await Promise.all([
-      this.getAgent(agentId),
-      this.getConversation(agentId).catch(() => ({ messages: [] })),
-    ]);
+    const agent = await this.getAgent(agentId);
+    const runsResponse = await this.listRuns(agentId, 20).catch(() => ({ items: [] }));
+    const runs = this.extractListItems<CursorRun>(runsResponse).map(run => this.unwrapRun(run)).filter(Boolean) as CursorRun[];
+    const latestRunId = agent.latestRunId || runs[0]?.id || null;
+    const latestRun = latestRunId
+      ? await this.getRun(agentId, latestRunId).catch(() => runs.find(run => run.id === latestRunId) || runs[0] || null)
+      : runs[0] || null;
 
-    const normalized = this.normalizeAgent(agent);
-    const messages = conversationResponse.messages || [];
+    const normalized = this.normalizeAgent(agent, latestRun);
 
-    // Extract prompt from first user message
-    const firstUserMessage = messages.find(m => m.type === 'user_message');
-    if (firstUserMessage) {
-      normalized.prompt = firstUserMessage.text;
-    }
+    const conversation: ConversationMessage[] = latestRun?.result ? [{
+      id: latestRun.id,
+      type: 'assistant_message',
+      text: latestRun.result,
+      isUser: false,
+    }] : [];
 
-    const conversation: ConversationMessage[] = messages.map(msg => ({
-      id: msg.id,
-      type: msg.type,
-      text: msg.text,
-      isUser: msg.type === 'user_message',
+    const activities: Activity[] = runs.map(run => ({
+      id: run.id,
+      type: 'cursor_run',
+      title: `Run ${run.status || 'UNKNOWN'}`,
+      description: run.result || null,
+      timestamp: run.updatedAt || run.createdAt,
     }));
 
     return {
       ...normalized,
+      activities,
       conversation,
     };
   }
@@ -175,7 +278,7 @@ class CursorService {
 
   async getAllRepositories(): Promise<Repository[]> {
     const response = await this.listRepositories();
-    const repos = Array.isArray(response) ? response : (response.repositories || []);
+    const repos = this.extractListItems<CursorRepository>(response);
 
     return repos.map(repo => ({
       id: repo.url || repo.repository || '',
@@ -211,24 +314,21 @@ class CursorService {
 
     const body: Record<string, unknown> = {
       prompt: { text: prompt },
-      source: {
-        repository,
-        ref,
-      },
-      target: {
-        autoCreatePr,
-      },
+      repos: [{ url: repository, startingRef: branchName || ref }],
+      autoCreatePR: autoCreatePr,
     };
 
-    if (branchName) {
-      (body.target as Record<string, unknown>).branchName = branchName;
-    }
     if (model) {
-      body.model = model;
+      body.model = { id: model };
     }
 
-    const response = await this.request<CursorAgent>('/agents', 'POST', body);
-    return this.normalizeAgent(response);
+    const response = await this.request<CursorAgent | { agent?: CursorAgent; run?: CursorRun }>('/agents', 'POST', body);
+    const createResponse = response as { agent?: CursorAgent; run?: CursorRun };
+    const agent = Object.prototype.hasOwnProperty.call(response, 'agent')
+      ? createResponse.agent || (response as CursorAgent)
+      : (response as CursorAgent);
+    const run = Object.prototype.hasOwnProperty.call(response, 'run') ? createResponse.run || null : null;
+    return this.normalizeAgent(agent, run);
   }
 
   async sendFollowup(agentId: string, prompt: string): Promise<void> {
@@ -236,7 +336,7 @@ class CursorService {
       throw new Error('Prompt is required');
     }
 
-    await this.request(`/agents/${agentId}/followup`, 'POST', {
+    await this.request(`/agents/${encodeURIComponent(agentId)}/runs`, 'POST', {
       prompt: { text: prompt },
     });
   }

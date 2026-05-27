@@ -16,7 +16,7 @@ const PROXY_CONFIGS: Record<string, ProxyConfig> = {
     authHeader: (apiKey) => ({ 'X-Goog-Api-Key': apiKey }),
   },
   cursor: {
-    baseUrl: 'https://api.cursor.com/v0',
+    baseUrl: 'https://api.cursor.com/v1',
     authHeader: (apiKey) => ({ 'Authorization': `Basic ${btoa(`${apiKey}:`)}` }),
   },
   codex: {

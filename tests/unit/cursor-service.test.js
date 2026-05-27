@@ -156,6 +156,86 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       });
     });
 
+    test('getAllAgents does not treat durable ACTIVE agent status as running', async () => {
+      httpService.requestJson.mockImplementation(async (url) => {
+        if (url.includes('/agents?')) {
+          return {
+            items: [
+              {
+                id: 'bc-1',
+                name: 'Agent',
+                status: 'ACTIVE',
+                createdAt: '2026-04-13T18:30:00.000Z',
+                latestRunId: 'run-1',
+              },
+            ],
+          };
+        }
+        if (url.includes('/runs/run-1')) {
+          const error = new Error('Run detail unavailable');
+          error.statusCode = 404;
+          throw error;
+        }
+        if (url.includes('/runs?')) {
+          return { items: [] };
+        }
+        return {};
+      });
+
+      const agents = await cursorService.getAllAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0].status).toBe('completed');
+    });
+
+    test('getAgentDetails uses v1 runs for status, summary, and activity', async () => {
+      httpService.requestJson.mockImplementation(async (url) => {
+        if (url.endsWith('/agents/bc-1')) {
+          return {
+            id: 'bc-1',
+            name: 'Agent',
+            status: 'ACTIVE',
+            latestRunId: 'run-1',
+            repos: [{ url: 'https://github.com/o/r', startingRef: 'main' }],
+          };
+        }
+        if (url.includes('/runs?')) {
+          return {
+            items: [
+              {
+                id: 'run-1',
+                status: 'FINISHED',
+                updatedAt: '2026-04-13T18:45:00.000Z',
+              },
+            ],
+          };
+        }
+        if (url.includes('/runs/run-1')) {
+          return {
+            id: 'run-1',
+            status: 'FINISHED',
+            result: 'Done',
+            updatedAt: '2026-04-13T18:45:00.000Z',
+          };
+        }
+        return {};
+      });
+
+      const details = await cursorService.getAgentDetails('bc-1');
+
+      expect(details).toMatchObject({
+        rawId: 'bc-1',
+        status: 'completed',
+        summary: 'Done',
+      });
+      expect(details.conversation).toEqual([
+        expect.objectContaining({ id: 'run-1', text: 'Done', isUser: false }),
+      ]);
+      expect(details.activities).toEqual([
+        expect.objectContaining({ id: 'run-1', type: 'cursor_run', title: 'Run FINISHED' }),
+      ]);
+    });
+
     test('createAgent sends v1 repos payload', async () => {
       httpService.requestJson.mockResolvedValue({
         agent: {

@@ -181,7 +181,14 @@ export default function ServiceOnboardingModal({
   };
 
   const handleConnect = async () => {
-    if (!service || !api) return;
+    if (!service) return;
+    if (!api) {
+      setFeedback({
+        type: 'error',
+        message: 'Desktop bridge is unavailable. Restart the app and try again.',
+      });
+      return;
+    }
 
     setBusy(true);
     setFeedback(null);

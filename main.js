@@ -50,6 +50,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      // Preload composes local CommonJS modules from src/preload; Electron's
+      // sandboxed preload require cannot resolve those files.
+      sandbox: false,
     },
     titleBarStyle: 'default',
     show: false,

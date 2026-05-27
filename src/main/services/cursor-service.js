@@ -41,27 +41,30 @@ class CursorService {
   }
 
   async listAgents(limit = 100, cursor = null) {
-    let endpoint = `/agents?limit=${limit}`;
+    let endpoint = `/agents?limit=${encodeURIComponent(limit)}`;
     if (cursor) {
-      endpoint += `&cursor=${cursor}`;
+      endpoint += `&cursor=${encodeURIComponent(cursor)}`;
     }
     return this.request(endpoint);
   }
 
   async getAgent(agentId) {
-    return this.request(`/agents/${agentId}`);
+    return this.request(`/agents/${encodeURIComponent(agentId)}`);
   }
 
   async listRuns(agentId, limit = 20, cursor = null) {
-    let endpoint = `/agents/${agentId}/runs?limit=${limit}`;
+    let endpoint = `/agents/${encodeURIComponent(agentId)}/runs?limit=${encodeURIComponent(limit)}`;
     if (cursor) {
-      endpoint += `&cursor=${cursor}`;
+      endpoint += `&cursor=${encodeURIComponent(cursor)}`;
     }
     return this.request(endpoint);
   }
 
   async getRun(agentId, runId) {
-    return this.request(`/agents/${agentId}/runs/${runId}`);
+    const response = await this.request(
+      `/agents/${encodeURIComponent(agentId)}/runs/${encodeURIComponent(runId)}`
+    );
+    return this.unwrapRun(response);
   }
 
   async getAllAgents() {
@@ -69,14 +72,36 @@ class CursorService {
     const agents = response.items || response.agents || [];
     const settled = await Promise.allSettled(
       agents.map(async (agent) => {
-        const run = agent.latestRunId
-          ? await this.getRun(agent.id, agent.latestRunId).catch(() => null)
-          : null;
+        const run = await this.getLatestRun(agent);
         return this.normalizeAgent(agent, run);
       })
     );
 
     return settled.filter((result) => result.status === 'fulfilled').map((result) => result.value);
+  }
+
+  async getLatestRun(agent) {
+    if (!agent?.id) return null;
+
+    if (agent.latestRunId) {
+      const run = await this.getRun(agent.id, agent.latestRunId).catch(() => null);
+      if (run) return run;
+    }
+
+    const runsResponse = await this.listRuns(agent.id, 1).catch(() => null);
+    const runs = this.extractListItems(runsResponse);
+    return this.unwrapRun(runs[0] || null);
+  }
+
+  extractListItems(response) {
+    if (!response) return [];
+    if (Array.isArray(response)) return response;
+    return response.items || response.agents || response.runs || response.repositories || [];
+  }
+
+  unwrapRun(response) {
+    if (!response) return null;
+    return response.run || response;
   }
 
   normalizeAgent(agent, run = null) {
@@ -88,7 +113,7 @@ class CursorService {
       id: `cursor-${agent.id}`,
       provider: 'cursor',
       name: agent.name || 'Cursor Cloud Agent',
-      status: this.mapStatus(run?.status || agent.status),
+      status: run ? this.mapRunStatus(run.status) : this.mapAgentStatus(agent.status, !!agent.latestRunId),
       prompt: '',
       repository,
       branch:
@@ -107,7 +132,7 @@ class CursorService {
     };
   }
 
-  mapStatus(status) {
+  mapRunStatus(status) {
     if (!status) return 'pending';
 
     const statusMap = {
@@ -115,26 +140,55 @@ class CursorService {
       RUNNING: 'running',
       FINISHED: 'completed',
       ERROR: 'failed',
+      FAILED: 'failed',
       CANCELLED: 'stopped',
       EXPIRED: 'failed',
       STOPPED: 'stopped',
-      ACTIVE: 'running',
-      ARCHIVED: 'stopped',
     };
 
     return statusMap[String(status).toUpperCase()] || 'pending';
   }
 
+  mapAgentStatus(status, hasRun = false) {
+    if (!status) return hasRun ? 'completed' : 'pending';
+
+    const statusMap = {
+      ACTIVE: hasRun ? 'completed' : 'pending',
+      ARCHIVED: 'stopped',
+      CREATING: 'pending',
+      RUNNING: 'running',
+      FINISHED: 'completed',
+      ERROR: 'failed',
+      FAILED: 'failed',
+      CANCELLED: 'stopped',
+      EXPIRED: 'failed',
+      STOPPED: 'stopped',
+    };
+
+    return statusMap[String(status).toUpperCase()] || (hasRun ? 'completed' : 'pending');
+  }
+
   async getAgentDetails(agentId) {
     const agent = await this.getAgent(agentId);
     const runsResponse = await this.listRuns(agentId, 20).catch(() => ({ items: [] }));
-    const runs = runsResponse.items || [];
-    const latestRun = agent.latestRunId
-      ? await this.getRun(agentId, agent.latestRunId).catch(() => runs[0] || null)
+    const runs = this.extractListItems(runsResponse).map((run) => this.unwrapRun(run));
+    const latestRunId = agent.latestRunId || runs[0]?.id || null;
+    const latestRun = latestRunId
+      ? await this.getRun(agentId, latestRunId).catch(
+          () => runs.find((run) => run?.id === latestRunId) || runs[0] || null
+        )
       : runs[0] || null;
+    const runActivities = runs.map((run) => ({
+      id: run.id,
+      type: 'cursor_run',
+      title: `Run ${run.status || 'UNKNOWN'}`,
+      description: run.result || null,
+      timestamp: run.updatedAt || run.createdAt,
+    }));
 
     return {
       ...this.normalizeAgent(agent, latestRun),
+      activities: runActivities,
       conversation: latestRun?.result
         ? [
             {
@@ -309,11 +363,12 @@ class CursorService {
       throw new Error('Message is required');
     }
 
-    return this.request(`/agents/${agentId}/runs`, 'POST', {
+    const response = await this.request(`/agents/${encodeURIComponent(agentId)}/runs`, 'POST', {
       prompt: {
         text: message,
       },
     });
+    return this.unwrapRun(response);
   }
 }
 

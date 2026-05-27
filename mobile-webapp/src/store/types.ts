@@ -1,6 +1,13 @@
 // Common types for the RTS Agents mobile app
 
-export type Provider = 'jules' | 'cursor' | 'codex' | 'claude-cloud';
+export type Provider =
+  | 'antigravity'
+  | 'jules'
+  | 'cursor'
+  | 'codex'
+  | 'claude-cloud'
+  | 'claude-cli'
+  | 'opencode';
 export type AgentStatus = 'running' | 'completed' | 'pending' | 'failed' | 'stopped';
 
 export interface AgentTask {
@@ -173,9 +180,12 @@ export interface AppSettings {
 }
 
 export interface ProviderCounts {
+  antigravity?: number;
   jules: number;
   cursor: number;
   codex: number;
   'claude-cloud': number;
+  'claude-cli'?: number;
+  opencode?: number;
   total: number;
 }

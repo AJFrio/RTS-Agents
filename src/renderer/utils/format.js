@@ -28,16 +28,18 @@ export function formatTimeAgo(date) {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}M_AGO`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}H_AGO`;
   if (seconds < 604800) return `${Math.floor(seconds / 86400)}D_AGO`;
-  return then.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }).replace(/\//g, '/');
+  return then
+    .toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+    .replace(/\//g, '/');
 }
 
 export function getStatusStyle(status) {
   const styles = {
-    running: { bg: 'bg-yellow-500/20', text: 'text-yellow-500' },
+    running: { bg: 'bg-yellow-500/20', text: 'text-yellow-700 dark:text-yellow-300' },
     completed: { bg: 'bg-primary', text: 'text-black' },
-    pending: { bg: 'bg-slate-700', text: 'text-slate-400' },
-    failed: { bg: 'bg-red-500/20', text: 'text-red-500' },
-    stopped: { bg: 'bg-slate-700', text: 'text-slate-400' },
+    pending: { bg: 'bg-slate-200 dark:bg-slate-700', text: 'text-slate-700 dark:text-slate-200' },
+    failed: { bg: 'bg-red-500/20', text: 'text-red-700 dark:text-red-300' },
+    stopped: { bg: 'bg-slate-200 dark:bg-slate-700', text: 'text-slate-700 dark:text-slate-200' },
   };
   const key = status === 'stopped' ? 'failed' : status;
   return styles[key] || styles.pending;
@@ -63,6 +65,12 @@ export function extractRepoName(url) {
 }
 
 export function getStatusLabel(status) {
-  const map = { running: 'RUNNING', completed: 'COMPLETE', pending: 'PENDING', failed: 'FAILED', stopped: 'STOPPED' };
+  const map = {
+    running: 'RUNNING',
+    completed: 'COMPLETE',
+    pending: 'PENDING',
+    failed: 'FAILED',
+    stopped: 'STOPPED',
+  };
   return map[status] || status?.toUpperCase() || 'UNKNOWN';
 }

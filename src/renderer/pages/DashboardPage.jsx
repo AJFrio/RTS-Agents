@@ -23,46 +23,97 @@ function formatShortTool(tool) {
   return String(tool);
 }
 
-function RemoteQueueStrip({ activity }) {
+function RemoteActivityRow({ activity }) {
   if (!activity?.configured) return null;
   const devices = Array.isArray(activity.devices) ? activity.devices : [];
-  const hasSignal = devices.some(
-    (d) => (d.queueLength || 0) > 0 || (d.lastTask && d.lastTask.status)
-  );
+  const hasSignal = devices.some((d) => (d.queueLength || 0) > 0 || d.lastTask?.status);
   if (!hasSignal) return null;
+
+  const queued = devices.reduce((sum, d) => sum + (d.queueLength || 0), 0);
+  const lastDevice = devices.find((d) => d.lastTask?.status);
+  const lastTask = lastDevice?.lastTask;
 
   return (
     <div
-      className="mb-6 p-4 rounded-xl border border-slate-200 dark:border-border-dark bg-slate-50/80 dark:bg-slate-900/50"
+      className="mb-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm dark:border-border-dark dark:bg-card-dark sm:flex-row sm:items-center sm:justify-between"
       role="region"
       aria-label="Remote device queue and last run"
     >
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="text-[11px] font-black uppercase tracking-widest text-slate-500">Remote / Headless</div>
-        {activity.loading && <span className="text-[10px] text-slate-500">Updating</span>}
+      <div className="flex items-center gap-2">
+        <span className="material-symbols-outlined text-base text-primary">dns</span>
+        <span className="font-semibold text-slate-800 dark:text-white">Remote activity</span>
+        {queued > 0 && (
+          <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+            {queued} queued
+          </span>
+        )}
       </div>
-      <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
-        {devices
-          .filter((d) => (d.queueLength || 0) > 0 || d.lastTask)
-          .map((d) => {
-            const q = d.queueLength || 0;
-            const lt = d.lastTask;
-            return (
-              <li key={d.deviceId} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 border-b border-slate-200/50 dark:border-border-dark/50 pb-2 last:border-0 last:pb-0">
-                <span className="font-semibold text-slate-800 dark:text-white shrink-0">{d.name || d.deviceId}</span>
-                {q > 0 && <span className="text-amber-600 dark:text-amber-400">Queued: {q}</span>}
-                {lt && (
-                  <span className="text-slate-500 text-xs">
-                    Last run: {lt.status}
-                    {lt.tool ? ` · ${formatShortTool(lt.tool)}` : ''}
-                    {lt.error ? ` · ${lt.error}` : ''}
-                    {lt.updatedAt ? ` · ${formatTimeAgo(lt.updatedAt)}` : ''}
-                  </span>
-                )}
-              </li>
-            );
-          })}
-      </ul>
+      {lastTask && (
+        <div className="text-xs text-slate-500 dark:text-slate-400">
+          Last run on {lastDevice.name || lastDevice.deviceId}: {lastTask.status}
+          {lastTask.tool ? ` · ${formatShortTool(lastTask.tool)}` : ''}
+          {lastTask.error ? ` · ${lastTask.error}` : ''}
+          {lastTask.updatedAt ? ` · ${formatTimeAgo(lastTask.updatedAt)}` : ''}
+        </div>
+      )}
+      {activity.loading && <span className="text-xs text-slate-500">Updating</span>}
+    </div>
+  );
+}
+
+function SummaryStrip({ agents, counts, filters, dispatch }) {
+  const statusCounts = agents.reduce((acc, agent) => {
+    const key = agent.status === 'stopped' ? 'failed' : agent.status || 'pending';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const statuses = [
+    { id: 'running', label: 'Running', icon: 'play_circle' },
+    { id: 'pending', label: 'Pending', icon: 'schedule' },
+    { id: 'completed', label: 'Complete', icon: 'check_circle' },
+    { id: 'failed', label: 'Needs review', icon: 'error' },
+  ];
+
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-border-dark dark:bg-card-dark">
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400">All tasks</div>
+        <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+          {counts.total ?? agents.length}
+        </div>
+      </div>
+      {statuses.map((item) => {
+        const enabled = filters.statuses?.[item.id] ?? true;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() =>
+              dispatch({
+                type: 'SET_FILTERS',
+                payload: { statuses: { ...filters.statuses, [item.id]: !enabled } },
+              })
+            }
+            className={`rounded-lg border p-3 text-left transition-all ${
+              enabled
+                ? 'border-slate-200 bg-white dark:border-border-dark dark:bg-card-dark'
+                : 'border-slate-300 bg-slate-100 opacity-70 dark:border-slate-700 dark:bg-slate-900'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                {item.label}
+              </span>
+              <span className="material-symbols-outlined text-base text-slate-400">
+                {item.icon}
+              </span>
+            </div>
+            <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+              {statusCounts[item.id] || 0}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -76,37 +127,41 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
 
   return (
     <AgentCard onClick={onClick}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${dot}`} />
-          <span className={`text-xs font-medium ${style.text}`}>{providerName}</span>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+          <span className={`truncate text-xs font-medium ${style.text}`}>{providerName}</span>
         </div>
         <StatusBadge status={agent.status}>{statusLabel}</StatusBadge>
       </div>
-      <h3 className="font-bold text-sm mb-2 line-clamp-2 text-slate-800 dark:text-white">{agent.name || 'Untitled'}</h3>
-      <div className="flex items-center gap-4 text-xs text-slate-500">
+      <h3 className="mb-3 line-clamp-2 text-sm font-bold text-slate-800 dark:text-white">
+        {agent.name || 'Untitled'}
+      </h3>
+      <div className="grid gap-2 text-xs text-slate-600 dark:text-slate-300">
         {agent.repository && (
-          <div className="flex items-center gap-1 truncate max-w-[140px]">
+          <div className="flex min-w-0 items-center gap-1">
             <span className="material-symbols-outlined text-xs">folder</span>
             <span className="truncate">{extractRepoName(agent.repository)}</span>
           </div>
         )}
-        {agent.branch && (
-          <div className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-xs">fork_right</span>
-            <span>{agent.branch}</span>
+        <div className="flex items-center justify-between gap-3">
+          {agent.branch && (
+            <div className="flex min-w-0 items-center gap-1">
+              <span className="material-symbols-outlined text-xs">fork_right</span>
+              <span className="truncate">{agent.branch}</span>
+            </div>
+          )}
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <span className="material-symbols-outlined text-xs">schedule</span>
+            <span>{timeAgo}</span>
           </div>
-        )}
-        <div className="flex items-center gap-1 ml-auto">
-          <span className="material-symbols-outlined text-xs">schedule</span>
-          <span>{timeAgo}</span>
         </div>
       </div>
       {agent.prUrl && (
-        <div className="mt-2 pt-2 border-t border-slate-200 dark:border-border-dark">
-          <div className="flex items-center gap-1.5 text-xs text-emerald-500">
+        <div className="mt-3 border-t border-slate-200 pt-2 dark:border-border-dark">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
             <span className="material-symbols-outlined text-sm">merge</span>
-            <span>PR Available</span>
+            <span>PR available</span>
           </div>
         </div>
       )}
@@ -128,9 +183,13 @@ export default function DashboardPage() {
     [filteredAgents, startIndex, endIndex]
   );
 
-  const goPrev = () => dispatch({ type: 'SET_PAGINATION', payload: { currentPage: Math.max(1, currentPage - 1) } });
+  const goPrev = () =>
+    dispatch({ type: 'SET_PAGINATION', payload: { currentPage: Math.max(1, currentPage - 1) } });
   const goNext = () =>
-    dispatch({ type: 'SET_PAGINATION', payload: { currentPage: Math.min(totalPagesComputed, currentPage + 1) } });
+    dispatch({
+      type: 'SET_PAGINATION',
+      payload: { currentPage: Math.min(totalPagesComputed, currentPage + 1) },
+    });
 
   if (loading && state.agents.length === 0) {
     return (
@@ -146,7 +205,7 @@ export default function DashboardPage() {
         <EmptyState
           icon="computer"
           title="No Agents Detected"
-          subtitle="Configure API keys in Settings to establish cloud connections, or verify Antigravity CLI installation for local operations."
+          subtitle="Connect a provider in Settings or verify a local CLI install, then sync to populate this control plane."
           actionLabel="Open Settings"
           onAction={() => setView('settings')}
         />
@@ -157,21 +216,31 @@ export default function DashboardPage() {
   return (
     <div id="view-dashboard" className="view-content">
       {remoteQueue?.lastError && (
-        <div className="mb-4 text-xs text-amber-700 dark:text-amber-300 border border-amber-500/30 rounded-lg px-3 py-2">
+        <div className="mb-4 rounded-lg border border-amber-500/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
           Remote activity could not be refreshed: {remoteQueue.lastError}
         </div>
       )}
-      <RemoteQueueStrip activity={remoteQueue} />
+      <SummaryStrip
+        agents={state.agents}
+        counts={state.counts}
+        filters={state.filters}
+        dispatch={dispatch}
+      />
+      <RemoteActivityRow activity={remoteQueue} />
       <ErrorBanner errors={errors} />
 
       {pageItems.length === 0 ? (
-        <div className="col-span-full text-center py-12">
-          <span className="material-symbols-outlined text-slate-600 text-4xl mb-4">filter_alt_off</span>
-          <p className="technical-font text-slate-500">No tasks match current filters</p>
+        <div className="rounded-lg border border-dashed border-slate-300 py-12 text-center dark:border-border-dark">
+          <span className="material-symbols-outlined mb-4 text-4xl text-slate-500">
+            filter_alt_off
+          </span>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+            No tasks match the current filters
+          </p>
         </div>
       ) : (
         <>
-          <div id="agents-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div id="agents-grid" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((agent) => (
               <AgentCardItem
                 key={`${agent.provider}-${agent.rawId || agent.id || Math.random()}`}

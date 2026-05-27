@@ -12,11 +12,11 @@ const PROVIDER_CLASS = {
 };
 
 const STATUS_CLASS = {
-  running: 'status-badge running bg-yellow-500/20 text-yellow-500',
+  running: 'status-badge running bg-yellow-500/20 text-yellow-700 dark:text-yellow-300',
   completed: 'status-badge completed bg-primary text-black',
-  pending: 'status-badge pending bg-slate-700 text-slate-400',
-  failed: 'status-badge failed bg-red-500/20 text-red-500',
-  stopped: 'status-badge stopped bg-red-500/20 text-red-500',
+  pending: 'status-badge pending bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+  failed: 'status-badge failed bg-red-500/20 text-red-700 dark:text-red-300',
+  stopped: 'status-badge stopped bg-red-500/20 text-red-700 dark:text-red-300',
 };
 
 export function ProviderBadge({ provider, children }) {

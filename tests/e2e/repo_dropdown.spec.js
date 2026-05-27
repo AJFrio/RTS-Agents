@@ -7,7 +7,7 @@ test.describe('Repository Dropdown Navigation', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 
@@ -24,7 +24,7 @@ test.describe('Repository Dropdown Navigation', () => {
         getAgents: async () => ({ agents: [], counts: {} }),
         getSettings: async () => ({
           settings: { theme: 'system' },
-          apiKeys: { jules: true }
+          apiKeys: { jules: true },
         }),
         getConnectionStatus: async () => ({}),
         getRepositories: async (service) => {
@@ -33,11 +33,11 @@ test.describe('Repository Dropdown Navigation', () => {
             repositories: [
               { id: 1, name: 'repo-one', url: 'github.com/user/repo-one' },
               { id: 2, name: 'repo-two', url: 'github.com/user/repo-two' },
-              { id: 3, name: 'repo-three', url: 'github.com/user/repo-three' }
-            ]
+              { id: 3, name: 'repo-three', url: 'github.com/user/repo-three' },
+            ],
           };
         },
-        onRefreshTick: () => {}
+        onRefreshTick: () => {},
       };
     });
 
@@ -77,7 +77,7 @@ test.describe('Repository Dropdown Navigation', () => {
 
     // First item should be active
     await expect(options.nth(0)).toHaveClass(/active-repo-option/);
-    await expect(options.nth(0)).toHaveClass(/bg-\[\#C2B280\]\/20/);
+    await expect(options.nth(0)).toHaveClass(/bg-primary\/10/);
 
     // Press ArrowDown again
     await repoSearch.press('ArrowDown');
@@ -99,7 +99,7 @@ test.describe('Repository Dropdown Navigation', () => {
     await expect(dropdown).toBeHidden();
 
     // Input should have the value of the selected repo
-    await expect(repoSearch).toHaveValue('REPO-ONE');
+    await expect(repoSearch).toHaveValue('repo-one');
   });
 
   test('Task Description font is readable', async () => {

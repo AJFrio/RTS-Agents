@@ -25,7 +25,7 @@ export default function AgentPage() {
       sender: 'user', // UI uses 'sender' instead of 'role'
       role: 'user', // Backend expects 'role'
       text: inputValue,
-      content: inputValue // Backend expects 'content'
+      content: inputValue, // Backend expects 'content'
     };
 
     const newMessages = [...messages, newMessage];
@@ -35,9 +35,9 @@ export default function AgentPage() {
 
     try {
       // Convert UI messages to backend format
-      const history = newMessages.map(m => ({
+      const history = newMessages.map((m) => ({
         role: m.role || (m.sender === 'user' ? 'user' : 'assistant'),
-        content: m.content || m.text
+        content: m.content || m.text,
       }));
 
       const response = await api.orchestratorChat(history, selectedModel);
@@ -48,18 +48,21 @@ export default function AgentPage() {
           sender: 'assistant',
           role: 'assistant',
           text: response.content,
-          content: response.content
+          content: response.content,
         };
-        setMessages(prev => [...prev, assistantMsg]);
+        setMessages((prev) => [...prev, assistantMsg]);
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        sender: 'assistant',
-        text: `Error: ${err.message}`,
-        isError: true
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: 'assistant',
+          text: `Error: ${err.message}`,
+          isError: true,
+        },
+      ]);
     } finally {
       setThinking(false);
     }
@@ -75,6 +78,40 @@ export default function AgentPage() {
   return (
     <div id="view-agent" className="view-content h-full flex flex-col relative">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && !thinking && (
+          <div className="mx-auto flex h-full max-w-3xl flex-col justify-center">
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-border-dark dark:bg-card-dark">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Ask the orchestrator
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Use this for cross-provider status checks, task planning, and next-action
+                    summaries.
+                  </p>
+                </div>
+                <span className="rounded-lg bg-primary/15 px-3 py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
+                  {selectedModel}
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {['Summarize active work', 'Find stuck tasks', 'Draft a new agent task'].map(
+                  (suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => setInputValue(suggestion)}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:border-primary hover:bg-primary/5 dark:border-border-dark dark:text-slate-200 dark:hover:bg-primary/10"
+                    >
+                      {suggestion}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -92,12 +129,14 @@ export default function AgentPage() {
           </div>
         ))}
         {thinking && (
-           <div className="flex justify-start">
-             <div className="text-slate-400 text-sm pl-2 italic flex items-center gap-2">
-               <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-               Thinking...
-             </div>
-           </div>
+          <div className="flex justify-start">
+            <div className="text-slate-400 text-sm pl-2 italic flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm animate-spin">
+                progress_activity
+              </span>
+              Thinking...
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -109,7 +148,7 @@ export default function AgentPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={thinking ? "Agent is working..." : "Ask Agent"}
+              placeholder={thinking ? 'Agent is working...' : 'Ask Agent'}
               disabled={thinking}
               rows={1}
               className="w-full !bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-sm min-h-[24px] px-0 focus:!ring-0 focus:outline-none disabled:opacity-50"
@@ -119,30 +158,22 @@ export default function AgentPage() {
                 <button
                   className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
                   title="Add attachment"
+                  disabled
                 >
                   <span className="material-symbols-outlined text-xl">add</span>
                 </button>
-                <button className="flex items-center gap-1 px-3 py-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-sm font-medium">
-                  <span className="material-symbols-outlined text-lg">construction</span>
-                  <span>Tools</span>
-                </button>
+                <span className="text-xs text-slate-500 dark:text-slate-400">{selectedModel}</span>
               </div>
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1 px-3 py-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-sm font-medium">
-                  <span>Thinking</span>
-                  <span className="material-symbols-outlined text-lg">expand_more</span>
-                </button>
                 <button
                   className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
-                  title={inputValue.trim() ? 'Send' : 'Start voice input'}
+                  title="Send"
                   onClick={() => {
                     if (inputValue.trim()) handleSendMessage();
                   }}
-                  disabled={thinking}
+                  disabled={thinking || !inputValue.trim()}
                 >
-                  <span className="material-symbols-outlined text-xl">
-                    {inputValue.trim() ? 'send' : 'mic'}
-                  </span>
+                  <span className="material-symbols-outlined text-xl">send</span>
                 </button>
               </div>
             </div>

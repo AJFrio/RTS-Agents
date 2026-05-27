@@ -13,10 +13,12 @@ export default function ConfirmModal({ config, onClose }) {
   if (!open) return null;
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="bg-sidebar-dark border border-border-dark w-full max-w-md p-6 shadow-2xl flex flex-col items-center text-center rounded-xl">
+      <div className="bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark w-full max-w-md p-6 shadow-2xl flex flex-col items-center text-center rounded-xl">
         <span className="material-symbols-outlined text-primary text-4xl mb-4">warning</span>
-        <h3 className="text-lg font-bold text-white uppercase tracking-tight mb-2">{title}</h3>
-        <p className="text-sm text-slate-400 mb-6 font-light">{message}</p>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight mb-2">
+          {title}
+        </h3>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">{message}</p>
         <div className="flex gap-3 w-full">
           <Button variant="secondary" className="flex-1" onClick={onClose}>
             CANCEL

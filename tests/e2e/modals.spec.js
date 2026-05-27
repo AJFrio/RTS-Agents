@@ -9,7 +9,7 @@ test.describe('Modal Tests', () => {
   test.beforeAll(async () => {
     // Launch Electron app
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 
@@ -27,30 +27,32 @@ test.describe('Modal Tests', () => {
       window.__electronAPI = {
         getAgents: async () => ({
           full: true,
-          agents: [{
-            provider: 'antigravity',
-            rawId: 'task-123',
-            name: 'Test Agent',
-            status: 'running',
-            prompt: 'Test prompt for agent',
-            repository: 'https://github.com/user/test-repo',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }],
+          agents: [
+            {
+              provider: 'antigravity',
+              rawId: 'task-123',
+              name: 'Test Agent',
+              status: 'running',
+              prompt: 'Test prompt for agent',
+              repository: 'https://github.com/user/test-repo',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
           counts: { antigravity: 1, total: 1 },
-          errors: []
+          errors: [],
         }),
         getSettings: async () => ({
           settings: {
             pollingInterval: 30000,
             autoPolling: false,
             antigravityPaths: [],
-            theme: 'dark'
+            theme: 'dark',
           },
           githubPaths: [],
           apiKeys: { jules: true, cursor: true, codex: true, claude: true },
           antigravityInstalled: true,
-          claudeCliInstalled: true
+          claudeCliInstalled: true,
         }),
         getConnectionStatus: async () => ({
           antigravity: { connected: true },
@@ -58,7 +60,7 @@ test.describe('Modal Tests', () => {
           cursor: { connected: true },
           codex: { connected: true },
           'claude-cli': { connected: true },
-          'claude-cloud': { connected: true }
+          'claude-cloud': { connected: true },
         }),
         getAgentDetails: async (provider, rawId) => ({
           name: 'Test Agent Details',
@@ -70,26 +72,36 @@ test.describe('Modal Tests', () => {
           summary: 'Agent summary text',
           conversation: [
             { isUser: true, text: 'Hello agent' },
-            { isUser: false, text: 'Hello user' }
+            { isUser: false, text: 'Hello user' },
           ],
           messages: [],
-          activities: [
-            { title: 'Task started', timestamp: new Date().toISOString() }
-          ]
+          activities: [{ title: 'Task started', timestamp: new Date().toISOString() }],
         }),
         getRepositories: async (provider) => ({
           success: true,
           repositories: [
-            { id: 'repo-1', name: 'my-repo', url: 'https://github.com/user/my-repo', displayName: 'MY-REPO' },
-            { id: 'repo-2', name: 'other-repo', url: 'https://github.com/user/other-repo', displayName: 'OTHER-REPO' }
-          ]
+            {
+              id: 'repo-1',
+              name: 'my-repo',
+              url: 'https://github.com/user/my-repo',
+              displayName: 'MY-REPO',
+            },
+            {
+              id: 'repo-2',
+              name: 'other-repo',
+              url: 'https://github.com/user/other-repo',
+              displayName: 'OTHER-REPO',
+            },
+          ],
         }),
         createTask: async (provider, options) => ({ success: true }),
-        onRefreshTick: (cb) => { return () => {} },
+        onRefreshTick: (cb) => {
+          return () => {};
+        },
         setApiKey: async () => {},
         testApiKey: async () => ({ success: true }),
         setTheme: async () => {},
-        openExternal: async () => {}
+        openExternal: async () => {},
       };
     });
 
@@ -138,7 +150,7 @@ test.describe('Modal Tests', () => {
     // Select a service (e.g., Antigravity)
     const antigravityBtn = page.locator('#service-antigravity');
     await antigravityBtn.click();
-    await expect(antigravityBtn).toHaveClass(/border-\[#C2B280\]/);
+    await expect(antigravityBtn).toHaveClass(/border-primary/);
 
     // Repo search should become enabled and populated
     const repoSearch = page.locator('#task-repo-search');
@@ -161,8 +173,11 @@ test.describe('Modal Tests', () => {
     const promptInput = page.locator('#task-prompt');
     await promptInput.fill('Do something cool');
 
+    await expect(page.locator('#task-branch')).toBeVisible();
+
     // Create Task button should be enabled
     const createBtn = page.locator('#create-task-btn');
     await expect(createBtn).toBeEnabled();
+    await expect(createBtn).toContainText('Create Task');
   });
 });

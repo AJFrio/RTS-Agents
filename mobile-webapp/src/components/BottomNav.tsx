@@ -1,6 +1,6 @@
 /**
  * Bottom Navigation Component
- * 
+ *
  * Mobile-optimized bottom navigation bar
  */
 
@@ -15,10 +15,10 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { id: 'agent', icon: 'smart_toy', label: 'Agent' },
-  { id: 'branches', icon: 'fork_right', label: 'Branches' },
-  { id: 'pull-requests', icon: 'merge_type', label: 'PRs' },
+  { id: 'branches', icon: 'source', label: 'Repos' },
+  { id: 'pull-requests', icon: 'merge_type', label: 'Pulls' },
   { id: 'computers', icon: 'computer', label: 'Computers' },
-  // { id: 'jira', icon: 'assignment', label: 'Jira' }, // Removed to make space, can add back if needed or use 'more' menu
+  { id: 'jira', icon: 'assignment', label: 'Jira' },
   { id: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
@@ -31,10 +31,10 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-sidebar-dark border-t border-slate-200 dark:border-border-dark z-30 safe-bottom shadow-lg">
-      <div className="flex items-center justify-around h-full max-w-lg mx-auto">
-        {navItems.map(item => {
+      <div className="flex items-center justify-around h-full max-w-xl mx-auto overflow-x-auto">
+        {navItems.map((item) => {
           const isActive = state.currentView === item.id;
-          
+
           return (
             <button
               key={item.id}
@@ -45,19 +45,21 @@ export default function BottomNav() {
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
-              <span className={`material-symbols-outlined text-2xl transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
+              <span
+                className={`material-symbols-outlined text-2xl transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}
+              >
                 {item.icon}
               </span>
-              <span className={`text-[9px] font-medium mt-0.5 transition-all duration-200 ${
-                isActive ? 'font-semibold' : ''
-              }`}>
+              <span
+                className={`text-[9px] font-medium mt-0.5 transition-all duration-200 ${
+                  isActive ? 'font-semibold' : ''
+                }`}
+              >
                 {item.label}
               </span>
-              
+
               {/* Active indicator */}
-              {isActive && (
-                <div className="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full" />
-              )}
+              {isActive && <div className="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full" />}
             </button>
           );
         })}

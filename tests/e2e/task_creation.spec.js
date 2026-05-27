@@ -7,7 +7,7 @@ test.describe('Task Creation Shortcut', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 
@@ -31,13 +31,21 @@ test.describe('Task Creation Shortcut', () => {
     // Press Ctrl+Enter
     await promptInput.press('Control+Enter');
 
-    // Expect error toast because service is not selected
-    // The toast is created in document.body
-    // toast.textContent = message;
-    // showToast('Please fill in all required fields', 'error');
-
-    // We look for the toast with the specific text
-    const toast = window.locator('text=Please fill in all required fields');
+    const toast = window.getByText('Choose an agent before creating the task.').last();
     await expect(toast).toBeVisible();
+    await window.locator('[aria-label="Close modal"]').click({ position: { x: 5, y: 5 } });
+  });
+
+  test('New Task modal exposes branch/ref and disabled reason', async () => {
+    const window = await electronApp.firstWindow();
+    await window.waitForLoadState('domcontentloaded');
+
+    await window.click('#new-task-btn');
+    const modal = window.locator('#new-task-modal');
+    await expect(modal).toBeVisible();
+
+    await expect(window.locator('#task-branch')).toBeVisible();
+    await expect(modal).toContainText('Choose an agent before creating the task.');
+    await expect(window.locator('#create-task-btn')).toBeDisabled();
   });
 });

@@ -1,6 +1,6 @@
 /**
  * Agent Card Component
- * 
+ *
  * Displays a single agent task card
  */
 
@@ -12,10 +12,13 @@ interface AgentCardProps {
 }
 
 const providerStyles: Record<string, { border: string; text: string; dot: string }> = {
+  antigravity: { border: 'border-emerald-500', text: 'text-emerald-500', dot: 'bg-emerald-500' },
   jules: { border: 'border-primary', text: 'text-primary', dot: 'bg-primary' },
   cursor: { border: 'border-blue-500', text: 'text-blue-500', dot: 'bg-blue-500' },
   codex: { border: 'border-cyan-500', text: 'text-cyan-500', dot: 'bg-cyan-500' },
   'claude-cloud': { border: 'border-amber-500', text: 'text-amber-500', dot: 'bg-amber-500' },
+  'claude-cli': { border: 'border-orange-500', text: 'text-orange-500', dot: 'bg-orange-500' },
+  opencode: { border: 'border-violet-500', text: 'text-violet-500', dot: 'bg-violet-500' },
 };
 
 const statusStyles: Record<string, { bg: string; text: string }> = {
@@ -36,7 +39,7 @@ const statusLabels: Record<string, string> = {
 
 function formatTimeAgo(date: Date | null): string {
   if (!date) return '--';
-  
+
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const seconds = Math.floor(diff / 1000);
@@ -56,6 +59,14 @@ function extractRepoName(url: string | null): string {
   return match ? match[1] : url;
 }
 
+function getProviderLabel(provider: string): string {
+  if (provider === 'antigravity') return 'Antigravity CLI';
+  if (provider === 'claude-cloud') return 'Claude';
+  if (provider === 'claude-cli') return 'Claude CLI';
+  if (provider === 'opencode') return 'OpenCode';
+  return provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
 export default function AgentCard({ agent, onClick }: AgentCardProps) {
   const provider = providerStyles[agent.provider] || providerStyles.cursor;
   const status = statusStyles[agent.status] || statusStyles.pending;
@@ -70,11 +81,12 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${provider.dot}`} />
           <span className={`text-xs font-medium ${provider.text}`}>
-            {agent.provider === 'claude-cloud' ? 'Claude' : agent.provider.charAt(0).toUpperCase() + agent.provider.slice(1)}
+            {getProviderLabel(agent.provider)}
           </span>
         </div>
         <span className={`px-2.5 py-1 text-xs font-medium rounded-md ${status.bg} ${status.text}`}>
-          {statusLabels[agent.status] || agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
+          {statusLabels[agent.status] ||
+            agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
         </span>
       </div>
 
@@ -92,7 +104,7 @@ export default function AgentCard({ agent, onClick }: AgentCardProps) {
             <span className="truncate">{extractRepoName(agent.repository)}</span>
           </div>
         )}
-        
+
         {/* Branch */}
         {agent.branch && (
           <div className="flex items-center gap-1">

@@ -1,6 +1,6 @@
 /**
  * Storage Service
- * 
+ *
  * Handles secure storage of API keys and settings using localStorage.
  * Uses simple obfuscation (base64) to deter casual access.
  * Note: This is NOT true encryption - for sensitive data, consider
@@ -185,16 +185,20 @@ class StorageService {
     const stored = localStorage.getItem(`${STORAGE_PREFIX}filters`);
     const defaults = {
       providers: {
+        antigravity: true,
         jules: true,
         cursor: true,
         codex: true,
         'claude-cloud': true,
+        'claude-cli': true,
+        opencode: true,
       },
       statuses: {
         running: true,
         completed: true,
         pending: true,
-        failed: true,        stopped: true,
+        failed: true,
+        stopped: true,
       },
       search: '',
     };
@@ -208,11 +212,13 @@ class StorageService {
     }
   }
 
-  setFilters(filters: Partial<{
-    providers: Record<string, boolean>;
-    statuses: Record<string, boolean>;
-    search: string;
-  }>): void {
+  setFilters(
+    filters: Partial<{
+      providers: Record<string, boolean>;
+      statuses: Record<string, boolean>;
+      search: string;
+    }>
+  ): void {
     const current = this.getFilters();
     const updated = { ...current, ...filters };
     localStorage.setItem(`${STORAGE_PREFIX}filters`, JSON.stringify(updated));
@@ -223,8 +229,8 @@ class StorageService {
   // ============================================
 
   clear(): void {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith(STORAGE_PREFIX));
-    keys.forEach(k => localStorage.removeItem(k));
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith(STORAGE_PREFIX));
+    keys.forEach((k) => localStorage.removeItem(k));
   }
 }
 

@@ -236,6 +236,126 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       ]);
     });
 
+    test('getAgentDetails strips cursor- prefix from agent id', async () => {
+      httpService.requestJson.mockImplementation(async (url) => {
+        if (url.endsWith('/agents/bc-1')) {
+          return { id: 'bc-1', name: 'Agent', status: 'ACTIVE', latestRunId: 'run-1' };
+        }
+        if (url.includes('/runs?')) {
+          return { items: [{ id: 'run-1', status: 'RUNNING' }] };
+        }
+        if (url.includes('/runs/run-1')) {
+          return { id: 'run-1', status: 'RUNNING' };
+        }
+        return {};
+      });
+
+      const details = await cursorService.getAgentDetails('cursor-bc-1');
+
+      expect(httpService.requestJson).toHaveBeenCalledWith(
+        'https://api.cursor.com/v1/agents/bc-1',
+        'GET',
+        null,
+        expect.any(Object),
+        60000
+      );
+      expect(details.rawId).toBe('bc-1');
+      expect(details.activities.length).toBeGreaterThan(0);
+    });
+
+    test('getAgentDetails unwraps wrapped agent response', async () => {
+      httpService.requestJson.mockImplementation(async (url) => {
+        if (url.endsWith('/agents/bc-1')) {
+          return {
+            agent: {
+              id: 'bc-1',
+              name: 'Wrapped agent',
+              status: 'ACTIVE',
+              latestRunId: 'run-1',
+              repos: [{ url: 'https://github.com/o/r', startingRef: 'main' }],
+            },
+          };
+        }
+        if (url.includes('/runs?')) {
+          return { items: [{ id: 'run-1', status: 'RUNNING' }] };
+        }
+        if (url.includes('/runs/run-1')) {
+          return { id: 'run-1', status: 'RUNNING' };
+        }
+        return {};
+      });
+
+      const details = await cursorService.getAgentDetails('bc-1');
+
+      expect(details).toMatchObject({
+        rawId: 'bc-1',
+        name: 'Wrapped agent',
+        repository: 'https://github.com/o/r',
+        branch: 'main',
+      });
+      expect(details.activities).toHaveLength(1);
+    });
+
+    test('getAgentDetails hydrates list runs without result via getRun', async () => {
+      httpService.requestJson.mockImplementation(async (url) => {
+        if (url.endsWith('/agents/bc-1')) {
+          return { id: 'bc-1', name: 'Agent', status: 'ACTIVE', latestRunId: 'run-1' };
+        }
+        if (url.includes('/runs?')) {
+          return {
+            items: [{ id: 'run-1', status: 'FINISHED', updatedAt: '2026-04-13T18:45:00.000Z' }],
+          };
+        }
+        if (url.includes('/runs/run-1')) {
+          return {
+            id: 'run-1',
+            status: 'FINISHED',
+            result: 'Hydrated result',
+            updatedAt: '2026-04-13T18:45:00.000Z',
+          };
+        }
+        return {};
+      });
+
+      const details = await cursorService.getAgentDetails('bc-1');
+
+      expect(details.summary).toBe('Hydrated result');
+      expect(details.conversation).toEqual([
+        expect.objectContaining({ text: 'Hydrated result' }),
+      ]);
+      expect(details.activities[0].description).toContain('Hydrated result');
+    });
+
+    test('getAgentDetails shows activity and metadata for in-progress runs', async () => {
+      httpService.requestJson.mockImplementation(async (url) => {
+        if (url.endsWith('/agents/bc-1')) {
+          return {
+            id: 'bc-1',
+            name: 'In progress',
+            status: 'ACTIVE',
+            latestRunId: 'run-1',
+            repos: [{ url: 'https://github.com/o/r', startingRef: 'main' }],
+          };
+        }
+        if (url.includes('/runs?')) {
+          return { items: [{ id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' }] };
+        }
+        if (url.includes('/runs/run-1')) {
+          return { id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' };
+        }
+        return {};
+      });
+
+      const details = await cursorService.getAgentDetails('bc-1');
+
+      expect(details.summary).toBe('In progress');
+      expect(details.repository).toBe('https://github.com/o/r');
+      expect(details.activities).toEqual([
+        expect.objectContaining({ id: 'run-1', title: 'Run RUNNING' }),
+      ]);
+      expect(details.conversation).toEqual([]);
+    });
+
     test('createAgent sends v1 repos payload', async () => {
       httpService.requestJson.mockResolvedValue({
         agent: {

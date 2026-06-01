@@ -134,8 +134,10 @@ async function getAgentDetails(deps, { provider, rawId, filePath }) {
       return antigravityService.getSessionDetails(rawId);
     case 'jules':
       return julesService.getAgentDetails(rawId);
-    case 'cursor':
-      return cursorService.getAgentDetails(rawId);
+    case 'cursor': {
+      const cursorId = rawId ? String(rawId).replace(/^cursor-/, '') : rawId;
+      return cursorService.getAgentDetails(cursorId);
+    }
     case 'codex':
       return codexService.getAgentDetails(rawId);
     case 'claude':

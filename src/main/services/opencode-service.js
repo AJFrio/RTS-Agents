@@ -6,8 +6,16 @@ const projectService = require('./project-service');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
+const {
+  isValidOpenCodeSessionId,
+  parseJsonlEvent,
+  appendStreamMessage,
+  parseExportToMessages,
+} = require('./opencode-session-parser');
 
 const STDERR_CAP = 2000;
+const EXPORT_TIMEOUT_MS = 60000;
+const STDOUT_BUFFER_CAP = 512 * 1024;
 
 function isCommandRunnable(cmd) {
   if (!cmd) return false;
@@ -42,6 +50,21 @@ function supportsRunSubcommand(executable) {
   }
 }
 
+function isWindowsTerminalAvailable() {
+  if (process.platform !== 'win32') return false;
+  try {
+    const r = spawnSync('where', ['wt.exe'], {
+      shell: false,
+      stdio: 'ignore',
+      timeout: 3000,
+      windowsHide: true,
+    });
+    return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
 class OpenCodeService {
   constructor() {
     this.trackedSessions = [];
@@ -66,7 +89,7 @@ class OpenCodeService {
    * CLI args for non-interactive work per https://opencode.ai/docs/cli/#run
    */
   buildRunArgs(projectPath, prompt, options = {}) {
-    const args = ['run', '--dir', projectPath];
+    const args = ['run', '--dir', projectPath, '--format', 'json'];
     if (options.skipPermissions !== false) {
       args.push('--dangerously-skip-permissions');
     }
@@ -80,9 +103,6 @@ class OpenCodeService {
     return args;
   }
 
-  /**
-   * Heuristic: CLI on PATH, or a typical config directory from an install.
-   */
   async isOpenCodeInstalled() {
     const cached = installStatus.getCached('opencode');
     if (cached !== undefined) {
@@ -91,7 +111,6 @@ class OpenCodeService {
     return this.refreshInstallStatus();
   }
 
-  /** @returns {boolean} Last known install state (false until warmed). */
   isOpenCodeInstalledSync() {
     const cached = installStatus.getCached('opencode');
     return cached === undefined ? false : cached;
@@ -154,6 +173,7 @@ class OpenCodeService {
       prompt: t.prompt,
       repository: t.projectPath,
       rawId: t.id,
+      opencodeSessionId: t.opencodeSessionId || null,
       filePath: t.filePath || null,
       summary: failed && t.error ? t.error : t.prompt || '',
       createdAt: t.createdAt,
@@ -162,9 +182,18 @@ class OpenCodeService {
     };
   }
 
-  /**
-   * Start a detached `opencode run` in a project directory (non-interactive).
-   */
+  _handleStdoutLine(sessionId, line, state) {
+    const { sessionId: parsedId, message } = parseJsonlEvent(line);
+    if (parsedId && !state.opencodeSessionId) {
+      state.opencodeSessionId = parsedId;
+      this._updateSession(sessionId, { opencodeSessionId: parsedId });
+    }
+    if (message) {
+      state.streamMessages = appendStreamMessage(state.streamMessages, message);
+      this._updateSession(sessionId, { streamMessages: state.streamMessages });
+    }
+  }
+
   async startSession(options) {
     const { prompt, command } = options;
     const projectPath = options.projectPath || options.repository;
@@ -191,14 +220,16 @@ class OpenCodeService {
 
     const args = this.buildRunArgs(projectPath, prompt, options);
     const sessionId = `opencode-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const streamState = { opencodeSessionId: null, streamMessages: [] };
 
     return new Promise((resolve, reject) => {
       let stderr = '';
+      let stdoutBuf = '';
       const child = spawn(opencodeCmd, args, {
         cwd: projectPath,
         shell: false,
         detached: true,
-        stdio: ['ignore', 'ignore', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
         windowsHide: true,
       });
@@ -215,6 +246,22 @@ class OpenCodeService {
         }
       });
 
+      if (child.stdout) {
+        child.stdout.on('data', (chunk) => {
+          stdoutBuf += chunk.toString();
+          if (stdoutBuf.length > STDOUT_BUFFER_CAP) {
+            stdoutBuf = stdoutBuf.slice(-STDOUT_BUFFER_CAP);
+          }
+          let newlineIdx = stdoutBuf.indexOf('\n');
+          while (newlineIdx !== -1) {
+            const line = stdoutBuf.slice(0, newlineIdx);
+            stdoutBuf = stdoutBuf.slice(newlineIdx + 1);
+            this._handleStdoutLine(sessionId, line, streamState);
+            newlineIdx = stdoutBuf.indexOf('\n');
+          }
+        });
+      }
+
       if (child.stderr) {
         child.stderr.on('data', (chunk) => {
           const text = chunk.toString();
@@ -226,22 +273,27 @@ class OpenCodeService {
       }
 
       child.on('exit', (code) => {
-        const trimmed = stderr.trim();
-        if (code === 0) {
-          this._updateSession(sessionId, {
-            status: 'completed',
-            exitCode: code,
-            error: null,
-          });
-          return;
+        if (stdoutBuf.trim()) {
+          this._handleStdoutLine(sessionId, stdoutBuf, streamState);
         }
-        this._updateSession(sessionId, {
-          status: 'failed',
-          exitCode: code,
-          error:
+        const trimmed = stderr.trim();
+        const patch = { exitCode: code };
+        if (code === 0) {
+          patch.status = 'completed';
+          patch.error = null;
+        } else {
+          patch.status = 'failed';
+          patch.error =
             trimmed ||
-            `OpenCode exited with code ${code}. Check ~/.config/opencode and run "opencode run" in a terminal.`,
-        });
+            `OpenCode exited with code ${code}. Check ~/.config/opencode and run "opencode run" in a terminal.`;
+        }
+        if (!streamState.opencodeSessionId) {
+          const hint =
+            trimmed ||
+            'No OpenCode session ID was returned. Fix opencode.json config errors or upgrade the CLI.';
+          patch.error = patch.error ? `${patch.error}\n\n${hint}` : hint;
+        }
+        this._updateSession(sessionId, patch);
       });
 
       child.unref();
@@ -251,6 +303,8 @@ class OpenCodeService {
         rawId: sessionId,
         prompt,
         projectPath,
+        opencodeSessionId: null,
+        streamMessages: [],
         status: 'running',
         exitCode: null,
         error: null,
@@ -269,6 +323,7 @@ class OpenCodeService {
           prompt,
           repository: projectPath,
           rawId: sessionId,
+          opencodeSessionId: null,
           filePath: null,
           message:
             'OpenCode task started with "opencode run". It runs in the background without opening a terminal window.',
@@ -278,20 +333,35 @@ class OpenCodeService {
     });
   }
 
-  getAllAgents() {
-    return this.trackedSessions.map((t) => this._mapTrackedToAgent(t));
+  _runExport(opencodeCmd, projectPath, opencodeSessionId) {
+    const result = spawnSync(opencodeCmd, ['export', opencodeSessionId], {
+      cwd: projectPath,
+      shell: false,
+      encoding: 'utf8',
+      timeout: EXPORT_TIMEOUT_MS,
+      windowsHide: true,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return {
+      ok: result.status === 0,
+      stdout: result.stdout || '',
+      stderr: result.stderr || '',
+      error: result.error,
+    };
   }
 
-  getSessionDetails(rawId) {
-    const t = this.trackedSessions.find((x) => x.id === rawId);
-    if (!t) return null;
-
+  _buildMessagesFromTracked(t) {
     const messages = [{ role: 'user', content: t.prompt, timestamp: t.createdAt }];
+    const stream = Array.isArray(t.streamMessages) ? t.streamMessages : [];
+    if (stream.length > 0) {
+      messages.push(...stream);
+      return messages;
+    }
     if (t.status === 'running') {
       messages.push({
         role: 'assistant',
         content:
-          'OpenCode is running via `opencode run` in the background. For live output, run the same command in a terminal in that repository.',
+          'OpenCode is running via `opencode run` in the background. Live output will appear here when available.',
       });
     } else if (t.status === 'completed') {
       messages.push({
@@ -303,22 +373,145 @@ class OpenCodeService {
         role: 'assistant',
         content: `OpenCode failed:\n\n${t.error}`,
       });
-    } else {
-      messages.push({
-        role: 'assistant',
-        content:
-          'Session ended. For full history, use `opencode session list` or the OpenCode TUI in that repository.',
-      });
     }
+    return messages;
+  }
 
-    return {
+  async getSessionDetails(rawId) {
+    const t = this.trackedSessions.find((x) => x.id === rawId);
+    if (!t) return null;
+
+    const base = {
       name: t.prompt ? t.prompt.substring(0, 80) : 'OpenCode',
       prompt: t.prompt,
-      messages,
+      repository: t.projectPath,
+      projectPath: t.projectPath,
+      opencodeSessionId: t.opencodeSessionId || null,
+      trackingId: t.id,
       filePath: null,
       status: t.status,
       exitCode: t.exitCode,
     };
+
+    let messages = [];
+
+    if (t.opencodeSessionId && isValidOpenCodeSessionId(t.opencodeSessionId)) {
+      const opencodeCmd = this.getExecutable();
+      const exported = this._runExport(opencodeCmd, t.projectPath, t.opencodeSessionId);
+      if (exported.ok && exported.stdout.trim()) {
+        try {
+          const parsed = JSON.parse(exported.stdout);
+          messages = parseExportToMessages(parsed);
+        } catch {
+          messages = [];
+        }
+      }
+      if (messages.length === 0 && !exported.ok) {
+        const errText = (exported.stderr || exported.error?.message || '').trim();
+        if (errText) {
+          messages = this._buildMessagesFromTracked(t);
+          messages.push({
+            role: 'assistant',
+            content: `Could not load OpenCode export:\n\n${errText}`,
+          });
+          return { ...base, messages };
+        }
+      }
+    }
+
+    if (messages.length === 0) {
+      messages = this._buildMessagesFromTracked(t);
+    } else {
+      const hasUser = messages.some((m) => m.role === 'user');
+      if (!hasUser && t.prompt) {
+        messages = [{ role: 'user', content: t.prompt, timestamp: t.createdAt }, ...messages];
+      }
+    }
+
+    return { ...base, messages };
+  }
+
+  async openSessionInTerminal({ projectPath, opencodeSessionId, command }) {
+    if (!projectPath || typeof projectPath !== 'string') {
+      throw new Error('Project path is required');
+    }
+    if (!isValidOpenCodeSessionId(opencodeSessionId)) {
+      throw new Error('Valid OpenCode session ID is required (ses_…)');
+    }
+    if (!(await pathExists(projectPath))) {
+      throw new Error(`Project path does not exist: ${projectPath}`);
+    }
+
+    const opencodeCmd =
+      command && String(command).trim() ? String(command).trim() : this.getExecutable();
+    const tuiArgs = ['-s', opencodeSessionId];
+
+    if (process.platform === 'win32') {
+      if (isWindowsTerminalAvailable()) {
+        const child = spawn('wt.exe', ['-d', projectPath, opencodeCmd, ...tuiArgs], {
+          detached: true,
+          stdio: 'ignore',
+          shell: false,
+          windowsHide: false,
+        });
+        child.on('error', () => {
+          this._openWindowsCmdTerminal(projectPath, opencodeCmd, opencodeSessionId);
+        });
+        child.unref();
+        return { success: true, method: 'wt' };
+      }
+      return this._openWindowsCmdTerminal(projectPath, opencodeCmd, opencodeSessionId);
+    }
+
+    if (process.platform === 'darwin') {
+      const escapedPath = projectPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const script = `cd "${escapedPath}" && ${opencodeCmd} -s ${opencodeSessionId}`;
+      const child = spawn('osascript', ['-e', `tell application "Terminal" to do script "${script}"`], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      });
+      child.unref();
+      return { success: true, method: 'terminal-mac' };
+    }
+
+    const child = spawn(
+      'x-terminal-emulator',
+      ['-e', opencodeCmd, ...tuiArgs],
+      {
+        cwd: projectPath,
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      }
+    );
+    child.on('error', () => {
+      spawn(opencodeCmd, tuiArgs, {
+        cwd: projectPath,
+        detached: true,
+        stdio: 'ignore',
+        shell: false,
+      }).unref();
+    });
+    child.unref();
+    return { success: true, method: 'x-terminal-emulator' };
+  }
+
+  _openWindowsCmdTerminal(projectPath, opencodeCmd, opencodeSessionId) {
+    const quotedPath = `"${projectPath.replace(/"/g, '""')}"`;
+    const inner = `cd /d ${quotedPath} && ${opencodeCmd} -s ${opencodeSessionId}`;
+    const child = spawn('cmd.exe', ['/c', 'start', 'OpenCode', 'cmd', '/k', inner], {
+      detached: true,
+      stdio: 'ignore',
+      shell: false,
+      windowsHide: true,
+    });
+    child.unref();
+    return { success: true, method: 'cmd' };
+  }
+
+  getAllAgents() {
+    return this.trackedSessions.map((t) => this._mapTrackedToAgent(t));
   }
 
   async getAvailableProjects(additionalPaths = []) {

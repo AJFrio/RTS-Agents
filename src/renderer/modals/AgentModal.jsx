@@ -33,7 +33,18 @@ function hasTaskContext(details) {
   const hasPrUrl = details.prUrl && String(details.prUrl).trim();
   const hasRuns = details.runs?.length > 0;
   const hasLatestRun = details.latestRunId && String(details.latestRunId).trim();
-  return !!(hasRepository || hasBranch || hasPrUrl || hasRuns || hasLatestRun);
+  const hasOpenCodeSession =
+    details.opencodeSessionId && String(details.opencodeSessionId).trim();
+  const hasTrackingId = details.trackingId && String(details.trackingId).trim();
+  return !!(
+    hasRepository ||
+    hasBranch ||
+    hasPrUrl ||
+    hasRuns ||
+    hasLatestRun ||
+    hasOpenCodeSession ||
+    hasTrackingId
+  );
 }
 
 function ActivityMediaLazy({ sessionId, activity, api, scrollRootRef }) {
@@ -142,10 +153,11 @@ function ActivityMediaLazy({ sessionId, activity, api, scrollRootRef }) {
   );
 }
 
-function TaskContextSection({ details, onOpenExternal }) {
+function TaskContextSection({ details, onOpenExternal, onOpenOpenCodeSession }) {
   if (!hasTaskContext(details)) return null;
 
   const latestRun = details.runs?.find((run) => run.id === details.latestRunId) || details.runs?.[0];
+  const projectPath = details.projectPath || details.repository;
 
   return (
     <section>
@@ -184,6 +196,35 @@ function TaskContextSection({ details, onOpenExternal }) {
               {details.latestRunId}
               {latestRun?.status ? ` (${latestRun.status})` : ''}
             </dd>
+          </div>
+        )}
+        {details.opencodeSessionId && (
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              OpenCode session
+            </dt>
+            <dd>
+              {onOpenOpenCodeSession && projectPath ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenOpenCodeSession(details.opencodeSessionId, projectPath)}
+                  className="technical-font text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 break-all text-left"
+                  title="Open this session in a terminal (OpenCode TUI)"
+                >
+                  {details.opencodeSessionId}
+                </button>
+              ) : (
+                <span className="technical-font text-xs break-all">{details.opencodeSessionId}</span>
+              )}
+            </dd>
+          </div>
+        )}
+        {details.trackingId && (
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Tracking ID
+            </dt>
+            <dd className="technical-font text-xs break-all">{details.trackingId}</dd>
           </div>
         )}
       </dl>
@@ -248,6 +289,23 @@ export default function AgentModal({ agent, onClose, api }) {
 
   const providerName = getProviderDisplayName(agent.provider);
   const statusLabel = getStatusLabel(agent.status);
+
+  const openCodeSessionId =
+    details?.opencodeSessionId || agent.opencodeSessionId || null;
+  const openCodeProjectPath =
+    details?.projectPath || details?.repository || agent.repository || null;
+
+  const handleOpenOpenCodeSession = async () => {
+    if (!api?.openOpenCodeSession || !openCodeSessionId || !openCodeProjectPath) return;
+    try {
+      const result = await api.openOpenCodeSession(openCodeSessionId, openCodeProjectPath);
+      if (result?.success === false) {
+        setDetailsError(result.error || 'Failed to open OpenCode session in terminal');
+      }
+    } catch (err) {
+      setDetailsError(err?.message || 'Failed to open OpenCode session in terminal');
+    }
+  };
 
   return (
     <Modal open={!!agent} onClose={onClose}>
@@ -318,7 +376,15 @@ export default function AgentModal({ agent, onClose, api }) {
             return (
               <div className="space-y-6">
                 {hasContext && (
-                  <TaskContextSection details={details} onOpenExternal={(url) => api.openExternal(url)} />
+                  <TaskContextSection
+                    details={details}
+                    onOpenExternal={(url) => api.openExternal(url)}
+                    onOpenOpenCodeSession={
+                      agent.provider === 'opencode' && api?.openOpenCodeSession
+                        ? (sessionId, projectPath) => api.openOpenCodeSession(sessionId, projectPath)
+                        : null
+                    }
+                  />
                 )}
                 {hasPrompt && (
                   <section>
@@ -420,7 +486,19 @@ export default function AgentModal({ agent, onClose, api }) {
                 )}
                 {hasMessages && (
                   <section>
-                    <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">Messages</h3>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">Messages</h3>
+                      {agent.provider === 'opencode' && openCodeSessionId && openCodeProjectPath && (
+                        <button
+                          type="button"
+                          onClick={handleOpenOpenCodeSession}
+                          className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">terminal</span>
+                          Open in terminal
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-3">
                       {details.messages.map((msg, i) => (
                         <div
@@ -446,8 +524,32 @@ export default function AgentModal({ agent, onClose, api }) {
             <p className="text-slate-500">No details available.</p>
           )}
         </div>
-        <div className="p-4 bg-slate-50 dark:bg-black border-t border-slate-200 dark:border-border-dark flex justify-end items-center text-[10px] technical-font text-slate-600">
-          <span id="modal-task-id">Task ID: {agent.rawId || agent.id || '--'}</span>
+        <div className="p-4 bg-slate-50 dark:bg-black border-t border-slate-200 dark:border-border-dark flex flex-col items-end gap-1 text-[10px] technical-font text-slate-600">
+          {agent.provider === 'opencode' ? (
+            <>
+              <span id="modal-task-id">Tracking ID: {agent.rawId || agent.id || '--'}</span>
+              {openCodeSessionId ? (
+                <button
+                  type="button"
+                  id="modal-opencode-session-id"
+                  onClick={handleOpenOpenCodeSession}
+                  disabled={!openCodeProjectPath || !api?.openOpenCodeSession}
+                  className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  title={
+                    openCodeProjectPath
+                      ? 'Open OpenCode TUI for this session'
+                      : 'Project path unavailable'
+                  }
+                >
+                  OpenCode session: {openCodeSessionId}
+                </button>
+              ) : (
+                <span className="text-slate-500">OpenCode session: not linked (legacy or failed run)</span>
+              )}
+            </>
+          ) : (
+            <span id="modal-task-id">Task ID: {agent.rawId || agent.id || '--'}</span>
+          )}
         </div>
       </div>
     </Modal>

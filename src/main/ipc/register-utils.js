@@ -68,6 +68,18 @@ function registerUtilsHandlers(deps) {
     return { success: true };
   });
 
+  ipcMain.handle('utils:open-opencode-session', async (event, { sessionId, projectPath }) => {
+    try {
+      return await opencodeService.openSessionInTerminal({
+        opencodeSessionId: sessionId,
+        projectPath,
+      });
+    } catch (err) {
+      console.error('Error opening OpenCode session in terminal:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
   /**
    * Open directory selection dialog
    */

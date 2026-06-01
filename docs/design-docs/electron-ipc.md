@@ -25,6 +25,7 @@ main.js  →  registerAllIpcHandlers()  →  src/main/ipc/register-*.js
 |---------|---------|
 | `agents:get-all` | Aggregated task list from all providers |
 | `agents:get-details` | Provider-specific detail payload |
+| `utils:open-opencode-session` | Launch external terminal with OpenCode TUI (`-s ses_*`) in project directory |
 | `settings:*` | Keys, polling, theme, paths, filters |
 | `github:*` | Repos, PRs, merge, ready-for-review |
 | `cloudflare:*` | KV config, heartbeat, key sync |

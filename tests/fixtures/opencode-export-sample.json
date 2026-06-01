@@ -1,0 +1,24 @@
+{
+  "id": "ses_sample1234567890abcdef",
+  "title": "Fix the bug",
+  "messages": [
+    {
+      "id": "msg_1",
+      "role": "user",
+      "content": "Fix the failing unit test in project-service",
+      "timestamp": "2026-06-01T12:00:00.000Z"
+    },
+    {
+      "id": "msg_2",
+      "role": "assistant",
+      "content": "I'll read the test file and apply a minimal fix.",
+      "timestamp": "2026-06-01T12:01:00.000Z"
+    },
+    {
+      "id": "msg_3",
+      "role": "assistant",
+      "content": "Updated the mock and the test now passes.",
+      "timestamp": "2026-06-01T12:02:00.000Z"
+    }
+  ]
+}

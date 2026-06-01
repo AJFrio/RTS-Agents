@@ -7,6 +7,8 @@ const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 
+const STDERR_CAP = 2000;
+
 function isCommandRunnable(cmd) {
   if (!cmd) return false;
   try {
@@ -17,6 +19,23 @@ function isCommandRunnable(cmd) {
       windowsHide: true,
     });
     if (r.error) return false;
+    return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function supportsRunSubcommand(executable) {
+  try {
+    const r = spawnSync(executable, ['run', '-h'], {
+      shell: false,
+      stdio: 'ignore',
+      timeout: 6000,
+      windowsHide: true,
+    });
+    if (r.error) {
+      return r.error.code !== 'ENOENT';
+    }
     return r.status === 0;
   } catch {
     return false;
@@ -41,6 +60,24 @@ class OpenCodeService {
     const custom = typeof cli?.opencode === 'string' ? cli.opencode.trim() : '';
     if (custom) return custom;
     return process.platform === 'win32' ? 'opencode.cmd' : 'opencode';
+  }
+
+  /**
+   * CLI args for non-interactive work per https://opencode.ai/docs/cli/#run
+   */
+  buildRunArgs(projectPath, prompt, options = {}) {
+    const args = ['run', '--dir', projectPath];
+    if (options.skipPermissions !== false) {
+      args.push('--dangerously-skip-permissions');
+    }
+    if (options.model) {
+      args.push('--model', String(options.model));
+    }
+    if (options.agent) {
+      args.push('--agent', String(options.agent));
+    }
+    args.push(prompt);
+    return args;
   }
 
   /**
@@ -95,29 +132,42 @@ class OpenCodeService {
     });
   }
 
-  _pickRunArgsFor(executable, prompt) {
-    const h = spawnSync(executable, ['run', '-h'], {
-      stdio: 'ignore',
-      windowsHide: true,
-      timeout: 6000,
-    });
-    if (h.error) {
-      if (h.error.code === 'ENOENT') {
-        return { error: 'OpenCode executable not found' };
-      }
-    }
-    if (h.status === 0) {
-      return { args: ['run', prompt] };
-    }
-    return { args: ['-p', prompt] };
+  _updateSession(sessionId, patch) {
+    const idx = this.trackedSessions.findIndex((x) => x.id === sessionId);
+    if (idx === -1) return;
+    this.trackedSessions[idx] = {
+      ...this.trackedSessions[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    configStore.setOpenCodeSessions(this.trackedSessions);
+  }
+
+  _mapTrackedToAgent(t) {
+    const failed = t.status === 'failed' || t.status === 'stopped';
+    return {
+      id: t.id,
+      provider: 'opencode',
+      name:
+        (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) || 'OpenCode',
+      status: t.status || 'running',
+      prompt: t.prompt,
+      repository: t.projectPath,
+      rawId: t.id,
+      filePath: t.filePath || null,
+      summary: failed && t.error ? t.error : t.prompt || '',
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+      exitCode: t.exitCode,
+    };
   }
 
   /**
-   * Start a detached OpenCode run in a project directory.
-   * Uses `opencode run` when available, otherwise `opencode -p` (legacy builds).
+   * Start a detached `opencode run` in a project directory (non-interactive).
    */
   async startSession(options) {
-    const { prompt, projectPath, command } = options;
+    const { prompt, command } = options;
+    const projectPath = options.projectPath || options.repository;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -132,20 +182,23 @@ class OpenCodeService {
 
     const opencodeCmd =
       command && String(command).trim() ? String(command).trim() : this.getExecutable();
-    const run = this._pickRunArgsFor(opencodeCmd, prompt);
-    if (run.error) {
-      throw new Error(run.error);
-    }
-    const { args } = run;
 
+    if (!supportsRunSubcommand(opencodeCmd)) {
+      throw new Error(
+        'OpenCode CLI is too old or missing the "run" subcommand. Upgrade from https://opencode.ai/docs/cli/'
+      );
+    }
+
+    const args = this.buildRunArgs(projectPath, prompt, options);
     const sessionId = `opencode-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     return new Promise((resolve, reject) => {
+      let stderr = '';
       const child = spawn(opencodeCmd, args, {
         cwd: projectPath,
         shell: false,
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', 'pipe'],
         env: { ...process.env },
         windowsHide: true,
       });
@@ -162,6 +215,35 @@ class OpenCodeService {
         }
       });
 
+      if (child.stderr) {
+        child.stderr.on('data', (chunk) => {
+          const text = chunk.toString();
+          stderr += text;
+          if (stderr.length > STDERR_CAP) {
+            stderr = stderr.slice(-STDERR_CAP);
+          }
+        });
+      }
+
+      child.on('exit', (code) => {
+        const trimmed = stderr.trim();
+        if (code === 0) {
+          this._updateSession(sessionId, {
+            status: 'completed',
+            exitCode: code,
+            error: null,
+          });
+          return;
+        }
+        this._updateSession(sessionId, {
+          status: 'failed',
+          exitCode: code,
+          error:
+            trimmed ||
+            `OpenCode exited with code ${code}. Check ~/.config/opencode and run "opencode run" in a terminal.`,
+        });
+      });
+
       child.unref();
 
       const entry = {
@@ -170,6 +252,8 @@ class OpenCodeService {
         prompt,
         projectPath,
         status: 'running',
+        exitCode: null,
+        error: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -186,7 +270,8 @@ class OpenCodeService {
           repository: projectPath,
           rawId: sessionId,
           filePath: null,
-          message: 'OpenCode task started in the background.',
+          message:
+            'OpenCode task started with "opencode run". It runs in the background without opening a terminal window.',
           createdAt: new Date(),
         });
       }, 400);
@@ -194,37 +279,45 @@ class OpenCodeService {
   }
 
   getAllAgents() {
-    return this.trackedSessions.map((t) => ({
-      id: t.id,
-      provider: 'opencode',
-      name:
-        (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) || 'OpenCode',
-      status: t.status || 'running',
-      prompt: t.prompt,
-      repository: t.projectPath,
-      rawId: t.id,
-      filePath: t.filePath || null,
-      summary: t.prompt || '',
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-    }));
+    return this.trackedSessions.map((t) => this._mapTrackedToAgent(t));
   }
 
   getSessionDetails(rawId) {
     const t = this.trackedSessions.find((x) => x.id === rawId);
     if (!t) return null;
+
+    const messages = [{ role: 'user', content: t.prompt, timestamp: t.createdAt }];
+    if (t.status === 'running') {
+      messages.push({
+        role: 'assistant',
+        content:
+          'OpenCode is running via `opencode run` in the background. For live output, run the same command in a terminal in that repository.',
+      });
+    } else if (t.status === 'completed') {
+      messages.push({
+        role: 'assistant',
+        content: 'OpenCode finished successfully. Review your repository for file changes.',
+      });
+    } else if (t.error) {
+      messages.push({
+        role: 'assistant',
+        content: `OpenCode failed:\n\n${t.error}`,
+      });
+    } else {
+      messages.push({
+        role: 'assistant',
+        content:
+          'Session ended. For full history, use `opencode session list` or the OpenCode TUI in that repository.',
+      });
+    }
+
     return {
       name: t.prompt ? t.prompt.substring(0, 80) : 'OpenCode',
       prompt: t.prompt,
-      messages: [
-        { role: 'user', content: t.prompt, timestamp: t.createdAt },
-        {
-          role: 'assistant',
-          content:
-            'Session started via OpenCode CLI. For full history, use the OpenCode UI or your terminal in that repository.',
-        },
-      ],
+      messages,
       filePath: null,
+      status: t.status,
+      exitCode: t.exitCode,
     };
   }
 

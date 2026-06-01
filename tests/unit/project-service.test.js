@@ -103,6 +103,24 @@ describe('ProjectService Unit Tests', () => {
     });
   });
 
+  describe('resolveLocalProjectPath', () => {
+    const { pathExists } = require('../../src/main/utils/path-exists');
+
+    test('returns existing absolute path unchanged', async () => {
+      const full = 'D:\\GitHub\\FriRM';
+      pathExists.mockImplementation(async (p) => p === full);
+      const resolved = await projectService.resolveLocalProjectPath(full, ['D:\\GitHub']);
+      expect(resolved).toBe(full);
+    });
+
+    test('resolves folder name under configured roots', async () => {
+      const full = path.join('D:\\GitHub', 'FriRM');
+      pathExists.mockImplementation(async (p) => p === full);
+      const resolved = await projectService.resolveLocalProjectPath('FriRM', ['D:\\GitHub']);
+      expect(resolved).toBe(full);
+    });
+  });
+
   describe('pullRepo', () => {
     test('should pull repo successfully', async () => {
       const repoPath = '/path/to/repo';

@@ -55,7 +55,8 @@ function getAgentsForEnvironment(state, environment) {
 }
 
 function getRepoValue(repo) {
-  return repo?.id ?? repo?.path ?? '';
+  // Local scans set id to folder name and path to the full directory; prefer path for CLI cwd.
+  return repo?.path ?? repo?.id ?? '';
 }
 
 function getRepoLabel(repo) {
@@ -377,13 +378,14 @@ export default function NewTaskModal({ open, onClose, api }) {
       };
       if (selectedRepo) {
         options.repository = selectedRepo;
-        if (isRemote) options.projectPath = selectedRepo;
+        // Local CLI providers (OpenCode, Antigravity, Claude CLI) need cwd via projectPath.
+        options.projectPath = selectedRepo;
       }
       if (isRemote) options.targetDeviceId = targetDeviceId;
 
       const result = await api.createTask(selectedProvider, options);
       if (result?.success !== false && loadAgents) {
-        loadAgents(false);
+        loadAgents({ force: true });
       }
       setPrompt('');
       setSelectedService(null);

@@ -594,7 +594,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       switch (provider) {
         case 'jules':
-          details = await julesService.getAgentDetails(rawId);
+          details = await julesService.getAgentDetailsText(rawId);
           break;
         case 'cursor':
           details = await cursorService.getAgentDetails(rawId);

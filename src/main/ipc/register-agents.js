@@ -20,6 +20,26 @@ function registerAgentsHandlers(deps) {
       throw err;
     }
   });
+
+  ipcMain.handle('agents:get-jules-details-text', async (event, { sessionId }) => {
+    try {
+      const { julesService } = deps;
+      return await julesService.getAgentDetailsText(sessionId);
+    } catch (err) {
+      console.error('Error getting Jules agent details (text):', err);
+      throw err;
+    }
+  });
+
+  ipcMain.handle('agents:get-jules-activity-media', async (event, { sessionId, activityId }) => {
+    try {
+      const { julesService } = deps;
+      return await julesService.getActivityMedia(sessionId, activityId);
+    } catch (err) {
+      console.error('Error getting Jules activity media:', err);
+      throw err;
+    }
+  });
 }
 
 module.exports = { registerAgentsHandlers };

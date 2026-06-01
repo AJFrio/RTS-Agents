@@ -16,10 +16,22 @@ jest.mock('fs', () => ({
   },
 }));
 
+jest.mock('../../src/main/utils/path-exists', () => ({
+  pathExists: jest.fn().mockResolvedValue(true),
+  pathExistsAny: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('../../src/main/services/config-store', () => ({
+  getSetting: jest.fn(() => ({})),
+  setOpenCodeSessions: jest.fn(),
+  getOpenCodeSessions: jest.fn(() => []),
+}));
+
 // Require services AFTER mocking/spying
 let claudeService = require('../../src/main/services/claude-service');
 let antigravityService = require('../../src/main/services/antigravity-service');
 let queueProcessorService = require('../../src/main/services/queue-processor-service');
+let opencodeService = require('../../src/main/services/opencode-service');
 
 describe('Security Verification - Command Injection', () => {
   beforeEach(() => {
@@ -29,6 +41,7 @@ describe('Security Verification - Command Injection', () => {
     claudeService = require('../../src/main/services/claude-service');
     antigravityService = require('../../src/main/services/antigravity-service');
     queueProcessorService = require('../../src/main/services/queue-processor-service');
+    opencodeService = require('../../src/main/services/opencode-service');
   });
 
   describe('ClaudeService', () => {
@@ -85,6 +98,25 @@ describe('Security Verification - Command Injection', () => {
         expect(promptArg).toBe(prompt);
         expect(promptArg).not.toMatch(/^".*"$/);
       }
+    });
+  });
+
+  describe('OpenCodeService', () => {
+    it('should NOT use shell: true when opening session in terminal', async () => {
+      await opencodeService.openSessionInTerminal({
+        projectPath: 'D:\\GitHub\\repo',
+        opencodeSessionId: 'ses_abc123def456',
+      });
+
+      const terminalCall = spawnSpy.mock.calls.find(
+        (call) =>
+          call[0] === 'wt.exe' ||
+          call[0] === 'cmd.exe' ||
+          call[0] === 'x-terminal-emulator' ||
+          call[0] === 'osascript'
+      );
+      expect(terminalCall).toBeDefined();
+      expect(terminalCall[2].shell).toBe(false);
     });
   });
 

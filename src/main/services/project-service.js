@@ -66,7 +66,7 @@ class ProjectService {
               await fsp.access(gitPath);
 
               return {
-                id: entry.name,
+                id: dirPath,
                 name: entry.name,
                 path: dirPath,
                 displayName: entry.name,
@@ -99,6 +99,35 @@ class ProjectService {
     }
 
     return Array.from(uniqueProjects.values());
+  }
+
+  /**
+   * Resolve a repository reference to an on-disk project directory.
+   * Accepts full paths or a folder name under configured scan roots (e.g. githubPaths).
+   */
+  async resolveLocalProjectPath(repoRef, searchRoots = []) {
+    if (!repoRef || typeof repoRef !== 'string') {
+      return repoRef;
+    }
+    const trimmed = repoRef.trim();
+    if (!trimmed) {
+      return trimmed;
+    }
+    if (await pathExists(trimmed)) {
+      return trimmed;
+    }
+    if (path.isAbsolute(trimmed)) {
+      return trimmed;
+    }
+
+    const roots = [...new Set((searchRoots || []).filter(Boolean))];
+    for (const root of roots) {
+      const candidate = path.join(root, trimmed);
+      if (await pathExists(candidate)) {
+        return candidate;
+      }
+    }
+    return trimmed;
   }
 
   async getRepoFile(repoPath, fileName) {

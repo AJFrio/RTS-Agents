@@ -3,7 +3,10 @@
  * Used by IPC handlers in register-agents.js and register-tasks.js.
  */
 
+const projectService = require('../services/project-service');
+
 const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'claude-cli', 'codex', 'opencode']);
+const LOCAL_CWD_PROVIDERS = new Set(['antigravity', 'codex', 'claude-cli', 'opencode']);
 
 const AGENT_LIST_KEYS = [
   'antigravity',
@@ -297,6 +300,21 @@ async function fetchAllRepositories(deps) {
   return results;
 }
 
+async function resolveTaskProjectPath(configStore, options) {
+  const raw = options?.projectPath || options?.repository;
+  if (!raw) {
+    return options;
+  }
+  const resolved = await projectService.resolveLocalProjectPath(
+    raw,
+    configStore.getAllProjectPaths()
+  );
+  if (resolved === raw) {
+    return options;
+  }
+  return { ...options, projectPath: resolved, repository: resolved };
+}
+
 async function createLocalTask(deps, provider, options) {
   const {
     configStore,
@@ -411,10 +429,14 @@ async function createRemoteTask(deps, provider, options) {
 
 async function createTask(deps, { provider, options }) {
   try {
-    if (options?.targetDeviceId) {
-      return await createRemoteTask(deps, provider, options);
+    let taskOptions = options;
+    if (LOCAL_CWD_PROVIDERS.has(provider)) {
+      taskOptions = await resolveTaskProjectPath(deps.configStore, options);
     }
-    return await createLocalTask(deps, provider, options);
+    if (taskOptions?.targetDeviceId) {
+      return await createRemoteTask(deps, provider, taskOptions);
+    }
+    return await createLocalTask(deps, provider, taskOptions);
   } catch (err) {
     console.error(`Error creating task for ${provider}:`, err);
     return { success: false, error: err.message };

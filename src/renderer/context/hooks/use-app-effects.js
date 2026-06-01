@@ -63,9 +63,9 @@ export function useAppEffects({
     const { agents, filters } = state;
     const { providers, statuses, search } = filters;
     const filtered = agents.filter((agent) => {
-      if (!providers[agent.provider]) return false;
+      if (providers[agent.provider] === false) return false;
       const statusKey = agent.status === 'stopped' ? 'failed' : agent.status;
-      if (!statuses[statusKey]) return false;
+      if (statuses[statusKey] === false) return false;
       if (search) {
         const searchFields = [agent.name, agent.prompt, agent.repository, agent.summary]
           .filter(Boolean)

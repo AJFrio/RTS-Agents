@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { initialState } from '../app-state.js';
 
 /**
  * Settings, agents, connection status, computers, and remote queue loaders.
@@ -90,10 +91,20 @@ export function useAppData(api, state, dispatch) {
         dispatch({ type: 'SET_LOCAL_DEVICE_ID', payload: result.localDeviceId });
       }
       if (result.filters?.providers) {
-        dispatch({ type: 'SET_FILTERS', payload: { providers: result.filters.providers } });
+        dispatch({
+          type: 'SET_FILTERS',
+          payload: {
+            providers: { ...initialState.filters.providers, ...result.filters.providers },
+          },
+        });
       }
       if (result.filters?.statuses) {
-        dispatch({ type: 'SET_FILTERS', payload: { statuses: result.filters.statuses } });
+        dispatch({
+          type: 'SET_FILTERS',
+          payload: {
+            statuses: { ...initialState.filters.statuses, ...result.filters.statuses },
+          },
+        });
       }
       if (typeof result.filters?.search === 'string') {
         dispatch({ type: 'SET_FILTERS', payload: { search: result.filters.search } });

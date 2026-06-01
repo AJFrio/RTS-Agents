@@ -111,12 +111,36 @@ class CursorService {
     return this.request(endpoint);
   }
 
+  private resolveAgentId(agentId: string): string {
+    if (!agentId) {
+      throw new Error('Cursor agent ID is required');
+    }
+    return String(agentId).replace(/^cursor-/, '');
+  }
+
+  private unwrapAgent(response: CursorAgent | { agent?: CursorAgent } | null | undefined): CursorAgent | null {
+    if (!response) return null;
+    if (Object.prototype.hasOwnProperty.call(response, 'agent')) {
+      return (response as { agent?: CursorAgent }).agent || null;
+    }
+    return response as CursorAgent;
+  }
+
   async getAgent(agentId: string): Promise<CursorAgent> {
-    return this.request(`/agents/${encodeURIComponent(agentId)}`);
+    const id = this.resolveAgentId(agentId);
+    const response = await this.request<CursorAgent | { agent?: CursorAgent }>(
+      `/agents/${encodeURIComponent(id)}`
+    );
+    const agent = this.unwrapAgent(response);
+    if (!agent) {
+      throw new Error('Cursor agent not found');
+    }
+    return agent;
   }
 
   async listRuns(agentId: string, limit = 20, cursor?: string): Promise<CursorListResponse<CursorRun>> {
-    let endpoint = `/agents/${encodeURIComponent(agentId)}/runs?limit=${encodeURIComponent(String(limit))}`;
+    const id = this.resolveAgentId(agentId);
+    let endpoint = `/agents/${encodeURIComponent(id)}/runs?limit=${encodeURIComponent(String(limit))}`;
     if (cursor) {
       endpoint += `&cursor=${encodeURIComponent(cursor)}`;
     }
@@ -124,8 +148,9 @@ class CursorService {
   }
 
   async getRun(agentId: string, runId: string): Promise<CursorRun> {
+    const id = this.resolveAgentId(agentId);
     const response = await this.request<CursorRun | { run?: CursorRun }>(
-      `/agents/${encodeURIComponent(agentId)}/runs/${encodeURIComponent(runId)}`
+      `/agents/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`
     );
     return this.unwrapRun(response) || { id: runId };
   }
@@ -211,21 +236,91 @@ class CursorService {
   }
 
   private async getLatestRun(agent: CursorAgent): Promise<CursorRun | null> {
-    if (!agent.id) return null;
+    const agentRecord = this.unwrapAgent(agent);
+    if (!agentRecord?.id) return null;
 
-    if (agent.latestRunId) {
-      const run = await this.getRun(agent.id, agent.latestRunId).catch(() => null);
+    if (agentRecord.latestRunId) {
+      const run = await this.getRun(agentRecord.id, agentRecord.latestRunId).catch(() => null);
       if (run) return run;
     }
 
-    const runsResponse = await this.listRuns(agent.id, 1).catch(() => null);
+    const runsResponse = await this.listRuns(agentRecord.id, 1).catch(() => null);
     const runs = this.extractListItems<CursorRun>(runsResponse);
     return this.unwrapRun(runs[0]);
   }
 
+  private mergeRunSummary(listRun: CursorRun, detailRun: CursorRun | null): CursorRun {
+    if (!detailRun) return listRun;
+    return {
+      ...listRun,
+      ...detailRun,
+      git: detailRun.git || listRun.git,
+    };
+  }
+
+  private formatRunGitDescription(run: CursorRun): string | null {
+    const branches = run.git?.branches || [];
+    if (!branches.length) return null;
+
+    return branches
+      .map(entry => {
+        const parts: string[] = [];
+        if (entry.repoUrl) parts.push(entry.repoUrl);
+        if (entry.branch) parts.push(`branch: ${entry.branch}`);
+        if (entry.prUrl) parts.push(`PR: ${entry.prUrl}`);
+        return parts.join(' · ');
+      })
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  private buildRunActivity(run: CursorRun): Activity {
+    const gitNote = this.formatRunGitDescription(run);
+    const description = [run.result, gitNote].filter(Boolean).join('\n\n') || null;
+
+    return {
+      id: run.id,
+      type: 'cursor_run',
+      title: `Run ${run.status || 'UNKNOWN'}`,
+      description,
+      timestamp: run.updatedAt || run.createdAt,
+    };
+  }
+
+  private buildConversationFromRuns(runs: CursorRun[]): ConversationMessage[] {
+    const chronological = [...runs].reverse();
+    const messages: ConversationMessage[] = [];
+
+    for (const run of chronological) {
+      if (!run.result?.trim()) continue;
+      messages.push({
+        id: run.id,
+        type: 'assistant_message',
+        text: run.result,
+        isUser: false,
+      });
+    }
+
+    return messages;
+  }
+
+  private async hydrateRuns(agentId: string, runs: CursorRun[]): Promise<CursorRun[]> {
+    const settled = await Promise.allSettled(
+      runs.map(run => (run.id ? this.getRun(agentId, run.id) : Promise.resolve(null)))
+    );
+
+    return runs.map((run, index) => {
+      const entry = settled[index];
+      const detail = entry.status === 'fulfilled' ? entry.value : null;
+      return this.mergeRunSummary(run, detail);
+    });
+  }
+
   async getAllAgents(): Promise<AgentTask[]> {
     const response = await this.listAgents(100);
-    const agents = this.extractListItems<CursorAgent>(response);
+    const agents = this.extractListItems<CursorAgent>(response)
+      .map(item => this.unwrapAgent(item))
+      .filter((item): item is CursorAgent => !!item);
     const settled = await Promise.allSettled(
       agents.map(async agent => this.normalizeAgent(agent, await this.getLatestRun(agent)))
     );
@@ -235,35 +330,46 @@ class CursorService {
   }
 
   async getAgentDetails(agentId: string): Promise<AgentDetails> {
-    const agent = await this.getAgent(agentId);
-    const runsResponse = await this.listRuns(agentId, 20).catch(() => ({ items: [] }));
-    const runs = this.extractListItems<CursorRun>(runsResponse).map(run => this.unwrapRun(run)).filter(Boolean) as CursorRun[];
+    const id = this.resolveAgentId(agentId);
+    const agent = await this.getAgent(id);
+
+    let runsResponse: CursorListResponse<CursorRun>;
+    try {
+      runsResponse = await this.listRuns(id, 20);
+    } catch (err) {
+      console.warn(`Cursor listRuns failed for ${id}:`, err instanceof Error ? err.message : err);
+      runsResponse = { items: [] };
+    }
+
+    const listRuns = this.extractListItems<CursorRun>(runsResponse)
+      .map(run => this.unwrapRun(run))
+      .filter((run): run is CursorRun => !!run);
+    const runs = await this.hydrateRuns(id, listRuns);
+
     const latestRunId = agent.latestRunId || runs[0]?.id || null;
-    const latestRun = latestRunId
-      ? await this.getRun(agentId, latestRunId).catch(() => runs.find(run => run.id === latestRunId) || runs[0] || null)
-      : runs[0] || null;
+    const latestRun = runs.find(run => run.id === latestRunId) || runs[0] || null;
+
+    const terminalRunsWithResult = runs.filter(run => run.result?.trim());
+    const summary =
+      latestRun?.result || terminalRunsWithResult[0]?.result || agent.name || null;
 
     const normalized = this.normalizeAgent(agent, latestRun);
 
-    const conversation: ConversationMessage[] = latestRun?.result ? [{
-      id: latestRun.id,
-      type: 'assistant_message',
-      text: latestRun.result,
-      isUser: false,
-    }] : [];
-
-    const activities: Activity[] = runs.map(run => ({
-      id: run.id,
-      type: 'cursor_run',
-      title: `Run ${run.status || 'UNKNOWN'}`,
-      description: run.result || null,
-      timestamp: run.updatedAt || run.createdAt,
-    }));
-
     return {
       ...normalized,
-      activities,
-      conversation,
+      summary,
+      activities: runs.map(run => this.buildRunActivity(run)),
+      conversation: this.buildConversationFromRuns(runs),
+      latestRunId,
+      runs: runs.map(run => ({
+        id: run.id,
+        status: run.status,
+        createdAt: run.createdAt,
+        updatedAt: run.updatedAt,
+        durationMs: run.durationMs ?? null,
+        result: run.result || null,
+        git: run.git || null,
+      })),
     };
   }
 
@@ -336,7 +442,8 @@ class CursorService {
       throw new Error('Prompt is required');
     }
 
-    await this.request(`/agents/${encodeURIComponent(agentId)}/runs`, 'POST', {
+    const id = this.resolveAgentId(agentId);
+    await this.request(`/agents/${encodeURIComponent(id)}/runs`, 'POST', {
       prompt: { text: prompt },
     });
   }

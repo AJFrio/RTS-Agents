@@ -25,20 +25,84 @@ function getActivityTypeLabel(type) {
     .join(' ');
 }
 
+function hasTaskContext(details) {
+  if (!details) return false;
+  const hasRepository = details.repository && String(details.repository).trim();
+  const hasBranch = details.branch && String(details.branch).trim();
+  const hasPrUrl = details.prUrl && String(details.prUrl).trim();
+  const hasRuns = details.runs?.length > 0;
+  const hasLatestRun = details.latestRunId && String(details.latestRunId).trim();
+  return !!(hasRepository || hasBranch || hasPrUrl || hasRuns || hasLatestRun);
+}
+
+function TaskContextSection({ details, onOpenExternal }) {
+  if (!hasTaskContext(details)) return null;
+
+  const latestRun = details.runs?.find((run) => run.id === details.latestRunId) || details.runs?.[0];
+
+  return (
+    <section>
+      <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Task context</h3>
+      <dl className="space-y-2 text-sm text-slate-800 dark:text-slate-200">
+        {details.repository && (
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Repository</dt>
+            <dd className="break-all">{details.repository}</dd>
+          </div>
+        )}
+        {details.branch && (
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Branch</dt>
+            <dd>{details.branch}</dd>
+          </div>
+        )}
+        {details.prUrl && (
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Pull request</dt>
+            <dd>
+              <button
+                type="button"
+                onClick={() => onOpenExternal(details.prUrl)}
+                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 break-all text-left"
+              >
+                {details.prUrl}
+              </button>
+            </dd>
+          </div>
+        )}
+        {details.latestRunId && (
+          <div>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Latest run</dt>
+            <dd className="technical-font text-xs">
+              {details.latestRunId}
+              {latestRun?.status ? ` (${latestRun.status})` : ''}
+            </dd>
+          </div>
+        )}
+      </dl>
+    </section>
+  );
+}
+
 export default function AgentModal({ agent, onClose, api }) {
   const [details, setDetails] = useState(null);
+  const [detailsError, setDetailsError] = useState(null);
   const [loading, setLoading] = useState(!!agent);
 
   useEffect(() => {
     if (!agent || !api?.getAgentDetails) return;
     setLoading(true);
     setDetails(null);
+    setDetailsError(null);
     api
       .getAgentDetails(agent.provider, agent.rawId || agent.id, agent.filePath)
       .then((result) => {
         setDetails(result?.details ?? result);
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setDetailsError(err?.message || 'Failed to load agent details');
+      })
       .finally(() => setLoading(false));
   }, [agent?.provider, agent?.rawId, agent?.id, agent?.filePath, api]);
 
@@ -98,11 +162,22 @@ export default function AgentModal({ agent, onClose, api }) {
             const hasActivities = details.activities?.length > 0;
             const hasConversation = details.conversation?.length > 0;
             const hasMessages = details.messages?.length > 0;
-            if (!hasPrompt && !hasSummary && !hasActivities && !hasConversation && !hasMessages) {
+            const hasContext = hasTaskContext(details);
+            if (
+              !hasPrompt &&
+              !hasSummary &&
+              !hasActivities &&
+              !hasConversation &&
+              !hasMessages &&
+              !hasContext
+            ) {
               return <p className="text-slate-500">No details available.</p>;
             }
             return (
               <div className="space-y-6">
+                {hasContext && (
+                  <TaskContextSection details={details} onOpenExternal={(url) => api.openExternal(url)} />
+                )}
                 {hasPrompt && (
                   <section>
                     <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Prompt</h3>
@@ -214,7 +289,10 @@ export default function AgentModal({ agent, onClose, api }) {
               </div>
             );
           })()}
-          {!loading && !details && (
+          {!loading && detailsError && (
+            <p className="text-sm text-red-600 dark:text-red-400">Could not load details: {detailsError}</p>
+          )}
+          {!loading && !details && !detailsError && (
             <p className="text-slate-500">No details available.</p>
           )}
         </div>

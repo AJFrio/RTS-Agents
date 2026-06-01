@@ -27,10 +27,28 @@ export interface AgentTask {
   source?: string | null;
 }
 
+export interface CursorRunSummary {
+  id: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  durationMs?: number | null;
+  result?: string | null;
+  git?: {
+    branches?: Array<{
+      repoUrl?: string;
+      branch?: string;
+      prUrl?: string;
+    }>;
+  } | null;
+}
+
 export interface AgentDetails extends AgentTask {
   activities?: Activity[];
   conversation?: ConversationMessage[];
   messages?: Message[];
+  latestRunId?: string | null;
+  runs?: CursorRunSummary[];
 }
 
 export interface Activity {

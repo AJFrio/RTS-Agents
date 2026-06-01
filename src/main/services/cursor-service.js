@@ -48,12 +48,27 @@ class CursorService {
     return this.request(endpoint);
   }
 
+  resolveAgentId(agentId) {
+    if (!agentId) {
+      throw new Error('Cursor agent ID is required');
+    }
+    return String(agentId).replace(/^cursor-/, '');
+  }
+
+  unwrapAgent(response) {
+    if (!response) return null;
+    return response.agent || response;
+  }
+
   async getAgent(agentId) {
-    return this.request(`/agents/${encodeURIComponent(agentId)}`);
+    const id = this.resolveAgentId(agentId);
+    const response = await this.request(`/agents/${encodeURIComponent(id)}`);
+    return this.unwrapAgent(response);
   }
 
   async listRuns(agentId, limit = 20, cursor = null) {
-    let endpoint = `/agents/${encodeURIComponent(agentId)}/runs?limit=${encodeURIComponent(limit)}`;
+    const id = this.resolveAgentId(agentId);
+    let endpoint = `/agents/${encodeURIComponent(id)}/runs?limit=${encodeURIComponent(limit)}`;
     if (cursor) {
       endpoint += `&cursor=${encodeURIComponent(cursor)}`;
     }
@@ -61,15 +76,16 @@ class CursorService {
   }
 
   async getRun(agentId, runId) {
+    const id = this.resolveAgentId(agentId);
     const response = await this.request(
-      `/agents/${encodeURIComponent(agentId)}/runs/${encodeURIComponent(runId)}`
+      `/agents/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}`
     );
     return this.unwrapRun(response);
   }
 
   async getAllAgents() {
     const response = await this.listAgents(100);
-    const agents = response.items || response.agents || [];
+    const agents = this.extractListItems(response).map((item) => this.unwrapAgent(item));
     const settled = await Promise.allSettled(
       agents.map(async (agent) => {
         const run = await this.getLatestRun(agent);
@@ -81,14 +97,15 @@ class CursorService {
   }
 
   async getLatestRun(agent) {
-    if (!agent?.id) return null;
+    const agentRecord = this.unwrapAgent(agent);
+    if (!agentRecord?.id) return null;
 
-    if (agent.latestRunId) {
-      const run = await this.getRun(agent.id, agent.latestRunId).catch(() => null);
+    if (agentRecord.latestRunId) {
+      const run = await this.getRun(agentRecord.id, agentRecord.latestRunId).catch(() => null);
       if (run) return run;
     }
 
-    const runsResponse = await this.listRuns(agent.id, 1).catch(() => null);
+    const runsResponse = await this.listRuns(agentRecord.id, 1).catch(() => null);
     const runs = this.extractListItems(runsResponse);
     return this.unwrapRun(runs[0] || null);
   }
@@ -168,42 +185,119 @@ class CursorService {
     return statusMap[String(status).toUpperCase()] || (hasRun ? 'completed' : 'pending');
   }
 
-  async getAgentDetails(agentId) {
-    const agent = await this.getAgent(agentId);
-    const runsResponse = await this.listRuns(agentId, 20).catch(() => ({ items: [] }));
-    const runs = this.extractListItems(runsResponse).map((run) => this.unwrapRun(run));
-    const latestRunId = agent.latestRunId || runs[0]?.id || null;
-    const latestRun = latestRunId
-      ? await this.getRun(agentId, latestRunId).catch(
-          () => runs.find((run) => run?.id === latestRunId) || runs[0] || null
-        )
-      : runs[0] || null;
-    const runActivities = runs.map((run) => ({
+  mergeRunSummary(listRun, detailRun) {
+    if (!listRun) return detailRun;
+    if (!detailRun) return listRun;
+    return {
+      ...listRun,
+      ...detailRun,
+      git: detailRun.git || listRun.git || null,
+    };
+  }
+
+  formatRunGitDescription(run) {
+    const branches = run?.git?.branches || [];
+    if (!branches.length) return null;
+
+    return branches
+      .map((entry) => {
+        const parts = [];
+        if (entry.repoUrl) parts.push(entry.repoUrl);
+        if (entry.branch) parts.push(`branch: ${entry.branch}`);
+        if (entry.prUrl) parts.push(`PR: ${entry.prUrl}`);
+        return parts.join(' · ');
+      })
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  buildRunActivity(run) {
+    const gitNote = this.formatRunGitDescription(run);
+    const description = [run.result, gitNote].filter(Boolean).join('\n\n') || null;
+
+    return {
       id: run.id,
       type: 'cursor_run',
       title: `Run ${run.status || 'UNKNOWN'}`,
-      description: run.result || null,
+      description,
       timestamp: run.updatedAt || run.createdAt,
-    }));
+    };
+  }
+
+  buildConversationFromRuns(runs) {
+    const chronological = [...runs].reverse();
+    const messages = [];
+
+    for (const run of chronological) {
+      if (!run?.result || !String(run.result).trim()) continue;
+      messages.push({
+        id: run.id,
+        type: 'assistant_message',
+        text: run.result,
+        isUser: false,
+      });
+    }
+
+    return messages;
+  }
+
+  async hydrateRuns(agentId, runs) {
+    const settled = await Promise.allSettled(
+      runs.map((run) => (run?.id ? this.getRun(agentId, run.id) : Promise.resolve(null)))
+    );
+
+    return runs.map((run, index) => {
+      const settledEntry = settled[index];
+      const detail =
+        settledEntry.status === 'fulfilled' ? settledEntry.value : null;
+      return this.mergeRunSummary(run, detail);
+    });
+  }
+
+  async getAgentDetails(agentId) {
+    const id = this.resolveAgentId(agentId);
+    const agent = await this.getAgent(id);
+
+    let runsResponse;
+    try {
+      runsResponse = await this.listRuns(id, 20);
+    } catch (err) {
+      console.warn(`Cursor listRuns failed for ${id}:`, err.message);
+      runsResponse = { items: [] };
+    }
+
+    const listRuns = this.extractListItems(runsResponse)
+      .map((run) => this.unwrapRun(run))
+      .filter(Boolean);
+    const runs = await this.hydrateRuns(id, listRuns);
+
+    const latestRunId = agent.latestRunId || runs[0]?.id || null;
+    const latestRun =
+      runs.find((run) => run?.id === latestRunId) || runs[0] || null;
+
+    const terminalRunsWithResult = runs.filter(
+      (run) => run?.result && String(run.result).trim()
+    );
+    const summary =
+      latestRun?.result ||
+      terminalRunsWithResult[0]?.result ||
+      agent.name ||
+      null;
+
+    const activities = runs.map((run) => this.buildRunActivity(run));
+    const conversation = this.buildConversationFromRuns(runs);
 
     return {
       ...this.normalizeAgent(agent, latestRun),
-      activities: runActivities,
-      conversation: latestRun?.result
-        ? [
-            {
-              id: latestRun.id,
-              type: 'assistant_message',
-              text: latestRun.result,
-              isUser: false,
-            },
-          ]
-        : [],
+      summary,
+      activities,
+      conversation,
       runs: runs.map((run) => ({
         id: run.id,
         status: run.status,
         createdAt: run.createdAt,
         updatedAt: run.updatedAt,
+        durationMs: run.durationMs ?? null,
         result: run.result || null,
         git: run.git || null,
       })),
@@ -363,7 +457,8 @@ class CursorService {
       throw new Error('Message is required');
     }
 
-    const response = await this.request(`/agents/${encodeURIComponent(agentId)}/runs`, 'POST', {
+    const id = this.resolveAgentId(agentId);
+    const response = await this.request(`/agents/${encodeURIComponent(id)}/runs`, 'POST', {
       prompt: {
         text: message,
       },

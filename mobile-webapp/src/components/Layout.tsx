@@ -13,7 +13,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { state, dispatch, refreshAgents } = useApp();
+  const { state, dispatch, refreshAgents, loadAllPullRequests } = useApp();
 
   const getViewTitle = () => {
     switch (state.currentView) {
@@ -44,6 +44,10 @@ export default function Layout({ children }: LayoutProps) {
     dispatch({ type: 'SET_SHOW_NEW_TASK_MODAL', payload: true });
   };
 
+  const handleRefreshPRs = () => {
+    loadAllPullRequests();
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200">
       {/* Header */}
@@ -57,6 +61,21 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {state.currentView === 'pull-requests' && (
+            <button
+              onClick={handleRefreshPRs}
+              disabled={state.loadingAllPRs}
+              className="p-2 text-slate-500 hover:text-primary transition-colors duration-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+              aria-label="Refresh Pull Requests"
+            >
+              <span
+                className={`material-symbols-outlined text-xl ${state.loadingAllPRs ? 'animate-spin' : ''}`}
+              >
+                sync
+              </span>
+            </button>
+          )}
+
           {state.currentView === 'dashboard' && (
             <>
               {/* Refresh Button */}

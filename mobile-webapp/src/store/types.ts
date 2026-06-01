@@ -51,14 +51,32 @@ export interface AgentDetails extends AgentTask {
   runs?: CursorRunSummary[];
 }
 
+export interface ActivityMediaItem {
+  mimeType: string;
+  dataUrl: string;
+  kind: 'image' | 'video';
+}
+
+export interface ActivityMediaPlaceholder {
+  mimeType: string;
+  kind: 'image' | 'video';
+}
+
 export interface Activity {
   id: string;
   type: string;
   originator?: string;
   title?: string | null;
   description?: string | null;
+  message?: string | null;
+  planSteps?: Array<{ title: string; description: string }>;
   timestamp?: string;
-  artifacts?: unknown[];
+  commands?: string[];
+  fileChanges?: string[];
+  hasMedia?: boolean;
+  mediaCount?: number;
+  mediaPlaceholders?: ActivityMediaPlaceholder[];
+  mediaItems?: ActivityMediaItem[];
 }
 
 export interface ConversationMessage {

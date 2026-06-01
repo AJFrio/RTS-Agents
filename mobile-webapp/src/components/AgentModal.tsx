@@ -4,7 +4,7 @@
  * Full-screen modal for viewing agent details
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useApp } from '../store/AppContext';
@@ -13,6 +13,7 @@ import { julesService } from '../services/jules-service';
 import { cursorService } from '../services/cursor-service';
 import { codexService } from '../services/codex-service';
 import { claudeService } from '../services/claude-service';
+import ActivityMediaLazy from './ActivityMediaLazy';
 
 const providerStyles: Record<string, { text: string; bg: string }> = {
   jules: { text: 'text-primary', bg: 'bg-primary/10' },
@@ -48,6 +49,7 @@ export default function AgentModal() {
   const { selectedAgent, showAgentModal, loadingAgent } = state;
   const [followupPrompt, setFollowupPrompt] = useState('');
   const [sendingFollowup, setSendingFollowup] = useState(false);
+  const scrollRootRef = useRef<HTMLDivElement>(null);
 
   const handleClose = () => {
     dispatch({ type: 'SET_SHOW_AGENT_MODAL', payload: false });
@@ -100,7 +102,10 @@ export default function AgentModal() {
 
       if (service) {
         dispatch({ type: 'SET_LOADING_AGENT', payload: true });
-        const details = await service.getAgentDetails(rawId);
+        const details =
+          provider === 'jules'
+            ? await julesService.getAgentDetailsText(rawId)
+            : await service.getAgentDetails(rawId);
         dispatch({ type: 'SET_SELECTED_AGENT', payload: details });
       }
 
@@ -142,7 +147,7 @@ export default function AgentModal() {
       </header>
 
       {/* Content */}
-      <div className="h-[calc(100vh-56px)] overflow-y-auto safe-bottom">
+      <div ref={scrollRootRef} className="h-[calc(100vh-56px)] overflow-y-auto safe-bottom">
         {loadingAgent ? (
           <div className="flex flex-col items-center justify-center h-64">
             <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
@@ -246,6 +251,19 @@ export default function AgentModal() {
                       )}
                       {activity.description && (
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{activity.description}</p>
+                      )}
+                      {activity.message && (
+                        <div
+                          className="prose prose-sm prose-invert max-w-none text-slate-600 dark:text-slate-300 mt-2 text-xs"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(activity.message) }}
+                        />
+                      )}
+                      {selectedAgent.provider === 'jules' && selectedAgent.rawId && (
+                        <ActivityMediaLazy
+                          sessionId={selectedAgent.rawId}
+                          activity={activity}
+                          scrollRootRef={scrollRootRef}
+                        />
                       )}
                     </div>
                   ))}

@@ -43,6 +43,34 @@ describe('JulesService', () => {
       if (url.includes('/sources')) {
         return { sources: [] };
       }
+      if (url.match(/\/sessions\/[^/]+\/activities\/[^/?]+$/) && !url.includes('pageSize')) {
+        return {
+          id: 'a5',
+          createTime: '2024-01-15T10:04:00Z',
+          originator: 'agent',
+          progressUpdated: { title: 'UI verification', description: 'Checked layout' },
+          artifacts: [
+            {
+              media: {
+                mimeType: 'image/png',
+                data: 'iVBORw0KGgo=',
+              },
+            },
+            {
+              media: {
+                mimeType: 'video/mp4',
+                data: 'AAAA',
+              },
+            },
+            {
+              media: {
+                mimeType: 'application/pdf',
+                data: 'JVBERi0=',
+              },
+            },
+          ],
+        };
+      }
       if (url.includes('/sessions/') && url.includes('/activities')) {
         return {
           activities: [
@@ -78,6 +106,20 @@ describe('JulesService', () => {
                   createTime: '2024-01-15T10:03:00Z',
                 },
               },
+            },
+            {
+              id: 'a5',
+              createTime: '2024-01-15T10:04:00Z',
+              originator: 'agent',
+              progressUpdated: { title: 'UI verification', description: 'Checked layout' },
+              artifacts: [
+                {
+                  media: {
+                    mimeType: 'image/png',
+                    data: 'iVBORw0KGgo=',
+                  },
+                },
+              ],
             },
           ],
         };
@@ -252,7 +294,7 @@ describe('JulesService', () => {
 
       const result = await julesService.getAgentDetails('sess1');
 
-      expect(result.activities).toHaveLength(4);
+      expect(result.activities).toHaveLength(5);
 
       const userMsg = result.activities.find((a) => a.type === 'user_messaged');
       expect(userMsg).toBeDefined();
@@ -276,6 +318,62 @@ describe('JulesService', () => {
         { title: 'Analyze code', description: 'Review structure' },
         { title: 'Write tests', description: 'Add coverage' },
       ]);
+    });
+
+    test('getAgentDetailsText strips media bytes and sets hasMedia flags', async () => {
+      julesService.setApiKey('test-key');
+
+      const result = await julesService.getAgentDetailsText('sess1');
+      const uiActivity = result.activities.find((a) => a.id === 'a5');
+
+      expect(uiActivity).toBeDefined();
+      expect(uiActivity.hasMedia).toBe(true);
+      expect(uiActivity.mediaCount).toBe(1);
+      expect(uiActivity.mediaPlaceholders).toEqual([{ mimeType: 'image/png', kind: 'image' }]);
+      expect(uiActivity.mediaItems).toBeUndefined();
+      expect(uiActivity.artifacts).toBeUndefined();
+    });
+
+    test('extractMediaFromArtifacts builds data URLs and skips invalid media', () => {
+      const items = julesService.extractMediaFromArtifacts([
+        { media: { mimeType: 'image/png', data: 'abc123' } },
+        { media: { mimeType: 'video/webm', data: 'vid' } },
+        { media: { mimeType: 'application/pdf', data: 'pdf' } },
+        { media: { mimeType: 'image/png', data: '' } },
+      ]);
+
+      expect(items).toHaveLength(2);
+      expect(items[0]).toEqual({
+        mimeType: 'image/png',
+        dataUrl: 'data:image/png;base64,abc123',
+        kind: 'image',
+      });
+      expect(items[1]).toEqual({
+        mimeType: 'video/webm',
+        dataUrl: 'data:video/webm;base64,vid',
+        kind: 'video',
+      });
+    });
+
+    test('getActivityMedia returns mediaItems from a single activity', async () => {
+      julesService.setApiKey('test-key');
+
+      const result = await julesService.getActivityMedia('sess1', 'a5');
+
+      expect(result.mediaItems).toHaveLength(2);
+      expect(result.mediaItems[0].kind).toBe('image');
+      expect(result.mediaItems[0].dataUrl).toBe('data:image/png;base64,iVBORw0KGgo=');
+      expect(result.mediaItems[1].kind).toBe('video');
+    });
+
+    test('getAgentDetails delegates to text-only details', async () => {
+      julesService.setApiKey('test-key');
+
+      const textSpy = jest.spyOn(julesService, 'getAgentDetailsText');
+      await julesService.getAgentDetails('sess1');
+
+      expect(textSpy).toHaveBeenCalledWith('sess1');
+      textSpy.mockRestore();
     });
   });
 });

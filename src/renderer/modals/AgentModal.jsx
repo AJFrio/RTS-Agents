@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import { ProviderBadge, StatusBadge } from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
+import PastedImageModal from './PastedImageModal.jsx';
 import { getProviderDisplayName, getStatusLabel } from '../utils/format.js';
 import { parseMarkdown } from '../utils/markdown.js';
 import DOMPurify from 'dompurify';
@@ -33,6 +34,112 @@ function hasTaskContext(details) {
   const hasRuns = details.runs?.length > 0;
   const hasLatestRun = details.latestRunId && String(details.latestRunId).trim();
   return !!(hasRepository || hasBranch || hasPrUrl || hasRuns || hasLatestRun);
+}
+
+function ActivityMediaLazy({ sessionId, activity, api, scrollRootRef }) {
+  const containerRef = useRef(null);
+  const [mediaItems, setMediaItems] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const fetchedRef = useRef(false);
+
+  const loadMedia = useCallback(() => {
+    if (fetchedRef.current || !api?.getJulesActivityMedia || !sessionId || !activity?.id) return;
+    fetchedRef.current = true;
+    setLoading(true);
+    setError(null);
+    api
+      .getJulesActivityMedia(sessionId, activity.id)
+      .then((result) => {
+        setMediaItems(result?.mediaItems ?? []);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError(err?.message || 'Failed to load verification media');
+      })
+      .finally(() => setLoading(false));
+  }, [api, sessionId, activity?.id]);
+
+  useEffect(() => {
+    fetchedRef.current = false;
+    setMediaItems(null);
+    setError(null);
+    setLoading(false);
+  }, [sessionId, activity?.id]);
+
+  useEffect(() => {
+    if (!activity?.hasMedia) return undefined;
+    const target = containerRef.current;
+    if (!target) return undefined;
+
+    const root = scrollRootRef?.current ?? null;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMedia();
+          observer.disconnect();
+        }
+      },
+      { root, rootMargin: '120px', threshold: 0.01 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activity?.hasMedia, activity?.id, loadMedia, scrollRootRef]);
+
+  if (!activity?.hasMedia) return null;
+
+  return (
+    <div ref={containerRef} className="mt-3 space-y-2">
+      {loading && (
+        <div className="rounded-lg border border-dashed border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-slate-900/50 px-3 py-4 text-xs text-slate-500">
+          Loading verification capture…
+        </div>
+      )}
+      {error && !loading && (
+        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+      )}
+      {mediaItems?.length > 0 && (
+        <div
+          className={`grid gap-2 ${mediaItems.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
+        >
+          {mediaItems.map((item, index) => (
+            <div
+              key={`${item.mimeType}-${index}`}
+              className="overflow-hidden rounded-lg border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-black/30"
+            >
+              {item.kind === 'video' ? (
+                <video
+                  src={item.dataUrl}
+                  controls
+                  preload="metadata"
+                  className="max-h-80 w-full bg-black"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(item.dataUrl)}
+                  className="block w-full text-left"
+                >
+                  <img
+                    src={item.dataUrl}
+                    alt="UI verification capture"
+                    loading="lazy"
+                    className="max-h-80 w-full object-contain bg-black cursor-zoom-in"
+                  />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!loading && !error && mediaItems?.length === 0 && fetchedRef.current && (
+        <p className="text-xs text-slate-500">No verification media available.</p>
+      )}
+      <PastedImageModal imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+    </div>
+  );
 }
 
 function TaskContextSection({ details, onOpenExternal }) {
@@ -88,14 +195,45 @@ export default function AgentModal({ agent, onClose, api }) {
   const [details, setDetails] = useState(null);
   const [detailsError, setDetailsError] = useState(null);
   const [loading, setLoading] = useState(!!agent);
+  const scrollRootRef = useRef(null);
+
+  const sessionId =
+    agent?.provider === 'jules'
+      ? String(agent.rawId || agent.id || '').replace(/^jules-/, '')
+      : null;
 
   useEffect(() => {
-    if (!agent || !api?.getAgentDetails) return;
+    if (!agent) return;
+
     setLoading(true);
     setDetails(null);
     setDetailsError(null);
+
+    const isJules = agent.provider === 'jules';
+    const rawId = agent.rawId || agent.id;
+    const julesSessionId = isJules ? String(rawId || '').replace(/^jules-/, '') : null;
+
+    if (isJules && api?.getJulesAgentDetailsText && julesSessionId) {
+      api
+        .getJulesAgentDetailsText(julesSessionId)
+        .then((result) => {
+          setDetails(result?.details ?? result);
+        })
+        .catch((err) => {
+          console.error(err);
+          setDetailsError(err?.message || 'Failed to load agent details');
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+
+    if (!api?.getAgentDetails) {
+      setLoading(false);
+      return;
+    }
+
     api
-      .getAgentDetails(agent.provider, agent.rawId || agent.id, agent.filePath)
+      .getAgentDetails(agent.provider, rawId, agent.filePath)
       .then((result) => {
         setDetails(result?.details ?? result);
       })
@@ -145,7 +283,11 @@ export default function AgentModal({ agent, onClose, api }) {
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <div id="modal-content" className="flex-1 overflow-y-auto p-8 bg-white dark:bg-background-dark">
+        <div
+          id="modal-content"
+          ref={scrollRootRef}
+          className="flex-1 overflow-y-auto p-8 bg-white dark:bg-background-dark"
+        >
           {loading && <LoadingSpinner />}
           {!loading && details && (() => {
             const hasContent = typeof details.content === 'string' && details.content.trim().length > 0;
@@ -244,6 +386,14 @@ export default function AgentModal({ agent, onClose, api }) {
                                 <span>{activity.fileChanges.length} file(s) changed</span>
                               )}
                             </div>
+                          )}
+                          {agent.provider === 'jules' && sessionId && (
+                            <ActivityMediaLazy
+                              sessionId={sessionId}
+                              activity={activity}
+                              api={api}
+                              scrollRootRef={scrollRootRef}
+                            />
                           )}
                         </div>
                       ))}

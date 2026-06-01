@@ -90,6 +90,24 @@ class JulesService {
   }
 
   /**
+   * Get a single activity (includes full media payloads).
+   * @param {string} sessionId
+   * @param {string} activityId
+   */
+  async getActivity(sessionId, activityId) {
+    return this.request(`/sessions/${sessionId}/activities/${activityId}`);
+  }
+
+  /**
+   * @param {string} id
+   */
+  static assertJulesResourceId(id, label) {
+    if (!id || typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+      throw new Error(`Invalid Jules ${label}`);
+    }
+  }
+
+  /**
    * Get all agents (sessions) formatted for the dashboard
    */
   async getAllAgents() {
@@ -195,10 +213,120 @@ class JulesService {
   }
 
   /**
-   * Get detailed session with activities
+   * Classify media mime type for UI rendering.
+   * @param {string} mimeType
+   */
+  getMediaKind(mimeType) {
+    if (!mimeType || typeof mimeType !== 'string') return null;
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    return null;
+  }
+
+  /**
+   * Build displayable media items from activity artifacts.
+   * @param {object[]} artifacts
+   */
+  extractMediaFromArtifacts(artifacts) {
+    const items = [];
+    if (!Array.isArray(artifacts)) return items;
+
+    for (const artifact of artifacts) {
+      const media = artifact?.media;
+      if (!media?.data || !media?.mimeType) continue;
+      const kind = this.getMediaKind(media.mimeType);
+      if (!kind) continue;
+      items.push({
+        mimeType: media.mimeType,
+        dataUrl: `data:${media.mimeType};base64,${media.data}`,
+        kind,
+      });
+    }
+    return items;
+  }
+
+  /**
+   * Media metadata without payload bytes (for text-first detail responses).
+   * @param {object[]} artifacts
+   */
+  describeMediaFromArtifacts(artifacts) {
+    const placeholders = [];
+    if (!Array.isArray(artifacts)) {
+      return { hasMedia: false, mediaCount: 0, mediaPlaceholders: placeholders };
+    }
+
+    for (const artifact of artifacts) {
+      const media = artifact?.media;
+      if (!media?.mimeType) continue;
+      const kind = this.getMediaKind(media.mimeType);
+      if (!kind) continue;
+      placeholders.push({ mimeType: media.mimeType, kind });
+    }
+
+    return {
+      hasMedia: placeholders.length > 0,
+      mediaCount: placeholders.length,
+      mediaPlaceholders: placeholders,
+    };
+  }
+
+  /**
+   * Map a raw Jules activity to the normalized activity shape for the UI.
+   * @param {object} activity
+   * @param {{ stripMedia?: boolean }} options
+   */
+  mapActivity(activity, options = {}) {
+    const { stripMedia = false } = options;
+    const artifacts = activity.artifacts || [];
+    const commands = artifacts.filter((a) => a.bashOutput).map((a) => a.bashOutput.command);
+
+    const fileChanges = artifacts
+      .filter((a) => a.changeSet && a.changeSet.gitPatch)
+      .map((a) => this.extractFilesFromPatch(a.changeSet.gitPatch.unidiffPatch))
+      .flat();
+
+    const type = this.getActivityType(activity);
+    const { title, description, message, planSteps } = this.getActivityTitleDescriptionMessage(
+      activity,
+      type,
+      commands,
+      fileChanges
+    );
+
+    const mapped = {
+      id: activity.id,
+      type,
+      originator: activity.originator,
+      title,
+      description,
+      message,
+      planSteps,
+      timestamp: activity.createTime,
+      commands,
+      fileChanges,
+    };
+
+    if (stripMedia) {
+      const mediaInfo = this.describeMediaFromArtifacts(artifacts);
+      return { ...mapped, ...mediaInfo };
+    }
+
+    const mediaItems = this.extractMediaFromArtifacts(artifacts);
+    if (mediaItems.length > 0) {
+      mapped.hasMedia = true;
+      mapped.mediaCount = mediaItems.length;
+      mapped.mediaItems = mediaItems;
+    }
+    return mapped;
+  }
+
+  /**
+   * Session + activities without media bytes (text-first detail view).
    * @param {string} sessionId - The raw Jules session ID (without 'jules-' prefix)
    */
-  async getAgentDetails(sessionId) {
+  async getAgentDetailsText(sessionId) {
+    JulesService.assertJulesResourceId(sessionId, 'session ID');
+
     const [session, activitiesResponse] = await Promise.all([
       this.getSession(sessionId),
       this.listActivities(sessionId, 100),
@@ -206,38 +334,32 @@ class JulesService {
 
     return {
       ...this.normalizeSession(session),
-      activities: (activitiesResponse.activities || []).map((activity) => {
-        const artifacts = activity.artifacts || [];
-        const commands = artifacts.filter((a) => a.bashOutput).map((a) => a.bashOutput.command);
-
-        const fileChanges = artifacts
-          .filter((a) => a.changeSet && a.changeSet.gitPatch)
-          .map((a) => this.extractFilesFromPatch(a.changeSet.gitPatch.unidiffPatch))
-          .flat();
-
-        const type = this.getActivityType(activity);
-        const { title, description, message, planSteps } = this.getActivityTitleDescriptionMessage(
-          activity,
-          type,
-          commands,
-          fileChanges
-        );
-
-        return {
-          id: activity.id,
-          type,
-          originator: activity.originator,
-          title,
-          description,
-          message,
-          planSteps,
-          timestamp: activity.createTime,
-          commands,
-          fileChanges,
-          artifacts,
-        };
-      }),
+      activities: (activitiesResponse.activities || []).map((activity) =>
+        this.mapActivity(activity, { stripMedia: true })
+      ),
     };
+  }
+
+  /**
+   * Lazy-load media for a single activity.
+   * @param {string} sessionId
+   * @param {string} activityId
+   */
+  async getActivityMedia(sessionId, activityId) {
+    JulesService.assertJulesResourceId(sessionId, 'session ID');
+    JulesService.assertJulesResourceId(activityId, 'activity ID');
+
+    const activity = await this.getActivity(sessionId, activityId);
+    const mediaItems = this.extractMediaFromArtifacts(activity.artifacts || []);
+    return { mediaItems };
+  }
+
+  /**
+   * Get detailed session with activities (text-only; use getActivityMedia for captures).
+   * @param {string} sessionId - The raw Jules session ID (without 'jules-' prefix)
+   */
+  async getAgentDetails(sessionId) {
+    return this.getAgentDetailsText(sessionId);
   }
 
   /**

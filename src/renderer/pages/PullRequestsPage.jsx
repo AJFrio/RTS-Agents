@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
@@ -9,6 +9,15 @@ export default function PullRequestsPage() {
   const { github, configuredServices, settings } = state;
   const { allPrs, loadingAllPrs, allPrsError } = github;
   const { autoPolling, pollingInterval } = settings;
+  const visiblePrs = useMemo(() => {
+    const hiddenRepos = new Set(github.hiddenPrRepos || []);
+    if (hiddenRepos.size === 0) return allPrs;
+
+    return allPrs.filter((pr) => {
+      const repoName = pr.base?.repo?.full_name || pr.repository?.full_name || 'Unknown Repository';
+      return !hiddenRepos.has(repoName);
+    });
+  }, [allPrs, github.hiddenPrRepos]);
 
   useEffect(() => {
     if (configuredServices.github) {
@@ -74,9 +83,21 @@ export default function PullRequestsPage() {
             <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
             <span className="text-sm font-medium">No open pull requests</span>
           </div>
+        ) : visiblePrs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">filter_list_off</span>
+            <span className="text-sm font-medium">No pull requests match your repo filter</span>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_PR_HIDDEN_REPOS', payload: [] })}
+              className="mt-4 px-4 py-2 bg-primary text-black rounded-lg text-xs font-semibold hover:brightness-110"
+            >
+              Clear Filter
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {allPrs.map((pr) => {
+            {visiblePrs.map((pr) => {
               // Extract repo name if available in pr object structure
               // Usually pr.base.repo.full_name or similar
               const repoName = pr.base?.repo?.full_name || pr.repository?.full_name || 'Unknown Repository';

@@ -19,6 +19,10 @@ function getActiveFilterCount(filters) {
   return providers + statuses;
 }
 
+function getPrRepoName(pr) {
+  return pr?.base?.repo?.full_name || pr?.repository?.full_name || 'Unknown Repository';
+}
+
 export default function Header() {
   const {
     state,
@@ -29,6 +33,7 @@ export default function Header() {
     loadBranches,
     loadAllPrs,
     openCreateRepoModal,
+    openPrRepoFilter,
     checkConnectionStatus,
     loadRemoteQueueActivity,
   } = useApp();
@@ -64,6 +69,14 @@ export default function Header() {
 
   const showHeaderActions = currentView !== 'settings' && currentView !== 'agent';
   const activeFilterCount = getActiveFilterCount(filters);
+  const hiddenPrRepoCount = github?.hiddenPrRepos?.length || 0;
+  const visiblePrCount = useMemo(() => {
+    const allPrs = github?.allPrs || [];
+    if (hiddenPrRepoCount === 0) return allPrs.length;
+
+    const hiddenRepos = new Set(github?.hiddenPrRepos || []);
+    return allPrs.filter((pr) => !hiddenRepos.has(getPrRepoName(pr))).length;
+  }, [github?.allPrs, github?.hiddenPrRepos, hiddenPrRepoCount]);
 
   const isRefreshing =
     currentView === 'branches'
@@ -82,7 +95,9 @@ export default function Header() {
           : currentView === 'branches'
             ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
             : currentView === 'pull-requests'
-              ? `${github?.allPrs?.length || 0} PR${(github?.allPrs?.length || 0) !== 1 ? 's' : ''}`
+              ? hiddenPrRepoCount > 0
+                ? `${visiblePrCount} of ${github?.allPrs?.length || 0} PRs`
+                : `${github?.allPrs?.length || 0} PR${(github?.allPrs?.length || 0) !== 1 ? 's' : ''}`
               : currentView === 'jira'
                 ? `${state.jira?.issues?.length || 0} Issue${(state.jira?.issues?.length || 0) !== 1 ? 's' : ''}`
                 : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
@@ -157,6 +172,22 @@ export default function Header() {
             </>
           ) : (
             <>
+              {currentView === 'pull-requests' && (
+                <button
+                  type="button"
+                  id="pr-repo-filter-btn"
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border active:scale-[0.98] transition-all duration-200 disabled:opacity-60 ${
+                    hiddenPrRepoCount > 0
+                      ? 'border-primary/60 bg-primary/10 text-slate-800 dark:text-primary'
+                      : 'border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                  }`}
+                  onClick={openPrRepoFilter}
+                  aria-label="Filter pull request repositories"
+                >
+                  <span className="material-symbols-outlined text-sm">filter_list</span>
+                  FILTER{hiddenPrRepoCount > 0 ? ` (${hiddenPrRepoCount})` : ''}
+                </button>
+              )}
               <button
                 type="button"
                 id="refresh-btn"

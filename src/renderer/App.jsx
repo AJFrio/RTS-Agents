@@ -18,7 +18,18 @@ import ConfirmModal from './modals/ConfirmModal.jsx';
 import PastedImageModal from './modals/PastedImageModal.jsx';
 
 function App() {
-  const { state, api, closeAgentModal, closeNewTaskModal, closeCreateRepoModal, closePrModal, closePrRepoFilter, closeConfirmModal, closeJiraIssueModal, closePastedImageModal } = useApp();
+  const {
+    state,
+    api,
+    closeAgentModal,
+    closeNewTaskModal,
+    closeCreateRepoModal,
+    closePrModal,
+    closePrRepoFilter,
+    closeConfirmModal,
+    closeJiraIssueModal,
+    closePastedImageModal,
+  } = useApp();
   const view = state.currentView;
 
   useEffect(() => {
@@ -33,14 +44,21 @@ function App() {
   }, [state.settings?.theme]);
 
   const Page =
-    view === 'agent' ? AgentPage
-    : view === 'dashboard' ? DashboardPage
-    : view === 'branches' ? BranchesPage
-    : view === 'pull-requests' ? PullRequestsPage
-    : view === 'computers' ? ComputersPage
-    : view === 'jira' ? JiraPage
-    : view === 'settings' ? SettingsPage
-    : DashboardPage;
+    view === 'agent'
+      ? AgentPage
+      : view === 'dashboard'
+        ? DashboardPage
+        : view === 'branches'
+          ? BranchesPage
+          : view === 'pull-requests'
+            ? PullRequestsPage
+            : view === 'computers'
+              ? ComputersPage
+              : view === 'jira'
+                ? JiraPage
+                : view === 'settings'
+                  ? SettingsPage
+                  : DashboardPage;
 
   return (
     <>
@@ -51,7 +69,10 @@ function App() {
       <NewTaskModal open={state.newTaskModalOpen} onClose={closeNewTaskModal} api={api} />
       <CreateRepoModal open={state.createRepoModalOpen} onClose={closeCreateRepoModal} api={api} />
       <PrModal pr={state.prModal} onClose={closePrModal} api={api} />
-      <PullRequestRepoFilterModal open={state.github.prRepoFilterOpen} onClose={closePrRepoFilter} />
+      <PullRequestRepoFilterModal
+        open={state.github.prRepoFilterOpen}
+        onClose={closePrRepoFilter}
+      />
       <JiraIssueModal issue={state.jiraIssueModal} onClose={closeJiraIssueModal} api={api} />
       <ConfirmModal config={state.confirmModal} onClose={closeConfirmModal} />
       <PastedImageModal imageUrl={state.pastedImageModal} onClose={closePastedImageModal} />

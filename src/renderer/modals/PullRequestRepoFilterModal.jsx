@@ -84,7 +84,9 @@ export default function PullRequestRepoFilterModal({ open, onClose }) {
         <div className="max-h-[55vh] overflow-y-auto p-5">
           {repoOptions.length === 0 ? (
             <div className="border border-dashed border-slate-200 dark:border-border-dark rounded-xl p-6 text-center">
-              <span className="material-symbols-outlined text-3xl text-slate-400">filter_list_off</span>
+              <span className="material-symbols-outlined text-3xl text-slate-400">
+                filter_list_off
+              </span>
               <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                 No repositories to filter yet
               </p>

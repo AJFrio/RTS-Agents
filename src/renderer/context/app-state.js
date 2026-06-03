@@ -8,6 +8,28 @@ export const VIEWS = [
   'settings',
 ];
 
+const PR_HIDDEN_REPOS_STORAGE_KEY = 'rts_pr_hidden_repos_v1';
+
+function getStoredPrHiddenRepos() {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const parsed = JSON.parse(localStorage.getItem(PR_HIDDEN_REPOS_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((repo) => typeof repo === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function setStoredPrHiddenRepos(repos) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(PR_HIDDEN_REPOS_STORAGE_KEY, JSON.stringify(repos));
+    }
+  } catch {
+    // Ignore storage failures; the in-memory filter still applies for this session.
+  }
+}
+
 export const initialState = {
   currentView: 'dashboard',
   agents: [],
@@ -144,6 +166,8 @@ export const initialState = {
     allPrsError: null,
     currentPr: null,
     prFilter: 'open',
+    hiddenPrRepos: getStoredPrHiddenRepos(),
+    prRepoFilterOpen: false,
   },
   computers: {
     list: [],
@@ -248,6 +272,15 @@ export function appReducer(state, action) {
         ...state,
         github: { ...state.github, loadingAllPrs: false, allPrsError: action.payload },
       };
+    case 'SET_PR_HIDDEN_REPOS': {
+      const hiddenPrRepos = [...new Set(action.payload || [])].filter(Boolean).sort();
+      setStoredPrHiddenRepos(hiddenPrRepos);
+      return { ...state, github: { ...state.github, hiddenPrRepos } };
+    }
+    case 'OPEN_PR_REPO_FILTER':
+      return { ...state, github: { ...state.github, prRepoFilterOpen: true } };
+    case 'CLOSE_PR_REPO_FILTER':
+      return { ...state, github: { ...state.github, prRepoFilterOpen: false } };
     case 'REMOVE_PR':
       return {
         ...state,

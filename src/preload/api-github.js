@@ -8,6 +8,7 @@ module.exports = {
     getBranches: (owner, repo) => ipcRenderer.invoke('github:get-branches', { owner, repo }),
     getOwners: () => ipcRenderer.invoke('github:get-owners'),
     getPrDetails: (owner, repo, prNumber) => ipcRenderer.invoke('github:get-pr-details', { owner, repo, prNumber }),
+    getPrChecks: (owner, repo, ref) => ipcRenderer.invoke('github:get-pr-checks', { owner, repo, ref }),
     getRepoFile: (owner, repo, path) => ipcRenderer.invoke('github:get-repo-file', { owner, repo, path }),
     mergePr: (owner, repo, prNumber, method) => ipcRenderer.invoke('github:merge-pr', { owner, repo, prNumber, method }),
     closePr: (owner, repo, prNumber) => ipcRenderer.invoke('github:close-pr', { owner, repo, prNumber }),

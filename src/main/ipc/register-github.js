@@ -92,6 +92,15 @@ ipcMain.handle('github:get-pr-details', async (event, { owner, repo, prNumber })
     }
   });
   
+ipcMain.handle('github:get-pr-checks', async (event, { owner, repo, ref }) => {
+    try {
+      const checks = await githubService.getCommitChecks(owner, repo, ref);
+      return { success: true, checks };
+    } catch (err) {
+      return { success: false, error: err.message, checks: [] };
+    }
+  });
+
 ipcMain.handle('github:get-repo-file', async (event, { owner, repo, path }) => {
     try {
       const content = await githubService.getRepoFile(owner, repo, path);

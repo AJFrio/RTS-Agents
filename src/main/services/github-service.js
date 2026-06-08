@@ -109,6 +109,48 @@ const getPullRequestDetails = async (owner, repo, pullNumber) => {
   return makeRequest(`/repos/${owner}/${repo}/pulls/${pullNumber}`);
 };
 
+const getCommitChecks = async (owner, repo, ref) => {
+  const [checkRunsResult, statusResult] = await Promise.allSettled([
+    makeRequest(`/repos/${owner}/${repo}/commits/${ref}/check-runs?per_page=100`),
+    makeRequest(`/repos/${owner}/${repo}/commits/${ref}/status?per_page=100`),
+  ]);
+
+  const checkRuns =
+    checkRunsResult.status === 'fulfilled' && Array.isArray(checkRunsResult.value?.check_runs)
+      ? checkRunsResult.value.check_runs.map((run) => ({
+          id: `check-${run.id}`,
+          name: run.name,
+          status: run.status, // queued | in_progress | completed
+          conclusion: run.conclusion, // success | failure | neutral | cancelled | skipped | timed_out | action_required | null
+          url: run.html_url,
+          appName: run.app?.name || null,
+          startedAt: run.started_at || null,
+          completedAt: run.completed_at || null,
+        }))
+      : [];
+
+  const statuses =
+    statusResult.status === 'fulfilled' && Array.isArray(statusResult.value?.statuses)
+      ? statusResult.value.statuses.map((s) => ({
+          id: `status-${s.id}`,
+          name: s.context,
+          status: s.state === 'pending' ? 'in_progress' : 'completed',
+          conclusion:
+            s.state === 'success'
+              ? 'success'
+              : s.state === 'failure' || s.state === 'error'
+              ? 'failure'
+              : null,
+          url: s.target_url || null,
+          appName: s.creator?.login || null,
+          startedAt: s.created_at || null,
+          completedAt: s.updated_at || null,
+        }))
+      : [];
+
+  return [...checkRuns, ...statuses];
+};
+
 const getRepoFile = async (owner, repo, path) => {
   try {
     const result = await makeRequest(`/repos/${owner}/${repo}/contents/${path}`);
@@ -207,6 +249,7 @@ module.exports = {
   getPullRequests,
   getBranches,
   getPullRequestDetails,
+  getCommitChecks,
   getRepoFile,
   getAllPullRequests,
   mergePullRequest,

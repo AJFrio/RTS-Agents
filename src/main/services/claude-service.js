@@ -1,6 +1,7 @@
 const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const { spawnSync } = require('child_process');
 const { upsertItem } = require('../utils/collection-utils');
 const httpService = require('./http-service');
 const { pathExists } = require('../utils/path-exists');
@@ -8,7 +9,7 @@ const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
-const { appendStreamMessage } = require('./opencode-session-parser');
+const { appendStreamMessage, appendAgentChunk } = require('./opencode-session-parser');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -17,8 +18,27 @@ const CLAUDE_PROJECTS_DIR = path.join(CLAUDE_HOME, 'projects');
 const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_VERSION = '2023-06-01';
 const CLAUDE_DEFAULT_TOOLS = 'Read,Edit,Bash';
+const CLAUDE_BIN = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 const TRACKED_LOCAL_SESSION_LIMIT = 100;
+const CLI_PROBE_TIMEOUT_MS = 3000;
+
+function isCommandRunnable(cmd) {
+  if (!cmd) return false;
+  try {
+    const probe = spawnSync(String(cmd), ['--version'], {
+      shell: false,
+      stdio: 'ignore',
+      timeout: CLI_PROBE_TIMEOUT_MS,
+      windowsHide: true,
+      env: { ...process.env },
+    });
+    if (probe.error) return false;
+    return probe.status === 0;
+  } catch {
+    return false;
+  }
+}
 
 // Store for tracking cloud conversations (since Anthropic doesn't have a list conversations endpoint)
 let trackedConversations = [];
@@ -67,7 +87,11 @@ class ClaudeService {
   }
 
   async refreshInstallStatus() {
-    const installed = await pathExists(CLAUDE_HOME);
+    // A bare ~/.claude can be created by other tooling (e.g. transcript
+    // writers), so treat Claude Code as installed only with real session
+    // data or a runnable CLI.
+    const hasProjectsDir = await pathExists(CLAUDE_PROJECTS_DIR);
+    const installed = hasProjectsDir || isCommandRunnable(CLAUDE_BIN);
     installStatus.setCached('claude', installed);
     return installed;
   }

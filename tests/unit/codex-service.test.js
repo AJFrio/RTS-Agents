@@ -11,6 +11,14 @@ jest.mock('../../src/main/services/acp-service', () => ({
   buildSpawnArgs: jest.fn(),
 }));
 
+const pathExistsAny = jest.fn();
+jest.mock('../../src/main/utils/path-exists', () => ({
+  pathExists: jest.fn(),
+  pathExistsAny,
+}));
+
+const pathExists = require('../../src/main/utils/path-exists').pathExists;
+
 jest.mock('fs', () => ({
   promises: {
     readdir: jest.fn(),
@@ -27,6 +35,7 @@ jest.mock('child_process', () => ({
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { EventEmitter } = require('events');
 const { spawn, spawnSync } = require('child_process');
 const codexService = require('../../src/main/services/codex-service');
@@ -202,6 +211,7 @@ describe('Codex Service', () => {
 
   test('startSession launches codex exec in the project directory', async () => {
     fs.promises.access.mockResolvedValue(undefined);
+    pathExists.mockResolvedValue(true);
 
     const result = await codexService.startSession({
       prompt: 'Fix tests',
@@ -228,8 +238,36 @@ describe('Codex Service', () => {
       });
     }
 
+    describe('install detection', () => {
+      test('bare ~/.codex without CLI or session data is NOT installed', async () => {
+        spawnSync.mockReturnValue({ status: 1 });
+        pathExistsAny.mockResolvedValue(false);
+
+        expect(await codexService.refreshInstallStatus()).toBe(false);
+        expect(pathExistsAny).toHaveBeenCalledWith([
+          expect.stringContaining('.codex'),
+          expect.stringContaining('.codex'),
+          expect.stringContaining('.codex'),
+        ]);
+      });
+
+      test('real codex data dir counts as installed', async () => {
+        spawnSync.mockReturnValue({ status: 1 });
+        pathExistsAny.mockResolvedValue(true);
+
+        expect(await codexService.refreshInstallStatus()).toBe(true);
+      });
+
+      test('runnable codex CLI counts as installed', async () => {
+        spawnSync.mockReturnValue({ status: 0 });
+
+        expect(await codexService.refreshInstallStatus()).toBe(true);
+      });
+    });
+
     test('startSession dispatches via ACP, streams chunks, and completes', async () => {
       fs.promises.access.mockResolvedValue(undefined);
+      pathExists.mockResolvedValue(true);
       mockAcp({
         onRun: ({ onSessionId, onUpdate }) => {
           onSessionId('acp-1');
@@ -274,6 +312,7 @@ describe('Codex Service', () => {
 
     test('falls back to legacy spawn when ACP fails before any agent work', async () => {
       fs.promises.access.mockResolvedValue(undefined);
+      pathExists.mockResolvedValue(true);
       mockAcp({
         promise: Promise.reject(
           Object.assign(new Error('Failed to start ACP adapter'), {
@@ -300,6 +339,7 @@ describe('Codex Service', () => {
 
     test('marks the thread failed when ACP fails after start', async () => {
       fs.promises.access.mockResolvedValue(undefined);
+      pathExists.mockResolvedValue(true);
       mockAcp({
         onRun: ({ onSessionId }) => onSessionId('acp-1'),
         promise: Promise.reject(
@@ -322,6 +362,7 @@ describe('Codex Service', () => {
 
     test('uses legacy spawn when a custom CLI command is provided', async () => {
       fs.promises.access.mockResolvedValue(undefined);
+      pathExists.mockResolvedValue(true);
       mockAcp();
       spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
 

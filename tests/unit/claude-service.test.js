@@ -45,6 +45,7 @@ describe('ClaudeService', () => {
   let acpService;
   let configStore;
   let spawn;
+  let spawnSync;
 
   // Setup mocks
   const mockHomeDir = '/home/user';
@@ -57,7 +58,7 @@ describe('ClaudeService', () => {
     fs = require('fs');
     https = require('https');
     os = require('os');
-    ({ spawn } = require('child_process'));
+    ({ spawn, spawnSync } = require('child_process'));
     acpService = require('../../src/main/services/acp-service');
     configStore = require('../../src/main/services/config-store');
 
@@ -230,6 +231,31 @@ describe('ClaudeService', () => {
     test('createMessage throws if API key not set', async () => {
         claudeService.setApiKey(null);
         await expect(claudeService.createMessage([])).rejects.toThrow('Anthropic API key not configured');
+    });
+  });
+
+  describe('install detection', () => {
+    test('bare ~/.claude without CLI is NOT installed', async () => {
+      fs.promises.access.mockRejectedValue(new Error('ENOENT'));
+      spawnSync.mockReturnValue({ status: 1 });
+
+      expect(await claudeService.refreshInstallStatus()).toBe(false);
+    });
+
+    test('projects dir with session data counts as installed', async () => {
+      fs.promises.access.mockImplementation(async (target) => {
+        if (String(target).endsWith('.claude/projects')) return undefined;
+        throw new Error('ENOENT');
+      });
+
+      expect(await claudeService.refreshInstallStatus()).toBe(true);
+    });
+
+    test('runnable claude CLI counts as installed', async () => {
+      fs.promises.access.mockRejectedValue(new Error('ENOENT'));
+      spawnSync.mockReturnValue({ status: 0 });
+
+      expect(await claudeService.refreshInstallStatus()).toBe(true);
     });
   });
 

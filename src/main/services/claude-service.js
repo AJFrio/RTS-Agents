@@ -777,11 +777,7 @@ class ClaudeService {
             const text =
               typeof update.content === 'string' ? update.content : update.content?.text;
             if (!text || !text.trim()) return;
-            record.streamMessages = appendStreamMessage(record.streamMessages, {
-              role: 'assistant',
-              content: text,
-              timestamp: new Date().toISOString(),
-            });
+            record.streamMessages = appendAgentChunk(record.streamMessages, text, new Date().toISOString());
             this._updateTrackedLocalSession(
               sessionId,
               { streamMessages: record.streamMessages },

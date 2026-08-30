@@ -11,6 +11,7 @@ const {
   isValidOpenCodeSessionId,
   parseJsonlEvent,
   appendStreamMessage,
+  appendAgentChunk,
   parseExportToMessages,
 } = require('./opencode-session-parser');
 
@@ -291,11 +292,11 @@ class OpenCodeService {
             const text =
               typeof update.content === 'string' ? update.content : update.content?.text;
             if (!text || !text.trim()) return;
-            streamState.streamMessages = appendStreamMessage(streamState.streamMessages, {
-              role: 'assistant',
-              content: text,
-              timestamp: new Date().toISOString(),
-            });
+            streamState.streamMessages = appendAgentChunk(
+              streamState.streamMessages,
+              text,
+              new Date().toISOString()
+            );
             this._updateSessionDebounced(sessionId, () => ({
               streamMessages: streamState.streamMessages,
             }));

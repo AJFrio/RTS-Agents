@@ -128,7 +128,7 @@ function ThinkingBlock({ text }) {
  * Chat-style transcript: user turns right-aligned, assistant left,
  * consecutive turns grouped, tool calls and reasoning collapsed.
  */
-export default function ChatTranscript({ messages, renderContent }) {
+export default function ChatTranscript({ messages, renderContent, assistantLabel = 'Assistant' }) {
   const groups = useMemo(() => groupMessages(messages), [messages]);
 
   if (!groups.length) return null;
@@ -169,7 +169,7 @@ export default function ChatTranscript({ messages, renderContent }) {
 
               <div className={`flex max-w-[78%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
                 <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  {isUser ? 'You' : 'Claude'}
+                  {isUser ? 'You' : assistantLabel}
                 </span>
 
                 <div

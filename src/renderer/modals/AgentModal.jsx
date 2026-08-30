@@ -502,6 +502,7 @@ export default function AgentModal({ agent, onClose, api }) {
                     </div>
                     <ChatTranscript
                       messages={details.messages}
+                      assistantLabel={getProviderDisplayName(agent.provider)}
                       renderContent={(content) => <MarkdownBlock content={content} />}
                     />
                   </section>

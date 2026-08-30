@@ -30,7 +30,8 @@ function buildConnectedServices(state) {
 
   if (apiKeys.jules) services.push('jules-cloud');
   if (apiKeys.cursor) services.push('cursor-cloud');
-  if ((state.settings?.cursorPaths || []).length > 0) services.push('cursor-local');
+  if ((state.settings?.cursorPaths || []).length > 0 || state.connectionStatus?.['cursor-cli']?.success)
+    services.push('cursor-local');
   if (apiKeys.codex) services.push('codex-cloud');
   if ((state.settings?.codexPaths || []).length > 0) services.push('codex-local');
   if (apiKeys.claude) services.push('claude-cloud');
@@ -99,6 +100,10 @@ function getServiceStatus(serviceId, state) {
       return state.connectionStatus?.jules;
     case 'cursor-cloud':
       return state.connectionStatus?.cursor;
+    case 'cursor-local':
+      return state.connectionStatus?.['cursor-cli']?.success
+        ? { success: true, connected: true }
+        : { success: false, error: 'Cursor CLI not detected' };
     case 'codex-cloud':
       return state.connectionStatus?.codex;
     case 'claude-cloud':
@@ -139,7 +144,12 @@ function getServiceStatus(serviceId, state) {
 function getServiceSummary(serviceId, state, status) {
   switch (serviceId) {
     case 'cursor-local':
-      return `${state.settings?.cursorPaths?.length || 0} repository roots connected`;
+      if (!state.connectionStatus?.['cursor-cli']?.success) {
+        return 'Repository roots saved, but Cursor CLI is not detected locally';
+      }
+      return state.settings?.cursorPaths?.length > 0
+        ? `${state.settings.cursorPaths.length} repository roots linked`
+        : 'Cursor CLI detected — add repository roots to enable local tasks';
     case 'codex-local':
       return `${state.settings?.codexPaths?.length || 0} repository roots connected`;
     case 'claude-local':

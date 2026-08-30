@@ -90,7 +90,10 @@ async function fetchAllAgents(deps) {
     ]);
   const codexAvailable = configStore.hasApiKey('codex') || (await codexService.isCodexInstalled());
   const claudeCloudAvailable = configStore.hasApiKey('claude');
-  const cursorAvailable = configStore.hasApiKey('cursor') || cursorCliSessions.length > 0;
+  const cursorAvailable =
+    configStore.hasApiKey('cursor') ||
+    cursorCliSessions.length > 0 ||
+    cursorService.isCursorCliAvailable();
 
   const settled = await Promise.allSettled([
     antigravityAvailable ? Promise.resolve(antigravityService.getAllAgents()) : Promise.resolve([]),
@@ -178,15 +181,21 @@ async function fetchRepositories(deps, provider) {
       return { success: true, repositories };
     }
     case 'cursor': {
-      if (!configStore.hasApiKey('cursor') && configStore.getCursorPaths().length === 0) {
+      if (
+        !configStore.hasApiKey('cursor') &&
+        configStore.getCursorPaths().length === 0 &&
+        !cursorService.isCursorCliAvailable()
+      ) {
         return {
           success: false,
-          error: 'Cursor API key not configured and no local paths set',
+          error: 'Cursor API key not configured, Cursor CLI not installed, and no local paths set',
           repositories: [],
         };
       }
-      const cursorPaths = configStore.getCursorPaths();
-      const repositories = await cursorService.getAllRepositories(cursorPaths);
+      const scanPaths = [
+        ...new Set([...configStore.getCursorPaths(), ...configStore.getAllProjectPaths()]),
+      ];
+      const repositories = await cursorService.getAllRepositories(scanPaths);
       return { success: true, repositories };
     }
     case 'antigravity': {

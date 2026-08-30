@@ -6,6 +6,7 @@ const projectService = require('./project-service');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
+const acpService = require('./acp-service');
 const {
   isValidOpenCodeSessionId,
   parseJsonlEvent,
@@ -16,6 +17,7 @@ const {
 const STDERR_CAP = 2000;
 const EXPORT_TIMEOUT_MS = 60000;
 const STDOUT_BUFFER_CAP = 512 * 1024;
+const ACP_PERSIST_DEBOUNCE_MS = 1000;
 
 function isCommandRunnable(cmd) {
   if (!cmd) return false;
@@ -68,6 +70,7 @@ function isWindowsTerminalAvailable() {
 class OpenCodeService {
   constructor() {
     this.trackedSessions = [];
+    this._persistTimer = null;
   }
 
   setTrackedSessions(sessions) {
@@ -159,7 +162,22 @@ class OpenCodeService {
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    // An immediate write flushes any pending debounced stream update.
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+      this._persistTimer = null;
+    }
     configStore.setOpenCodeSessions(this.trackedSessions);
+  }
+
+  _updateSessionDebounced(sessionId, patchProvider) {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+    }
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this._updateSession(sessionId, patchProvider());
+    }, ACP_PERSIST_DEBOUNCE_MS);
   }
 
   _mapTrackedToAgent(t) {
@@ -211,7 +229,125 @@ class OpenCodeService {
 
     const opencodeCmd =
       command && String(command).trim() ? String(command).trim() : this.getExecutable();
+    const sessionId = `opencode-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+    // An explicit custom CLI command opts out of ACP (it names the CLI itself).
+    if (!(command && String(command).trim())) {
+      return this._startAcpSession(opencodeCmd, { prompt, projectPath }, sessionId);
+    }
+    return this._spawnLegacySession(opencodeCmd, options, { prompt, projectPath }, sessionId);
+  }
+
+  _startAcpSession(opencodeCmd, { prompt, projectPath }, sessionId) {
+    const streamState = { opencodeSessionId: null, streamMessages: [] };
+    const entry = {
+      id: sessionId,
+      rawId: sessionId,
+      prompt,
+      projectPath,
+      opencodeSessionId: null,
+      streamMessages: [],
+      status: 'running',
+      exitCode: null,
+      error: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.trackedSessions = [entry, ...this.trackedSessions].slice(0, 100);
+    configStore.setOpenCodeSessions(this.trackedSessions);
+
+    const buildCard = (message) => ({
+      ...this._mapTrackedToAgent(this._trackedEntry(sessionId)),
+      message,
+    });
+
+    return new Promise((resolveCard) => {
+      let cardResolved = false;
+      const resolveOnce = (card) => {
+        if (!cardResolved) {
+          cardResolved = true;
+          resolveCard(card);
+        }
+      };
+
+      acpService
+        .runPrompt({
+          command: opencodeCmd,
+          args: ['acp'],
+          cwd: projectPath,
+          prompt,
+          permissionPolicy: 'allow-all',
+          onSessionId: (acpSessionId) => {
+            streamState.opencodeSessionId = acpSessionId;
+            this._updateSession(sessionId, { opencodeSessionId: acpSessionId });
+            resolveOnce(
+              buildCard(
+                'OpenCode task started over ACP. It runs in the background with live streamed output.'
+              )
+            );
+          },
+          onUpdate: (update) => {
+            if (update?.sessionUpdate !== 'agent_message_chunk') return;
+            const text =
+              typeof update.content === 'string' ? update.content : update.content?.text;
+            if (!text || !text.trim()) return;
+            streamState.streamMessages = appendStreamMessage(streamState.streamMessages, {
+              role: 'assistant',
+              content: text,
+              timestamp: new Date().toISOString(),
+            });
+            this._updateSessionDebounced(sessionId, () => ({
+              streamMessages: streamState.streamMessages,
+            }));
+          },
+        })
+        .then(({ stopReason }) => {
+          const failed = stopReason === 'error' || stopReason === 'cancelled';
+          this._updateSession(
+            sessionId,
+            failed
+              ? {
+                  status: 'failed',
+                  exitCode: 1,
+                  error: `OpenCode ACP turn ended with stopReason ${stopReason}`,
+                  streamMessages: streamState.streamMessages,
+                }
+              : {
+                  status: 'completed',
+                  exitCode: 0,
+                  error: null,
+                  streamMessages: streamState.streamMessages,
+                }
+          );
+          resolveOnce(buildCard('OpenCode task finished.'));
+        })
+        .catch((err) => {
+          // Fallback is only legal before any agent work began; after that
+          // re-dispatching through the legacy CLI would run the prompt twice.
+          if (!cardResolved && err?.fallbackAllowed) {
+            this.trackedSessions = this.trackedSessions.filter((x) => x.id !== sessionId);
+            configStore.setOpenCodeSessions(this.trackedSessions);
+            this._spawnLegacySession(opencodeCmd, {}, { prompt, projectPath }, sessionId).then(
+              (card) => resolveOnce(card),
+              () => resolveOnce(buildCard(err.message))
+            );
+            return;
+          }
+          this._updateSession(sessionId, {
+            status: 'failed',
+            error: err?.message || String(err),
+            streamMessages: streamState.streamMessages,
+          });
+          resolveOnce(buildCard(err?.message || 'ACP dispatch failed.'));
+        });
+    });
+  }
+
+  _trackedEntry(sessionId) {
+    return this.trackedSessions.find((x) => x.id === sessionId);
+  }
+
+  _spawnLegacySession(opencodeCmd, options, { prompt, projectPath }, sessionId) {
     if (!supportsRunSubcommand(opencodeCmd)) {
       throw new Error(
         'OpenCode CLI is too old or missing the "run" subcommand. Upgrade from https://opencode.ai/docs/cli/'
@@ -219,7 +355,6 @@ class OpenCodeService {
     }
 
     const args = this.buildRunArgs(projectPath, prompt, options);
-    const sessionId = `opencode-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const streamState = { opencodeSessionId: null, streamMessages: [] };
 
     return new Promise((resolve, reject) => {

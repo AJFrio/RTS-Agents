@@ -22,6 +22,16 @@ RTS Agents reduces context switching between coding agents (Jules, Cursor, Antig
 | GitHub PR | Branches / PR pages | List PRs, merge, mark ready when token valid |
 | Remote dispatch | Computers + mobile | Task reaches chosen desktop and runs |
 
+## Shared primitives
+
+Modal, task-detail, and create-task surfaces compose from these renderer primitives (`src/renderer/components/ui/`, `src/renderer/components/task/`):
+
+- **Modal `size`** — `sm | md | lg | xl | wide`; `wide` spans ~80% of the window on desktop (`lg:w-[80vw]`, capped at `max-w-screen-2xl`). Consumers own height and inner chrome; `size` is optional so legacy consumers render unchanged.
+- **Collapsible / SectionHeader** — collapsed-by-default disclosure with `aria-expanded`, chevron icon, and keyboard toggling. `mountWhenClosed` keeps panel content mounted (hidden) so transcript text stays in the DOM. `SectionHeader` is the unboxed variant with count badges and header actions.
+- **Task sections** — `TaskContextSection`, `ActivityTimeline`, and `ConversationList` render any provider's details. Provider quirks enter as props (Jules media session, OpenCode header action), never as per-provider components.
+
+Detail-view defaults: metadata (Context) starts collapsed; primary content (Prompt, Summary, Conversation, Messages) starts expanded; running tasks auto-expand the latest activity row until the user intervenes.
+
 ## Non-goals (current)
 
 - Replacing provider-native IDEs or full code review UIs

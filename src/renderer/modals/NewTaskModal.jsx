@@ -63,6 +63,30 @@ function getRepoLabel(repo) {
   return repo?.displayName || repo?.name || repo?.id || repo?.path || '';
 }
 
+function StepHeader({ step, done, error, className = 'mb-2', children }) {
+  return (
+    <div className="sticky top-0 z-10 -mx-6 bg-white/95 px-6 py-2 backdrop-blur dark:bg-sidebar-dark/95">
+      <div className={`flex items-center justify-between gap-2 ${className}`}>
+        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          {error ? (
+            <span className="material-symbols-outlined text-[14px] text-red-500 dark:text-red-400" aria-hidden="true">
+              error
+            </span>
+          ) : done ? (
+            <span className="material-symbols-outlined text-[14px] text-primary" aria-hidden="true">
+              check_circle
+            </span>
+          ) : (
+            <span>{step}</span>
+          )}
+          {children}
+        </label>
+        {error && <span className="text-xs text-red-600 dark:text-red-300">{error}</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function NewTaskModal({ open, onClose, api }) {
   const { state, fetchComputers, loadAgents } = useApp();
   const { initialPrompt, presetEnvironment, presetTargetDeviceId, presetPreferredProvider } =
@@ -407,6 +431,20 @@ export default function NewTaskModal({ open, onClose, api }) {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const handleHintClick = () => {
+    const targets = {
+      agent: document.getElementById(`service-${agentsForEnv[0] ?? ''}`),
+      device: document.getElementById('task-device'),
+      repo: document.getElementById('task-repo-search'),
+      prompt: document.getElementById('task-prompt'),
+    };
+    const key = ['agent', 'device', 'repo', 'prompt'].find((k) => currentErrors[k]);
+    const target = key ? targets[key] : null;
+    if (!target) return;
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target.focus({ preventScroll: true });
+  };
+
   if (!open) return null;
 
   return (
@@ -442,9 +480,9 @@ export default function NewTaskModal({ open, onClose, api }) {
           <aside className="min-h-0 overflow-y-auto border-b border-slate-200 p-6 dark:border-border-dark lg:border-b-0 lg:border-r">
             <div className="space-y-6">
               <section>
-                <div className="mb-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  1. Run location
-                </div>
+                <StepHeader step="1" done className="mb-3">
+                  Run location
+                </StepHeader>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'cloud', label: 'Cloud', icon: 'cloud' },
@@ -470,16 +508,9 @@ export default function NewTaskModal({ open, onClose, api }) {
               </section>
 
               <section>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    2. Agent
-                  </label>
-                  {currentErrors.agent && (
-                    <span className="text-xs text-red-600 dark:text-red-300">
-                      {currentErrors.agent}
-                    </span>
-                  )}
-                </div>
+                <StepHeader step="2" done={!!selectedProvider} error={currentErrors.agent}>
+                  Agent
+                </StepHeader>
                 <input
                   type="text"
                   value={agentFilter}
@@ -533,17 +564,11 @@ export default function NewTaskModal({ open, onClose, api }) {
 
               {environment === 'remote' && (
                 <section>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      3. Device
-                    </label>
-                    {currentErrors.device && (
-                      <span className="text-xs text-red-600 dark:text-red-300">
-                        {currentErrors.device}
-                      </span>
-                    )}
-                  </div>
+                  <StepHeader step="3" done={!!targetDeviceId} error={currentErrors.device}>
+                    Device
+                  </StepHeader>
                   <select
+                    id="task-device"
                     value={targetDeviceId}
                     onChange={(e) => setTargetDeviceId(e.target.value)}
                     className={`w-full ${currentErrors.device ? 'border-red-400' : ''}`}
@@ -567,17 +592,14 @@ export default function NewTaskModal({ open, onClose, api }) {
 
               {showRepoSection && (
                 <section>
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {environment === 'local' ? '3. Project path' : 'Repository'}
-                      {repoRequired ? '' : ' (optional)'}
-                    </label>
-                    {currentErrors.repo && (
-                      <span className="text-xs text-red-600 dark:text-red-300">
-                        {currentErrors.repo}
-                      </span>
-                    )}
-                  </div>
+                  <StepHeader
+                    step={environment === 'local' ? '3' : null}
+                    done={!!selectedRepo}
+                    error={currentErrors.repo}
+                  >
+                    {environment === 'local' ? 'Project path' : 'Repository'}
+                    {repoRequired ? '' : ' (optional)'}
+                  </StepHeader>
                   <div className="relative">
                     <div
                       className={`flex items-center rounded-lg border bg-white dark:bg-slate-900 ${currentErrors.repo ? 'border-red-400' : 'border-slate-200 dark:border-border-dark'}`}
@@ -814,9 +836,19 @@ export default function NewTaskModal({ open, onClose, api }) {
         </div>
 
         <div className="flex items-center justify-between gap-4 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-border-dark dark:bg-card-dark">
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            {disabledReason || 'Ready to create the task.'}
-          </div>
+          {submitAttempted && !!disabledReason ? (
+            <button
+              type="button"
+              onClick={handleHintClick}
+              className="text-left text-xs text-slate-500 underline decoration-dotted underline-offset-2 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              {disabledReason}
+            </button>
+          ) : (
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {disabledReason || 'Ready to create the task.'}
+            </div>
+          )}
           <div className="flex gap-3">
             <Button variant="secondary" onClick={onClose}>
               Cancel

@@ -139,6 +139,27 @@ test.describe('Modal Tests', () => {
     await expect(modal).not.toBeVisible();
   });
 
+  test('Agent modal spans desktop width and sections collapse', async () => {
+    const agentCard = page.locator('.agent-card').first();
+    await expect(agentCard).toBeVisible();
+    await agentCard.click();
+
+    const modal = page.locator('#agent-modal');
+    await expect(modal).toBeVisible();
+
+    // Desktop width contract: task detail modal covers ~80% of the window.
+    const viewport = page.viewportSize();
+    const box = await modal.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(viewport.width * 0.75);
+
+    // Metadata context starts collapsed and expands on demand.
+    const contextHeader = modal.getByRole('button', { name: /context/i }).first();
+    await expect(contextHeader).toHaveAttribute('aria-expanded', 'false');
+    await contextHeader.click();
+    await expect(contextHeader).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#modal-content')).toContainText('https://github.com/user/test-repo');
+  });
+
   test('New Task Modal should work correctly', async () => {
     // Open New Task Modal
     const newTaskBtn = page.locator('#new-task-btn');

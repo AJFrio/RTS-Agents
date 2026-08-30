@@ -27,6 +27,24 @@ jest.mock('../../src/main/services/config-store', () => ({
   getOpenCodeSessions: jest.fn(() => []),
 }));
 
+// The command-injection tests verify the legacy detached-CLI spawn args, so
+// ACP dispatch (which spawns adapters without the prompt as an argv entry)
+// must stay out of the way regardless of what is installed on the host.
+jest.mock('../../src/main/services/acp-service', () => ({
+  resolveAdapter: jest.fn(() => null),
+  runPrompt: jest.fn(() =>
+    Promise.reject(
+      Object.assign(new Error('ACP disabled in security tests'), {
+        phase: 'spawn',
+        fallbackAllowed: true,
+      })
+    )
+  ),
+  clearAdapterCache: jest.fn(),
+  pickPermissionOption: jest.fn(),
+  buildSpawnArgs: jest.fn(),
+}));
+
 // Require services AFTER mocking/spying
 let claudeService = require('../../src/main/services/claude-service');
 let antigravityService = require('../../src/main/services/antigravity-service');

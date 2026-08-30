@@ -6,14 +6,13 @@ module.exports = [
     ignores: [
       'dist/**',
       'node_modules/**',
-      'mobile-webapp/**',
       'coverage/**',
       'tests/mocks/**',
     ],
   },
   js.configs.recommended,
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['**/*.{js,jsx,mjs}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -43,7 +42,7 @@ module.exports = [
     },
   },
   {
-    files: ['src/renderer/**/*.{js,jsx}'],
+    files: ['src/renderer/**/*.{js,jsx,mjs}'],
     languageOptions: {
       sourceType: 'module',
       globals: {
@@ -65,7 +64,7 @@ module.exports = [
     },
   },
   {
-    files: ['tests/**/*.js'],
+    files: ['tests/**/*.{js,mjs}'],
     languageOptions: {
       globals: {
         ...globals.node,

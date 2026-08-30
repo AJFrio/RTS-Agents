@@ -103,8 +103,8 @@ export default function Header() {
                 : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
 
   return (
-    <header className="h-16 shrink-0 flex items-center justify-between px-8 border-b border-slate-200 dark:border-border-dark bg-white/80 dark:bg-sidebar-dark/80 backdrop-blur-md sticky top-0 z-10">
-      <div className="flex items-baseline gap-4">
+    <header className="h-16 shrink-0 flex items-center justify-between px-4 sm:px-8 border-b border-slate-200 dark:border-border-dark bg-white/80 dark:bg-sidebar-dark/80 backdrop-blur-md sticky top-0 z-10">
+      <div className="flex items-baseline gap-2 sm:gap-4">
         <h2
           id="view-title"
           className="text-xl font-display font-bold tracking-tight text-slate-900 dark:text-white"
@@ -118,7 +118,7 @@ export default function Header() {
         )}
       </div>
       {showHeaderActions && (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {currentView === 'dashboard' && (
             <>
               <div className="relative">
@@ -130,7 +130,7 @@ export default function Header() {
                   id="search-input"
                   placeholder="Search tasks"
                   defaultValue={filters.search}
-                  className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm py-2 pl-10 pr-4 w-64 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-500 transition-all duration-200"
+                  className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm py-2 pl-10 pr-4 w-40 sm:w-64 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-500 transition-all duration-200"
                   onChange={handleSearch}
                 />
               </div>
@@ -152,7 +152,7 @@ export default function Header() {
                 onClick={openCreateRepoModal}
               >
                 <span className="material-symbols-outlined text-sm">add</span>
-                New Repo
+                <span className="hidden sm:inline">New Repo</span>
               </button>
               <button
                 type="button"
@@ -167,7 +167,7 @@ export default function Header() {
                 >
                   refresh
                 </span>
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
               </button>
             </>
           ) : (
@@ -201,7 +201,7 @@ export default function Header() {
                 >
                   refresh
                 </span>
-                SYNC
+                <span className="hidden sm:inline">SYNC</span>
               </button>
             </>
           )}

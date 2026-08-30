@@ -1,0 +1,19 @@
+/**
+ * Unified RTS Agents web deployment: the Cloudflare Worker proxies /api/* to
+ * providers and Workers Assets serves the shared Vite build (dist/renderer)
+ * with single-page-application fallback.
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "rts-agents-webapp",
+	"main": "worker/index.ts",
+	"compatibility_date": "2025-09-27",
+	"assets": {
+		"directory": "dist/renderer",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application"
+	},
+	"observability": {
+		"enabled": true
+	}
+}

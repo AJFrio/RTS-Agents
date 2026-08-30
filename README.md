@@ -57,41 +57,31 @@ When configured with a GitHub token, you can:
 
 ---
 
-## Mobile Companion App (PWA)
+## Web App (Cloudflare Worker)
 
-The repository includes a mobile-optimized Progressive Web App (PWA) in the `mobile-webapp/` directory.
+The same React app that powers the desktop build also runs as a web app, served by a Cloudflare Worker (`worker/index.ts` + `wrangler.jsonc`). It deploys automatically from `main` via GitHub Actions.
 
 ### Capabilities
 
 - **Remote Control**: View connected desktop instances and dispatch tasks to them via Cloudflare KV.
-- **Unified Dashboard**: View and filter tasks across all providers, similar to the desktop app.
+- **Unified Dashboard**: View and filter tasks across all providers, responsive for phones and desktops.
 - **Cloud Agents**: Create and monitor tasks for cloud providers (Jules, Cursor, Codex, Claude Cloud) directly from your phone.
-- **GitHub**: View repositories and branches (read-only).
+- **GitHub**: Browse repositories, PRs, and PR actions.
 
 ### Limitations
 
-- **No Local Execution**: It cannot run local CLI tools (Antigravity/Claude CLI) directly. Instead, it dispatches these tasks to your running desktop instances.
-- **Requires Cloudflare KV**: Syncing between desktop and mobile requires Cloudflare KV configuration.
-- **Read-Only Device Status**: It views other devices but does not register itself as a compute node.
+- **No Local Execution**: It cannot run local CLI tools (Antigravity/Claude CLI/Codex/OpenCode) — it dispatches those tasks to your running desktop instances.
+- **Requires Cloudflare KV**: Syncing between desktop and web requires Cloudflare KV configuration.
 
-### Running the Mobile App
+### Build & deploy
 
-1. Navigate to the directory:
-   ```bash
-   cd mobile-webapp
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start development server:
-   ```bash
-   npm run dev
-   ```
-   Or build for production:
-   ```bash
-   npm run build
-   ```
+```bash
+npm run build:web     # same Vite build as desktop (dist/renderer)
+npm run check:web     # build + wrangler deploy --dry-run
+npm run deploy:web    # build + wrangler deploy
+```
+
+The worker proxies provider traffic through same-origin `/api/*` routes; API keys stay client-side (localStorage) and are forwarded per-request.
 
 ---
 
@@ -237,6 +227,7 @@ If Claude CLI shows as “not installed”:
 
 - `npm run start`: build minified Tailwind CSS and launch Electron
 - `npm run dev`: Tailwind CSS watch + launch Electron
+- `npm run build:web` / `check:web` / `deploy:web`: build the shared renderer and deploy it to Cloudflare Workers
 - `npm run dev:headless`: run a lightweight headless device (no Electron UI) that registers to Cloudflare KV, pulls keys, and executes queued remote tasks
 - `npm run smoke:providers`: optional live provider smoke check using stored config or environment variables; reports `not_configured`, `ok`, `auth_failed`, `rate_limited`, or `stale_contract`
 - `npm run test`: Jest unit + integration tests

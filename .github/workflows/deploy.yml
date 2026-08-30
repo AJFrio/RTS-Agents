@@ -16,17 +16,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: mobile-webapp/package-lock.json
 
       - name: Install Dependencies
-        working-directory: mobile-webapp
         run: npm ci
 
       - name: Deploy
-        working-directory: mobile-webapp
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npm run deploy
+        run: npm run deploy:web

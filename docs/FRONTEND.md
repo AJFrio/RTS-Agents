@@ -41,4 +41,4 @@ src/renderer/
 
 ## Mobile parity
 
-`mobile-webapp/` mirrors concepts (dashboard, settings, agents) in TypeScript. Not every desktop feature exists on mobile; check [ARCHITECTURE.md](../ARCHITECTURE.md) before porting.
+The web runtime (Cloudflare Worker) uses the same components. `src/renderer/platform/web-api.mjs` mirrors the `window.electronAPI` surface for browsers — keep it in sync when adding IPC methods, and check [ARCHITECTURE.md](../ARCHITECTURE.md) for capability differences.

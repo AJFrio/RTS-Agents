@@ -1,0 +1,7 @@
+{"type":"user","sessionId":"abc123","timestamp":"2024-05-01T10:00:00.000Z","cwd":"/repo","gitBranch":"main","message":{"role":"user","content":"Fix the failing build"}}
+{"type":"mode","sessionId":"abc123","mode":"default"}
+{"type":"assistant","sessionId":"abc123","timestamp":"2024-05-01T10:00:05.000Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"internal reasoning"},{"type":"text","text":"I'll inspect the build logs."},{"type":"tool_use","id":"t1","name":"Bash","input":{}}]}}
+{"type":"attachment","sessionId":"abc123","content":"noise"}
+{"type":"user","sessionId":"abc123","timestamp":"2024-05-01T10:00:09.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"exit 1"},{"type":"text","text":"here is the log"}]}}
+{"type":"assistant","sessionId":"abc123","timestamp":"2024-05-01T10:00:20.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Fixed the missing dependency."}]}}
+{"type":"ai-title","sessionId":"abc123","aiTitle":"Fix failing build"}

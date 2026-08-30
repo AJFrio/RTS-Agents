@@ -3,10 +3,14 @@
  *
  * The desktop renderer talks to the Electron main process through
  * window.electronAPI (preload IPC). This module implements the same surface
- * for the Cloudflare Worker-served web build:
+ * for the Cloudflare Worker-served web build. It is the composition root:
+ *
  *   - settings/filters/keys persist in localStorage (mobile-webapp compatible)
+ *     via ./web-settings.mjs
  *   - cloud providers, GitHub, Jira and Cloudflare KV go through the
- *     same-origin worker proxy (/api/<provider>/...)
+ *     same-origin worker proxy (/api/<provider>/...) via ./providers/*.mjs
+ *   - agent polling, details and task dispatch live in ./web-agent-hub.mjs
+ *   - Cloudflare KV sync (computers/queue/keys) lives in ./web-cloudflare-sync.mjs
  *   - local-only capabilities (filesystem, local CLIs, dialogs, app updates)
  *     degrade gracefully
  *
@@ -14,35 +18,50 @@
  */
 
 import { createStorage } from './web-storage.mjs';
+import { createSettingsSurface } from './web-settings.mjs';
+import { createProviders } from './providers/index.mjs';
+import { createAgentHub } from './web-agent-hub.mjs';
+import { createCloudflareSync } from './web-cloudflare-sync.mjs';
 
 const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'codex', 'claude', 'github', 'jira', 'openrouter']);
 
-const EMPTY_PATH_RESPONSE = () => ({ paths: [] });
-
-function buildCounts(agents) {
-  const counts = {
-    antigravity: 0,
-    jules: 0,
-    cursor: 0,
-    codex: 0,
-    'claude-cli': 0,
-    'claude-cloud': 0,
-    opencode: 0,
-    total: agents.length,
+function defaultTimers() {
+  return {
+    setInterval: globalThis.setInterval.bind(globalThis),
+    clearInterval: globalThis.clearInterval.bind(globalThis),
   };
-  for (const agent of agents) {
-    if (counts[agent.provider] !== undefined) {
-      counts[agent.provider] += 1;
-    }
-  }
-  return counts;
+}
+
+/**
+ * Accepts either a wrapped web-storage adapter (createStorage() product) or a
+ * raw localStorage-like impl and normalizes it to the adapter shape.
+ */
+function normalizeStorage(input) {
+  if (!input) return createStorage();
+  return typeof input.getSettings === 'function' ? input : createStorage(input);
 }
 
 export function createWebApi(options = {}) {
-  const storage = options.storage || createStorage();
+  const storage = normalizeStorage(options.storage);
+  const fetchImpl = options.fetchImpl || globalThis.fetch.bind(globalThis);
+  // Polling timers only auto-schedule in a browser runtime; Node tests inject
+  // timers explicitly (options.timers) to drive the polling lifecycle.
+  const timers = options.timers || (typeof window !== 'undefined' ? defaultTimers() : null);
+  // Raw key-value store for codex/claude tracked entities ('codex_tracked_threads',
+  // 'claude_tracked_conversations') — browser localStorage unless injected.
+  const kv = options.kv || (typeof localStorage !== 'undefined' ? localStorage : null);
+
+  const providers = createProviders({ storage, fetchImpl, kv });
+  const settingsSurface = createSettingsSurface(storage);
+  const hub = createAgentHub({
+    storage,
+    providers,
+    timers,
+    onTick: () => emitRefreshTick(),
+  });
+  const sync = createCloudflareSync({ storage, kv: providers.cloudflareKv });
+
   const tickSubscribers = new Set();
-  let revision = 0;
-  let cachedAgents = [];
 
   function emitRefreshTick() {
     for (const cb of tickSubscribers) {
@@ -54,85 +73,100 @@ export function createWebApi(options = {}) {
     }
   }
 
-  async function getSettings() {
-    const settings = storage.getSettings();
-    const cloudflare = storage.getCloudflareConfig();
-    const apiKeys = {
-      jules: storage.hasApiKey('jules'),
-      cursor: storage.hasApiKey('cursor'),
-      codex: storage.hasApiKey('codex'),
-      openrouter: storage.hasApiKey('openrouter'),
-      claude: storage.hasApiKey('claude'),
-      github: storage.hasApiKey('github'),
-      jira: storage.hasApiKey('jira'),
-      cloudflare: storage.hasCloudflareConfig(),
-    };
-    const emptyPaths = [];
-    return {
-      settings: {
-        pollingInterval: settings.pollingInterval,
-        autoPolling: settings.autoPolling,
-        theme: settings.theme,
-        displayMode: settings.displayMode,
-        jiraBaseUrl: settings.jiraBaseUrl,
-        selectedModel: settings.selectedModel,
-        antigravityPaths: emptyPaths,
-        claudePaths: emptyPaths,
-        cursorPaths: emptyPaths,
-        codexPaths: emptyPaths,
-        opencodePaths: emptyPaths,
-        githubPaths: emptyPaths,
-      },
-      apiKeys,
-      jiraBaseUrl: settings.jiraBaseUrl,
-      cloudflare: {
-        configured: storage.hasCloudflareConfig(),
-        accountId: cloudflare?.accountId || '',
-        namespaceTitle: cloudflare?.namespaceTitle || 'rtsa',
-      },
-      antigravityInstalled: false,
-      antigravityDefaultPath: '',
-      antigravityPaths: emptyPaths,
-      claudeCliInstalled: false,
-      codexInstalled: false,
-      opencodeInstalled: false,
-      opencodeDefaultPath: '',
-      claudeCloudConfigured: apiKeys.claude,
-      claudeDefaultPath: '',
-      claudePaths: emptyPaths,
-      cursorPaths: emptyPaths,
-      codexPaths: emptyPaths,
-      opencodePaths: emptyPaths,
-      githubPaths: emptyPaths,
-      filters: storage.getFilters(),
-      selectedModel: settings.selectedModel,
-      localDeviceId: null,
-    };
+  async function testApiKey(provider) {
+    switch (provider) {
+      case 'jules':
+        return providers.jules.testConnection();
+      case 'cursor':
+        return providers.cursor.testConnection();
+      case 'codex':
+        return providers.codex.testConnection();
+      case 'claude':
+        return providers.claude.testConnection();
+      case 'github':
+        return providers.github.testConnection();
+      case 'jira':
+        return providers.jira.testConnection();
+      case 'openrouter':
+        return providers.openrouter.testConnection();
+      default:
+        return { success: false, error: `Unknown provider: ${provider}` };
+    }
   }
 
-  async function getAgents({ sinceRevision = 0, force = false } = {}) {
-    if (!force && sinceRevision === revision) {
-      return { unchanged: true, revision };
+  async function setPolling(enabled, interval) {
+    const next = { autoPolling: enabled !== false };
+    if (interval !== undefined) next.pollingInterval = interval;
+    storage.setSettings(next);
+    if (next.autoPolling) {
+      hub.startPolling(storage.getSettings().pollingInterval);
+    } else {
+      hub.stopPolling();
     }
-    // Provider fetchers are wired up by the platform provider services
-    // (src/renderer/platform/providers/*.mjs). Until configured, the web
-    // runtime reports an empty, healthy agent list.
-    const agents = [...cachedAgents];
-    revision += 1;
-    return {
-      revision,
-      full: true,
-      agents,
-      counts: buildCounts(agents),
+    return { success: true };
+  }
+
+  async function getRepositories(provider) {
+    try {
+      switch (provider) {
+        case 'jules': {
+          if (!storage.hasApiKey('jules')) {
+            return { success: false, error: 'Jules API key not configured', repositories: [] };
+          }
+          return { success: true, repositories: await providers.jules.getAllSources() };
+        }
+        case 'cursor': {
+          if (!storage.hasApiKey('cursor')) {
+            return { success: false, error: 'Cursor API key not configured', repositories: [] };
+          }
+          return { success: true, repositories: await providers.cursor.getAllRepositories() };
+        }
+        // Cloud/local providers have no remote repository catalog on web.
+        default:
+          return { success: true, repositories: [] };
+      }
+    } catch (err) {
+      return { success: false, error: err?.message || 'Unknown error', repositories: [] };
+    }
+  }
+
+  async function getAllRepositories() {
+    const results = {
       errors: [],
+      jules: [],
+      cursor: [],
+      antigravity: [],
+      codex: [],
+      'claude-cli': [],
+      'claude-cloud': [],
+      opencode: [],
     };
+
+    const settled = await Promise.allSettled([
+      storage.hasApiKey('jules') ? providers.jules.getAllSources() : Promise.resolve([]),
+      storage.hasApiKey('cursor') ? providers.cursor.getAllRepositories() : Promise.resolve([]),
+    ]);
+
+    const keys = ['jules', 'cursor'];
+    const reportFlags = [storage.hasApiKey('jules'), storage.hasApiKey('cursor')];
+
+    settled.forEach((entry, index) => {
+      const key = keys[index];
+      if (entry.status === 'fulfilled') {
+        results[key] = entry.value;
+      } else if (reportFlags[index]) {
+        results.errors.push({ provider: key, error: entry.reason?.message || 'Unknown error' });
+      }
+    });
+
+    return results;
   }
 
   return {
     // ------------------------------------------------------------------
-    // Settings / config
+    // Settings / config (web-settings surface)
     // ------------------------------------------------------------------
-    getSettings,
+    ...settingsSurface,
 
     async setApiKey(provider, key) {
       if (!API_KEY_PROVIDERS.has(provider)) {
@@ -142,173 +176,28 @@ export function createWebApi(options = {}) {
       return { success: true };
     },
 
-    async removeApiKey(provider) {
-      storage.removeApiKey(provider);
-      return { success: true };
-    },
+    testApiKey,
+    setPolling,
 
-    async setJiraBaseUrl(url) {
-      storage.setSettings({ jiraBaseUrl: url });
-      return { success: true };
-    },
-
-    async testApiKey(provider) {
-      return { success: false, error: `Testing ${provider} is not available on web yet` };
-    },
-
-    async setPolling(enabled, interval) {
-      storage.setSettings({ autoPolling: enabled !== false, pollingInterval: interval });
-      return { success: true };
-    },
-
-    async setTheme(theme) {
-      storage.setSettings({ theme });
-      return { success: true };
-    },
-
-    async setDisplayMode(mode) {
-      storage.setSettings({ displayMode: mode });
-      return { success: true };
-    },
-
-    async saveFilters(filters) {
-      storage.setFilters(filters || {});
-      return { success: true };
-    },
-
-    async setModel(model) {
-      storage.setSettings({ selectedModel: model });
-      return { success: true };
-    },
-
-    async setCloudflareConfig(accountId, apiToken, namespaceTitle) {
-      storage.setCloudflareConfig({ accountId, apiToken, namespaceTitle });
-      return { success: true };
-    },
-
-    async clearCloudflareConfig() {
-      storage.removeCloudflareConfig();
-      return { success: true };
-    },
-
-    async testCloudflare() {
-      return { success: false, error: 'Cloudflare testing is not available on web yet' };
-    },
-
-    async listComputers() {
-      return { success: true, configured: false, computers: [] };
-    },
-
-    async getQueueActivity() {
-      return { success: true, configured: false, devices: [] };
-    },
-
-    async pushKeysToCloudflare() {
-      return { success: false, error: 'Key sync is not available on web yet' };
-    },
-
-    async pullKeysFromCloudflare() {
-      return { success: false, error: 'Key sync is not available on web yet' };
-    },
+    // Cloudflare KV sync (computers / queue / keys / test)
+    testCloudflare: sync.testCloudflare,
+    listComputers: sync.listComputers,
+    getQueueActivity: sync.getQueueActivity,
+    pushKeysToCloudflare: sync.pushKeysToCloudflare,
+    pullKeysFromCloudflare: sync.pullKeysFromCloudflare,
 
     // ------------------------------------------------------------------
-    // Local path management — desktop-only, degrade to empty
+    // Agents (web-agent-hub)
     // ------------------------------------------------------------------
-    async addAntigravityPath() {
-      return { success: true, paths: [] };
-    },
-    async removeAntigravityPath() {
-      return { success: true, paths: [] };
-    },
-    async getAntigravityPaths() {
-      return EMPTY_PATH_RESPONSE();
-    },
-    async addClaudePath() {
-      return { success: true, paths: [] };
-    },
-    async removeClaudePath() {
-      return { success: true, paths: [] };
-    },
-    async getClaudePaths() {
-      return EMPTY_PATH_RESPONSE();
-    },
-    async addCursorPath() {
-      return { success: true, paths: [] };
-    },
-    async removeCursorPath() {
-      return { success: true, paths: [] };
-    },
-    async getCursorPaths() {
-      return EMPTY_PATH_RESPONSE();
-    },
-    async addCodexPath() {
-      return { success: true, paths: [] };
-    },
-    async removeCodexPath() {
-      return { success: true, paths: [] };
-    },
-    async getCodexPaths() {
-      return EMPTY_PATH_RESPONSE();
-    },
-    async addOpenCodePath() {
-      return { success: true, paths: [] };
-    },
-    async removeOpenCodePath() {
-      return { success: true, paths: [] };
-    },
-    async getOpenCodePaths() {
-      return EMPTY_PATH_RESPONSE();
-    },
-    async addGithubPath() {
-      return { success: true, paths: [] };
-    },
-    async removeGithubPath() {
-      return { success: true, paths: [] };
-    },
-    async getGithubPaths() {
-      return EMPTY_PATH_RESPONSE();
-    },
-    async getAllProjectPaths() {
-      return { paths: {} };
+    getAgents: hub.getAgents,
+    getAgentDetails: hub.getAgentDetails,
+
+    async getJulesAgentDetailsText(sessionId) {
+      return providers.jules.getAgentDetailsText(sessionId);
     },
 
-    // ------------------------------------------------------------------
-    // Local-only capabilities
-    // ------------------------------------------------------------------
-    async openExternal(url) {
-      if (typeof window === 'undefined') return null;
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return { success: true };
-    },
-
-    async openDirectory() {
-      return null;
-    },
-
-    async updateApp() {
-      return { success: false, error: 'Updating the app is desktop-only' };
-    },
-
-    async openOpenCodeSession() {
-      return { success: false, error: 'OpenCode terminal is desktop-only' };
-    },
-
-    async getConnectionStatus() {
-      return {};
-    },
-
-    // ------------------------------------------------------------------
-    // Agents
-    // ------------------------------------------------------------------
-    getAgents,
-    async getAgentDetails() {
-      return { error: 'Agent details are not available on web yet' };
-    },
-    async getJulesAgentDetailsText() {
-      return null;
-    },
-    async getJulesActivityMedia() {
-      return null;
+    async getJulesActivityMedia(sessionId, activityId) {
+      return providers.jules.getActivityMedia(sessionId, activityId);
     },
 
     onRefreshTick(callback) {
@@ -321,75 +210,27 @@ export function createWebApi(options = {}) {
     _emitRefreshTick: emitRefreshTick,
 
     // ------------------------------------------------------------------
-    // Tasks (provider dispatch wired in providers wave)
+    // Tasks (web-agent-hub)
     // ------------------------------------------------------------------
-    async createTask() {
-      return { success: false, error: 'Task creation is not available on web yet' };
-    },
-    async sendMessage() {
-      return { success: false, error: 'Messaging is not available on web yet' };
-    },
+    createTask: hub.createTask,
+    sendMessage: hub.sendMessage,
+
     async orchestratorGetModels() {
-      return [];
-    },
-    async orchestratorChat() {
-      return { success: false, error: 'Orchestrator chat is not available on web yet' };
-    },
-    async getRepositories() {
-      return { success: true, repositories: [] };
-    },
-    async getAllRepositories() {
-      return {
-        jules: [],
-        cursor: [],
-        antigravity: [],
-        codex: [],
-        'claude-cli': [],
-        'claude-cloud': [],
-        opencode: [],
-      };
+      return providers.orchestrator.getAvailableModels();
     },
 
-    // ------------------------------------------------------------------
-    // GitHub / Jira (wired through the worker proxy in providers wave)
-    // ------------------------------------------------------------------
-    github: new Proxy(
-      {},
-      {
-        get() {
-          return async () => ({ success: false, error: 'GitHub is not available on web yet' });
-        },
-      }
-    ),
-    jira: new Proxy(
-      {},
-      {
-        get() {
-          return async () => ({ success: false, error: 'Jira is not available on web yet' });
-        },
-      }
-    ),
+    async orchestratorChat(messages, selectedModel) {
+      return providers.orchestrator.chat(messages, selectedModel);
+    },
+
+    getRepositories,
+    getAllRepositories,
 
     // ------------------------------------------------------------------
-    // Local projects — desktop-only
+    // GitHub / Jira (worker proxy via provider services)
     // ------------------------------------------------------------------
-    projects: {
-      async createLocalRepo() {
-        return { success: false, error: 'Local repos are desktop-only' };
-      },
-      async enqueueCreateRepo() {
-        return { success: false, error: 'Repo creation is not available on web yet' };
-      },
-      async getLocalRepos() {
-        return { success: true, repos: [] };
-      },
-      async getRepoFile() {
-        return { success: false, error: 'Local files are desktop-only' };
-      },
-      async pullRepo() {
-        return { success: false, error: 'Git pull is desktop-only' };
-      },
-    },
+    github: providers.github,
+    jira: providers.jira,
 
     platform: 'web',
     versions: {},

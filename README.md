@@ -7,7 +7,7 @@ RTS Agents is 1 dashboard to access all your coding agents and Github repos acro
 It supports:
 
 - **Local CLI-backed agents**: Antigravity CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (tracks locally-launched sessions and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
-- **ACP streaming dispatch**: Claude CLI, Codex CLI, and OpenCode tasks run over the [Agent Client Protocol](https://agentclientprotocol.com) when an adapter is available, streaming live output into task details (with automatic fallback to the detached-CLI path).
+- **ACP streaming dispatch**: Claude CLI, Codex CLI, OpenCode, and Cursor CLI tasks run over the [Agent Client Protocol](https://agentclientprotocol.com) when an adapter is available, streaming live output into task details (with automatic fallback to the detached-CLI path where one exists).
 - **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI Responses, and Claude (Anthropic Messages API).
 - **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
 
@@ -182,15 +182,16 @@ This app stores provider credentials in a local Electron settings store. You can
 
 These providers are **not configured via API key inside this app**. They rely on locally-installed CLIs and their session folders.
 
-### ACP streaming dispatch (Claude CLI, Codex CLI, OpenCode)
+### ACP streaming dispatch (Claude CLI, Codex CLI, OpenCode, Cursor CLI)
 
 When creating local tasks, the app dispatches over the **Agent Client Protocol** if an adapter is available, so live agent output streams into the task details view:
 
 - **Claude Code**: install the ACP adapter globally — `npm install -g @agentclientprotocol/claude-agent-acp`
 - **Codex**: install the ACP adapter globally — `npm install -g @agentclientprotocol/codex-acp`
 - **OpenCode**: no extra install — the `opencode acp` subcommand is used directly
+- **Cursor CLI**: install the CLI (not just the editor) — `curl -fsSL https://cursor.com/install | bash`, then run `agent login` once; the `agent acp` subcommand is used directly
 
-Without an adapter, tasks fall back to the detached-CLI behavior described below (no live output). ACP sessions are auto-approved per provider: Claude allows only read/edit/execute tool kinds; Codex and OpenCode allow all permission requests.
+Without an adapter, tasks fall back to the detached-CLI behavior described below (no live output). ACP sessions are auto-approved per provider: Claude allows only read/edit/execute tool kinds; Codex, OpenCode, and Cursor allow all permission requests.
 
 ### Antigravity CLI
 

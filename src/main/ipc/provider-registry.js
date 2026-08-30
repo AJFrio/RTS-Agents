@@ -4,9 +4,10 @@
  */
 
 const projectService = require('../services/project-service');
+const acpService = require('../services/acp-service');
 
 const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'claude-cli', 'codex', 'opencode']);
-const LOCAL_CWD_PROVIDERS = new Set(['antigravity', 'codex', 'claude-cli', 'opencode']);
+const LOCAL_CWD_PROVIDERS = new Set(['antigravity', 'codex', 'claude-cli', 'opencode', 'cursor']);
 
 const AGENT_LIST_KEYS = [
   'antigravity',
@@ -80,18 +81,21 @@ async function fetchAllAgents(deps) {
 
   const results = emptyAgentResults();
   const allProjectPaths = configStore.getAllProjectPaths();
-  const [antigravityAvailable, claudeCliAvailable, opencodeAvailable] = await Promise.all([
-    antigravityService.isAntigravityInstalled(),
-    claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled(),
-  ]);
+  const [antigravityAvailable, claudeCliAvailable, opencodeAvailable, cursorCliSessions] =
+    await Promise.all([
+      antigravityService.isAntigravityInstalled(),
+      claudeService.isClaudeInstalled(),
+      opencodeService.isOpenCodeInstalled(),
+      Promise.resolve(cursorService.getCursorCliSessions()),
+    ]);
   const codexAvailable = configStore.hasApiKey('codex') || (await codexService.isCodexInstalled());
   const claudeCloudAvailable = configStore.hasApiKey('claude');
+  const cursorAvailable = configStore.hasApiKey('cursor') || cursorCliSessions.length > 0;
 
   const settled = await Promise.allSettled([
     antigravityAvailable ? Promise.resolve(antigravityService.getAllAgents()) : Promise.resolve([]),
     configStore.hasApiKey('jules') ? julesService.getAllAgents() : Promise.resolve([]),
-    configStore.hasApiKey('cursor') ? cursorService.getAllAgents() : Promise.resolve([]),
+    cursorAvailable ? cursorService.getAllAgents() : Promise.resolve([]),
     codexAvailable ? Promise.resolve(codexService.getAllAgents()) : Promise.resolve([]),
     claudeCliAvailable ? claudeService.getAllLocalSessions(allProjectPaths) : Promise.resolve([]),
     claudeCloudAvailable ? claudeService.getAllCloudConversations() : Promise.resolve([]),
@@ -101,7 +105,7 @@ async function fetchAllAgents(deps) {
   const reportFlags = [
     antigravityAvailable,
     configStore.hasApiKey('jules'),
-    configStore.hasApiKey('cursor'),
+    cursorAvailable,
     codexAvailable,
     claudeCliAvailable,
     claudeCloudAvailable,
@@ -137,10 +141,10 @@ async function getAgentDetails(deps, { provider, rawId, filePath }) {
       return antigravityService.getSessionDetails(rawId);
     case 'jules':
       return julesService.getAgentDetailsText(rawId);
-    case 'cursor': {
-      const cursorId = rawId ? String(rawId).replace(/^cursor-/, '') : rawId;
-      return cursorService.getAgentDetails(cursorId);
-    }
+    case 'cursor':
+      // Tracked local CLI ids ('cursor-cli-…') are resolved inside the
+      // service; cloud ids keep their 'cursor-' prefix strip there too.
+      return cursorService.getAgentDetails(rawId);
     case 'codex':
       return codexService.getAgentDetails(rawId);
     case 'claude':
@@ -336,8 +340,15 @@ async function createLocalTask(deps, provider, options) {
       return { success: true, task };
     }
     case 'cursor': {
+      // Local CLI dispatch wins when a project path and the Cursor agent CLI
+      // are available; the cloud API remains the path for repo-less tasks.
+      const cursorAdapter = options.projectPath ? acpService.resolveAdapter('cursor') : null;
+      if (cursorAdapter) {
+        const task = await cursorService.startCliSession(options);
+        return { success: true, task: { ...task, provider: 'cursor' } };
+      }
       if (!configStore.hasApiKey('cursor')) {
-        throw new Error('Cursor API key not configured');
+        throw new Error('Cursor API key not configured and Cursor CLI not installed');
       }
       const task = await cursorService.createAgent(options);
       return { success: true, task };

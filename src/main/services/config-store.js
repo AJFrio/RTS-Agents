@@ -302,6 +302,14 @@ class ConfigStore {
     this.store.set('claudeCliSessions', sessions || []);
   }
 
+  getCursorCliSessions() {
+    return this.store.get('cursorCliSessions', []);
+  }
+
+  setCursorCliSessions(sessions) {
+    this.store.set('cursorCliSessions', sessions || []);
+  }
+
   getAntigravitySessions() {
     return this.store.get('antigravitySessions', []);
   }

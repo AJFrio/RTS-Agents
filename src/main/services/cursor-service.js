@@ -2,16 +2,35 @@ const fs = require('fs');
 const path = require('path');
 const httpService = require('./http-service');
 const providerHealth = require('./provider-health');
+const acpService = require('./acp-service');
+const configStore = require('./config-store');
+const { appendAgentChunk } = require('./opencode-session-parser');
 
 const BASE_URL = 'https://api.cursor.com/v1';
+const ACP_PERSIST_DEBOUNCE_MS = 1000;
+const TRACKED_CURSOR_SESSION_LIMIT = 100;
 
 class CursorService {
   constructor() {
     this.apiKey = null;
+    this.trackedCliSessions = [];
+    this._persistTimer = null;
   }
 
   setApiKey(apiKey) {
     this.apiKey = apiKey;
+  }
+
+  setCursorCliSessions(sessions) {
+    this.trackedCliSessions = Array.isArray(sessions) ? sessions : [];
+  }
+
+  getCursorCliSessions() {
+    return this.trackedCliSessions;
+  }
+
+  isCursorCliAvailable() {
+    return !!acpService.resolveAdapter('cursor');
   }
 
   async request(endpoint, method = 'GET', body = null) {
@@ -84,6 +103,20 @@ class CursorService {
   }
 
   async getAllAgents() {
+    const agents = this.trackedCliSessions.map((record) => this._normalizeTrackedCli(record));
+
+    if (this.apiKey) {
+      try {
+        agents.push(...(await this._listCloudAgents()));
+      } catch (err) {
+        // Surface local sessions even when the cloud listing fails
+      }
+    }
+
+    return agents;
+  }
+
+  async _listCloudAgents() {
     const response = await this.listAgents(100);
     const agents = this.extractListItems(response).map((item) => this.unwrapAgent(item));
     const settled = await Promise.allSettled(
@@ -255,6 +288,14 @@ class CursorService {
   }
 
   async getAgentDetails(agentId) {
+    if (String(agentId).startsWith('cursor-cli-')) {
+      const tracked = this.trackedCliSessions.find((s) => s.id === agentId);
+      if (!tracked) {
+        throw new Error(`Cursor task not found: ${agentId}`);
+      }
+      return this._getTrackedCliDetails(tracked);
+    }
+
     const id = this.resolveAgentId(agentId);
     const agent = await this.getAgent(id);
 
@@ -419,6 +460,223 @@ class CursorService {
     if (!url) return 'Unknown';
     const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
     return match ? match[1] : url;
+  }
+
+  // ============================================
+  // Local CLI dispatch (ACP)
+  // ============================================
+
+  /**
+   * Start a local Cursor CLI task over ACP (`agent acp` / legacy
+   * `cursor-agent acp`). Auth reuses the CLI's own stored Cursor login.
+   * There is no detached-CLI fallback for Cursor: pre-start ACP failures
+   * reject so the UI can surface them.
+   * @param {object} options
+   * @param {string} options.prompt - The task description/prompt
+   * @param {string} [options.projectPath] - Path to the project directory
+   */
+  async startCliSession(options) {
+    const { prompt, command } = options;
+    const projectPath = options.projectPath || options.repository;
+
+    if (!prompt) {
+      throw new Error('Prompt is required');
+    }
+    if (!projectPath) {
+      throw new Error('Project path is required');
+    }
+
+    try {
+      await fs.promises.access(projectPath);
+    } catch {
+      throw new Error(`Project path does not exist: ${projectPath}`);
+    }
+
+    const adapter = acpService.resolveAdapter('cursor');
+    if (!adapter) {
+      throw new Error(
+        'Cursor CLI not found. Install it from https://cursor.com/cli and run "agent login" once.'
+      );
+    }
+
+    const sessionId = `cursor-cli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    return this._startAcpSession(adapter, { prompt, projectPath }, sessionId);
+  }
+
+  _startAcpSession(adapter, { prompt, projectPath }, sessionId) {
+    const record = {
+      id: sessionId,
+      rawId: sessionId,
+      prompt,
+      projectPath,
+      status: 'running',
+      streamMessages: [],
+      error: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.trackedCliSessions = [record, ...this.trackedCliSessions].slice(
+      0,
+      TRACKED_CURSOR_SESSION_LIMIT
+    );
+    this._persistTrackedCliSessions();
+
+    const buildCard = (status, message) => ({
+      id: sessionId,
+      provider: 'cursor',
+      source: 'local',
+      name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+      status,
+      prompt,
+      repository: projectPath,
+      createdAt: new Date(),
+      message,
+    });
+
+    return new Promise((resolveCard, rejectCard) => {
+      let cardResolved = false;
+      const resolveOnce = (card) => {
+        if (!cardResolved) {
+          cardResolved = true;
+          resolveCard(card);
+        }
+      };
+
+      acpService
+        .runPrompt({
+          command: adapter,
+          cwd: projectPath,
+          prompt,
+          permissionPolicy: 'allow-all',
+          onSessionId: () => {
+            resolveOnce(
+              buildCard(
+                'running',
+                'Cursor CLI task started over ACP. Live output streams into the task details.'
+              )
+            );
+          },
+          onUpdate: (update) => {
+            if (update?.sessionUpdate !== 'agent_message_chunk') return;
+            const text =
+              typeof update.content === 'string' ? update.content : update.content?.text;
+            if (!text || !text.trim()) return;
+            record.streamMessages = appendAgentChunk(record.streamMessages, text, new Date().toISOString());
+            this._updateTrackedCliSession(
+              sessionId,
+              { streamMessages: record.streamMessages },
+              true
+            );
+          },
+        })
+        .then(({ stopReason }) => {
+          const failed = stopReason === 'error' || stopReason === 'cancelled';
+          this._updateTrackedCliSession(sessionId, {
+            status: failed ? 'failed' : 'completed',
+            error: failed ? `Cursor ACP turn ended with stopReason ${stopReason}` : null,
+          });
+          resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Cursor task finished.'));
+        })
+        .catch((err) => {
+          if (!cardResolved) {
+            this.trackedCliSessions = this.trackedCliSessions.filter((s) => s.id !== sessionId);
+            this._persistTrackedCliSessions();
+            rejectCard(err);
+            return;
+          }
+          this._updateTrackedCliSession(sessionId, {
+            status: 'failed',
+            error: err?.message || String(err),
+          });
+          resolveOnce(buildCard('failed', err?.message || 'ACP dispatch failed.'));
+        });
+    });
+  }
+
+  _updateTrackedCliSession(sessionId, patch, debounced = false) {
+    const idx = this.trackedCliSessions.findIndex((x) => x.id === sessionId);
+    if (idx === -1) return;
+    this.trackedCliSessions[idx] = {
+      ...this.trackedCliSessions[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    if (debounced) {
+      this._persistTrackedCliSessionsDebounced();
+    } else {
+      this._persistTrackedCliSessions();
+    }
+  }
+
+  _persistTrackedCliSessions() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+      this._persistTimer = null;
+    }
+    try {
+      configStore.setCursorCliSessions(this.trackedCliSessions);
+    } catch (err) {
+      console.error('Failed to persist Cursor CLI sessions:', err?.message || err);
+    }
+  }
+
+  _persistTrackedCliSessionsDebounced() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+    }
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this._persistTrackedCliSessions();
+    }, ACP_PERSIST_DEBOUNCE_MS);
+  }
+
+  _normalizeTrackedCli(record) {
+    const stream = Array.isArray(record.streamMessages) ? record.streamMessages : [];
+    const lastContent = stream.length ? String(stream[stream.length - 1].content || '') : '';
+    return {
+      id: record.id,
+      provider: 'cursor',
+      source: 'local',
+      name: record.prompt
+        ? record.prompt.substring(0, 50) + (record.prompt.length > 50 ? '...' : '')
+        : 'Cursor CLI Session',
+      status: record.status || 'running',
+      prompt: record.prompt || '',
+      repository: record.projectPath || null,
+      createdAt: record.createdAt ? new Date(record.createdAt) : null,
+      updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+      summary: lastContent ? lastContent.substring(0, 200) : null,
+      rawId: record.id,
+      messageCount: stream.length + 1,
+    };
+  }
+
+  _getTrackedCliDetails(record) {
+    const stream = Array.isArray(record.streamMessages) ? record.streamMessages : [];
+    return {
+      name: record.prompt ? record.prompt.substring(0, 80) : 'Cursor CLI Session',
+      prompt: record.prompt || '',
+      summary: this._normalizeTrackedCli(record).summary,
+      status: record.status || 'running',
+      source: 'local',
+      repository: record.projectPath || null,
+      createdAt: record.createdAt || null,
+      updatedAt: record.updatedAt || null,
+      messages: [
+        {
+          id: 'prompt',
+          role: 'user',
+          content: record.prompt || '',
+          timestamp: record.createdAt || null,
+        },
+        ...stream.map((msg) => ({
+          id: msg.id || null,
+          role: msg.role || 'assistant',
+          content: msg.content || '',
+          timestamp: msg.timestamp || null,
+        })),
+      ],
+    };
   }
 
   async createAgent(options) {

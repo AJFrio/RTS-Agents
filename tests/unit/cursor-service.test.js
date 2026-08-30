@@ -7,6 +7,19 @@ const mockReaddir = jest.fn();
 const mockAccess = jest.fn();
 
 // Mock modules
+jest.mock('../../src/main/services/config-store', () => ({
+  setCursorCliSessions: jest.fn(),
+  getCursorCliSessions: jest.fn(() => []),
+}));
+
+jest.mock('../../src/main/services/acp-service', () => ({
+  resolveAdapter: jest.fn(),
+  runPrompt: jest.fn(),
+  clearAdapterCache: jest.fn(),
+  pickPermissionOption: jest.fn(),
+  buildSpawnArgs: jest.fn(),
+}));
+
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
   promises: {
@@ -18,6 +31,8 @@ jest.mock('fs', () => ({
 
 const cursorService = require('../../src/main/services/cursor-service');
 const httpService = require('../../src/main/services/http-service');
+const acpService = require('../../src/main/services/acp-service');
+const configStore = require('../../src/main/services/config-store');
 
 describe('CursorService Unit Tests (Local Repos - Async)', () => {
   beforeEach(() => {
@@ -387,6 +402,162 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
         60000
       );
       expect(result.rawId).toBe('bc-2');
+    });
+  });
+
+  describe('ACP local dispatch', () => {
+    function mockAcp(overrides = {}) {
+      acpService.resolveAdapter.mockReturnValue('agent');
+      acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
+        if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
+        return overrides.promise || Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      });
+    }
+
+    beforeEach(() => {
+      cursorService.setCursorCliSessions([]);
+    });
+
+    test('startCliSession dispatches via ACP, coalesces chunks, and completes', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      mockAcp({
+        onRun: ({ onSessionId, onUpdate }) => {
+          onSessionId('acp-1');
+          onUpdate(
+            { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hello ' } },
+            'acp-1'
+          );
+          onUpdate(
+            { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'world' } },
+            'acp-1'
+          );
+        },
+      });
+
+      const result = await cursorService.startCliSession({
+        prompt: 'Fix the login bug',
+        projectPath: '/repo',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(acpService.runPrompt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: 'agent',
+          cwd: '/repo',
+          prompt: 'Fix the login bug',
+          permissionPolicy: 'allow-all',
+        })
+      );
+      expect(result).toMatchObject({
+        provider: 'cursor',
+        source: 'local',
+        status: 'running',
+        repository: '/repo',
+      });
+
+      const tracked = cursorService.getCursorCliSessions();
+      expect(tracked).toHaveLength(1);
+      expect(tracked[0]).toMatchObject({
+        status: 'completed',
+        prompt: 'Fix the login bug',
+      });
+      expect(tracked[0].streamMessages).toHaveLength(1);
+      expect(tracked[0].streamMessages[0].content).toBe('Hello world');
+      expect(configStore.setCursorCliSessions).toHaveBeenCalled();
+    });
+
+    test('throws when the Cursor CLI is not installed', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      acpService.resolveAdapter.mockReturnValue(null);
+
+      await expect(
+        cursorService.startCliSession({ prompt: 'Fix it', projectPath: '/repo' })
+      ).rejects.toThrow('Cursor CLI not found');
+      expect(cursorService.getCursorCliSessions()).toHaveLength(0);
+    });
+
+    test('cleans up and rejects when ACP fails before start', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      mockAcp({
+        promise: Promise.reject(
+          Object.assign(new Error('Failed to start ACP adapter'), {
+            phase: 'spawn',
+            fallbackAllowed: true,
+          })
+        ),
+      });
+
+      await expect(
+        cursorService.startCliSession({ prompt: 'Fix it', projectPath: '/repo' })
+      ).rejects.toThrow('Failed to start ACP adapter');
+      expect(cursorService.getCursorCliSessions()).toHaveLength(0);
+    });
+
+    test('marks the tracked session failed when ACP fails after start', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      mockAcp({
+        onRun: ({ onSessionId }) => onSessionId('acp-1'),
+        promise: Promise.reject(
+          Object.assign(new Error('ACP adapter exited (code 1)'), {
+            phase: 'exit',
+            fallbackAllowed: false,
+          })
+        ),
+      });
+
+      await cursorService.startCliSession({ prompt: 'Fix it', projectPath: '/repo' });
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(cursorService.getCursorCliSessions()[0]).toMatchObject({
+        status: 'failed',
+        error: 'ACP adapter exited (code 1)',
+      });
+    });
+
+    test('getAllAgents surfaces tracked local sessions without an API key', async () => {
+      cursorService.setCursorCliSessions([
+        {
+          id: 'cursor-cli-1-abc',
+          prompt: 'Fix the bug',
+          projectPath: '/repo',
+          status: 'running',
+          streamMessages: [{ role: 'assistant', content: 'Step one' }],
+          createdAt: '2026-08-30T00:00:00.000Z',
+          updatedAt: '2026-08-30T00:01:00.000Z',
+        },
+      ]);
+
+      const agents = await cursorService.getAllAgents();
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        id: 'cursor-cli-1-abc',
+        provider: 'cursor',
+        source: 'local',
+        status: 'running',
+      });
+    });
+
+    test('getAgentDetails returns tracked messages for cursor-cli ids', async () => {
+      cursorService.setCursorCliSessions([
+        {
+          id: 'cursor-cli-1-abc',
+          prompt: 'Fix the bug',
+          projectPath: '/repo',
+          status: 'completed',
+          streamMessages: [{ role: 'assistant', content: 'All done', id: 'stream-0' }],
+          createdAt: '2026-08-30T00:00:00.000Z',
+          updatedAt: '2026-08-30T00:01:00.000Z',
+        },
+      ]);
+
+      const details = await cursorService.getAgentDetails('cursor-cli-1-abc');
+      expect(details.status).toBe('completed');
+      expect(details.messages).toEqual([
+        expect.objectContaining({ role: 'user', content: 'Fix the bug' }),
+        expect.objectContaining({ role: 'assistant', content: 'All done' }),
+      ]);
     });
   });
 });

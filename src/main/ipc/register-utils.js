@@ -131,13 +131,19 @@ function registerUtilsHandlers(deps) {
     ]);
 
     // Local CLI status: connected if CLI is installed
-    const [antigravityInstalled, claudeCliInstalled, codexInstalled, opencodeInstalled] =
-      await Promise.all([
-        antigravityService.isAntigravityInstalled(),
-        claudeService.isClaudeInstalled(),
-        codexService.isCodexInstalled(),
-        opencodeService.isOpenCodeInstalled(),
-      ]);
+    const [
+      antigravityInstalled,
+      claudeCliInstalled,
+      codexInstalled,
+      opencodeInstalled,
+      cursorCliInstalled,
+    ] = await Promise.all([
+      antigravityService.isAntigravityInstalled(),
+      claudeService.isClaudeInstalled(),
+      codexService.isCodexInstalled(),
+      opencodeService.isOpenCodeInstalled(),
+      cursorService.isCursorCliAvailable(),
+    ]);
     return {
       antigravity: {
         success: antigravityInstalled,
@@ -180,6 +186,13 @@ function registerUtilsHandlers(deps) {
         success: claudeCliInstalled,
         connected: claudeCliInstalled,
         error: claudeCliInstalled ? null : 'Claude CLI not installed',
+      },
+      'cursor-cli': {
+        success: cursorCliInstalled,
+        connected: cursorCliInstalled,
+        error: cursorCliInstalled
+          ? null
+          : 'Cursor CLI not found (install from https://cursor.com/cli and run "agent login")',
       },
       opencode: {
         success: opencodeInstalled,

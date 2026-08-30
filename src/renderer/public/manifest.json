@@ -1,0 +1,17 @@
+{
+  "name": "RTS Agents",
+  "short_name": "RTS Agents",
+  "description": "Agent orchestration dashboard",
+  "theme_color": "#121212",
+  "background_color": "#121212",
+  "display": "standalone",
+  "start": "./",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

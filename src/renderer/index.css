@@ -81,3 +81,61 @@
   .markdown-content ul { @apply list-disc pl-6; }
   .markdown-content ol { @apply list-decimal pl-6; }
 }
+
+/* ============================================
+ * Mobile / touch support (ported from mobile-webapp/src/index.css)
+ * ============================================ */
+
+:root {
+  /* Safe area insets */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+html {
+  /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior: none;
+}
+
+body {
+  /* Prevent zooming on double-tap */
+  touch-action: manipulation;
+  /* Suppress tap highlight on touch devices */
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent text selection on double-tap */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in inputs and textareas */
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Safe area utilities */
+.safe-top {
+  padding-top: var(--safe-top);
+}
+
+.safe-bottom {
+  padding-bottom: var(--safe-bottom);
+}
+
+.safe-left {
+  padding-left: var(--safe-left);
+}
+
+.safe-right {
+  padding-right: var(--safe-right);
+}
+
+/* Active state for touch */
+.nav-btn:active,
+.bottom-nav button:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}

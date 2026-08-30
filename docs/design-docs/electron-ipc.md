@@ -35,6 +35,16 @@ main.js  →  registerAllIpcHandlers()  →  src/main/ipc/register-*.js
 
 Search `ipcMain.handle` under `src/main/ipc/` for the authoritative full list.
 
+## Web runtime (no Electron)
+
+The same renderer runs on Cloudflare Workers. `src/renderer/context/ElectronAPI.jsx` resolves in precedence order: `window.__electronAPI` (test mocks) → `window.electronAPI` (preload) → `src/renderer/platform/web-api.mjs` (browser adapter). When adding a channel:
+
+1. Add the `ipcMain.handle` + preload method as above.
+2. Implement the same method on the web adapter (`web-api.mjs`, delegating to `src/renderer/platform/providers/*` for provider HTTP through the same-origin `/api/*` proxy in `worker/index.ts`).
+3. Keep local-only capabilities (filesystem, dialogs, local CLIs, app updates) returning graceful failures on web.
+
+**Hard constraints:** the renderer must stay free of client-side URL routing — the Vite build uses `base: './'` because Electron loads `dist/renderer/index.html` via `loadFile`; Workers Assets SPA fallback depends on it too. Never import `src/main/` modules from the renderer.
+
 ## Rules
 
 - Handlers return JSON-serializable plain objects.

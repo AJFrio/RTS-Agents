@@ -33,9 +33,9 @@ jobs:
       - name: Unit tests
         run: npm run test:ci
 
-  mobile-webapp:
+  web:
     runs-on: ubuntu-latest
-    name: Mobile — typecheck
+    name: Web — build, wrangler dry-run
     steps:
       - uses: actions/checkout@v4
 
@@ -43,12 +43,12 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: mobile-webapp/package-lock.json
 
       - name: Install dependencies
-        working-directory: mobile-webapp
         run: npm ci
 
-      - name: Typecheck
-        working-directory: mobile-webapp
-        run: npm run typecheck
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Wrangler deploy dry-run
+        run: npx wrangler deploy --dry-run

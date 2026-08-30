@@ -18,7 +18,7 @@ This file is the **table of contents**. Detailed guidance lives under `docs/` (s
 main.js, preload.js          # Electron entry + IPC bridge
 src/main/services/           # Provider & orchestration (CommonJS)
 src/renderer/                # React UI (ESM, Vite)
-mobile-webapp/               # PWA + Cloudflare Worker (separate package)
+worker/, wrangler.jsonc       # Cloudflare Worker: serves dist/renderer + /api proxy
 tests/                       # Jest unit/integration, Playwright e2e
 docs/                        # Knowledge base (design, specs, plans)
 ```
@@ -73,7 +73,7 @@ npx playwright test       # E2E on Windows
 - **UPDATES.md**: active task bullets for agents; **remove lines when done**.
 - **Exec plans**: multi-step work in `docs/exec-plans/active/`, archive to `completed/`.
 - **Commits**: descriptive messages; no `dist/` or secrets.
-- **Mobile**: separate `mobile-webapp/` — replicate behavior only when the feature applies remotely.
+- **Web**: the same renderer runs on a Cloudflare Worker via `src/renderer/platform/` — keep `window.electronAPI` the only desktop seam, degrade local-only features gracefully.
 
 ## Gotchas
 

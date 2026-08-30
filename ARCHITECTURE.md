@@ -8,8 +8,10 @@ RTS Agents is an **agent orchestration dashboard**: one place to monitor, create
 |---------|---------|-------|------|
 | Desktop app | Electron 28 | `main.js` | Primary product: IPC, polling, provider services |
 | Renderer UI | React 18 + Vite | `src/renderer/` | Dashboard, settings, modals, GitHub/Jira views |
-| Mobile PWA | Vite + Cloudflare Worker | `mobile-webapp/` | Remote dashboard; dispatches to desktop via KV |
+| Web app | Cloudflare Worker + Workers Assets | `worker/index.ts`, `wrangler.jsonc` | Same renderer served from `dist/renderer`; `/api/*` proxy; dispatches to desktop via KV |
 | Headless node | Node (no UI) | `headless.js` | Registers device, pulls keys, runs queued remote tasks |
+
+The renderer is runtime-agnostic: `useElectronAPI()` returns the Electron preload bridge, or the web adapter in `src/renderer/platform/` (localStorage settings, worker-proxy providers) when `window.electronAPI` is absent. Local-only capabilities (CLI discovery, filesystem, dialogs) degrade gracefully on web.
 
 ## Layering (desktop)
 
@@ -51,9 +53,9 @@ Main process (main.js, CommonJS)
 3. Renderer `AppContext` holds list state; pages filter/paginate locally.
 4. On completion transitions, renderer may show toast + sound.
 
-## Mobile sync (optional)
+## Web/mobile sync (optional)
 
-When Cloudflare KV is configured, desktop instances heartbeat and expose API keys/repos to authorized mobile clients. Mobile does **not** run local CLIs; it enqueues work for a selected desktop.
+When Cloudflare KV is configured, desktop instances heartbeat and expose API keys/repos to authorized web clients. The web app does **not** run local CLIs; it enqueues work for a selected desktop.
 
 ## Deeper documentation
 

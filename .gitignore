@@ -6,6 +6,7 @@ dist/
 build/
 out/
 designs/
+.wrangler/
 # Logs
 *.log
 npm-debug.log*

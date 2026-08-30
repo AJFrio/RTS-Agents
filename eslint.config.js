@@ -6,7 +6,6 @@ module.exports = [
     ignores: [
       'dist/**',
       'node_modules/**',
-      'mobile-webapp/**',
       'coverage/**',
       'tests/mocks/**',
     ],

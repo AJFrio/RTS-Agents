@@ -2,6 +2,7 @@ const {
   isValidOpenCodeSessionId,
   parseJsonlEvent,
   appendStreamMessage,
+  appendAgentChunk,
   parseExportToMessages,
 } = require('../../src/main/services/opencode-session-parser');
 
@@ -45,5 +46,39 @@ describe('opencode-session-parser', () => {
     expect(messages[0].role).toBe('user');
     expect(messages[1].role).toBe('assistant');
     expect(messages[0].content).toContain('Fix the failing');
+  });
+
+  test('appendAgentChunk coalesces consecutive assistant chunks into one message', () => {
+    let messages = appendAgentChunk([], 'Hello ');
+    messages = appendAgentChunk(messages, 'world');
+    messages = appendAgentChunk(messages, '!');
+    expect(messages).toHaveLength(1);
+    expect(messages[0].role).toBe('assistant');
+    expect(messages[0].content).toBe('Hello world!');
+    expect(messages[0].id).toBe('stream-0');
+  });
+
+  test('appendAgentChunk starts a new message after a user message', () => {
+    const messages = appendAgentChunk(
+      [{ role: 'user', content: 'Fix it', id: 'prompt' }],
+      'Working on it'
+    );
+    expect(messages).toHaveLength(2);
+    expect(messages[1].role).toBe('assistant');
+    expect(messages[1].id).toBe('stream-1');
+  });
+
+  test('appendAgentChunk skips empty chunks', () => {
+    const messages = [{ role: 'assistant', content: 'keep', id: 'stream-0' }];
+    expect(appendAgentChunk(messages, '')).toBe(messages);
+    expect(appendAgentChunk(messages, '   ')).toBe(messages);
+  });
+
+  test('appendAgentChunk caps a single merged message length', () => {
+    let messages = appendAgentChunk([], 'a');
+    messages = appendAgentChunk(messages, 'x'.repeat(25000));
+    expect(messages).toHaveLength(1);
+    expect(messages[0].content.length).toBeLessThanOrEqual(20000);
+    expect(messages[0].content.endsWith('xxxx')).toBe(true);
   });
 });

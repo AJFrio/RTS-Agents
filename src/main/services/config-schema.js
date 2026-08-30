@@ -123,6 +123,27 @@ const schema = {
     },
     default: [],
   },
+  cursorCliSessions: {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        rawId: { type: 'string' },
+        prompt: { type: 'string' },
+        projectPath: { type: 'string' },
+        status: { type: 'string' },
+        error: { type: 'string' },
+        streamMessages: {
+          type: 'array',
+          items: { type: 'object' },
+        },
+        createdAt: { type: 'string' },
+        updatedAt: { type: 'string' },
+      },
+    },
+    default: [],
+  },
   antigravitySessions: {
     type: 'array',
     items: {

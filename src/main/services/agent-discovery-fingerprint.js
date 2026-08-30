@@ -17,7 +17,11 @@ async function fingerprintJsonDir(dirPath) {
   try {
     await fsPromises.access(dirPath);
     const names = await fsPromises.readdir(dirPath);
-    const jsonFiles = names.filter((n) => n.endsWith('.json')).sort();
+    // Claude Code writes transcripts as `.jsonl`; ignoring them here would
+    // keep the discovery cache warm while sessions change underneath it.
+    const jsonFiles = names
+      .filter((n) => n.endsWith('.json') || n.endsWith('.jsonl'))
+      .sort();
     if (jsonFiles.length === 0) {
       const dirStat = await statToken(dirPath);
       return dirStat || '';

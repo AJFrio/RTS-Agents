@@ -1,6 +1,7 @@
 const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const { spawnSync } = require('child_process');
 const { upsertItem } = require('../utils/collection-utils');
 const httpService = require('./http-service');
 const { pathExists } = require('../utils/path-exists');
@@ -8,7 +9,7 @@ const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
-const { appendStreamMessage } = require('./opencode-session-parser');
+const { appendStreamMessage, appendAgentChunk } = require('./opencode-session-parser');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -17,8 +18,27 @@ const CLAUDE_PROJECTS_DIR = path.join(CLAUDE_HOME, 'projects');
 const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_VERSION = '2023-06-01';
 const CLAUDE_DEFAULT_TOOLS = 'Read,Edit,Bash';
+const CLAUDE_BIN = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 const TRACKED_LOCAL_SESSION_LIMIT = 100;
+const CLI_PROBE_TIMEOUT_MS = 3000;
+
+function isCommandRunnable(cmd) {
+  if (!cmd) return false;
+  try {
+    const probe = spawnSync(String(cmd), ['--version'], {
+      shell: false,
+      stdio: 'ignore',
+      timeout: CLI_PROBE_TIMEOUT_MS,
+      windowsHide: true,
+      env: { ...process.env },
+    });
+    if (probe.error) return false;
+    return probe.status === 0;
+  } catch {
+    return false;
+  }
+}
 
 // Store for tracking cloud conversations (since Anthropic doesn't have a list conversations endpoint)
 let trackedConversations = [];
@@ -67,7 +87,11 @@ class ClaudeService {
   }
 
   async refreshInstallStatus() {
-    const installed = await pathExists(CLAUDE_HOME);
+    // A bare ~/.claude can be created by other tooling (e.g. transcript
+    // writers), so treat Claude Code as installed only with real session
+    // data or a runnable CLI.
+    const hasProjectsDir = await pathExists(CLAUDE_PROJECTS_DIR);
+    const installed = hasProjectsDir || isCommandRunnable(CLAUDE_BIN);
     installStatus.setCached('claude', installed);
     return installed;
   }
@@ -123,7 +147,9 @@ class ClaudeService {
           try {
             // Check if the directory itself contains session files
             const files = await fsPromises.readdir(projectPath);
-            const hasSessionFiles = files.some((f) => f.endsWith('.json'));
+            const hasSessionFiles = files.some(
+              (f) => f.endsWith('.json') || f.endsWith('.jsonl')
+            );
             if (hasSessionFiles) {
               return {
                 hash: entry.name,
@@ -165,7 +191,9 @@ class ClaudeService {
     }
 
     try {
-      const files = (await fsPromises.readdir(sessionsPath)).filter((f) => f.endsWith('.json'));
+      const files = (await fsPromises.readdir(sessionsPath)).filter(
+        (f) => f.endsWith('.json') || f.endsWith('.jsonl')
+      );
 
       const sessionPromises = files.map(async (file) => {
         try {
@@ -174,7 +202,9 @@ class ClaudeService {
             fsPromises.stat(filePath),
             fsPromises.readFile(filePath, 'utf-8'),
           ]);
-          const session = JSON.parse(content);
+          const session = file.endsWith('.jsonl')
+            ? this.parseTranscript(content)
+            : JSON.parse(content);
 
           // Use session timestamps if available, fall back to file stats
           const createdAt =
@@ -187,7 +217,7 @@ class ClaudeService {
               : stats.mtime;
 
           return {
-            id: `claude-local-${path.basename(projectPath)}-${file.replace('.json', '')}`,
+            id: `claude-local-${path.basename(projectPath)}-${file.replace(/\.jsonl?$/, '')}`,
             provider: 'claude',
             source: 'local',
             name: this.extractSessionName(session),
@@ -495,7 +525,9 @@ class ClaudeService {
         fsPromises.readFile(filePath, 'utf-8'),
         fsPromises.stat(filePath),
       ]);
-      const session = JSON.parse(content);
+      const session = filePath.endsWith('.jsonl')
+        ? this.parseTranscript(content)
+        : JSON.parse(content);
 
       return {
         sessionId: session.sessionId || session.id || null,
@@ -745,11 +777,7 @@ class ClaudeService {
             const text =
               typeof update.content === 'string' ? update.content : update.content?.text;
             if (!text || !text.trim()) return;
-            record.streamMessages = appendStreamMessage(record.streamMessages, {
-              role: 'assistant',
-              content: text,
-              timestamp: new Date().toISOString(),
-            });
+            record.streamMessages = appendAgentChunk(record.streamMessages, text, new Date().toISOString());
             this._updateTrackedLocalSession(
               sessionId,
               { streamMessages: record.streamMessages },
@@ -1007,6 +1035,181 @@ class ClaudeService {
   // ============================================
 
   /**
+   * Normalize a Claude Code `.jsonl` transcript into the same shape the
+   * legacy `.json` session files use, so every downstream extractor
+   * (name/prompt/summary/status/messages) keeps working unchanged.
+   *
+   * Transcripts are line-delimited: one JSON record per line. Only `user`
+   * and `assistant` records are conversation turns; the rest (`mode`,
+   * `attachment`, `ai-title`, ...) are metadata. Malformed lines are
+   * skipped so one truncated write cannot hide an entire session.
+   *
+   * @param {string} content - Raw file contents
+   * @returns {{messages: Array, title?: string, startTime?: string, lastUpdated?: string}}
+   */
+  parseTranscript(content) {
+    const messages = [];
+    // tool_use id -> tool call entry, so a later tool_result can be attached
+    const toolCallsById = new Map();
+    let title = null;
+    let startTime = null;
+    let lastUpdated = null;
+
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      let record;
+      try {
+        record = JSON.parse(trimmed);
+      } catch {
+        // Truncated or partially-flushed line; skip it and keep going.
+        continue;
+      }
+
+      if (record.type === 'ai-title' && record.aiTitle) {
+        title = record.aiTitle;
+        continue;
+      }
+
+      if (record.type !== 'user' && record.type !== 'assistant') continue;
+      if (!record.message) continue;
+
+      const content = record.message.content;
+
+      // A turn carrying only tool results is the transport for the previous
+      // tool call's output, not a message of its own. Attach it to the call
+      // so the UI can show the result inline instead of as an empty bubble.
+      const toolResults = this.extractToolResults(content);
+      if (toolResults.length && !this.extractContentText(content)) {
+        for (const result of toolResults) {
+          const call = toolCallsById.get(result.toolUseId);
+          if (call) call.result = result.content;
+        }
+        continue;
+      }
+
+      const text = this.extractContentText(content);
+      const thinking = this.extractThinkingText(content);
+      const toolCalls = this.extractToolCalls(content);
+      if (!text && !toolCalls.length) continue;
+
+      if (record.timestamp) {
+        if (!startTime) startTime = record.timestamp;
+        lastUpdated = record.timestamp;
+      }
+
+      for (const call of toolCalls) toolCallsById.set(call.id, call);
+
+      const message = {
+        id: record.uuid,
+        role: record.message.role || record.type,
+        content: text,
+        timestamp: record.timestamp,
+      };
+      if (thinking) message.thinking = thinking;
+      if (toolCalls.length) message.toolCalls = toolCalls;
+      messages.push(message);
+    }
+
+    const session = { messages };
+    if (title) session.title = title;
+    if (startTime) session.startTime = startTime;
+    if (lastUpdated) session.lastUpdated = lastUpdated;
+    return session;
+  }
+
+  /**
+   * Summarize a tool call's input into a short, human-readable target,
+   * e.g. the command for Bash or the file for Read/Edit/Write.
+   *
+   * @param {object} input
+   * @returns {string}
+   */
+  summarizeToolInput(input) {
+    if (!input || typeof input !== 'object') return '';
+    const candidate =
+      input.command || input.file_path || input.path || input.pattern || input.url || '';
+    return typeof candidate === 'string' ? candidate : '';
+  }
+
+  /**
+   * Extract `tool_use` blocks as structured entries the UI can render as
+   * collapsed chips. `result` is filled in later from the matching
+   * `tool_result` block.
+   *
+   * @param {string|Array} content
+   * @returns {Array<{id: string, name: string, target: string, input: object, result: string|null}>}
+   */
+  extractToolCalls(content) {
+    if (!Array.isArray(content)) return [];
+    return content
+      .filter((block) => block && block.type === 'tool_use')
+      .map((block) => ({
+        id: block.id,
+        name: block.name || 'tool',
+        target: this.summarizeToolInput(block.input),
+        input: block.input || {},
+        result: null,
+      }));
+  }
+
+  /**
+   * Extract `tool_result` blocks, normalizing their content to text.
+   *
+   * @param {string|Array} content
+   * @returns {Array<{toolUseId: string, content: string}>}
+   */
+  extractToolResults(content) {
+    if (!Array.isArray(content)) return [];
+    return content
+      .filter((block) => block && block.type === 'tool_result')
+      .map((block) => ({
+        toolUseId: block.tool_use_id,
+        content:
+          typeof block.content === 'string'
+            ? block.content
+            : this.extractContentText(block.content),
+      }));
+  }
+
+  /**
+   * Extract `thinking` blocks so the UI can collapse them behind a
+   * disclosure rather than mixing them into the visible reply.
+   *
+   * @param {string|Array} content
+   * @returns {string}
+   */
+  extractThinkingText(content) {
+    if (!Array.isArray(content)) return '';
+    return content
+      .filter((block) => block && block.type === 'thinking' && typeof block.thinking === 'string')
+      .map((block) => block.thinking)
+      .join('\n')
+      .trim();
+  }
+
+  /**
+   * Flatten Anthropic message content into plain text.
+   * Content is either a bare string or an array of blocks; only `text`
+   * blocks are user-visible, so `tool_use`/`tool_result`/`thinking`/`image`
+   * blocks are dropped rather than rendered as noise.
+   *
+   * @param {string|Array} content
+   * @returns {string}
+   */
+  extractContentText(content) {
+    if (typeof content === 'string') return content.trim();
+    if (!Array.isArray(content)) return '';
+
+    return content
+      .filter((block) => block && block.type === 'text' && typeof block.text === 'string')
+      .map((block) => block.text)
+      .join('\n')
+      .trim();
+  }
+
+  /**
    * Extract a readable session name from session data
    */
   extractSessionName(session) {
@@ -1126,19 +1329,23 @@ class ClaudeService {
         }
         const content =
           typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '';
-        return content.trim().length > 0;
+        // Keep tool-only turns: they render as chips even with no prose.
+        return content.trim().length > 0 || msg.toolCalls?.length > 0;
       })
       .map((msg, idx) => {
         const msgType = msg.type || msg.role;
         const normalizedRole =
           msgType === 'claude' || msgType === 'assistant' ? 'assistant' : msgType;
 
-        return {
+        const parsed = {
           id: msg.id || `msg-${idx}`,
           role: normalizedRole,
           content: typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '',
           timestamp: msg.timestamp || null,
         };
+        if (msg.thinking) parsed.thinking = msg.thinking;
+        if (msg.toolCalls?.length) parsed.toolCalls = msg.toolCalls;
+        return parsed;
       });
   }
 }

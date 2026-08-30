@@ -48,6 +48,36 @@ function appendStreamMessage(messages, message) {
   return next;
 }
 
+const MAX_MERGED_CHUNK_CONTENT = 20000;
+
+/**
+ * Append one streamed agent text chunk to a message list, coalescing it
+ * into the previous assistant message when one is already open. ACP
+ * adapters emit token-level chunks; without coalescing every chunk would
+ * render as its own transcript block.
+ */
+function appendAgentChunk(messages, text, timestamp = null) {
+  if (!text || !text.trim()) return messages;
+  const previous = messages[messages.length - 1];
+  if (previous && previous.role === 'assistant') {
+    const merged = previous.content + text;
+    const next = messages.slice();
+    next[next.length - 1] = {
+      ...previous,
+      content: merged.length > MAX_MERGED_CHUNK_CONTENT ? merged.slice(-MAX_MERGED_CHUNK_CONTENT) : merged,
+    };
+    return next;
+  }
+  const next = [
+    ...messages,
+    { role: 'assistant', content: text, timestamp, id: `stream-${messages.length}` },
+  ];
+  if (next.length > MAX_STREAM_MESSAGES) {
+    return next.slice(-MAX_STREAM_MESSAGES);
+  }
+  return next;
+}
+
 function extractTextContent(part) {
   if (!part) return '';
   if (typeof part === 'string') return part;
@@ -125,5 +155,6 @@ module.exports = {
   isValidOpenCodeSessionId,
   parseJsonlEvent,
   appendStreamMessage,
+  appendAgentChunk,
   parseExportToMessages,
 };

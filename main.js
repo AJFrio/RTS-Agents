@@ -156,6 +156,7 @@ function initializeServices() {
   // Restored unconditionally: ACP-dispatched CLI sessions exist for users
   // without any cloud API keys configured.
   claudeService.setTrackedLocalSessions(configStore.getClaudeCliSessions());
+  cursorService.setCursorCliSessions(configStore.getCursorCliSessions());
 
   const githubKey = configStore.getApiKey('github');
   if (githubKey) {

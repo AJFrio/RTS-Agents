@@ -69,7 +69,14 @@ class CodexService {
       installStatus.setCached('codex', true);
       return true;
     }
-    const candidates = [path.join(os.homedir(), '.codex')];
+    // A bare ~/.codex can be created by tooling that never ran the CLI
+    // (e.g. LSP installs); require real Codex data or a runnable binary.
+    const home = os.homedir();
+    const candidates = [
+      path.join(home, '.codex', 'sessions'),
+      path.join(home, '.codex', 'config.toml'),
+      path.join(home, '.codex', 'auth.json'),
+    ];
     const installed = await pathExistsAny(candidates);
     installStatus.setCached('codex', installed);
     return installed;

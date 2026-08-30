@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import { ProviderBadge, StatusBadge } from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
+import ChatTranscript from '../components/ui/ChatTranscript.jsx';
 import PastedImageModal from './PastedImageModal.jsx';
 import { getProviderDisplayName, getStatusLabel } from '../utils/format.js';
 import { parseMarkdown } from '../utils/markdown.js';
@@ -499,19 +500,11 @@ export default function AgentModal({ agent, onClose, api }) {
                         </button>
                       )}
                     </div>
-                    <div className="space-y-3">
-                      {details.messages.map((msg, i) => (
-                        <div
-                          key={msg.id ?? i}
-                          className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary/10 dark:bg-primary/20 border-l-2 border-primary' : 'bg-slate-100 dark:bg-slate-800'}`}
-                        >
-                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-1">
-                            {msg.role === 'user' ? 'You' : 'Assistant'}
-                          </span>
-                          <MarkdownBlock content={msg.content} />
-                        </div>
-                      ))}
-                    </div>
+                    <ChatTranscript
+                      messages={details.messages}
+                      assistantLabel={getProviderDisplayName(agent.provider)}
+                      renderContent={(content) => <MarkdownBlock content={content} />}
+                    />
                   </section>
                 )}
               </div>

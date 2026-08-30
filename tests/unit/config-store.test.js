@@ -169,4 +169,25 @@ describe('ConfigStore Unit Tests', () => {
       expect(stored[0].streamMessages[0].content).toBe('Working on it');
     });
   });
+
+  describe('Cursor CLI Sessions', () => {
+    test('should set and get tracked cursor cli sessions', () => {
+      const session = {
+        id: 'cursor-cli-123-abc',
+        prompt: 'Fix the bug',
+        projectPath: '/repo',
+        status: 'running',
+        streamMessages: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      configStore.setCursorCliSessions([session]);
+      expect(configStore.getCursorCliSessions()).toEqual([session]);
+    });
+
+    test('should default to an empty array', () => {
+      expect(configStore.getCursorCliSessions()).toEqual([]);
+    });
+  });
 });

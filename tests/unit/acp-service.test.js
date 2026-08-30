@@ -157,6 +157,48 @@ describe('acp-service resolveAdapter', () => {
     expect(acpService.resolveAdapter('jules')).toBeNull();
   });
 
+  test('detects the cursor agent binary (agent)', () => {
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-cursor-'));
+    fs.writeFileSync(path.join(binDir, 'agent'), '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(path.join(binDir, 'agent'), 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${binDir}${path.delimiter}${originalPath}`;
+    try {
+      expect(acpService.resolveAdapter('cursor')).toBe('agent');
+    } finally {
+      process.env.PATH = originalPath;
+      acpService.clearAdapterCache();
+    }
+  });
+
+  test('falls back to the legacy cursor-agent binary name', () => {
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-cursor-legacy-'));
+    fs.writeFileSync(path.join(binDir, 'cursor-agent'), '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(path.join(binDir, 'cursor-agent'), 0o755);
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = binDir;
+    try {
+      expect(acpService.resolveAdapter('cursor')).toBe('cursor-agent');
+    } finally {
+      process.env.PATH = originalPath;
+      acpService.clearAdapterCache();
+    }
+  });
+
+  test('returns null for cursor when neither binary is installed', () => {
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-cursor-empty-'));
+    const originalPath = process.env.PATH;
+    process.env.PATH = binDir;
+    try {
+      expect(acpService.resolveAdapter('cursor')).toBeNull();
+    } finally {
+      process.env.PATH = originalPath;
+      acpService.clearAdapterCache();
+    }
+  });
+
   test('detects an adapter present on PATH', () => {
     const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-path-'));
     const binPath = path.join(binDir, 'claude-agent-acp');

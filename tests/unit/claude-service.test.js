@@ -1,4 +1,5 @@
 const path = require('path');
+const realFs = jest.requireActual('fs');
 
 // Mock external modules
 jest.mock('fs', () => ({
@@ -45,6 +46,7 @@ describe('ClaudeService', () => {
   let acpService;
   let configStore;
   let spawn;
+  let spawnSync;
 
   // Setup mocks
   const mockHomeDir = '/home/user';
@@ -57,7 +59,7 @@ describe('ClaudeService', () => {
     fs = require('fs');
     https = require('https');
     os = require('os');
-    ({ spawn } = require('child_process'));
+    ({ spawn, spawnSync } = require('child_process'));
     acpService = require('../../src/main/services/acp-service');
     configStore = require('../../src/main/services/config-store');
 
@@ -123,6 +125,125 @@ describe('ClaudeService', () => {
     });
   });
 
+  describe('parseTranscript rich content', () => {
+    const richFixture = () =>
+      realFs.readFileSync(path.join(__dirname, '../fixtures/claude-session-rich.jsonl'), 'utf-8');
+
+    test('preserves tool calls as structured entries on the message', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      const withTool = session.messages.find((m) => m.toolCalls && m.toolCalls.length);
+
+      expect(withTool).toBeDefined();
+      expect(withTool.toolCalls[0]).toMatchObject({ id: 't1', name: 'Bash' });
+    });
+
+    test('captures the tool result for a matching tool call', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      const call = session.messages
+        .flatMap((m) => m.toolCalls || [])
+        .find((t) => t.id === 't1');
+
+      expect(call.result).toContain('left-pad');
+    });
+
+    test('preserves thinking separately from visible text', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      const thought = session.messages.find((m) => m.thinking);
+
+      expect(thought.thinking).toContain('missing dep');
+      expect(thought.content).not.toContain('missing dep');
+      expect(thought.content).toBe('Let me check the build.');
+    });
+
+    test('does not emit a standalone message for a tool_result-only turn', () => {
+      const session = claudeService.parseTranscript(richFixture());
+
+      // the tool_result turn is folded into its tool call, not shown as a user message
+      expect(session.messages.filter((m) => m.role === 'user')).toHaveLength(1);
+    });
+
+    test('keeps a tool-only assistant turn even when it has no text', () => {
+      const jsonl =
+        '{"type":"assistant","message":{"role":"assistant","content":[' +
+        '{"type":"tool_use","id":"x1","name":"Read","input":{"file_path":"/a.js"}}]}}';
+      const session = claudeService.parseTranscript(jsonl);
+
+      expect(session.messages).toHaveLength(1);
+      expect(session.messages[0].toolCalls[0].name).toBe('Read');
+    });
+
+    test('content stays a plain string for backward compatibility', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      session.messages.forEach((m) => expect(typeof m.content).toBe('string'));
+    });
+  });
+
+  describe('getLocalSessionDetails', () => {
+    test('opens a .jsonl transcript instead of returning null', async () => {
+      // Arrange
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+      fs.promises.readFile.mockResolvedValue(jsonl);
+      fs.promises.stat.mockResolvedValue({
+        birthtime: new Date('2024-05-01'),
+        mtime: new Date('2024-05-01'),
+        size: jsonl.length,
+      });
+
+      // Act
+      const details = await claudeService.getLocalSessionDetails('/p/abc123.jsonl');
+
+      // Assert
+      expect(details).not.toBeNull();
+      expect(details.messageCount).toBe(4);
+      expect(details.messages).toHaveLength(4);
+      expect(details.name).toBe('Fix failing build');
+    });
+
+    test('still opens legacy .json sessions', async () => {
+      const data = { title: 'Legacy', messages: [{ role: 'user', content: 'hello there' }] };
+      fs.promises.readFile.mockResolvedValue(JSON.stringify(data));
+      fs.promises.stat.mockResolvedValue({
+        birthtime: new Date(),
+        mtime: new Date(),
+        size: 10,
+      });
+
+      const details = await claudeService.getLocalSessionDetails('/p/legacy.json');
+
+      expect(details).not.toBeNull();
+      expect(details.name).toBe('Legacy');
+    });
+  });
+
+  describe('discoverProjects', () => {
+    test('discovers project directories containing only .jsonl transcripts', async () => {
+      // Arrange: a project dir with no sessions/ or chats/ subdir, only .jsonl
+      fs.promises.access.mockImplementation(async (p) => {
+        const target = String(p);
+        if (target.endsWith('sessions') || target.endsWith('chats')) {
+          throw new Error('ENOENT');
+        }
+        return undefined;
+      });
+      fs.promises.readdir.mockImplementation(async (p, opts) => {
+        if (opts && opts.withFileTypes) {
+          return [{ name: '-Users-me-repo', isDirectory: () => true }];
+        }
+        return ['9a7925e9-2cf8-40c4-8ab6-2a581343fd95.jsonl'];
+      });
+
+      // Act
+      const projects = await claudeService.discoverProjects();
+
+      // Assert
+      expect(projects).toHaveLength(1);
+      expect(projects[0].hash).toBe('-Users-me-repo');
+    });
+  });
+
   describe('getProjectSessions', () => {
     test('getProjectSessions returns sessions from valid directory', async () => {
       const projectPath = '/path/to/project';
@@ -155,6 +276,111 @@ describe('ClaudeService', () => {
 
       const sessions = await claudeService.getProjectSessions('/path', '/path/sessions');
       expect(sessions).toEqual([]);
+    });
+
+    test('getProjectSessions reads .jsonl transcripts written by Claude Code', async () => {
+      // Arrange
+      const sessionsPath = '/path/to/project';
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['9a7925e9.jsonl']);
+      fs.promises.stat.mockResolvedValue({
+        birthtime: new Date('2024-05-01'),
+        mtime: new Date('2024-05-01'),
+      });
+      fs.promises.readFile.mockResolvedValue(jsonl);
+
+      // Act
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      // Assert
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].messageCount).toBe(4);
+      expect(sessions[0].prompt).toBe('Fix the failing build');
+    });
+
+    test('getProjectSessions strips the full .jsonl extension from the session id', async () => {
+      const sessionsPath = '/path/to/project';
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(
+        '{"type":"user","message":{"role":"user","content":"hi there friend"}}'
+      );
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions[0].id).toBe('claude-local-project-abc123');
+      expect(sessions[0].id).not.toContain('.jsonl');
+      expect(sessions[0].id.endsWith('l')).toBe(false);
+    });
+
+    test('getProjectSessions uses aiTitle as the session name when present', async () => {
+      const sessionsPath = '/path/to/project';
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(jsonl);
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions[0].name).toBe('Fix failing build');
+    });
+
+    test('getProjectSessions joins text blocks and ignores tool_use/thinking noise', async () => {
+      const sessionsPath = '/path/to/project';
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(jsonl);
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions[0].summary).toBe('Fixed the missing dependency.');
+      expect(sessions[0].summary).not.toContain('internal reasoning');
+      expect(sessions[0].summary).not.toContain('tool_use');
+    });
+
+    test('getProjectSessions skips malformed lines instead of dropping the session', async () => {
+      const sessionsPath = '/path/to/project';
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(
+        '{"type":"user","message":{"role":"user","content":"first message here"}}\n' +
+          '{ this is not valid json\n' +
+          '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}'
+      );
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].messageCount).toBe(2);
+    });
+
+    test('getProjectSessions still reads legacy .json sessions', async () => {
+      const sessionsPath = '/path/to/project/sessions';
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['legacy.json']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(JSON.stringify({ title: 'Legacy Session' }));
+
+      const sessions = await claudeService.getProjectSessions('/path/to/project', sessionsPath);
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].name).toBe('Legacy Session');
     });
   });
 
@@ -230,6 +456,31 @@ describe('ClaudeService', () => {
     test('createMessage throws if API key not set', async () => {
         claudeService.setApiKey(null);
         await expect(claudeService.createMessage([])).rejects.toThrow('Anthropic API key not configured');
+    });
+  });
+
+  describe('install detection', () => {
+    test('bare ~/.claude without CLI is NOT installed', async () => {
+      fs.promises.access.mockRejectedValue(new Error('ENOENT'));
+      spawnSync.mockReturnValue({ status: 1 });
+
+      expect(await claudeService.refreshInstallStatus()).toBe(false);
+    });
+
+    test('projects dir with session data counts as installed', async () => {
+      fs.promises.access.mockImplementation(async (target) => {
+        if (String(target).endsWith('.claude/projects')) return undefined;
+        throw new Error('ENOENT');
+      });
+
+      expect(await claudeService.refreshInstallStatus()).toBe(true);
+    });
+
+    test('runnable claude CLI counts as installed', async () => {
+      fs.promises.access.mockRejectedValue(new Error('ENOENT'));
+      spawnSync.mockReturnValue({ status: 0 });
+
+      expect(await claudeService.refreshInstallStatus()).toBe(true);
     });
   });
 

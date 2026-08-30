@@ -27,14 +27,24 @@ const DEFAULT_INIT_TIMEOUT_MS = 15000;
 const ADAPTER_PROBE_TIMEOUT_MS = 3000;
 const SAFE_TOOL_KINDS = new Set(['read', 'edit', 'execute']);
 
-// Adapters are distributed as npm packages (bin shims on Windows).
+// Adapters are distributed as npm packages (bin shims on Windows). Cursor
+// ships its agent CLI as `agent` (official name); older installs use
+// `cursor-agent`.
 const ADAPTER_BINARIES = {
   claude: process.platform === 'win32' ? 'claude-agent-acp.cmd' : 'claude-agent-acp',
   codex: process.platform === 'win32' ? 'codex-acp.cmd' : 'codex-acp',
 };
+const CURSOR_BINARIES =
+  process.platform === 'win32' ? ['agent.cmd', 'cursor-agent.cmd'] : ['agent', 'cursor-agent'];
 
 // provider -> command | null (probe results are cached for the session)
 const adapterCache = new Map();
+
+function adapterCandidates(provider) {
+  if (provider === 'cursor') return CURSOR_BINARIES;
+  const base = ADAPTER_BINARIES[provider];
+  return base ? [base] : [];
+}
 
 /**
  * Build spawn arguments for an adapter command. On Windows, npm bin shims
@@ -82,27 +92,30 @@ function quoteWinArg(arg) {
  * @returns {string|null}
  */
 function resolveAdapter(provider) {
-  const base = ADAPTER_BINARIES[provider];
-  if (!base) return null;
+  const candidates = adapterCandidates(provider);
+  if (candidates.length === 0) return null;
   if (adapterCache.has(provider)) return adapterCache.get(provider);
 
-  const spec = buildSpawnArgs(base, ['--version']);
   let command = null;
-  try {
-    const probe = spawnSync(spec.command, spec.args, {
-      shell: false,
-      stdio: 'ignore',
-      timeout: ADAPTER_PROBE_TIMEOUT_MS,
-      windowsHide: true,
-      // Load-bearing: without an explicit env, Jest's process.env snapshot
-      // hides PATH changes and the probe reports installed adapters as absent.
-      env: { ...process.env },
-    });
-    if (!probe.error && probe.status === 0) {
-      command = base;
+  for (const base of candidates) {
+    const spec = buildSpawnArgs(base, ['--version']);
+    try {
+      const probe = spawnSync(spec.command, spec.args, {
+        shell: false,
+        stdio: 'ignore',
+        timeout: ADAPTER_PROBE_TIMEOUT_MS,
+        windowsHide: true,
+        // Load-bearing: without an explicit env, Jest's process.env snapshot
+        // hides PATH changes and the probe reports installed adapters as absent.
+        env: { ...process.env },
+      });
+      if (!probe.error && probe.status === 0) {
+        command = base;
+        break;
+      }
+    } catch {
+      command = null;
     }
-  } catch {
-    command = null;
   }
 
   adapterCache.set(provider, command);

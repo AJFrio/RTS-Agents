@@ -123,7 +123,9 @@ class ClaudeService {
           try {
             // Check if the directory itself contains session files
             const files = await fsPromises.readdir(projectPath);
-            const hasSessionFiles = files.some((f) => f.endsWith('.json'));
+            const hasSessionFiles = files.some(
+              (f) => f.endsWith('.json') || f.endsWith('.jsonl')
+            );
             if (hasSessionFiles) {
               return {
                 hash: entry.name,
@@ -165,7 +167,9 @@ class ClaudeService {
     }
 
     try {
-      const files = (await fsPromises.readdir(sessionsPath)).filter((f) => f.endsWith('.json'));
+      const files = (await fsPromises.readdir(sessionsPath)).filter(
+        (f) => f.endsWith('.json') || f.endsWith('.jsonl')
+      );
 
       const sessionPromises = files.map(async (file) => {
         try {
@@ -174,7 +178,9 @@ class ClaudeService {
             fsPromises.stat(filePath),
             fsPromises.readFile(filePath, 'utf-8'),
           ]);
-          const session = JSON.parse(content);
+          const session = file.endsWith('.jsonl')
+            ? this.parseTranscript(content)
+            : JSON.parse(content);
 
           // Use session timestamps if available, fall back to file stats
           const createdAt =
@@ -187,7 +193,7 @@ class ClaudeService {
               : stats.mtime;
 
           return {
-            id: `claude-local-${path.basename(projectPath)}-${file.replace('.json', '')}`,
+            id: `claude-local-${path.basename(projectPath)}-${file.replace(/\.jsonl?$/, '')}`,
             provider: 'claude',
             source: 'local',
             name: this.extractSessionName(session),
@@ -1005,6 +1011,88 @@ class ClaudeService {
   // ============================================
   // Helper Methods
   // ============================================
+
+  /**
+   * Normalize a Claude Code `.jsonl` transcript into the same shape the
+   * legacy `.json` session files use, so every downstream extractor
+   * (name/prompt/summary/status/messages) keeps working unchanged.
+   *
+   * Transcripts are line-delimited: one JSON record per line. Only `user`
+   * and `assistant` records are conversation turns; the rest (`mode`,
+   * `attachment`, `ai-title`, ...) are metadata. Malformed lines are
+   * skipped so one truncated write cannot hide an entire session.
+   *
+   * @param {string} content - Raw file contents
+   * @returns {{messages: Array, title?: string, startTime?: string, lastUpdated?: string}}
+   */
+  parseTranscript(content) {
+    const messages = [];
+    let title = null;
+    let startTime = null;
+    let lastUpdated = null;
+
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      let record;
+      try {
+        record = JSON.parse(trimmed);
+      } catch {
+        // Truncated or partially-flushed line; skip it and keep going.
+        continue;
+      }
+
+      if (record.type === 'ai-title' && record.aiTitle) {
+        title = record.aiTitle;
+        continue;
+      }
+
+      if (record.type !== 'user' && record.type !== 'assistant') continue;
+      if (!record.message) continue;
+
+      const text = this.extractContentText(record.message.content);
+      if (!text) continue;
+
+      if (record.timestamp) {
+        if (!startTime) startTime = record.timestamp;
+        lastUpdated = record.timestamp;
+      }
+
+      messages.push({
+        id: record.uuid,
+        role: record.message.role || record.type,
+        content: text,
+        timestamp: record.timestamp,
+      });
+    }
+
+    const session = { messages };
+    if (title) session.title = title;
+    if (startTime) session.startTime = startTime;
+    if (lastUpdated) session.lastUpdated = lastUpdated;
+    return session;
+  }
+
+  /**
+   * Flatten Anthropic message content into plain text.
+   * Content is either a bare string or an array of blocks; only `text`
+   * blocks are user-visible, so `tool_use`/`tool_result`/`thinking`/`image`
+   * blocks are dropped rather than rendered as noise.
+   *
+   * @param {string|Array} content
+   * @returns {string}
+   */
+  extractContentText(content) {
+    if (typeof content === 'string') return content.trim();
+    if (!Array.isArray(content)) return '';
+
+    return content
+      .filter((block) => block && block.type === 'text' && typeof block.text === 'string')
+      .map((block) => block.text)
+      .join('\n')
+      .trim();
+  }
 
   /**
    * Extract a readable session name from session data

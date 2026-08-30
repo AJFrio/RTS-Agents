@@ -1,4 +1,5 @@
 const path = require('path');
+const realFs = jest.requireActual('fs');
 
 // Mock external modules
 jest.mock('fs', () => ({
@@ -123,6 +124,32 @@ describe('ClaudeService', () => {
     });
   });
 
+  describe('discoverProjects', () => {
+    test('discovers project directories containing only .jsonl transcripts', async () => {
+      // Arrange: a project dir with no sessions/ or chats/ subdir, only .jsonl
+      fs.promises.access.mockImplementation(async (p) => {
+        const target = String(p);
+        if (target.endsWith('sessions') || target.endsWith('chats')) {
+          throw new Error('ENOENT');
+        }
+        return undefined;
+      });
+      fs.promises.readdir.mockImplementation(async (p, opts) => {
+        if (opts && opts.withFileTypes) {
+          return [{ name: '-Users-me-repo', isDirectory: () => true }];
+        }
+        return ['9a7925e9-2cf8-40c4-8ab6-2a581343fd95.jsonl'];
+      });
+
+      // Act
+      const projects = await claudeService.discoverProjects();
+
+      // Assert
+      expect(projects).toHaveLength(1);
+      expect(projects[0].hash).toBe('-Users-me-repo');
+    });
+  });
+
   describe('getProjectSessions', () => {
     test('getProjectSessions returns sessions from valid directory', async () => {
       const projectPath = '/path/to/project';
@@ -155,6 +182,111 @@ describe('ClaudeService', () => {
 
       const sessions = await claudeService.getProjectSessions('/path', '/path/sessions');
       expect(sessions).toEqual([]);
+    });
+
+    test('getProjectSessions reads .jsonl transcripts written by Claude Code', async () => {
+      // Arrange
+      const sessionsPath = '/path/to/project';
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['9a7925e9.jsonl']);
+      fs.promises.stat.mockResolvedValue({
+        birthtime: new Date('2024-05-01'),
+        mtime: new Date('2024-05-01'),
+      });
+      fs.promises.readFile.mockResolvedValue(jsonl);
+
+      // Act
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      // Assert
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].messageCount).toBe(4);
+      expect(sessions[0].prompt).toBe('Fix the failing build');
+    });
+
+    test('getProjectSessions strips the full .jsonl extension from the session id', async () => {
+      const sessionsPath = '/path/to/project';
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(
+        '{"type":"user","message":{"role":"user","content":"hi there friend"}}'
+      );
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions[0].id).toBe('claude-local-project-abc123');
+      expect(sessions[0].id).not.toContain('.jsonl');
+      expect(sessions[0].id.endsWith('l')).toBe(false);
+    });
+
+    test('getProjectSessions uses aiTitle as the session name when present', async () => {
+      const sessionsPath = '/path/to/project';
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(jsonl);
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions[0].name).toBe('Fix failing build');
+    });
+
+    test('getProjectSessions joins text blocks and ignores tool_use/thinking noise', async () => {
+      const sessionsPath = '/path/to/project';
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(jsonl);
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions[0].summary).toBe('Fixed the missing dependency.');
+      expect(sessions[0].summary).not.toContain('internal reasoning');
+      expect(sessions[0].summary).not.toContain('tool_use');
+    });
+
+    test('getProjectSessions skips malformed lines instead of dropping the session', async () => {
+      const sessionsPath = '/path/to/project';
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['abc123.jsonl']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(
+        '{"type":"user","message":{"role":"user","content":"first message here"}}\n' +
+          '{ this is not valid json\n' +
+          '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}'
+      );
+
+      const sessions = await claudeService.getProjectSessions(sessionsPath, sessionsPath);
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].messageCount).toBe(2);
+    });
+
+    test('getProjectSessions still reads legacy .json sessions', async () => {
+      const sessionsPath = '/path/to/project/sessions';
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readdir.mockResolvedValue(['legacy.json']);
+      fs.promises.stat.mockResolvedValue({ birthtime: new Date(), mtime: new Date() });
+      fs.promises.readFile.mockResolvedValue(JSON.stringify({ title: 'Legacy Session' }));
+
+      const sessions = await claudeService.getProjectSessions('/path/to/project', sessionsPath);
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].name).toBe('Legacy Session');
     });
   });
 

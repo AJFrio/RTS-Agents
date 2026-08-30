@@ -153,6 +153,9 @@ function initializeServices() {
   opencodeService.setTrackedSessions(opencodeSessions);
   const antigravitySessions = configStore.getAntigravitySessions();
   antigravityService.setTrackedSessions(antigravitySessions);
+  // Restored unconditionally: ACP-dispatched CLI sessions exist for users
+  // without any cloud API keys configured.
+  claudeService.setTrackedLocalSessions(configStore.getClaudeCliSessions());
 
   const githubKey = configStore.getApiKey('github');
   if (githubKey) {

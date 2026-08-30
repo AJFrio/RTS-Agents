@@ -6,6 +6,9 @@ const httpService = require('./http-service');
 const { pathExists } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
+const acpService = require('./acp-service');
+const configStore = require('./config-store');
+const { appendStreamMessage } = require('./opencode-session-parser');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -14,6 +17,8 @@ const CLAUDE_PROJECTS_DIR = path.join(CLAUDE_HOME, 'projects');
 const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_VERSION = '2023-06-01';
 const CLAUDE_DEFAULT_TOOLS = 'Read,Edit,Bash';
+const ACP_PERSIST_DEBOUNCE_MS = 1000;
+const TRACKED_LOCAL_SESSION_LIMIT = 100;
 
 // Store for tracking cloud conversations (since Anthropic doesn't have a list conversations endpoint)
 let trackedConversations = [];
@@ -21,6 +26,16 @@ let trackedConversations = [];
 class ClaudeService {
   constructor() {
     this.apiKey = null;
+    this.trackedLocalSessions = [];
+    this._persistTimer = null;
+  }
+
+  setTrackedLocalSessions(sessions) {
+    this.trackedLocalSessions = Array.isArray(sessions) ? sessions : [];
+  }
+
+  getTrackedLocalSessions() {
+    return this.trackedLocalSessions;
   }
 
   // ============================================
@@ -213,7 +228,9 @@ class ClaudeService {
       allSessions.push(...sessions);
     }
 
-    return allSessions;
+    return allSessions.concat(
+      this.trackedLocalSessions.map((record) => this._normalizeTrackedLocal(record))
+    );
   }
 
   // ============================================
@@ -446,6 +463,14 @@ class ClaudeService {
    * @param {string} filePath - For local sessions, the path to the session file
    */
   async getAgentDetails(id, filePath = null) {
+    // Tracked ACP-dispatched local sessions (live-streamed output)
+    if (id.startsWith('claude-cli-')) {
+      const tracked = this.trackedLocalSessions.find((s) => s.id === id);
+      if (tracked) {
+        return this._getTrackedLocalDetails(tracked);
+      }
+    }
+
     // Check if it's a local session
     if (id.startsWith('claude-local-') && filePath) {
       return this.getLocalSessionDetails(filePath);
@@ -628,15 +653,16 @@ class ClaudeService {
   }
 
   /**
-   * Start a new local Claude Code CLI session
-   * Spawns a detached process running: claude -p "prompt" --allowedTools "Read,Edit,Bash"
+   * Start a new local Claude Code CLI session.
+   * Dispatches over ACP (Agent Client Protocol) when an adapter is installed
+   * so output streams live; otherwise falls back to a detached
+   * `claude -p "prompt" --allowedTools "Read,Edit,Bash"` process.
    * @param {object} options - Session options
    * @param {string} options.prompt - The task description/prompt
    * @param {string} options.projectPath - Path to the project directory
    * @param {string} [options.allowedTools] - Tools to auto-approve (default: "Read,Edit,Bash")
    */
   async startLocalSession(options) {
-    const { spawn } = require('child_process');
     const { prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command } = options;
 
     if (!prompt) {
@@ -652,8 +678,118 @@ class ClaudeService {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
-    // Generate session ID
     const sessionId = `claude-cli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const adapter = acpService.resolveAdapter('claude');
+
+    if (adapter) {
+      return this._startAcpSession(adapter, { prompt, projectPath }, sessionId);
+    }
+    return this._spawnLegacySession({ prompt, projectPath, allowedTools, command }, sessionId);
+  }
+
+  _startAcpSession(adapter, { prompt, projectPath }, sessionId) {
+    const record = {
+      id: sessionId,
+      rawId: sessionId,
+      prompt,
+      projectPath,
+      status: 'running',
+      streamMessages: [],
+      error: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.trackedLocalSessions = [record, ...this.trackedLocalSessions].slice(
+      0,
+      TRACKED_LOCAL_SESSION_LIMIT
+    );
+    this._persistTrackedLocalSessions();
+
+    const buildCard = (status, message) => ({
+      id: sessionId,
+      provider: 'claude',
+      source: 'local',
+      name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+      status,
+      prompt,
+      repository: projectPath,
+      createdAt: new Date(),
+      message,
+    });
+
+    return new Promise((resolveCard) => {
+      let cardResolved = false;
+      const resolveOnce = (card) => {
+        if (!cardResolved) {
+          cardResolved = true;
+          resolveCard(card);
+        }
+      };
+
+      acpService
+        .runPrompt({
+          command: adapter,
+          cwd: projectPath,
+          prompt,
+          permissionPolicy: 'safe-tools',
+          onSessionId: () => {
+            resolveOnce(
+              buildCard(
+                'running',
+                'Claude Code session started via ACP. Live output streams into the task details.'
+              )
+            );
+          },
+          onUpdate: (update) => {
+            if (update?.sessionUpdate !== 'agent_message_chunk') return;
+            const text =
+              typeof update.content === 'string' ? update.content : update.content?.text;
+            if (!text || !text.trim()) return;
+            record.streamMessages = appendStreamMessage(record.streamMessages, {
+              role: 'assistant',
+              content: text,
+              timestamp: new Date().toISOString(),
+            });
+            this._updateTrackedLocalSession(
+              sessionId,
+              { streamMessages: record.streamMessages },
+              true
+            );
+          },
+        })
+        .then(({ stopReason }) => {
+          const failed = stopReason === 'error' || stopReason === 'cancelled';
+          this._updateTrackedLocalSession(sessionId, {
+            status: failed ? 'failed' : 'completed',
+            error: failed ? `Claude Code ACP turn ended with stopReason ${stopReason}` : null,
+          });
+          resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Claude Code task finished.'));
+        })
+        .catch((err) => {
+          // Fallback is only legal before any agent work began; after that
+          // re-dispatching through the legacy CLI would run the prompt twice.
+          if (!cardResolved && err?.fallbackAllowed) {
+            this.trackedLocalSessions = this.trackedLocalSessions.filter(
+              (s) => s.id !== sessionId
+            );
+            this._persistTrackedLocalSessions();
+            this._spawnLegacySession({ prompt, projectPath }, sessionId).then(
+              (card) => resolveOnce(card),
+              () => resolveOnce(buildCard('failed', err.message))
+            );
+            return;
+          }
+          this._updateTrackedLocalSession(sessionId, {
+            status: 'failed',
+            error: err?.message || String(err),
+          });
+          resolveOnce(buildCard('failed', err?.message || 'ACP dispatch failed.'));
+        });
+    });
+  }
+
+  _spawnLegacySession({ prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command }, sessionId) {
+    const { spawn } = require('child_process');
 
     // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
     // -p: prompt/headless mode
@@ -706,6 +842,95 @@ class ClaudeService {
         });
       }, 500);
     });
+  }
+
+  _updateTrackedLocalSession(sessionId, patch, debounced = false) {
+    const idx = this.trackedLocalSessions.findIndex((x) => x.id === sessionId);
+    if (idx === -1) return;
+    this.trackedLocalSessions[idx] = {
+      ...this.trackedLocalSessions[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    if (debounced) {
+      this._persistTrackedLocalSessionsDebounced();
+    } else {
+      this._persistTrackedLocalSessions();
+    }
+  }
+
+  _persistTrackedLocalSessions() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+      this._persistTimer = null;
+    }
+    try {
+      configStore.setClaudeCliSessions(this.trackedLocalSessions);
+    } catch (err) {
+      console.error('Failed to persist Claude CLI sessions:', err?.message || err);
+    }
+  }
+
+  _persistTrackedLocalSessionsDebounced() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+    }
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this._persistTrackedLocalSessions();
+    }, ACP_PERSIST_DEBOUNCE_MS);
+  }
+
+  _normalizeTrackedLocal(record) {
+    const stream = Array.isArray(record.streamMessages) ? record.streamMessages : [];
+    const lastContent = stream.length ? String(stream[stream.length - 1].content || '') : '';
+    return {
+      id: record.id,
+      provider: 'claude',
+      source: 'local',
+      name: record.prompt
+        ? record.prompt.substring(0, 50) + (record.prompt.length > 50 ? '...' : '')
+        : 'Claude Code Session',
+      status: record.status || 'running',
+      prompt: record.prompt || '',
+      repository: record.projectPath || null,
+      createdAt: record.createdAt ? new Date(record.createdAt) : null,
+      updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+      summary: lastContent ? lastContent.substring(0, 200) : null,
+      rawId: record.id,
+      filePath: null,
+      messageCount: stream.length + 1,
+    };
+  }
+
+  _getTrackedLocalDetails(record) {
+    const stream = Array.isArray(record.streamMessages) ? record.streamMessages : [];
+    return {
+      sessionId: null,
+      projectPath: record.projectPath || null,
+      name: record.prompt ? record.prompt.substring(0, 80) : 'Claude Code Session',
+      prompt: record.prompt || '',
+      summary: this._normalizeTrackedLocal(record).summary,
+      status: record.status || 'running',
+      source: 'local',
+      createdAt: record.createdAt || null,
+      updatedAt: record.updatedAt || null,
+      messages: [
+        {
+          id: 'prompt',
+          role: 'user',
+          content: record.prompt || '',
+          timestamp: record.createdAt || null,
+        },
+        ...stream.map((msg) => ({
+          id: msg.id || null,
+          role: msg.role || 'assistant',
+          content: msg.content || '',
+          timestamp: msg.timestamp || null,
+        })),
+      ],
+      filePath: null,
+    };
   }
 
   /**

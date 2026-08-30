@@ -294,6 +294,14 @@ class ConfigStore {
     this.store.set('opencodeSessions', sessions || []);
   }
 
+  getClaudeCliSessions() {
+    return this.store.get('claudeCliSessions', []);
+  }
+
+  setClaudeCliSessions(sessions) {
+    this.store.set('claudeCliSessions', sessions || []);
+  }
+
   getAntigravitySessions() {
     return this.store.get('antigravitySessions', []);
   }

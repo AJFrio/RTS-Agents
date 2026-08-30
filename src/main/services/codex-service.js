@@ -8,9 +8,12 @@ const configStore = require('./config-store');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
+const acpService = require('./acp-service');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_MODEL = 'gpt-5-codex';
+const ACP_PERSIST_DEBOUNCE_MS = 1000;
+const STREAM_TEXT_CAP = 50000;
 
 // Stored in configStore as codexThreads for backward compatibility with existing installs.
 let trackedThreads = [];
@@ -34,6 +37,7 @@ function isCommandRunnable(cmd, args = ['--version']) {
 class CodexService {
   constructor() {
     this.apiKey = null;
+    this._persistTimer = null;
   }
 
   setApiKey(apiKey) {
@@ -312,13 +316,104 @@ class CodexService {
       throw new Error(`Project path does not exist: ${cwd}`);
     }
 
+    const sessionId = `codex-cli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    // An explicit custom CLI command opts out of ACP (it names the CLI itself).
+    const adapter =
+      command && String(command).trim() ? null : acpService.resolveAdapter('codex');
+
+    if (adapter) {
+      return this._startAcpSession(adapter, { prompt, projectPath: cwd }, sessionId);
+    }
+    return this._spawnLegacySession(options, sessionId);
+  }
+
+  _startAcpSession(adapter, { prompt, projectPath }, sessionId) {
+    const record = this.trackThread(sessionId, {
+      id: sessionId,
+      type: 'cli',
+      status: 'running',
+      prompt,
+      projectPath,
+      repository: projectPath,
+      title: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+    });
+    record.streamText = '';
+    this._persistThreads();
+
+    const buildCard = (message) => ({ ...this.normalizeRecord(record), message });
+
+    return new Promise((resolveCard) => {
+      let cardResolved = false;
+      const resolveOnce = (card) => {
+        if (!cardResolved) {
+          cardResolved = true;
+          resolveCard(card);
+        }
+      };
+
+      acpService
+        .runPrompt({
+          command: adapter,
+          cwd: projectPath,
+          prompt,
+          permissionPolicy: 'allow-all',
+          onSessionId: () => {
+            resolveOnce(
+              buildCard(
+                'Codex CLI task started over ACP. Live output streams into the task details.'
+              )
+            );
+          },
+          onUpdate: (update) => {
+            if (update?.sessionUpdate !== 'agent_message_chunk') return;
+            const text =
+              typeof update.content === 'string' ? update.content : update.content?.text;
+            if (!text || !text.trim()) return;
+            record.streamText = (record.streamText + text).slice(-STREAM_TEXT_CAP);
+            record.responseText = record.streamText;
+            this._updateTrackedThread(sessionId, { responseText: record.streamText }, true);
+          },
+        })
+        .then(({ stopReason }) => {
+          const failed = stopReason === 'error' || stopReason === 'cancelled';
+          this._updateTrackedThread(sessionId, {
+            status: failed ? 'failed' : 'completed',
+            responseText: record.streamText || null,
+            error: failed ? `Codex ACP turn ended with stopReason ${stopReason}` : null,
+          });
+          resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Codex task finished.'));
+        })
+        .catch((err) => {
+          // Fallback is only legal before any agent work began; after that
+          // re-dispatching through the legacy CLI would run the prompt twice.
+          if (!cardResolved && err?.fallbackAllowed) {
+            trackedThreads = trackedThreads.filter((t) => t.id !== sessionId);
+            this._persistThreads();
+            this._spawnLegacySession({ prompt, projectPath }, sessionId).then(
+              (card) => resolveOnce(card),
+              () => resolveOnce(buildCard(err.message))
+            );
+            return;
+          }
+          this._updateTrackedThread(sessionId, {
+            status: 'failed',
+            error: err?.message || String(err),
+          });
+          resolveOnce(buildCard(err?.message || 'ACP dispatch failed.'));
+        });
+    });
+  }
+
+  _spawnLegacySession(options, sessionId) {
+    const { prompt, projectPath, repository, command } = options;
+    const cwd = projectPath || repository;
+
     const codexCmd =
       command && String(command).trim() ? String(command).trim() : this.getExecutable();
     if (!isCommandRunnable(codexCmd)) {
       throw new Error('Codex CLI not found. Install it or set a custom codex executable.');
     }
 
-    const sessionId = `codex-cli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const args = ['exec', '--sandbox', 'workspace-write', prompt];
 
     return new Promise((resolve, reject) => {
@@ -358,6 +453,43 @@ class CodexService {
         });
       }, 400);
     });
+  }
+
+  _updateTrackedThread(threadId, patch, debounced = false) {
+    const idx = trackedThreads.findIndex((t) => t.id === threadId);
+    if (idx === -1) return;
+    trackedThreads[idx] = {
+      ...trackedThreads[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    if (debounced) {
+      this._persistThreadsDebounced();
+    } else {
+      this._persistThreads();
+    }
+  }
+
+  _persistThreads() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+      this._persistTimer = null;
+    }
+    try {
+      configStore.setCodexThreads(trackedThreads);
+    } catch (err) {
+      console.error('Failed to persist Codex threads:', err?.message || err);
+    }
+  }
+
+  _persistThreadsDebounced() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+    }
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this._persistThreads();
+    }, ACP_PERSIST_DEBOUNCE_MS);
   }
 
   async createTask(options = {}) {

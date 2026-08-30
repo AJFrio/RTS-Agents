@@ -131,4 +131,42 @@ describe('ConfigStore Unit Tests', () => {
       expect(threads[0].id).toBe('t109');
     });
   });
+
+  describe('Claude CLI Sessions', () => {
+    test('should set and get tracked claude cli sessions', () => {
+      const session = {
+        id: 'claude-cli-123-abc',
+        prompt: 'Fix the bug',
+        projectPath: '/repo',
+        status: 'running',
+        streamMessages: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      configStore.setClaudeCliSessions([session]);
+      expect(configStore.getClaudeCliSessions()).toEqual([session]);
+    });
+
+    test('should default to an empty array', () => {
+      expect(configStore.getClaudeCliSessions()).toEqual([]);
+    });
+
+    test('should tolerate streamMessages payloads on tracked sessions', () => {
+      const session = {
+        id: 'claude-cli-123-abc',
+        prompt: 'Fix the bug',
+        projectPath: '/repo',
+        status: 'running',
+        streamMessages: [{ role: 'assistant', content: 'Working on it' }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      configStore.setClaudeCliSessions([session]);
+      const stored = configStore.getClaudeCliSessions();
+      expect(stored[0].streamMessages).toHaveLength(1);
+      expect(stored[0].streamMessages[0].content).toBe('Working on it');
+    });
+  });
 });

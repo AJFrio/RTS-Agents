@@ -501,7 +501,9 @@ class ClaudeService {
         fsPromises.readFile(filePath, 'utf-8'),
         fsPromises.stat(filePath),
       ]);
-      const session = JSON.parse(content);
+      const session = filePath.endsWith('.jsonl')
+        ? this.parseTranscript(content)
+        : JSON.parse(content);
 
       return {
         sessionId: session.sessionId || session.id || null,

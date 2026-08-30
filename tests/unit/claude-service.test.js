@@ -124,6 +124,46 @@ describe('ClaudeService', () => {
     });
   });
 
+  describe('getLocalSessionDetails', () => {
+    test('opens a .jsonl transcript instead of returning null', async () => {
+      // Arrange
+      const jsonl = realFs.readFileSync(
+        path.join(__dirname, '../fixtures/claude-session-sample.jsonl'),
+        'utf-8'
+      );
+      fs.promises.readFile.mockResolvedValue(jsonl);
+      fs.promises.stat.mockResolvedValue({
+        birthtime: new Date('2024-05-01'),
+        mtime: new Date('2024-05-01'),
+        size: jsonl.length,
+      });
+
+      // Act
+      const details = await claudeService.getLocalSessionDetails('/p/abc123.jsonl');
+
+      // Assert
+      expect(details).not.toBeNull();
+      expect(details.messageCount).toBe(4);
+      expect(details.messages).toHaveLength(4);
+      expect(details.name).toBe('Fix failing build');
+    });
+
+    test('still opens legacy .json sessions', async () => {
+      const data = { title: 'Legacy', messages: [{ role: 'user', content: 'hello there' }] };
+      fs.promises.readFile.mockResolvedValue(JSON.stringify(data));
+      fs.promises.stat.mockResolvedValue({
+        birthtime: new Date(),
+        mtime: new Date(),
+        size: 10,
+      });
+
+      const details = await claudeService.getLocalSessionDetails('/p/legacy.json');
+
+      expect(details).not.toBeNull();
+      expect(details.name).toBe('Legacy');
+    });
+  });
+
   describe('discoverProjects', () => {
     test('discovers project directories containing only .jsonl transcripts', async () => {
       // Arrange: a project dir with no sessions/ or chats/ subdir, only .jsonl

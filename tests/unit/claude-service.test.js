@@ -124,6 +124,59 @@ describe('ClaudeService', () => {
     });
   });
 
+  describe('parseTranscript rich content', () => {
+    const richFixture = () =>
+      realFs.readFileSync(path.join(__dirname, '../fixtures/claude-session-rich.jsonl'), 'utf-8');
+
+    test('preserves tool calls as structured entries on the message', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      const withTool = session.messages.find((m) => m.toolCalls && m.toolCalls.length);
+
+      expect(withTool).toBeDefined();
+      expect(withTool.toolCalls[0]).toMatchObject({ id: 't1', name: 'Bash' });
+    });
+
+    test('captures the tool result for a matching tool call', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      const call = session.messages
+        .flatMap((m) => m.toolCalls || [])
+        .find((t) => t.id === 't1');
+
+      expect(call.result).toContain('left-pad');
+    });
+
+    test('preserves thinking separately from visible text', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      const thought = session.messages.find((m) => m.thinking);
+
+      expect(thought.thinking).toContain('missing dep');
+      expect(thought.content).not.toContain('missing dep');
+      expect(thought.content).toBe('Let me check the build.');
+    });
+
+    test('does not emit a standalone message for a tool_result-only turn', () => {
+      const session = claudeService.parseTranscript(richFixture());
+
+      // the tool_result turn is folded into its tool call, not shown as a user message
+      expect(session.messages.filter((m) => m.role === 'user')).toHaveLength(1);
+    });
+
+    test('keeps a tool-only assistant turn even when it has no text', () => {
+      const jsonl =
+        '{"type":"assistant","message":{"role":"assistant","content":[' +
+        '{"type":"tool_use","id":"x1","name":"Read","input":{"file_path":"/a.js"}}]}}';
+      const session = claudeService.parseTranscript(jsonl);
+
+      expect(session.messages).toHaveLength(1);
+      expect(session.messages[0].toolCalls[0].name).toBe('Read');
+    });
+
+    test('content stays a plain string for backward compatibility', () => {
+      const session = claudeService.parseTranscript(richFixture());
+      session.messages.forEach((m) => expect(typeof m.content).toBe('string'));
+    });
+  });
+
   describe('getLocalSessionDetails', () => {
     test('opens a .jsonl transcript instead of returning null', async () => {
       // Arrange

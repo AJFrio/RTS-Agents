@@ -1029,6 +1029,8 @@ class ClaudeService {
    */
   parseTranscript(content) {
     const messages = [];
+    // tool_use id -> tool call entry, so a later tool_result can be attached
+    const toolCallsById = new Map();
     let title = null;
     let startTime = null;
     let lastUpdated = null;
@@ -1053,20 +1055,41 @@ class ClaudeService {
       if (record.type !== 'user' && record.type !== 'assistant') continue;
       if (!record.message) continue;
 
-      const text = this.extractContentText(record.message.content);
-      if (!text) continue;
+      const content = record.message.content;
+
+      // A turn carrying only tool results is the transport for the previous
+      // tool call's output, not a message of its own. Attach it to the call
+      // so the UI can show the result inline instead of as an empty bubble.
+      const toolResults = this.extractToolResults(content);
+      if (toolResults.length && !this.extractContentText(content)) {
+        for (const result of toolResults) {
+          const call = toolCallsById.get(result.toolUseId);
+          if (call) call.result = result.content;
+        }
+        continue;
+      }
+
+      const text = this.extractContentText(content);
+      const thinking = this.extractThinkingText(content);
+      const toolCalls = this.extractToolCalls(content);
+      if (!text && !toolCalls.length) continue;
 
       if (record.timestamp) {
         if (!startTime) startTime = record.timestamp;
         lastUpdated = record.timestamp;
       }
 
-      messages.push({
+      for (const call of toolCalls) toolCallsById.set(call.id, call);
+
+      const message = {
         id: record.uuid,
         role: record.message.role || record.type,
         content: text,
         timestamp: record.timestamp,
-      });
+      };
+      if (thinking) message.thinking = thinking;
+      if (toolCalls.length) message.toolCalls = toolCalls;
+      messages.push(message);
     }
 
     const session = { messages };
@@ -1074,6 +1097,76 @@ class ClaudeService {
     if (startTime) session.startTime = startTime;
     if (lastUpdated) session.lastUpdated = lastUpdated;
     return session;
+  }
+
+  /**
+   * Summarize a tool call's input into a short, human-readable target,
+   * e.g. the command for Bash or the file for Read/Edit/Write.
+   *
+   * @param {object} input
+   * @returns {string}
+   */
+  summarizeToolInput(input) {
+    if (!input || typeof input !== 'object') return '';
+    const candidate =
+      input.command || input.file_path || input.path || input.pattern || input.url || '';
+    return typeof candidate === 'string' ? candidate : '';
+  }
+
+  /**
+   * Extract `tool_use` blocks as structured entries the UI can render as
+   * collapsed chips. `result` is filled in later from the matching
+   * `tool_result` block.
+   *
+   * @param {string|Array} content
+   * @returns {Array<{id: string, name: string, target: string, input: object, result: string|null}>}
+   */
+  extractToolCalls(content) {
+    if (!Array.isArray(content)) return [];
+    return content
+      .filter((block) => block && block.type === 'tool_use')
+      .map((block) => ({
+        id: block.id,
+        name: block.name || 'tool',
+        target: this.summarizeToolInput(block.input),
+        input: block.input || {},
+        result: null,
+      }));
+  }
+
+  /**
+   * Extract `tool_result` blocks, normalizing their content to text.
+   *
+   * @param {string|Array} content
+   * @returns {Array<{toolUseId: string, content: string}>}
+   */
+  extractToolResults(content) {
+    if (!Array.isArray(content)) return [];
+    return content
+      .filter((block) => block && block.type === 'tool_result')
+      .map((block) => ({
+        toolUseId: block.tool_use_id,
+        content:
+          typeof block.content === 'string'
+            ? block.content
+            : this.extractContentText(block.content),
+      }));
+  }
+
+  /**
+   * Extract `thinking` blocks so the UI can collapse them behind a
+   * disclosure rather than mixing them into the visible reply.
+   *
+   * @param {string|Array} content
+   * @returns {string}
+   */
+  extractThinkingText(content) {
+    if (!Array.isArray(content)) return '';
+    return content
+      .filter((block) => block && block.type === 'thinking' && typeof block.thinking === 'string')
+      .map((block) => block.thinking)
+      .join('\n')
+      .trim();
   }
 
   /**
@@ -1216,19 +1309,23 @@ class ClaudeService {
         }
         const content =
           typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '';
-        return content.trim().length > 0;
+        // Keep tool-only turns: they render as chips even with no prose.
+        return content.trim().length > 0 || msg.toolCalls?.length > 0;
       })
       .map((msg, idx) => {
         const msgType = msg.type || msg.role;
         const normalizedRole =
           msgType === 'claude' || msgType === 'assistant' ? 'assistant' : msgType;
 
-        return {
+        const parsed = {
           id: msg.id || `msg-${idx}`,
           role: normalizedRole,
           content: typeof msg.content === 'string' ? msg.content : msg.content?.[0]?.text || '',
           timestamp: msg.timestamp || null,
         };
+        if (msg.thinking) parsed.thinking = msg.thinking;
+        if (msg.toolCalls?.length) parsed.toolCalls = msg.toolCalls;
+        return parsed;
       });
   }
 }

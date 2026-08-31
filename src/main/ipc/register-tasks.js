@@ -42,9 +42,9 @@ function registerTasksHandlers(deps) {
     }
   });
 
-  ipcMain.handle('tasks:send-message', async (event, { provider, rawId, message }) => {
+  ipcMain.handle('tasks:send-message', async (event, { provider, rawId, message, filePath }) => {
     try {
-      return await providerRegistry.sendTaskMessage(deps, { provider, rawId, message });
+      return await providerRegistry.sendTaskMessage(deps, { provider, rawId, message, filePath });
     } catch (err) {
       console.error(`Error sending message for ${provider}:`, err);
       return { success: false, error: err.message };
@@ -54,11 +54,11 @@ function registerTasksHandlers(deps) {
   // Whether this task can accept a follow-up right now. For local CLI
   // providers this depends on a live adapter process, so it must be asked
   // per task rather than assumed from the provider alone.
-  ipcMain.handle('tasks:can-send-message', async (event, { provider, rawId }) => {
+  ipcMain.handle('tasks:can-send-message', async (event, { provider, rawId, filePath }) => {
     try {
       return {
         success: true,
-        canSend: providerRegistry.canSendTaskMessage(deps, { provider, rawId }),
+        canSend: providerRegistry.canSendTaskMessage(deps, { provider, rawId, filePath }),
       };
     } catch (err) {
       console.error(`Error checking follow-up support for ${provider}:`, err);

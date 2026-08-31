@@ -1,4 +1,5 @@
-const fsPromises = require('fs').promises;
+const fs = require('fs');
+const fsPromises = fs.promises;
 const path = require('path');
 const os = require('os');
 const { spawnSync } = require('child_process');
@@ -11,6 +12,9 @@ const acpService = require('./acp-service');
 const configStore = require('./config-store');
 const { appendStreamMessage, appendAgentChunk } = require('./opencode-session-parser');
 const { createFollowUpController } = require('./acp-follow-up');
+
+// Claude Code names each transcript after its session uuid.
+const SESSION_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -847,16 +851,83 @@ class ClaudeService {
   }
 
   /**
-   * Whether this task can take a follow-up right now: either its adapter is
-   * still live, or we stored an ACP session id we can resume via
-   * session/load. Sessions are lost on crash and idle reaping, so this is a
-   * point-in-time answer.
+   * Build a resumable record for a session discovered by scanning
+   * the Claude Code projects directory as .jsonl transcripts.
+   *
+   * These are not tracked records - the app never dispatched them - but the
+   * transcript filename IS the ACP session id, and `claude-agent-acp`
+   * accepts it in session/load. Verified: prompting a loaded session appends
+   * to the same transcript rather than forking a new one, so the follow-up
+   * shows up in the existing conversation.
+   *
+   * Returns null when the id/path do not identify a resumable session.
    */
-  supportsFollowUp(taskId) {
-    return this.followUp.supportsFollowUp(taskId);
+  recordForFollowUp(taskId, filePath) {
+    const tracked = this.trackedLocalSessions.find((x) => x.id === taskId);
+    if (tracked) return tracked;
+
+    if (!filePath || !String(taskId).startsWith('claude-local-')) return null;
+
+    // The filename is the session uuid; anything else is not resumable.
+    const base = path.basename(String(filePath)).replace(/\.jsonl?$/, '');
+    if (!SESSION_UUID_RE.test(base)) return null;
+
+    // The project directory cannot be recovered from the parent folder name:
+    // Claude Code replaces separators with dashes, which is ambiguous for any
+    // directory that itself contains a dash. Each transcript record carries
+    // the real cwd, so read it from the file instead of guessing.
+    const projectPath = this._readTranscriptCwd(filePath);
+    if (!projectPath) return null;
+
+    return {
+      id: taskId,
+      acpSessionId: base,
+      projectPath,
+      filePath,
+      discovered: true,
+    };
   }
 
-  sendFollowUp(taskId, message) {
+  /**
+   * Recover the project directory a discovered session ran in. Reads only the
+   * head of the transcript - `cwd` appears on the early records.
+   */
+  _readTranscriptCwd(filePath) {
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      for (const line of content.split('\n', 40)) {
+        if (!line.trim()) continue;
+        try {
+          const record = JSON.parse(line);
+          if (record?.cwd && typeof record.cwd === 'string') return record.cwd;
+        } catch {
+          // Skip malformed lines; transcripts can contain partial writes.
+        }
+      }
+    } catch (err) {
+      console.error(`Could not read transcript cwd from ${filePath}:`, err?.message || err);
+    }
+    return null;
+  }
+
+  /**
+   * Whether this task can take a follow-up right now: its adapter is still
+   * live, we stored an ACP session id, or it is a discovered .jsonl session
+   * whose filename gives us one. Sessions are lost on crash and idle
+   * reaping, so this is a point-in-time answer.
+   */
+  supportsFollowUp(taskId, filePath = null) {
+    if (this.followUp.supportsFollowUp(taskId)) return true;
+    return Boolean(this.recordForFollowUp(taskId, filePath));
+  }
+
+  sendFollowUp(taskId, message, filePath = null) {
+    // Discovered sessions have no tracked record, so hand the derived one to
+    // the controller for this call.
+    const derived = this.recordForFollowUp(taskId, filePath);
+    if (derived?.discovered) {
+      return this.followUp.sendFollowUp(taskId, message, { record: derived });
+    }
     return this.followUp.sendFollowUp(taskId, message);
   }
 

@@ -100,13 +100,19 @@ function createFollowUpController({
       return Boolean(resumableIdFor(taskId));
     },
 
-    async sendFollowUp(taskId, message) {
+    /**
+     * @param {object} [options]
+     * @param {object} [options.record] - Record to use instead of the hook
+     *   lookup. Used for sessions discovered on disk, which have no tracked
+     *   entry but are still resumable via session/load.
+     */
+    async sendFollowUp(taskId, message, options = {}) {
       const text = typeof message === 'string' ? message.trim() : '';
       if (!text) {
         throw new Error('Follow-up message is required');
       }
 
-      const record = hooks.getRecord(taskId);
+      const record = options.record || hooks.getRecord(taskId);
       if (!record) {
         throw new Error(`Unknown ${provider} task ${taskId}`);
       }

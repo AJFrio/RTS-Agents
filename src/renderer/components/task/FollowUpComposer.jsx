@@ -18,6 +18,9 @@ export default function FollowUpComposer({ agent, api, onSent }) {
 
   const provider = agent?.provider;
   const rawId = agent?.rawId || agent?.id;
+  // Sessions discovered on disk are identified by their transcript path;
+  // the main process derives the resumable ACP session id from it.
+  const filePath = agent?.filePath || null;
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +32,7 @@ export default function FollowUpComposer({ agent, api, onSent }) {
 
     setChecking(true);
     api
-      .canSendMessage(provider, rawId)
+      .canSendMessage(provider, rawId, filePath)
       .then((result) => {
         if (!cancelled) setCanSend(Boolean(result?.canSend));
       })
@@ -43,7 +46,7 @@ export default function FollowUpComposer({ agent, api, onSent }) {
     return () => {
       cancelled = true;
     };
-  }, [api, provider, rawId]);
+  }, [api, provider, rawId, filePath]);
 
   const handleSend = async () => {
     const text = value.trim();
@@ -52,7 +55,7 @@ export default function FollowUpComposer({ agent, api, onSent }) {
     setSending(true);
     setError(null);
     try {
-      const result = await api.sendMessage(provider, rawId, text);
+      const result = await api.sendMessage(provider, rawId, text, filePath);
       if (result && result.success === false) {
         throw new Error(result.error || 'Failed to send message');
       }
@@ -64,7 +67,7 @@ export default function FollowUpComposer({ agent, api, onSent }) {
       // the composer disappears instead of offering a send that cannot work.
       if (api?.canSendMessage) {
         api
-          .canSendMessage(provider, rawId)
+          .canSendMessage(provider, rawId, filePath)
           .then((result) => setCanSend(Boolean(result?.canSend)))
           .catch(() => setCanSend(false));
       }

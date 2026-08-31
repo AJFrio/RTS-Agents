@@ -1,6 +1,6 @@
 # Spec: ACP-based local agent dispatch
 
-**Status:** Verified (one-shot dispatch) / Unverified against real adapters (interactive follow-up turns and session resume — covered by unit and fake-adapter integration tests only)
+**Status:** Verified (one-shot dispatch; Claude Code follow-ups and session resume verified end-to-end against a real `claude-agent-acp`) / Unverified for Codex and Cursor CLI adapters, which were not installed on the machine used for testing
 
 ## Requirement
 
@@ -16,7 +16,8 @@ Local CLI-backed agents that support the Agent Client Protocol (Claude Code, Cod
 - Streamed `agent_message_chunk` updates are coalesced into a single flowing assistant message per turn (token-level chunks never render as separate blocks).
 - The adapter process stays alive after the opening turn so the user can send follow-up prompts into the same conversation from the task modal (`session/prompt` again on the same `sessionId`). Live sessions are held in a registry keyed by task id and are torn down on idle timeout (30 min default), adapter exit, or app quit.
 - When no live adapter remains (restart, crash, idle reap), a follow-up transparently resumes the stored session via ACP `session/load`. The client checks the adapter's `loadSession` capability first, as the spec requires, and reports a clear error rather than silently starting a fresh conversation that has lost all prior context. A resumed adapter replays the prior conversation as `session/update` notifications before the load completes.
-- The adapter's own session id is persisted per task (`acpSessionId`; OpenCode reuses its existing `opencodeSessionId`) so resume survives an app restart. Tasks created before this existed have no stored id and stay read-only.
+- The adapter's own session id is persisted per task (`acpSessionId`; OpenCode reuses its existing `opencodeSessionId`) so resume survives an app restart.
+- Claude CLI sessions discovered by scanning the transcripts directory are also resumable, retroactively: the `.jsonl` filename is the ACP session id. The project directory is read from the transcript's `cwd` field rather than reversed from the dash-encoded folder name, which is ambiguous for any directory containing a dash. Verified against a real `claude-agent-acp`: prompting a loaded session appends to the original transcript rather than forking, so the follow-up appears in the existing conversation.
 - Follow-up availability is a point-in-time question (`tasks:can-send-message`): a task qualifies if its adapter is live *or* it has a resumable session id.
 - All four ACP providers (Claude Code, Codex, OpenCode, Cursor CLI) support interactive follow-ups through one shared controller (`acp-follow-up.js`). Antigravity does not: it is a fire-and-forget `--print` spawn with no ACP path, so it remains read-only.
 - A follow-up appends the user's message to the transcript before prompting, which also breaks the assistant chunk-merge so the next reply is not concatenated onto the previous one.
@@ -39,6 +40,7 @@ Local CLI-backed agents that support the Agent Client Protocol (Claude Code, Cod
 - [ ] Live adapters are disposed on app quit and after the idle timeout
 - [ ] A follow-up after an app restart resumes the prior conversation via session/load rather than starting a fresh one
 - [ ] An adapter without the loadSession capability produces a clear error and no partial transcript entry
+- [x] A follow-up to a Claude CLI session discovered on disk resumes it and appends to the original transcript (verified: 3 turns, 3 adapter processes, one file)
 
 ## Implementation pointers
 

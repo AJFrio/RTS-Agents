@@ -34,6 +34,7 @@ jest.mock('../../src/main/services/acp-service', () => ({
   resolveAdapter: jest.fn(),
   runPrompt: jest.fn(),
   openSession: jest.fn(),
+  loadSession: jest.fn(),
   clearAdapterCache: jest.fn(),
   pickPermissionOption: jest.fn(),
   buildSpawnArgs: jest.fn(),
@@ -661,6 +662,94 @@ describe('ClaudeService', () => {
 
       expect(claudeService.supportsFollowUp(card.id)).toBe(true);
       expect(claudeService.supportsFollowUp('claude-cli-other')).toBe(false);
+    });
+  });
+
+  describe('follow-ups on discovered (.jsonl) sessions', () => {
+    // Discovered sessions are not tracked records - they are scanned from
+    // ~/.claude/projects/**/*.jsonl, where the filename IS the ACP session
+    // id. They are resumable via session/load even though the app never
+    // dispatched them.
+    const DISCOVERED_ID =
+      'claude-local--Users-me-proj-8c52ba41-b157-41f4-8b5b-3378703104c4';
+    const FILE_PATH =
+      '/home/user/.claude/projects/-Users-me-proj/8c52ba41-b157-41f4-8b5b-3378703104c4.jsonl';
+
+    beforeEach(() => {
+      // The project dir is recovered from the transcript's cwd field, not
+      // from the (ambiguous) dash-encoded folder name.
+      fs.readFileSync.mockReturnValue(
+        [
+          JSON.stringify({ type: 'user', cwd: '/Users/me/proj', sessionId: 'x' }),
+          JSON.stringify({ type: 'assistant', message: { content: 'hi' } }),
+        ].join('\n')
+      );
+    });
+
+    test('derives a resumable record from a discovered session id and file path', () => {
+      const record = claudeService.recordForFollowUp(DISCOVERED_ID, FILE_PATH);
+
+      expect(record).toMatchObject({
+        acpSessionId: '8c52ba41-b157-41f4-8b5b-3378703104c4',
+        projectPath: '/Users/me/proj',
+      });
+    });
+
+    test('supportsFollowUp is true for a discovered session with a file path', () => {
+      expect(claudeService.supportsFollowUp(DISCOVERED_ID, FILE_PATH)).toBe(true);
+    });
+
+    test('supportsFollowUp is false for a discovered id with no file path', () => {
+      // Without the transcript path we cannot recover the project directory.
+      expect(claudeService.supportsFollowUp(DISCOVERED_ID)).toBe(false);
+    });
+
+    test('ignores a file path whose name is not a session uuid', () => {
+      expect(
+        claudeService.supportsFollowUp(DISCOVERED_ID, '/home/user/.claude/projects/p/notes.jsonl')
+      ).toBe(false);
+    });
+
+    test('is not resumable when the transcript has no recoverable cwd', () => {
+      fs.readFileSync.mockReturnValue(
+        JSON.stringify({ type: 'summary', leafUuid: 'abc' })
+      );
+      expect(claudeService.supportsFollowUp(DISCOVERED_ID, FILE_PATH)).toBe(false);
+    });
+
+    test('is not resumable when the transcript cannot be read', () => {
+      fs.readFileSync.mockImplementation(() => {
+        throw new Error('EACCES');
+      });
+      expect(claudeService.supportsFollowUp(DISCOVERED_ID, FILE_PATH)).toBe(false);
+    });
+
+    test('sendFollowUp resumes a discovered session via session/load', async () => {
+      const resumed = {
+        sessionId: '8c52ba41-b157-41f4-8b5b-3378703104c4',
+        capabilities: { loadSession: true },
+        canLoadSession: true,
+        isAlive: () => true,
+        dispose: jest.fn(),
+        prompt: jest.fn().mockResolvedValue({ stopReason: 'end_turn' }),
+      };
+      acpService.resolveAdapter.mockReturnValue('claude-agent-acp');
+      acpService.loadSession.mockResolvedValue(resumed);
+
+      const result = await claudeService.sendFollowUp(
+        DISCOVERED_ID,
+        'what were we working on?',
+        FILE_PATH
+      );
+
+      expect(acpService.loadSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          acpSessionId: '8c52ba41-b157-41f4-8b5b-3378703104c4',
+          command: 'claude-agent-acp',
+        })
+      );
+      expect(resumed.prompt).toHaveBeenCalledWith('what were we working on?');
+      expect(result.success).toBe(true);
     });
   });
 

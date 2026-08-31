@@ -481,7 +481,7 @@ function acpFollowUpService(deps, provider) {
   }
 }
 
-async function sendTaskMessage(deps, { provider, rawId, message }) {
+async function sendTaskMessage(deps, { provider, rawId, message, filePath }) {
   const { configStore, julesService, cursorService } = deps;
 
   // A follow-up continues the same conversation rather than starting a new
@@ -489,7 +489,9 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
   // reports a clear error when neither is possible.
   const acpService_ = acpFollowUpService(deps, provider);
   if (acpService_) {
-    await acpService_.sendFollowUp(rawId, message);
+    // filePath lets Claude resume sessions discovered on disk, which have no
+    // tracked record but are still loadable by session id.
+    await acpService_.sendFollowUp(rawId, message, filePath);
     return { success: true };
   }
 
@@ -525,12 +527,12 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
  * Local CLI providers need a live ACP adapter, which is lost on restart,
  * crash, or idle reaping.
  */
-function canSendTaskMessage(deps, { provider, rawId }) {
+function canSendTaskMessage(deps, { provider, rawId, filePath }) {
   const { configStore, cursorService } = deps;
 
   const acpService_ = acpFollowUpService(deps, provider);
   if (acpService_) {
-    return Boolean(acpService_.supportsFollowUp?.(rawId));
+    return Boolean(acpService_.supportsFollowUp?.(rawId, filePath));
   }
 
   switch (provider) {

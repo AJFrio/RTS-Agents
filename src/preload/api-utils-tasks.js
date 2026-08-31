@@ -10,10 +10,10 @@ module.exports = {
   getAllRepositories: () => ipcRenderer.invoke('repos:get-all'),
   createTask: (provider, options) => ipcRenderer.invoke('tasks:create', { provider, options }),
   getProviderModels: (provider) => ipcRenderer.invoke('models:get', { provider }),
-  sendMessage: (provider, rawId, message) =>
-    ipcRenderer.invoke('tasks:send-message', { provider, rawId, message }),
-  canSendMessage: (provider, rawId) =>
-    ipcRenderer.invoke('tasks:can-send-message', { provider, rawId }),
+  sendMessage: (provider, rawId, message, filePath) =>
+    ipcRenderer.invoke('tasks:send-message', { provider, rawId, message, filePath }),
+  canSendMessage: (provider, rawId, filePath) =>
+    ipcRenderer.invoke('tasks:can-send-message', { provider, rawId, filePath }),
   orchestratorGetModels: () => ipcRenderer.invoke('orchestrator:get-models'),
   orchestratorChat: (messages, selectedModel) =>
     ipcRenderer.invoke('orchestrator:chat', { messages, selectedModel })

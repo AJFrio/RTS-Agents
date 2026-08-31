@@ -141,6 +141,15 @@ export default function NewTaskModal({ open, onClose, api }) {
   const fileInputRef = React.useRef(null);
   const recognitionRef = React.useRef(null);
   const repoListRef = React.useRef(null);
+  const repoInputContainerRef = React.useRef(null);
+  const [repoDropdownPos, setRepoDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const [modelSearch, setModelSearch] = useState('');
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelHighlightedIndex, setModelHighlightedIndex] = useState(-1);
+  const modelListRef = React.useRef(null);
+  const modelInputContainerRef = React.useRef(null);
+  const [modelDropdownPos, setModelDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const [previewImage, setPreviewImage] = useState(null);
 
   useEffect(() => {
     if (open && initialPrompt) {
@@ -216,6 +225,12 @@ export default function NewTaskModal({ open, onClose, api }) {
     return repos.filter((r) => getRepoLabel(r).toLowerCase().includes(q));
   }, [repos, repoSearch]);
 
+  const filteredModels = useMemo(() => {
+    if (!modelSearch.trim()) return models;
+    const q = modelSearch.trim().toLowerCase();
+    return models.filter((m) => m.toLowerCase().includes(q));
+  }, [models, modelSearch]);
+
   const selectedRepoDisplay = useMemo(() => {
     if (!selectedRepo) return '';
     const repo = repos.find((x) => getRepoValue(x) === selectedRepo);
@@ -248,6 +263,32 @@ export default function NewTaskModal({ open, onClose, api }) {
       repoListRef.current.children[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
     }
   }, [highlightedIndex]);
+
+  useEffect(() => {
+    if (repoDropdownOpen && repoInputContainerRef.current) {
+      const rect = repoInputContainerRef.current.getBoundingClientRect();
+      setRepoDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, [repoDropdownOpen]);
+
+  useEffect(() => {
+    if (modelDropdownOpen && modelInputContainerRef.current) {
+      const rect = modelInputContainerRef.current.getBoundingClientRect();
+      setModelDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, [modelDropdownOpen]);
+
+  useEffect(() => {
+    if (modelDropdownOpen) {
+      setModelHighlightedIndex(-1);
+    }
+  }, [modelDropdownOpen, modelSearch]);
+
+  useEffect(() => {
+    if (modelHighlightedIndex >= 0 && modelListRef.current) {
+      modelListRef.current.children[modelHighlightedIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [modelHighlightedIndex]);
 
   useEffect(() => {
     if (open && environment === 'remote' && fetchComputers) fetchComputers();
@@ -302,6 +343,8 @@ export default function NewTaskModal({ open, onClose, api }) {
   useEffect(() => {
     const provider = selectedService?.provider;
     setSelectedModel('');
+    setModelSearch('');
+    setModelDropdownOpen(false);
     if (!provider || !api?.getProviderModels) {
       setModels([]);
       return;
@@ -375,6 +418,34 @@ export default function NewTaskModal({ open, onClose, api }) {
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setRepoDropdownOpen(false);
+    }
+  };
+
+  const handleModelKeyDown = (e) => {
+    if (!modelDropdownOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setModelDropdownOpen(true);
+      }
+      return;
+    }
+    if (filteredModels.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setModelHighlightedIndex((prev) => (prev + 1) % filteredModels.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setModelHighlightedIndex((prev) => (prev <= 0 ? filteredModels.length - 1 : prev - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (modelHighlightedIndex >= 0 && modelHighlightedIndex < filteredModels.length) {
+        setSelectedModel(filteredModels[modelHighlightedIndex]);
+        setModelSearch('');
+        setModelDropdownOpen(false);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setModelDropdownOpen(false);
     }
   };
 
@@ -516,7 +587,8 @@ export default function NewTaskModal({ open, onClose, api }) {
   if (!open) return null;
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <>
+      <Modal open={open} onClose={onClose}>
       <div
         id="new-task-modal"
         className="relative flex h-[88vh] w-[92vw] min-h-0 max-w-6xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark"
@@ -633,24 +705,111 @@ export default function NewTaskModal({ open, onClose, api }) {
               {showModelSection && (
                 <section>
                   <StepHeader done={!!selectedModel}>Model (optional)</StepHeader>
-                  <select
-                    id="task-model"
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full"
-                    aria-label="Select model"
-                  >
-                    <option value="">Harness default</option>
-                    {models.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Models reported by {getProviderDisplayName(selectedProvider)}. Leave on
-                    harness default to use the provider&apos;s own choice.
-                  </p>
+                  <div className="relative" ref={modelInputContainerRef}>
+                    <div className="flex items-center rounded-lg border border-slate-200 bg-white dark:border-border-dark dark:bg-slate-900">
+                      <input
+                        id="task-model"
+                        type="text"
+                        value={modelDropdownOpen ? modelSearch : (selectedModel || '')}
+                        onChange={(e) => {
+                          setModelSearch(e.target.value);
+                          setModelDropdownOpen(true);
+                        }}
+                        onFocus={() => setModelDropdownOpen(true)}
+                        onKeyDown={handleModelKeyDown}
+                        placeholder={selectedModel || 'Harness default'}
+                        className="flex-1 border-0 bg-transparent px-3 py-2 text-sm focus:ring-0 dark:text-slate-100"
+                        aria-label="Search or select model"
+                        aria-expanded={modelDropdownOpen}
+                        aria-haspopup="listbox"
+                      />
+                      {selectedModel && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedModel('');
+                            setModelSearch('');
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                          aria-label="Clear model"
+                        >
+                          <span className="material-symbols-outlined text-lg">close</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+                        className="p-2 text-slate-400 hover:text-slate-600"
+                        aria-label="Toggle model list"
+                      >
+                        <span className="material-symbols-outlined text-lg">
+                          {modelDropdownOpen ? 'expand_less' : 'expand_more'}
+                        </span>
+                      </button>
+                    </div>
+                    {modelDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          aria-hidden="true"
+                          onClick={() => {
+                            setModelDropdownOpen(false);
+                            setModelSearch('');
+                          }}
+                        />
+                        <ul
+                          id="model-dropdown"
+                          ref={modelListRef}
+                          className="fixed z-20 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-border-dark dark:bg-slate-900"
+                          role="listbox"
+                          style={{ top: modelDropdownPos.top, left: modelDropdownPos.left, width: modelDropdownPos.width }}
+                        >
+                          <li>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={!selectedModel}
+                              onClick={() => {
+                                setSelectedModel('');
+                                setModelSearch('');
+                                setModelDropdownOpen(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${!selectedModel ? 'font-medium text-primary' : 'text-slate-700 dark:text-slate-200'}`}
+                            >
+                              Harness default
+                            </button>
+                          </li>
+                          {filteredModels.length === 0 ? (
+                            <li className="px-3 py-2 text-sm text-slate-500">
+                              No models found
+                            </li>
+                          ) : (
+                            filteredModels.map((m, index) => {
+                              const isSelected = selectedModel === m;
+                              const isHighlighted = index === modelHighlightedIndex;
+                              return (
+                                <li key={m} id={`model-option-${index}`}>
+                                  <button
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    onClick={() => {
+                                      setSelectedModel(m);
+                                      setModelSearch('');
+                                      setModelDropdownOpen(false);
+                                    }}
+                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isHighlighted ? 'bg-primary/10' : ''} ${isSelected ? 'font-medium text-primary' : 'text-slate-700 dark:text-slate-200'}`}
+                                  >
+                                    {m}
+                                  </button>
+                                </li>
+                              );
+                            })
+                          )}
+                        </ul>
+                      </>
+                    )}
+                  </div>
                 </section>
               )}
 
@@ -692,7 +851,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                     {environment === 'local' ? 'Project path' : 'Repository'}
                     {repoRequired ? '' : ' (optional)'}
                   </StepHeader>
-                  <div className="relative">
+                  <div className="relative" ref={repoInputContainerRef}>
                     <div
                       className={`flex items-center rounded-lg border bg-white dark:bg-slate-900 ${currentErrors.repo ? 'border-red-400' : 'border-slate-200 dark:border-border-dark'}`}
                     >
@@ -745,8 +904,9 @@ export default function NewTaskModal({ open, onClose, api }) {
                         <ul
                           id="repo-dropdown"
                           ref={repoListRef}
-                          className="absolute left-0 right-0 z-20 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-border-dark dark:bg-slate-900"
+                          className="fixed z-20 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-border-dark dark:bg-slate-900"
                           role="listbox"
+                          style={{ top: repoDropdownPos.top, left: repoDropdownPos.left, width: repoDropdownPos.width }}
                         >
                           {filteredRepos.length === 0 ? (
                             <li className="px-3 py-2 text-sm text-slate-500">
@@ -790,6 +950,14 @@ export default function NewTaskModal({ open, onClose, api }) {
           </aside>
 
           <main className="flex min-h-0 flex-col overflow-y-auto p-6">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              multiple
+              className="hidden"
+            />
             <div className="grid gap-5">
               <section>
                 <div className="mb-2 flex items-center justify-between">
@@ -820,6 +988,34 @@ export default function NewTaskModal({ open, onClose, api }) {
                     className="min-h-[260px] w-full resize-none border-0 bg-transparent p-5 font-sans text-sm text-slate-900 focus:ring-0 dark:text-slate-100"
                     aria-label="Task description"
                   />
+                  {attachments.length > 0 && (
+                    <div className="flex items-center gap-2 border-t border-slate-200 px-4 py-2 dark:border-border-dark">
+                      {attachments.map((att) => (
+                        <div
+                          key={att.id}
+                          className="group relative h-12 w-12 flex-shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 transition-opacity hover:opacity-80 dark:border-border-dark"
+                          onClick={() => setPreviewImage(att.dataUrl)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') setPreviewImage(att.dataUrl);
+                          }}
+                        >
+                          <img src={att.dataUrl} alt={att.name} className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeAttachment(att.id);
+                            }}
+                            className="absolute right-0 top-0 rounded-bl bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            <span className="material-symbols-outlined block text-[10px]">close</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 dark:border-border-dark">
                     <button
                       type="button"
@@ -881,48 +1077,6 @@ export default function NewTaskModal({ open, onClose, api }) {
                   </span>
                 </label>
               </section>
-
-              <section>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                />
-                <div className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Attached context
-                </div>
-                {attachments.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500 dark:border-border-dark dark:text-slate-400">
-                    Attach screenshots or paste images into the instructions box when they help
-                    explain the task.
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-3">
-                    {attachments.map((att) => (
-                      <div
-                        key={att.id}
-                        className="group relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200 dark:border-border-dark"
-                      >
-                        <img
-                          src={att.dataUrl}
-                          alt={att.name}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeAttachment(att.id)}
-                          className="absolute right-0 top-0 rounded-bl bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                        >
-                          <span className="material-symbols-outlined block text-sm">close</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
             </div>
           </main>
         </div>
@@ -966,6 +1120,27 @@ export default function NewTaskModal({ open, onClose, api }) {
           {toast}
         </div>
       )}
-    </Modal>
+      </Modal>
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setPreviewImage(null)}
+            className="absolute right-4 top-4 z-10 rounded-lg p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <span className="material-symbols-outlined text-2xl">close</span>
+          </button>
+          <img
+            src={previewImage}
+            alt="Attachment preview"
+            className="max-h-[85vh] max-w-[85vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
   );
 }

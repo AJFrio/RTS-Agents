@@ -246,6 +246,11 @@ const schema = {
             type: 'object',
             default: {},
           },
+          // 'grid' (flat agent list) or 'projects' (grouped by project).
+          dashboardMode: {
+            type: 'string',
+            default: 'grid',
+          },
           search: {
             type: 'string',
             default: '',

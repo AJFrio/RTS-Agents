@@ -6,7 +6,7 @@
  * ESM-only and therefore incompatible with this CommonJS main process, so
  * the narrow client surface we need is implemented here:
  *
- *   initialize -> session/new -> session/prompt
+ *   initialize -> session/new -> [session/set_mode] -> session/prompt
  *   with session/update notifications forwarded to the caller,
  *   session/request_permission answered per the caller's permission policy,
  *   and every other agent->client request answered with JSON-RPC -32601 so
@@ -157,6 +157,8 @@ function pickPermissionOption(update, policy) {
  * @param {string[]} [options.args] - Extra adapter CLI args (e.g. ['acp']).
  * @param {string} options.cwd - Project directory for session/new.
  * @param {string} options.prompt - User prompt text.
+ * @param {string} [options.model] - Requested model id; applied via
+ *   session/set_mode when the adapter offers it among its session modes.
  * @param {'allow-all'|'safe-tools'} [options.permissionPolicy]
  * @param {(update: object, sessionId: string) => void} [options.onUpdate]
  * @param {(sessionId: string) => void} [options.onSessionId] - Fires once
@@ -174,6 +176,7 @@ function runPrompt(options) {
     args = [],
     cwd,
     prompt,
+    model,
     permissionPolicy = 'allow-all',
     onUpdate,
     onSessionId,
@@ -294,7 +297,22 @@ function runPrompt(options) {
             return;
           }
           safeCall(onSessionId, sessionId);
-          sendPrompt();
+          const availableModes = Array.isArray(result?.modes?.availableModes)
+            ? result.modes.availableModes
+            : [];
+          const match = model
+            ? availableModes.find((m) => (m?.id ?? m?.value) === model)
+            : null;
+          if (match && match.id !== result?.modes?.currentModeId) {
+            request(
+              'session/set_mode',
+              { sessionId, modeId: match.id },
+              'set-mode',
+              () => sendPrompt()
+            );
+          } else {
+            sendPrompt();
+          }
         }
       );
     }

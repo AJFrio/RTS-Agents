@@ -329,12 +329,12 @@ class CodexService {
       command && String(command).trim() ? null : acpService.resolveAdapter('codex');
 
     if (adapter) {
-      return this._startAcpSession(adapter, { prompt, projectPath: cwd }, sessionId);
+      return this._startAcpSession(adapter, { prompt, projectPath: cwd, model: options.model }, sessionId);
     }
     return this._spawnLegacySession(options, sessionId);
   }
 
-  _startAcpSession(adapter, { prompt, projectPath }, sessionId) {
+  _startAcpSession(adapter, { prompt, projectPath, model }, sessionId) {
     const record = this.trackThread(sessionId, {
       id: sessionId,
       type: 'cli',
@@ -363,6 +363,7 @@ class CodexService {
           command: adapter,
           cwd: projectPath,
           prompt,
+          model,
           permissionPolicy: 'allow-all',
           onSessionId: () => {
             resolveOnce(
@@ -412,7 +413,7 @@ class CodexService {
   }
 
   _spawnLegacySession(options, sessionId) {
-    const { prompt, projectPath, repository, command } = options;
+    const { prompt, projectPath, repository, command, model } = options;
     const cwd = projectPath || repository;
 
     const codexCmd =
@@ -421,7 +422,11 @@ class CodexService {
       throw new Error('Codex CLI not found. Install it or set a custom codex executable.');
     }
 
-    const args = ['exec', '--sandbox', 'workspace-write', prompt];
+    const args = ['exec', '--sandbox', 'workspace-write'];
+    if (model) {
+      args.push('--model', String(model));
+    }
+    args.push(prompt);
 
     return new Promise((resolve, reject) => {
       const child = spawn(codexCmd, args, {

@@ -95,7 +95,7 @@ class AntigravityService {
   }
 
   async startSession(options) {
-    const { prompt, projectPath, command } = options;
+    const { prompt, projectPath, command, model } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -110,6 +110,9 @@ class AntigravityService {
     const antigravityCmd =
       command && String(command).trim() ? String(command).trim() : this.getExecutable();
     const args = ['--print', prompt, '--print-timeout', '30m'];
+    if (model) {
+      args.push('--model', String(model));
+    }
     const sessionId = `antigravity-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     return new Promise((resolve, reject) => {

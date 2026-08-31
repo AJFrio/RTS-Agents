@@ -28,7 +28,30 @@ function MarkdownBlock({ content, className = '' }) {
 
 const MemoizedMarkdownBlock = React.memo(MarkdownBlock);
 
-export default function AgentModal({ agent, onClose, api }) {
+/**
+ * Chrome around the task detail. Embedded fills its parent pane; otherwise
+ * the content sits in the usual modal overlay.
+ *
+ * Module scope on purpose: defining this during render would make it a new
+ * component type each time, remounting the transcript and losing scroll.
+ */
+function Shell({ embedded, open, onClose, children }) {
+  if (embedded) return <div className="flex h-full min-h-0 flex-col">{children}</div>;
+  return (
+    <Modal open={open} onClose={onClose} size="wide">
+      {children}
+    </Modal>
+  );
+}
+
+/**
+ * Task detail: header, context, transcript, and follow-up composer.
+ *
+ * Rendered two ways. As a modal from the flat dashboard, and embedded in the
+ * project view's right pane. Both share this one implementation so follow-up
+ * messaging and transcript behaviour cannot drift apart.
+ */
+export default function AgentModal({ agent, onClose, api, embedded = false }) {
   const [details, setDetails] = useState(null);
   const [detailsError, setDetailsError] = useState(null);
   const [loading, setLoading] = useState(!!agent);
@@ -107,12 +130,37 @@ export default function AgentModal({ agent, onClose, api }) {
   // A conversation is most useful at its newest message, so open there once
   // the transcript has loaded. Only on first load per task - re-running would
   // yank the view out from under someone reading history.
+  //
+  // The jump must be instant, not animated: scrolling through a long
+  // transcript is both slow and disorienting. It also has to survive late
+  // layout - markdown blocks and images change scrollHeight after the first
+  // frame - so re-pin until the height stops growing.
   useEffect(() => {
     if (!details || didAutoScrollRef.current) return;
     didAutoScrollRef.current = true;
-    // Wait for layout so scrollHeight reflects the rendered transcript.
-    requestAnimationFrame(() => scrollToBottom('auto'));
-  }, [details, scrollToBottom]);
+
+    let frame = null;
+    let settled = 0;
+    let lastHeight = -1;
+
+    const pin = () => {
+      const root = scrollRootRef.current;
+      if (!root) return;
+      root.scrollTop = root.scrollHeight;
+
+      // Two consecutive stable heights means layout has finished.
+      if (root.scrollHeight === lastHeight) settled += 1;
+      else settled = 0;
+      lastHeight = root.scrollHeight;
+
+      if (settled < 2) frame = requestAnimationFrame(pin);
+    };
+
+    frame = requestAnimationFrame(pin);
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [details]);
 
   const sessionId =
     agent?.provider === 'jules'
@@ -213,6 +261,7 @@ export default function AgentModal({ agent, onClose, api }) {
     setActivityOpen(next);
   };
 
+
   const handleRowToggle = (rowId, next) => {
     userTouchedRef.current.add(`row:${rowId}`);
     setExpandedRowIds((prev) => {
@@ -241,10 +290,14 @@ export default function AgentModal({ agent, onClose, api }) {
   ) : null;
 
   return (
-    <Modal open={!!agent} onClose={onClose} size="wide">
+    <Shell embedded={embedded} open={!!agent} onClose={onClose}>
       <div
         id="agent-modal"
-        className="flex h-[90vh] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark"
+        className={
+          embedded
+            ? 'flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-border-dark dark:bg-sidebar-dark'
+            : 'flex h-[90vh] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-border-dark dark:bg-sidebar-dark'
+        }
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 dark:border-border-dark dark:bg-black/40">
           <div className="min-w-0 flex-1">
@@ -273,19 +326,21 @@ export default function AgentModal({ agent, onClose, api }) {
             </h2>
             <div className="mt-1 text-[10px] technical-font text-slate-500">Task overview and activity</div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 dark:hover:text-primary transition-colors"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
+          {!embedded && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-slate-500 hover:text-slate-700 dark:hover:text-primary transition-colors"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          )}
         </div>
         <div className="relative min-h-0 flex-1">
         <div
           id="modal-content"
           ref={scrollRootRef}
-          className="h-full overflow-y-auto px-6 py-5 lg:px-8 bg-white dark:bg-background-dark scroll-smooth"
+          className="h-full overflow-y-auto px-6 py-5 lg:px-8 bg-white dark:bg-background-dark"
         >
           {loading && <LoadingSpinner />}
           {!loading && details && (() => {
@@ -439,6 +494,6 @@ export default function AgentModal({ agent, onClose, api }) {
           )}
         </div>
       </div>
-    </Modal>
+    </Shell>
   );
 }

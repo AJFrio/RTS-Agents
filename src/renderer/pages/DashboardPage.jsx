@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { AgentCard } from '../components/ui/Card.jsx';
 import { StatusBadge } from '../components/ui/Badge.jsx';
@@ -237,6 +237,7 @@ export default function DashboardPage() {
   );
 
   const { dashboardMode, selectedProjectKey } = state;
+  const [selectedChat, setSelectedChat] = useState(null);
   const projectGroups = useMemo(
     () => (dashboardMode === 'projects' ? groupAgentsByProject(filteredAgents) : []),
     [dashboardMode, filteredAgents]
@@ -298,14 +299,21 @@ export default function DashboardPage() {
         selectedProject ? (
           <ProjectDetail
             group={selectedProject}
-            onBack={() => dispatch({ type: 'SELECT_PROJECT', payload: null })}
-            onOpenChat={openAgentModal}
-            activeAgentId={state.agentModal?.id || state.agentModal?.rawId || null}
+            onBack={() => {
+              setSelectedChat(null);
+              dispatch({ type: 'SELECT_PROJECT', payload: null });
+            }}
+            onOpenChat={setSelectedChat}
+            activeAgent={selectedChat}
+            api={api}
           />
         ) : (
           <ProjectGrid
             groups={projectGroups}
-            onOpen={(key) => dispatch({ type: 'SELECT_PROJECT', payload: key })}
+            onOpen={(key) => {
+              setSelectedChat(null);
+              dispatch({ type: 'SELECT_PROJECT', payload: key });
+            }}
           />
         )
       ) : pageItems.length === 0 ? (

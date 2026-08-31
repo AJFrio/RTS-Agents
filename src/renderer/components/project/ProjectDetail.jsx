@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { StatusBadge } from '../ui/Badge.jsx';
 import { sortAgentsByRecency } from '../../utils/group-agents.js';
 import { formatTimeAgo, getProviderDot, getStatusLabel } from '../../utils/format.js';
+import AgentConversation from '../../modals/AgentModal.jsx';
 
 /**
  * One chat in the project's sidebar. Kept lightweight: a project can hold
@@ -41,7 +42,7 @@ const ChatRow = React.memo(function ChatRow({ agent, isActive, onOpen }) {
  * existing task modal, so follow-up messaging and transcript rendering are
  * shared rather than reimplemented here.
  */
-export default function ProjectDetail({ group, onBack, onOpenChat, activeAgentId }) {
+export default function ProjectDetail({ group, onBack, onOpenChat, activeAgent, api }) {
   const [query, setQuery] = useState('');
 
   const chats = useMemo(() => {
@@ -56,7 +57,7 @@ export default function ProjectDetail({ group, onBack, onOpenChat, activeAgentId
   const running = group.counts.running || 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-[calc(100vh-13rem)] min-h-[420px] flex-col">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <button
@@ -107,7 +108,9 @@ export default function ProjectDetail({ group, onBack, onOpenChat, activeAgentId
                 <ChatRow
                   key={agent.id || agent.rawId}
                   agent={agent}
-                  isActive={activeAgentId === (agent.id || agent.rawId)}
+                  isActive={
+                    (activeAgent?.id || activeAgent?.rawId) === (agent.id || agent.rawId)
+                  }
                   onOpen={onOpenChat}
                 />
               ))
@@ -115,17 +118,26 @@ export default function ProjectDetail({ group, onBack, onOpenChat, activeAgentId
           </div>
         </aside>
 
-        <div className="hidden items-center justify-center rounded-lg border border-dashed border-slate-300 p-8 text-center dark:border-border-dark lg:flex">
-          <div>
-            <span className="material-symbols-outlined mb-3 text-4xl text-slate-400">forum</span>
-            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-              Select a chat to open it
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {group.counts.total} {group.counts.total === 1 ? 'chat' : 'chats'} in {group.label}
-            </p>
+        {activeAgent ? (
+          <AgentConversation
+            key={activeAgent.id || activeAgent.rawId}
+            agent={activeAgent}
+            api={api}
+            embedded
+          />
+        ) : (
+          <div className="hidden items-center justify-center rounded-lg border border-dashed border-slate-300 p-8 text-center dark:border-border-dark lg:flex">
+            <div>
+              <span className="material-symbols-outlined mb-3 text-4xl text-slate-400">forum</span>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                Select a chat to open it
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {group.counts.total} {group.counts.total === 1 ? 'chat' : 'chats'} in {group.label}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

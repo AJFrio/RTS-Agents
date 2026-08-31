@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../ui/Modal.jsx';
 import Button from '../ui/Button.jsx';
 import { SERVICE_CATALOG, getServiceDefinition } from './service-catalog.js';
+import { buildCloudflareTokenUrl } from '../../utils/cloudflare-token-url.js';
 
 function getInitialValues(service, state) {
   if (!service) return {};
@@ -177,6 +178,52 @@ export default function ServiceOnboardingModal({
     const selectedPath = await api?.openDirectory?.();
     if (selectedPath) {
       updateValue('path', selectedPath);
+    }
+  };
+
+  const canDetectCloudflareAccount =
+    service?.kind === 'cloudflare' && typeof api?.discoverCloudflareAccount === 'function';
+
+  const handleOpenTokenPage = () => {
+    const url = buildCloudflareTokenUrl();
+    if (api?.openExternal) {
+      api.openExternal(url);
+    } else {
+      window.open(url, '_blank', 'noopener');
+    }
+  };
+
+  const handleDetectAccountId = async () => {
+    const apiToken = (formValues.apiToken || '').trim();
+    if (!apiToken) {
+      setFeedback({
+        type: 'error',
+        message: 'Paste your API token first, then detect your account ID.',
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await api.discoverCloudflareAccount(apiToken);
+      if (result?.success && result?.accounts?.length > 0) {
+        updateValue('accountId', result.accounts[0].id);
+        setFeedback({
+          type: 'success',
+          message: `Detected Cloudflare account ${result.accounts[0].name}.`,
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: 'Could not detect account ID — enter it manually.',
+        });
+      }
+    } catch {
+      setFeedback({
+        type: 'error',
+        message: 'Could not detect account ID — enter it manually.',
+      });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -426,6 +473,28 @@ export default function ServiceOnboardingModal({
                 </div>
               )}
 
+              {service.kind === 'cloudflare' && (
+                <div className="rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50/60 dark:bg-[#0d1118] p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">bolt</span>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Quick Setup
+                    </h4>
+                  </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
+                    1. Approve the pre-configured token in your browser (Workers KV Storage: Edit
+                    is selected for you). 2. Copy the secret token Cloudflare shows. 3. Paste it
+                    below — we&apos;ll detect your account ID automatically.
+                  </p>
+                  <div>
+                    <Button variant="primary" onClick={handleOpenTokenPage} disabled={busy}>
+                      <span className="material-symbols-outlined text-sm">token</span>
+                      Create Token on Cloudflare
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {service.fields.map((field) => (
                 <div key={field.key} className="space-y-2">
                   <label className="block text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">
@@ -444,6 +513,17 @@ export default function ServiceOnboardingModal({
                         <span className="material-symbols-outlined text-sm">folder_open</span>
                       </Button>
                     )}
+                    {service.kind === 'cloudflare' &&
+                      field.key === 'accountId' &&
+                      canDetectCloudflareAccount && (
+                        <Button
+                          variant="secondary"
+                          onClick={handleDetectAccountId}
+                          disabled={busy}
+                        >
+                          Detect Account ID
+                        </Button>
+                      )}
                   </div>
                 </div>
               ))}

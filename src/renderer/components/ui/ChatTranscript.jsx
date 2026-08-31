@@ -1,25 +1,38 @@
 import React, { useMemo, useState } from 'react';
 import { groupMessages, shortenTarget } from '../../utils/transcript.js';
+import {
+  IconTerminal,
+  IconEdit,
+  IconWrite,
+  IconRead,
+  IconSearch,
+  IconGlob,
+  IconGlobe,
+  IconExtension,
+  IconBuild,
+  IconChevronRight,
+  IconChevronDown,
+  IconThinking,
+  IconAgent,
+} from './icons.jsx';
 
 const TOOL_ICONS = {
-  Bash: 'terminal',
-  Edit: 'edit',
-  Write: 'note_add',
-  Read: 'description',
-  Grep: 'search',
-  Glob: 'folder_open',
-  Agent: 'smart_toy',
-  WebFetch: 'language',
-  WebSearch: 'travel_explore',
+  Bash: IconTerminal,
+  Edit: IconEdit,
+  Write: IconWrite,
+  Read: IconRead,
+  Grep: IconSearch,
+  Glob: IconGlob,
+  Agent: IconAgent,
+  WebFetch: IconGlobe,
+  WebSearch: IconGlobe,
 };
 
-const TOOL_ICON_FALLBACK = 'build';
 const MAX_RESULT_CHARS = 4000;
 
-function toolIcon(name) {
-  if (TOOL_ICONS[name]) return TOOL_ICONS[name];
-  if (name?.startsWith('mcp__')) return 'extension';
-  return TOOL_ICON_FALLBACK;
+function ToolIconFor({ name }) {
+  const Icon = TOOL_ICONS[name] || (name?.startsWith?.('mcp__') ? IconExtension : null) || IconBuild;
+  return <Icon size={13} />;
 }
 
 function formatTime(timestamp) {
@@ -46,24 +59,35 @@ function ToolChip({ call }) {
   const truncated = result.length > MAX_RESULT_CHARS;
 
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50">
+    <div className="rounded-md border border-border-light bg-inset-light/60 dark:border-border-dark dark:bg-inset-dark/60">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/70"
+        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800/70"
       >
-        <span className="material-symbols-outlined text-[14px] text-slate-400">
-          {open ? 'expand_more' : 'chevron_right'}
+        {open ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+        <span className="text-neutral-500 dark:text-neutral-400">
+          <ToolIconFor name={call.name} />
         </span>
-        <span className="material-symbols-outlined text-[14px] text-slate-500">
-          {toolIcon(call.name)}
-        </span>
-        <span className="font-semibold">{call.name}</span>
+        <span className="font-medium">{call.name}</span>
+        {call.status && (
+          <span
+            className={`text-[10px] uppercase tracking-wide ${
+              call.status === 'completed'
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : call.status === 'pending' || call.status === 'in_progress'
+                  ? 'text-amber-700 dark:text-amber-400'
+                  : 'text-neutral-400'
+            }`}
+          >
+            {call.status}
+          </span>
+        )}
         {call.target && (
           <span
             title={call.target}
-            className="truncate font-mono text-[11px] text-slate-500 dark:text-slate-400"
+            className="truncate font-mono text-[11px] text-neutral-500 dark:text-neutral-400"
           >
             {shortenTarget(call.target)}
           </span>
@@ -71,21 +95,23 @@ function ToolChip({ call }) {
       </button>
 
       {open && (
-        <div className="space-y-2 border-t border-slate-200 px-2.5 py-2 dark:border-slate-700">
-          <div>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-              Input
-            </span>
-            <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-100 p-2 text-[11px] text-slate-700 dark:bg-slate-950 dark:text-slate-300">
-              {JSON.stringify(call.input, null, 2)}
-            </pre>
-          </div>
+        <div className="space-y-2 border-t border-border-light px-2.5 py-2 dark:border-border-dark">
+          {call.input !== undefined && call.input !== null && (
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                Input
+              </span>
+              <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-sm bg-inset-light p-2 font-mono text-[11px] text-neutral-700 dark:bg-inset-dark dark:text-neutral-300">
+                {JSON.stringify(call.input, null, 2)}
+              </pre>
+            </div>
+          )}
           {result && (
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
                 Result
               </span>
-              <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-100 p-2 text-[11px] text-slate-700 dark:bg-slate-950 dark:text-slate-300">
+              <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-sm bg-inset-light p-2 font-mono text-[11px] text-neutral-700 dark:bg-inset-dark dark:text-neutral-300">
                 {result.slice(0, MAX_RESULT_CHARS)}
                 {truncated ? '\n… truncated' : ''}
               </pre>
@@ -102,21 +128,19 @@ function ThinkingBlock({ text }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-md border border-dashed border-slate-300 dark:border-slate-700">
+    <div className="rounded-md border border-dashed border-border-strong-light dark:border-border-strong-dark">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs italic text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/70"
+        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs italic text-neutral-500 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800/70"
       >
-        <span className="material-symbols-outlined text-[14px]">
-          {open ? 'expand_more' : 'chevron_right'}
-        </span>
-        <span className="material-symbols-outlined text-[14px]">psychology</span>
+        {open ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+        <IconThinking size={13} />
         Thought for a moment
       </button>
       {open && (
-        <p className="whitespace-pre-wrap border-t border-dashed border-slate-300 px-2.5 py-2 text-xs italic leading-relaxed text-slate-500 dark:border-slate-700 dark:text-slate-400">
+        <p className="whitespace-pre-wrap border-t border-dashed border-border-strong-light px-2.5 py-2 text-xs italic leading-relaxed text-neutral-500 dark:border-border-strong-dark dark:text-neutral-400">
           {text}
         </p>
       )}
@@ -149,40 +173,41 @@ export default function ChatTranscript({ messages, renderContent, assistantLabel
           <React.Fragment key={group.items[0].id ?? groupIndex}>
             {showDay && (
               <div className="flex items-center gap-3 py-1">
-                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                <div className="h-px flex-1 bg-border-light dark:bg-border-dark" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
                   {day}
                 </span>
-                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                <div className="h-px flex-1 bg-border-light dark:bg-border-dark" />
               </div>
             )}
 
-            <div className={`flex gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
               {!isUser && (
                 <div
                   aria-hidden="true"
-                  className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"
+                  className="mt-6 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-light bg-card-light text-neutral-500 dark:border-border-dark dark:bg-card-dark dark:text-neutral-400"
                 >
-                  <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+                  <IconAgent size={14} />
                 </div>
               )}
 
               <div className={`flex max-w-[78%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
-                <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
                   {isUser ? 'You' : assistantLabel}
                 </span>
 
-                <div
-                  className={`w-full space-y-2 rounded-2xl px-3.5 py-2.5 ${
-                    isUser
-                      ? 'rounded-br-sm bg-primary/10 dark:bg-primary/20'
-                      : 'rounded-bl-sm bg-slate-100 dark:bg-slate-800'
-                  }`}
-                >
+                <div className={`w-full space-y-2 ${isUser ? 'items-end' : 'items-start'}`}>
                   {group.items.map((message, itemIndex) => (
-                    <div key={message.id ?? itemIndex} className="space-y-2">
+                    <div
+                      key={message.id ?? itemIndex}
+                      className={`space-y-2 ${isUser ? 'rounded-lg rounded-br-sm bg-inset-light px-3.5 py-2 dark:bg-inset-dark' : ''}`}
+                    >
                       {message.thinking && <ThinkingBlock text={message.thinking} />}
-                      {message.content ? renderContent(message.content) : null}
+                      {message.content ? (
+                        <div className={isUser ? 'text-[14px] text-neutral-900 dark:text-neutral-100' : ''}>
+                          {renderContent(message.content)}
+                        </div>
+                      ) : null}
                       {message.toolCalls?.length > 0 && (
                         <div className="space-y-1">
                           {message.toolCalls.map((call, callIndex) => (
@@ -194,7 +219,7 @@ export default function ChatTranscript({ messages, renderContent, assistantLabel
                   ))}
                 </div>
 
-                {time && <span className="px-1 text-[10px] text-slate-400">{time}</span>}
+                {time && <span className="px-1 text-[10px] text-neutral-400">{time}</span>}
               </div>
             </div>
           </React.Fragment>

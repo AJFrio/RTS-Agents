@@ -255,6 +255,67 @@ export const IconMonitorOff = (props) => (
   </Icon>
 );
 
+export const IconTasks = (props) => (
+  <Icon {...props}>
+    <path d="M4 6h16M4 12h16M4 18h10" />
+    <circle cx="19" cy="17" r="2" />
+  </Icon>
+);
+
+/* --- Tool-call icons (ChatTranscript / ToolCallBlock) --- */
+
+export const IconEdit = (props) => (
+  <Icon {...props}>
+    <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" />
+    <path d="m14.5 6.5 3 3" />
+  </Icon>
+);
+
+export const IconWrite = (props) => (
+  <Icon {...props}>
+    <path d="M5 21h14M5 17h14M6 13l11-8 4 4-11 8H6v-4Z" />
+  </Icon>
+);
+
+export const IconRead = (props) => (
+  <Icon {...props}>
+    <path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+    <path d="M8 12h7M8 16h5" />
+  </Icon>
+);
+
+export const IconGlob = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17M12 3.5c2.8 2.7 4 5.5 4 8.5s-1.2 5.8-4 8.5c-2.8-2.7-4-5.5-4-8.5s1.2-5.8 4-8.5Z" />
+  </Icon>
+);
+
+export const IconGlobe = (props) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M3.5 12h17M12 3.5c2.8 2.7 4 5.5 4 8.5s-1.2 5.8-4 8.5c-2.8-2.7-4-5.5-4-8.5s1.2-5.8 4-8.5Z" />
+  </Icon>
+);
+
+export const IconExtension = (props) => (
+  <Icon {...props}>
+    <path d="M10 4a2 2 0 1 1 4 0v2h3a1 1 0 0 1 1 1v3h2a2 2 0 1 1 0 4h-2v3a1 1 0 0 1-1 1h-3v2a2 2 0 1 1-4 0v-2H7a1 1 0 0 1-1-1v-3H4a2 2 0 1 1 0-4h2V7a1 1 0 0 1 1-1h3V4Z" />
+  </Icon>
+);
+
+export const IconBuild = (props) => (
+  <Icon {...props}>
+    <path d="m14.5 6.5a4.5 4.5 0 1 0-6.4 4.1L3 16v5h5l5.4-5.1a4.5 4.5 0 0 0 1.1-9.4Z" />
+  </Icon>
+);
+
+export const IconSend2 = (props) => (
+  <Icon {...props}>
+    <path d="M12 19V5M6 11l6-6 6 6" />
+  </Icon>
+);
+
 export const IconLogo = ({ size = 18, className = '' }) => (
   <svg
     width={size}

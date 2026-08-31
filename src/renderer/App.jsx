@@ -3,14 +3,15 @@ import { Toaster } from 'sonner';
 import { useApp } from './context/AppContext.jsx';
 import Layout from './components/layout/Layout.jsx';
 import AgentPage from './pages/AgentPage.jsx';
+import NewTaskPage from './pages/NewTaskPage.jsx';
+import PluginsPage from './pages/PluginsPage.jsx';
+import DevicesPage from './pages/DevicesPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import BranchesPage from './pages/BranchesPage.jsx';
 import PullRequestsPage from './pages/PullRequestsPage.jsx';
-import ComputersPage from './pages/ComputersPage.jsx';
 import JiraPage from './pages/JiraPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
-import AgentModal from './modals/AgentModal.jsx';
-import NewTaskModal from './modals/NewTaskModal.jsx';
+import TaskDetailView from './pages/TaskDetailView.jsx';
 import CreateRepoModal from './modals/CreateRepoModal.jsx';
 import PrModal from './modals/PrModal.jsx';
 import PullRequestRepoFilterModal from './modals/PullRequestRepoFilterModal.jsx';
@@ -18,12 +19,12 @@ import JiraIssueModal from './modals/JiraIssueModal.jsx';
 import ConfirmModal from './modals/ConfirmModal.jsx';
 import PastedImageModal from './modals/PastedImageModal.jsx';
 
+const FIXED_HEIGHT_VIEWS = new Set(['agent', 'new-task', 'task-detail', 'branches']);
+
 function App() {
   const {
     state,
     api,
-    closeAgentModal,
-    closeNewTaskModal,
     closeCreateRepoModal,
     closePrModal,
     closePrRepoFilter,
@@ -50,27 +51,29 @@ function App() {
   const Page =
     view === 'agent'
       ? AgentPage
-      : view === 'dashboard'
-        ? DashboardPage
-        : view === 'branches'
-          ? BranchesPage
-          : view === 'pull-requests'
-            ? PullRequestsPage
-            : view === 'computers'
-              ? ComputersPage
-              : view === 'jira'
-                ? JiraPage
-                : view === 'settings'
-                  ? SettingsPage
-                  : DashboardPage;
+      : view === 'new-task'
+        ? NewTaskPage
+        : view === 'plugins'
+          ? PluginsPage
+          : view === 'devices'
+            ? DevicesPage
+            : view === 'task-detail'
+              ? TaskDetailView
+              : view === 'branches'
+                ? BranchesPage
+                : view === 'pull-requests'
+                  ? PullRequestsPage
+                  : view === 'jira'
+                    ? JiraPage
+                    : view === 'settings'
+                      ? SettingsPage
+                      : DashboardPage;
 
   return (
     <>
-      <Layout fixedHeight={view === 'branches' || view === 'agent'}>
+      <Layout fixedHeight={FIXED_HEIGHT_VIEWS.has(view)}>
         <Page />
       </Layout>
-      <AgentModal agent={state.agentModal} onClose={closeAgentModal} api={api} />
-      <NewTaskModal open={state.newTaskModalOpen} onClose={closeNewTaskModal} api={api} />
       <CreateRepoModal open={state.createRepoModalOpen} onClose={closeCreateRepoModal} api={api} />
       <PrModal pr={state.prModal} onClose={closePrModal} api={api} />
       <PullRequestRepoFilterModal

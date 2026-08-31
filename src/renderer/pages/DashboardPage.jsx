@@ -176,7 +176,7 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
 });
 
 export default function DashboardPage() {
-  const { state, dispatch, api, setView, openAgentModal } = useApp();
+  const { state, dispatch, api, setView, openTask } = useApp();
   const { filteredAgents, loading, errors, pagination, remoteQueue } = state;
   const { currentPage, pageSize } = pagination;
 
@@ -252,7 +252,7 @@ export default function DashboardPage() {
               <AgentCardItem
                 key={`${agent.provider}-${agent.rawId || agent.id || Math.random()}`}
                 agent={agent}
-                onClick={() => openAgentModal(agent)}
+                onClick={() => openTask(agent)}
               />
             ))}
           </div>

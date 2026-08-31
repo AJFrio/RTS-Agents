@@ -6,10 +6,35 @@ import { useApp } from '../context/AppContext.jsx';
 import { getProviderDisplayName } from '../utils/format.js';
 
 const CACHE_KEY_PREFIX = 'rts_repo_cache_';
+const MODELS_CACHE_KEY_PREFIX = 'rts_model_cache_';
 
 const CLOUD_PROVIDERS = ['jules', 'cursor', 'codex', 'claude-cloud'];
 const LOCAL_PROVIDERS = ['antigravity', 'cursor', 'codex', 'claude-cli', 'opencode'];
 const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode'];
+
+function getCachedModels(provider) {
+  try {
+    const raw =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(MODELS_CACHE_KEY_PREFIX + provider)
+        : null;
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function setCachedModels(provider, models) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(MODELS_CACHE_KEY_PREFIX + provider, JSON.stringify(models));
+    }
+  } catch {
+    // ignore
+  }
+}
 
 function getCachedRepos(provider) {
   try {
@@ -101,6 +126,8 @@ export default function NewTaskModal({ open, onClose, api }) {
   const [repoDropdownOpen, setRepoDropdownOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [loadingRepos, setLoadingRepos] = useState(false);
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState('');
   const [prompt, setPrompt] = useState('');
   const [branch, setBranch] = useState('main');
   const [autoPr, setAutoPr] = useState(true);
@@ -201,6 +228,7 @@ export default function NewTaskModal({ open, onClose, api }) {
     selectedProvider !== 'claude-cloud' &&
     (environment !== 'cloud' || ['jules', 'cursor'].includes(selectedProvider));
   const showRepoSection = !!selectedProvider && selectedProvider !== 'claude-cloud';
+  const showModelSection = !!selectedProvider && models.length > 0;
   const computersList = state.computers?.list ?? [];
 
   useEffect(() => {
@@ -269,6 +297,34 @@ export default function NewTaskModal({ open, onClose, api }) {
         // Keep cached list if any.
       })
       .finally(() => setLoadingRepos(false));
+  }, [selectedService?.provider, api]);
+
+  useEffect(() => {
+    const provider = selectedService?.provider;
+    setSelectedModel('');
+    if (!provider || !api?.getProviderModels) {
+      setModels([]);
+      return;
+    }
+
+    const cached = getCachedModels(provider);
+    setModels(cached);
+
+    let cancelled = false;
+    api
+      .getProviderModels(provider)
+      .then((result) => {
+        if (cancelled) return;
+        const list = Array.isArray(result?.models) ? result.models : [];
+        setModels(list);
+        setCachedModels(provider, list);
+      })
+      .catch(() => {
+        // Keep cached list if any.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedService?.provider, api]);
 
   const validate = () => {
@@ -405,6 +461,7 @@ export default function NewTaskModal({ open, onClose, api }) {
       options.projectPath = selectedRepo;
     }
     if (isRemote) options.targetDeviceId = targetDeviceId;
+    if (selectedModel) options.model = selectedModel;
 
     setCreating(true);
     onClose();
@@ -425,6 +482,8 @@ export default function NewTaskModal({ open, onClose, api }) {
         setPrompt('');
         setSelectedService(null);
         setSelectedRepo('');
+        setSelectedModel('');
+        setModels([]);
         setTargetDeviceId('');
         setAttachments([]);
         setFieldErrors({});
@@ -570,6 +629,30 @@ export default function NewTaskModal({ open, onClose, api }) {
                   )}
                 </div>
               </section>
+
+              {showModelSection && (
+                <section>
+                  <StepHeader done={!!selectedModel}>Model (optional)</StepHeader>
+                  <select
+                    id="task-model"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full"
+                    aria-label="Select model"
+                  >
+                    <option value="">Harness default</option>
+                    {models.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    Models reported by {getProviderDisplayName(selectedProvider)}. Leave on
+                    harness default to use the provider&apos;s own choice.
+                  </p>
+                </section>
+              )}
 
               {environment === 'remote' && (
                 <section>

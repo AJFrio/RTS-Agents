@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { toast as sonnerToast } from 'sonner';
 import Modal from '../components/ui/Modal.jsx';
 import Button from '../components/ui/Button.jsx';
 import { useApp } from '../context/AppContext.jsx';
@@ -381,7 +382,7 @@ export default function NewTaskModal({ open, onClose, api }) {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     setSubmitAttempted(true);
     const errors = validate();
     setFieldErrors(errors);
@@ -392,39 +393,47 @@ export default function NewTaskModal({ open, onClose, api }) {
     if (!api?.createTask) return;
 
     const isRemote = environment === 'remote' && targetDeviceId;
-    setCreating(true);
-    try {
-      const options = {
-        prompt: prompt.trim(),
-        branch: branch || 'main',
-        autoCreatePr: autoPr,
-        attachments: attachments.map((a) => ({ dataUrl: a.dataUrl })),
-      };
-      if (selectedRepo) {
-        options.repository = selectedRepo;
-        // Local CLI providers (OpenCode, Antigravity, Claude CLI) need cwd via projectPath.
-        options.projectPath = selectedRepo;
-      }
-      if (isRemote) options.targetDeviceId = targetDeviceId;
-
-      const result = await api.createTask(selectedProvider, options);
-      if (result?.success !== false && loadAgents) {
-        loadAgents({ force: true });
-      }
-      setPrompt('');
-      setSelectedService(null);
-      setSelectedRepo('');
-      setTargetDeviceId('');
-      setAttachments([]);
-      setFieldErrors({});
-      setSubmitAttempted(false);
-      onClose();
-    } catch (err) {
-      console.error(err);
-      setToast(err?.message || 'Failed to create task');
-    } finally {
-      setCreating(false);
+    const options = {
+      prompt: prompt.trim(),
+      branch: branch || 'main',
+      autoCreatePr: autoPr,
+      attachments: attachments.map((a) => ({ dataUrl: a.dataUrl })),
+    };
+    if (selectedRepo) {
+      options.repository = selectedRepo;
+      // Local CLI providers (OpenCode, Antigravity, Claude CLI) need cwd via projectPath.
+      options.projectPath = selectedRepo;
     }
+    if (isRemote) options.targetDeviceId = targetDeviceId;
+
+    setCreating(true);
+    onClose();
+
+    const providerLabel = getProviderDisplayName(selectedProvider);
+    // Main-process createTask resolves { success: false, error } rather than rejecting.
+    const creation = Promise.resolve(api.createTask(selectedProvider, options)).then((result) => {
+      if (result?.success === false) {
+        throw new Error(result.error || 'Failed to create task');
+      }
+      return result;
+    });
+
+    sonnerToast.promise(creation, {
+      loading: `Starting ${providerLabel} task...`,
+      success: () => {
+        if (loadAgents) loadAgents({ force: true });
+        setPrompt('');
+        setSelectedService(null);
+        setSelectedRepo('');
+        setTargetDeviceId('');
+        setAttachments([]);
+        setFieldErrors({});
+        setSubmitAttempted(false);
+        return `${providerLabel} task started`;
+      },
+      error: (err) => err?.message || 'Failed to create task',
+      finally: () => setCreating(false),
+    });
   };
 
   const removeAttachment = (id) => {

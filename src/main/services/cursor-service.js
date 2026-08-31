@@ -545,6 +545,7 @@ class CursorService {
       acpService
         .runPrompt({
           command: adapter,
+          args: ['acp'],
           cwd: projectPath,
           prompt,
           permissionPolicy: 'allow-all',

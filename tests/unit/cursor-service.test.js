@@ -444,6 +444,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       expect(acpService.runPrompt).toHaveBeenCalledWith(
         expect.objectContaining({
           command: 'agent',
+          args: ['acp'],
           cwd: '/repo',
           prompt: 'Fix the login bug',
           permissionPolicy: 'allow-all',

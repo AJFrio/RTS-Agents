@@ -16,6 +16,9 @@
  *  init-timeout     - never responds to initialize.
  *  error-response   - initialize responds with a JSON-RPC error.
  *  exit-mid         - exits with code 7 right after session/new.
+  model-modes      - session/new advertises modes default/sonnet; records any
+                     session/set_mode selection and reports it as the first
+                     "mode:<id|none>" chunk of the turn.
  */
 const fs = require('fs');
 const readline = require('readline');
@@ -26,6 +29,7 @@ const SEP = scenario === 'crlf' ? '\r\n' : '\n';
 
 let currentSessionId = null;
 let promptId = null;
+let selectedMode = null;
 
 process.on('exit', () => {
   if (exitFile) {
@@ -76,6 +80,8 @@ function garbageLine() {
 }
 
 function runTurn() {
+  notify(`mode:${selectedMode || 'none'}`);
+
   // Step 1: permission request. happy/crlf/malformed offer allow_once;
   // permission-no-allow offers only reject_once.
   const options =
@@ -164,7 +170,23 @@ rl.on('line', (line) => {
       process.exit(7);
     }
     currentSessionId = `ses-fake-${process.pid}-1`;
-    reply(msg.id, { sessionId: currentSessionId });
+    const result = { sessionId: currentSessionId };
+    if (scenario === 'model-modes') {
+      result.modes = {
+        currentModeId: 'default',
+        availableModes: [
+          { id: 'default', name: 'Default' },
+          { id: 'sonnet', name: 'Sonnet' },
+        ],
+      };
+    }
+    reply(msg.id, result);
+    return;
+  }
+
+  if (msg.method === 'session/set_mode') {
+    selectedMode = msg.params?.modeId || null;
+    reply(msg.id, {});
     return;
   }
 

@@ -214,6 +214,7 @@ export function createWebApi(options = {}) {
     // ------------------------------------------------------------------
     createTask: hub.createTask,
     sendMessage: hub.sendMessage,
+    getProviderModels: hub.getProviderModels,
 
     async orchestratorGetModels() {
       return providers.orchestrator.getAvailableModels();

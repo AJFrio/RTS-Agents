@@ -238,12 +238,17 @@ export function createCursorService({ storage, fetchImpl } = {}) {
     });
   }
 
+  async function listModels() {
+    return request('/models');
+  }
+
   return {
     listAgents,
     getAgent,
     listRuns,
     getRun,
     getApiKeyInfo,
+    listModels,
     listRepositories,
     normalizeAgent,
     getAllAgents,

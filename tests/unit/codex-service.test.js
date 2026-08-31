@@ -380,4 +380,57 @@ describe('Codex Service', () => {
       );
     });
   });
+
+  describe('model selection', () => {
+    test('legacy spawn includes --model when options.model is set', async () => {
+      pathExists.mockResolvedValue(true);
+      acpService.resolveAdapter.mockReturnValue(null);
+      spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
+
+      await codexService.startSession({
+        prompt: 'Fix tests',
+        projectPath: '/path/to/repo',
+        model: 'gpt-5.2-codex',
+      });
+
+      expect(spawn).toHaveBeenCalledWith(
+        'codex',
+        ['exec', '--sandbox', 'workspace-write', '--model', 'gpt-5.2-codex', 'Fix tests'],
+        expect.objectContaining({ detached: true })
+      );
+    });
+
+    test('legacy spawn omits --model when options.model is absent', async () => {
+      pathExists.mockResolvedValue(true);
+      acpService.resolveAdapter.mockReturnValue(null);
+      spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
+
+      await codexService.startSession({
+        prompt: 'Fix tests',
+        projectPath: '/path/to/repo',
+      });
+
+      expect(spawn).toHaveBeenCalledWith(
+        'codex',
+        ['exec', '--sandbox', 'workspace-write', 'Fix tests'],
+        expect.anything()
+      );
+    });
+
+    test('ACP dispatch forwards the requested model to runPrompt', async () => {
+      pathExists.mockResolvedValue(true);
+      acpService.resolveAdapter.mockReturnValue('codex-acp');
+      acpService.runPrompt.mockResolvedValue({ sessionId: 'acp-1', stopReason: 'end_turn' });
+
+      await codexService.startSession({
+        prompt: 'Fix tests',
+        projectPath: '/path/to/repo',
+        model: 'gpt-5.2-codex',
+      });
+
+      expect(acpService.runPrompt).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'gpt-5.2-codex' })
+      );
+    });
+  });
 });

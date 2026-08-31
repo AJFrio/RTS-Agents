@@ -500,10 +500,10 @@ class CursorService {
     }
 
     const sessionId = `cursor-cli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    return this._startAcpSession(adapter, { prompt, projectPath }, sessionId);
+    return this._startAcpSession(adapter, { prompt, projectPath, model: options.model }, sessionId);
   }
 
-  _startAcpSession(adapter, { prompt, projectPath }, sessionId) {
+  _startAcpSession(adapter, { prompt, projectPath, model }, sessionId) {
     const record = {
       id: sessionId,
       rawId: sessionId,
@@ -548,6 +548,7 @@ class CursorService {
           args: ['acp'],
           cwd: projectPath,
           prompt,
+          model,
           permissionPolicy: 'allow-all',
           onSessionId: () => {
             resolveOnce(

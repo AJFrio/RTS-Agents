@@ -40,6 +40,22 @@ function sortAgentsByDate(agents) {
   });
 }
 
+function normalizeModelIds(payload) {
+  const list = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.models)
+      ? payload.models
+      : Array.isArray(payload)
+        ? payload
+        : [];
+  const models = [];
+  for (const item of list) {
+    const id = typeof item === 'string' ? item : item?.id || item?.name || item?.slug || '';
+    if (id && !models.includes(id)) models.push(id);
+  }
+  return models;
+}
+
 export function createAgentHub({ storage, providers, timers, onTick }) {
   let revision = 0;
   let cachedAgents = [];
@@ -179,6 +195,7 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
       tool: provider,
       repo: repoPath,
       prompt: options.prompt,
+      model: options.model || null,
       requestedBy: REMOTE_TASK_REQUESTED_BY,
     });
     const queued = queue[queue.length - 1];
@@ -268,11 +285,48 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
     }
   }
 
+  async function getProviderModels(provider) {
+    try {
+      switch (provider) {
+        case 'cursor': {
+          if (!storage.hasApiKey('cursor')) return { success: true, models: [], source: 'none' };
+          return {
+            success: true,
+            models: normalizeModelIds(await providers.cursor.listModels()),
+            source: 'api',
+          };
+        }
+        case 'codex': {
+          if (!storage.hasApiKey('codex')) return { success: true, models: [], source: 'none' };
+          return {
+            success: true,
+            models: normalizeModelIds(await providers.codex.listModels()),
+            source: 'api',
+          };
+        }
+        case 'claude-cloud': {
+          if (!storage.hasApiKey('claude')) return { success: true, models: [], source: 'none' };
+          return {
+            success: true,
+            models: normalizeModelIds(await providers.claude.listModels()),
+            source: 'api',
+          };
+        }
+        default:
+          return { success: true, models: [], source: 'none' };
+      }
+    } catch (err) {
+      console.error(`Error listing models for ${provider}:`, err);
+      return { success: false, models: [], source: 'none', error: err?.message || 'Unknown error' };
+    }
+  }
+
   return {
     getAgents,
     getAgentDetails,
     createTask,
     sendMessage,
+    getProviderModels,
     startPolling,
     stopPolling,
     _pollTick: pollTick,

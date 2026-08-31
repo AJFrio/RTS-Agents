@@ -590,7 +590,7 @@ class ClaudeService {
    * @param {string} [options.projectPath] - For local CLI, the project path
    */
   async createTask(options) {
-    const { prompt, repository, title, projectPath, attachments } = options;
+    const { prompt, repository, title, projectPath, attachments, model } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -644,7 +644,7 @@ class ClaudeService {
     try {
       // Make the API request
       const response = await this.createMessage(messages, {
-        model: CLAUDE_DEFAULT_MODEL,
+        model: model || CLAUDE_DEFAULT_MODEL,
         max_tokens: 4096,
       });
 
@@ -695,7 +695,7 @@ class ClaudeService {
    * @param {string} [options.allowedTools] - Tools to auto-approve (default: "Read,Edit,Bash")
    */
   async startLocalSession(options) {
-    const { prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command } = options;
+    const { prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command, model } = options;
 
     if (!prompt) {
       throw new Error('Prompt is required');
@@ -714,12 +714,12 @@ class ClaudeService {
     const adapter = acpService.resolveAdapter('claude');
 
     if (adapter) {
-      return this._startAcpSession(adapter, { prompt, projectPath }, sessionId);
+      return this._startAcpSession(adapter, { prompt, projectPath, model }, sessionId);
     }
-    return this._spawnLegacySession({ prompt, projectPath, allowedTools, command }, sessionId);
+    return this._spawnLegacySession({ prompt, projectPath, allowedTools, command, model }, sessionId);
   }
 
-  _startAcpSession(adapter, { prompt, projectPath }, sessionId) {
+  _startAcpSession(adapter, { prompt, projectPath, model }, sessionId) {
     const record = {
       id: sessionId,
       rawId: sessionId,
@@ -763,6 +763,7 @@ class ClaudeService {
           command: adapter,
           cwd: projectPath,
           prompt,
+          model,
           permissionPolicy: 'safe-tools',
           onSessionId: () => {
             resolveOnce(
@@ -801,7 +802,7 @@ class ClaudeService {
               (s) => s.id !== sessionId
             );
             this._persistTrackedLocalSessions();
-            this._spawnLegacySession({ prompt, projectPath }, sessionId).then(
+            this._spawnLegacySession({ prompt, projectPath, model }, sessionId).then(
               (card) => resolveOnce(card),
               () => resolveOnce(buildCard('failed', err.message))
             );
@@ -816,13 +817,16 @@ class ClaudeService {
     });
   }
 
-  _spawnLegacySession({ prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command }, sessionId) {
+  _spawnLegacySession({ prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command, model }, sessionId) {
     const { spawn } = require('child_process');
 
     // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
     // -p: prompt/headless mode
     // --allowedTools: auto-approve these tools
     const args = ['-p', prompt, '--allowedTools', allowedTools];
+    if (model) {
+      args.push('--model', String(model));
+    }
 
     return new Promise((resolve, reject) => {
       const claudeCmd =

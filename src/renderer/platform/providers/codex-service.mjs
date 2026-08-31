@@ -214,10 +214,14 @@ export function createCodexService({ storage, fetchImpl, kv = null } = {}) {
     return { ...normalizeThread(thread, tracked, latestRun), messages };
   }
 
+  async function listModels() {
+    return request('/models');
+  }
+
   async function testConnection() {
     try {
       // Test by listing models
-      await request('/models');
+      await listModels();
       return { success: true };
     } catch (err) {
       return { success: false, error: err?.message || 'Unknown error' };
@@ -268,6 +272,7 @@ export function createCodexService({ storage, fetchImpl, kv = null } = {}) {
     createMessage,
     createRun,
     listRuns,
+    listModels,
     trackThread,
     getTrackedThreads,
     loadTrackedThreads,

@@ -118,7 +118,6 @@ describe('acp-service runPrompt (real fake-adapter child processes)', () => {
       })
     ).rejects.toMatchObject({ phase: 'spawn', fallbackAllowed: true });
   });
-
   test('kills the adapter after the prompt response', async () => {
     const exitFile = path.join(
       os.tmpdir(),
@@ -287,5 +286,52 @@ describe('acp-service spawn arg construction', () => {
     } finally {
       Object.defineProperty(process, 'platform', { value: originalPlatform });
     }
+  });
+});
+
+describe('acp-service model selection (session modes)', () => {
+  test('sends session/set_mode when the requested model is offered', async () => {
+    const updates = [];
+    const result = await acpService.runPrompt(
+      fixtureOptions('model-modes', {
+        model: 'sonnet',
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+    expect(result.stopReason).toBe('end_turn');
+    expect(updates).toContain('mode:sonnet');
+  });
+
+  test('skips set_mode when the requested model is not offered', async () => {
+    const updates = [];
+    await acpService.runPrompt(
+      fixtureOptions('model-modes', {
+        model: 'opus',
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+    expect(updates).toContain('mode:none');
+  });
+
+  test('skips set_mode when no model is requested', async () => {
+    const updates = [];
+    await acpService.runPrompt(
+      fixtureOptions('model-modes', {
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+    expect(updates).toContain('mode:none');
+  });
+
+  test('proceeds with the prompt when the adapter advertises no modes', async () => {
+    const updates = [];
+    const result = await acpService.runPrompt(
+      fixtureOptions('happy', {
+        model: 'sonnet',
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+    expect(result.stopReason).toBe('end_turn');
+    expect(updates).toContain('mode:none');
   });
 });

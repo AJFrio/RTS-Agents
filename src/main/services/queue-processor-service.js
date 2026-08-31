@@ -124,6 +124,7 @@ class QueueProcessorService {
           prompt,
           projectPath: repoPath,
           command: antigravityCmd || undefined,
+          model: item?.model || undefined,
         });
       } else if (tool === 'claude-cli') {
         if (!claudeService.isClaudeInstalled() && !this.isCommandRunnable(claudeCmd || 'claude')) {
@@ -133,6 +134,7 @@ class QueueProcessorService {
           prompt,
           projectPath: repoPath,
           command: claudeCmd || undefined,
+          model: item?.model || undefined,
         });
       } else if (tool === 'codex') {
         if (
@@ -146,6 +148,7 @@ class QueueProcessorService {
           projectPath: repoPath,
           command: codexCmd || undefined,
           attachments,
+          model: item?.model || undefined,
         });
         configStore.setCodexThreads(codexService.getTrackedThreads());
       } else if (tool === 'opencode') {
@@ -159,6 +162,7 @@ class QueueProcessorService {
           prompt,
           projectPath: repoPath,
           command: opencodeCmd || undefined,
+          model: item?.model || undefined,
         });
         configStore.setOpenCodeSessions(opencodeService.getTrackedSessions());
       } else {

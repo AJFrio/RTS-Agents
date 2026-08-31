@@ -141,8 +141,12 @@ export function createClaudeService({ storage, fetchImpl, kv = null } = {}) {
     }
   }
 
+  async function listModels() {
+    return request('/models');
+  }
+
   async function createTask(options) {
-    const { prompt, repository, title } = options;
+    const { prompt, repository, title, model } = options;
 
     if (!prompt) throw new Error('Prompt is required');
 
@@ -151,7 +155,7 @@ export function createClaudeService({ storage, fetchImpl, kv = null } = {}) {
 
     try {
       const response = await createMessage(messages, {
-        model: DEFAULT_MODEL,
+        model: model || DEFAULT_MODEL,
         max_tokens: 4096,
       });
 
@@ -243,6 +247,7 @@ export function createClaudeService({ storage, fetchImpl, kv = null } = {}) {
 
   return {
     createMessage,
+    listModels,
     trackConversation,
     getTrackedConversations,
     loadTrackedConversations,

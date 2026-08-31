@@ -43,6 +43,7 @@ Create tasks from the UI, with provider-specific options:
 - **OpenAI Responses**: create a prompt-only response task with a Codex-capable model
 - **Claude CLI**: start a detached `claude` CLI session in a local repo
 - **Claude Cloud**: prompt-only (no repository required)
+- **Model selection** (optional): pick from the models each harness reports — live lists for OpenCode (`opencode models`), Antigravity (`agy models`), and Cursor, API lists for Codex/Claude cloud, documented aliases for Claude CLI. Leave on "Harness default" to skip. Jules is not supported (its API has no model field).
 
 ### GitHub “Branches” view
 

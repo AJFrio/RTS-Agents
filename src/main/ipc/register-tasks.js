@@ -1,5 +1,6 @@
 const { ipcMain } = require('electron');
 const providerRegistry = require('./provider-registry');
+const modelRegistry = require('../services/model-registry');
 
 function registerTasksHandlers(deps) {
   const { agentOrchestrator } = deps;
@@ -30,6 +31,15 @@ function registerTasksHandlers(deps) {
 
   ipcMain.handle('tasks:create', async (event, args) => {
     return createTask(args);
+  });
+
+  ipcMain.handle('models:get', async (event, { provider }) => {
+    try {
+      return await modelRegistry.getModelsForProvider(provider);
+    } catch (err) {
+      console.error(`Error listing models for ${provider}:`, err);
+      return { success: false, models: [], source: 'none', error: err.message };
+    }
   });
 
   ipcMain.handle('tasks:send-message', async (event, { provider, rawId, message }) => {

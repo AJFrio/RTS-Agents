@@ -707,4 +707,116 @@ describe('ClaudeService', () => {
       expect(claudeService.getTrackedLocalSessions()).toEqual([{ id: 'x' }]);
     });
   });
+
+  describe('model selection', () => {
+    const CLAUDE_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+
+    test('legacy spawn appends --model when a model is requested', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      acpService.resolveAdapter.mockReturnValue(null);
+      spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
+
+      await claudeService.startLocalSession({
+        prompt: 'Fix it',
+        projectPath: '/repo',
+        model: 'claude-sonnet-4-6',
+      });
+
+      expect(spawn).toHaveBeenCalledWith(
+        'claude',
+        ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash', '--model', 'claude-sonnet-4-6'],
+        expect.objectContaining({ detached: true })
+      );
+    });
+
+    test('legacy spawn omits --model when no model is requested', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      acpService.resolveAdapter.mockReturnValue(null);
+      spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
+
+      await claudeService.startLocalSession({ prompt: 'Fix it', projectPath: '/repo' });
+
+      expect(spawn).toHaveBeenCalledWith(
+        'claude',
+        ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash'],
+        expect.anything()
+      );
+    });
+
+    test('ACP dispatch forwards the requested model to runPrompt', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      acpService.resolveAdapter.mockReturnValue('claude-agent-acp');
+      acpService.runPrompt.mockResolvedValue({ sessionId: 'acp-1', stopReason: 'end_turn' });
+
+      await claudeService.startLocalSession({
+        prompt: 'Fix it',
+        projectPath: '/repo',
+        model: 'sonnet',
+      });
+
+      expect(acpService.runPrompt).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'sonnet' })
+      );
+    });
+
+    test('cloud createTask sends the requested model to the Messages API', async () => {
+      claudeService.setApiKey('test-api-key');
+
+      const writes = [];
+      const mockReq = {
+        on: jest.fn(),
+        write: (chunk) => writes.push(String(chunk)),
+        end: jest.fn(),
+        setTimeout: jest.fn()
+      };
+
+      https.request.mockImplementation((options, cb) => {
+        const mockRes = {
+          statusCode: 200,
+          headers: {},
+          on: (event, handler) => {
+            if (event === 'data') handler(JSON.stringify({ content: [] }));
+            if (event === 'end') handler();
+          }
+        };
+        cb(mockRes);
+        return mockReq;
+      });
+
+      await claudeService.createTask({ prompt: 'Hi', model: 'claude-opus-4-8' });
+
+      const body = JSON.parse(writes.find((w) => w.includes('"model"')));
+      expect(body.model).toBe('claude-opus-4-8');
+    });
+
+    test('cloud createTask falls back to the default model', async () => {
+      claudeService.setApiKey('test-api-key');
+
+      const writes = [];
+      const mockReq = {
+        on: jest.fn(),
+        write: (chunk) => writes.push(String(chunk)),
+        end: jest.fn(),
+        setTimeout: jest.fn()
+      };
+
+      https.request.mockImplementation((options, cb) => {
+        const mockRes = {
+          statusCode: 200,
+          headers: {},
+          on: (event, handler) => {
+            if (event === 'data') handler(JSON.stringify({ content: [] }));
+            if (event === 'end') handler();
+          }
+        };
+        cb(mockRes);
+        return mockReq;
+      });
+
+      await claudeService.createTask({ prompt: 'Hi' });
+
+      const body = JSON.parse(writes.find((w) => w.includes('"model"')));
+      expect(body.model).toBe(CLAUDE_DEFAULT_MODEL);
+    });
+  });
 });

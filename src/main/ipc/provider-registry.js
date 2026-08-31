@@ -429,6 +429,7 @@ async function createRemoteTask(deps, provider, options) {
     repo: { path: repoPath },
     prompt: options.prompt,
     attachments: options.attachments,
+    model: options.model || null,
     requestedBy: identity.name,
     createdAt: nowIso,
   };

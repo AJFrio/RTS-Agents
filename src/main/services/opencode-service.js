@@ -234,12 +234,12 @@ class OpenCodeService {
 
     // An explicit custom CLI command opts out of ACP (it names the CLI itself).
     if (!(command && String(command).trim())) {
-      return this._startAcpSession(opencodeCmd, { prompt, projectPath }, sessionId);
+      return this._startAcpSession(opencodeCmd, { prompt, projectPath, model: options.model }, sessionId);
     }
     return this._spawnLegacySession(opencodeCmd, options, { prompt, projectPath }, sessionId);
   }
 
-  _startAcpSession(opencodeCmd, { prompt, projectPath }, sessionId) {
+  _startAcpSession(opencodeCmd, { prompt, projectPath, model }, sessionId) {
     const streamState = { opencodeSessionId: null, streamMessages: [] };
     const entry = {
       id: sessionId,
@@ -277,6 +277,7 @@ class OpenCodeService {
           args: ['acp'],
           cwd: projectPath,
           prompt,
+          model,
           permissionPolicy: 'allow-all',
           onSessionId: (acpSessionId) => {
             streamState.opencodeSessionId = acpSessionId;

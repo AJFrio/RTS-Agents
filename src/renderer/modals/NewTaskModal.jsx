@@ -4,6 +4,7 @@ import Modal from '../components/ui/Modal.jsx';
 import Button from '../components/ui/Button.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { getProviderDisplayName } from '../utils/format.js';
+import { getLastSelectedModel, setLastSelectedModel } from '../utils/last-selected-model.js';
 
 const CACHE_KEY_PREFIX = 'rts_repo_cache_';
 const MODELS_CACHE_KEY_PREFIX = 'rts_model_cache_';
@@ -342,13 +343,16 @@ export default function NewTaskModal({ open, onClose, api }) {
 
   useEffect(() => {
     const provider = selectedService?.provider;
-    setSelectedModel('');
     setModelSearch('');
     setModelDropdownOpen(false);
     if (!provider || !api?.getProviderModels) {
+      setSelectedModel('');
       setModels([]);
       return;
     }
+
+    const lastModel = getLastSelectedModel(provider);
+    setSelectedModel(lastModel);
 
     const cached = getCachedModels(provider);
     setModels(cached);
@@ -361,14 +365,30 @@ export default function NewTaskModal({ open, onClose, api }) {
         const list = Array.isArray(result?.models) ? result.models : [];
         setModels(list);
         setCachedModels(provider, list);
+        setSelectedModel((prev) => {
+          if (prev && (list.length === 0 || list.includes(prev))) return prev;
+          const remembered = getLastSelectedModel(provider);
+          if (remembered && list.includes(remembered)) return remembered;
+          if (remembered && list.length === 0) return remembered;
+          return prev && list.includes(prev) ? prev : '';
+        });
       })
       .catch(() => {
-        // Keep cached list if any.
+        // Keep cached list / remembered model if any.
       });
     return () => {
       cancelled = true;
     };
   }, [selectedService?.provider, api]);
+
+  const chooseModel = (model) => {
+    setSelectedModel(model);
+    setModelSearch('');
+    setModelDropdownOpen(false);
+    if (selectedService?.provider) {
+      setLastSelectedModel(selectedService.provider, model);
+    }
+  };
 
   const validate = () => {
     const errors = {};
@@ -439,9 +459,7 @@ export default function NewTaskModal({ open, onClose, api }) {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (modelHighlightedIndex >= 0 && modelHighlightedIndex < filteredModels.length) {
-        setSelectedModel(filteredModels[modelHighlightedIndex]);
-        setModelSearch('');
-        setModelDropdownOpen(false);
+        chooseModel(filteredModels[modelHighlightedIndex]);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -533,6 +551,7 @@ export default function NewTaskModal({ open, onClose, api }) {
     }
     if (isRemote) options.targetDeviceId = targetDeviceId;
     if (selectedModel) options.model = selectedModel;
+    if (selectedProvider) setLastSelectedModel(selectedProvider, selectedModel || '');
 
     setCreating(true);
     onClose();
@@ -726,10 +745,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                       {selectedModel && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedModel('');
-                            setModelSearch('');
-                          }}
+                          onClick={() => chooseModel('')}
                           className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                           aria-label="Clear model"
                         >
@@ -769,11 +785,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                               type="button"
                               role="option"
                               aria-selected={!selectedModel}
-                              onClick={() => {
-                                setSelectedModel('');
-                                setModelSearch('');
-                                setModelDropdownOpen(false);
-                              }}
+                              onClick={() => chooseModel('')}
                               className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${!selectedModel ? 'font-medium text-primary' : 'text-slate-700 dark:text-slate-200'}`}
                             >
                               Harness default
@@ -793,11 +805,7 @@ export default function NewTaskModal({ open, onClose, api }) {
                                     type="button"
                                     role="option"
                                     aria-selected={isSelected}
-                                    onClick={() => {
-                                      setSelectedModel(m);
-                                      setModelSearch('');
-                                      setModelDropdownOpen(false);
-                                    }}
+                                    onClick={() => chooseModel(m)}
                                     className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isHighlighted ? 'bg-primary/10' : ''} ${isSelected ? 'font-medium text-primary' : 'text-slate-700 dark:text-slate-200'}`}
                                   >
                                     {m}

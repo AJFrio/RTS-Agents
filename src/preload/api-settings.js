@@ -10,6 +10,8 @@ module.exports = {
     ipcRenderer.invoke('cloudflare:set-config', { accountId, apiToken, namespaceTitle }),
   clearCloudflareConfig: () => ipcRenderer.invoke('cloudflare:clear-config'),
   testCloudflare: () => ipcRenderer.invoke('cloudflare:test'),
+  discoverCloudflareAccount: (apiToken) =>
+    ipcRenderer.invoke('cloudflare:discover-account', { apiToken }),
   listComputers: () => ipcRenderer.invoke('computers:list'),
   getQueueActivity: () => ipcRenderer.invoke('queue:get-activity'),
   pushKeysToCloudflare: () => ipcRenderer.invoke('cloudflare:push-keys'),

@@ -76,4 +76,64 @@ test.describe('Settings View', () => {
     const settingsView = window.locator('#view-settings');
     await expect(settingsView).toBeHidden();
   });
+
+  async function openCloudflareOnboarding() {
+    const closeModalBtn = window.locator('button:has-text("Cancel")');
+    if (await closeModalBtn.isVisible().catch(() => false)) {
+      await closeModalBtn.click();
+    }
+
+    await window.locator('button[data-view="settings"]').click();
+    await window.locator('button:has-text("ADD SERVICE")').click();
+    await expect(window.locator('h2:has-text("Service Onboarding")')).toBeVisible();
+
+    await window.locator('button:has-text("Sync integration")').click();
+    await expect(window.locator('h4:has-text("Quick Setup")')).toBeVisible();
+  }
+
+  test('shows Cloudflare quick setup with token creation and account detection', async () => {
+    await openCloudflareOnboarding();
+
+    await expect(window.locator('h4:has-text("Quick Setup")')).toBeVisible();
+    await expect(
+      window.locator('button:has-text("Create Token on Cloudflare")')
+    ).toBeVisible();
+    await expect(window.locator('button:has-text("Detect Account ID")')).toBeVisible();
+
+    await expect(window.locator('input[placeholder*="account ID"]')).toBeVisible();
+    await expect(window.locator('input[placeholder*="API token"]')).toBeVisible();
+  });
+
+  test('hides Detect Account ID when discoverCloudflareAccount is unavailable (web degradation)', async () => {
+    // Simulates a bridge lacking discoverCloudflareAccount (web adapter /
+    // older preload): ElectronAPI prefers window.__electronAPI over the real
+    // preload bridge, so clone the bridge minus the method. The clone must be
+    // a plain object — contextBridge properties are read-only and
+    // non-configurable, so a Proxy get trap cannot mask them.
+    await window.addInitScript(() => {
+      const install = () => {
+        if (window.__electronAPI) return true;
+        if (!window.electronAPI) return false;
+        window.__electronAPI = { ...window.electronAPI };
+        delete window.__electronAPI.discoverCloudflareAccount;
+        return true;
+      };
+      if (!install()) {
+        const timer = setInterval(() => {
+          if (install()) clearInterval(timer);
+        }, 0);
+        setTimeout(() => clearInterval(timer), 2000);
+      }
+    });
+
+    await window.reload();
+    await window.waitForLoadState('domcontentloaded');
+
+    await openCloudflareOnboarding();
+
+    await expect(
+      window.locator('button:has-text("Create Token on Cloudflare")')
+    ).toBeVisible();
+    await expect(window.locator('button:has-text("Detect Account ID")')).toHaveCount(0);
+  });
 });

@@ -9,6 +9,7 @@ module.exports = {
   getRepositories: (provider) => ipcRenderer.invoke('repos:get', { provider }),
   getAllRepositories: () => ipcRenderer.invoke('repos:get-all'),
   createTask: (provider, options) => ipcRenderer.invoke('tasks:create', { provider, options }),
+  getProviderModels: (provider) => ipcRenderer.invoke('models:get', { provider }),
   sendMessage: (provider, rawId, message) =>
     ipcRenderer.invoke('tasks:send-message', { provider, rawId, message }),
   orchestratorGetModels: () => ipcRenderer.invoke('orchestrator:get-models'),

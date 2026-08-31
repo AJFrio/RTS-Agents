@@ -87,3 +87,27 @@ export function getStatusLabel(status) {
   };
   return map[status] || status?.toUpperCase() || 'UNKNOWN';
 }
+
+/**
+ * Short, human-readable label for where an agent is working.
+ *
+ * Remote agents carry a GitHub URL, where `owner/repo` is the useful part.
+ * Local CLI agents carry an absolute project path, where the trailing
+ * directory name is what identifies the project — the leading path is noise
+ * that pushes the meaningful part out of a truncated card.
+ *
+ * @param {string} source - Repository URL or filesystem path.
+ * @returns {string}
+ */
+export function repoLabel(source) {
+  if (!source) return '';
+  const value = String(source).trim();
+  if (!value) return '';
+
+  const gitHub = value.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?\/?$/);
+  if (gitHub) return gitHub[1];
+
+  // Filesystem path (POSIX or Windows): keep the final segment.
+  const segments = value.split(/[/\\]+/).filter(Boolean);
+  return segments.length ? segments[segments.length - 1] : value;
+}

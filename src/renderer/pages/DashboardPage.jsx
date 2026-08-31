@@ -11,7 +11,7 @@ import {
   getProviderDot,
   getStatusLabel,
   formatTimeAgo,
-  extractRepoName,
+  repoLabel,
   getProviderText,
 } from '../utils/format.js';
 
@@ -128,6 +128,8 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
   const providerName = getProviderDisplayName(agent.provider);
   const dot = getProviderDot(agent.provider);
   const providerText = getProviderText(agent.provider);
+  // Repo for remote agents, project directory name for local ones.
+  const location = repoLabel(agent.repository);
 
   return (
     <AgentCard className="min-h-[156px]" onClick={onClick}>
@@ -142,12 +144,6 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
         {agent.name || 'Untitled'}
       </h3>
       <div className="grid gap-2 text-xs text-slate-600 dark:text-slate-300">
-        {agent.repository && (
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="material-symbols-outlined text-xs">folder</span>
-            <span className="truncate">{extractRepoName(agent.repository)}</span>
-          </div>
-        )}
         <div className="flex items-center justify-between gap-3">
           {agent.branch && (
             <div className="flex min-w-0 items-center gap-1">
@@ -161,13 +157,26 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
           </div>
         </div>
       </div>
-      {agent.prUrl && (
+      {(location || agent.prUrl) && (
         <div className="mt-auto pt-3">
-          <div className="border-t border-slate-200 pt-2 dark:border-border-dark">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="material-symbols-outlined text-sm">merge</span>
-              <span>PR available</span>
-            </div>
+          <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2 dark:border-border-dark">
+            {location ? (
+              <div
+                className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+                title={agent.repository}
+              >
+                <span className="material-symbols-outlined text-sm text-slate-400">folder</span>
+                <span className="truncate">{location}</span>
+              </div>
+            ) : (
+              <span />
+            )}
+            {agent.prUrl && (
+              <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="material-symbols-outlined text-sm">merge</span>
+                <span>PR available</span>
+              </div>
+            )}
           </div>
         </div>
       )}

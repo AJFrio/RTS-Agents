@@ -45,6 +45,25 @@ export default function AgentModal({ agent, onClose, api }) {
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const didAutoScrollRef = useRef(false);
 
+  // Stable across renders: an inline arrow here would be a new prop identity
+  // every time, defeating React.memo on every markdown block below it.
+  const renderMarkdown = React.useCallback(
+    (content) => <MemoizedMarkdownBlock content={content} />,
+    []
+  );
+
+  // Same reasoning as renderMarkdown; the activity variant carries its own
+  // indent styling.
+  const renderActivityMarkdown = React.useCallback(
+    (content) => (
+      <MemoizedMarkdownBlock
+        content={content}
+        className="mt-2 border-l-2 border-slate-100 pl-3 text-slate-700 dark:border-slate-700 dark:text-slate-300"
+      />
+    ),
+    []
+  );
+
   const scrollToBottom = React.useCallback((behavior = 'smooth') => {
     const root = scrollRootRef.current;
     if (!root) return;
@@ -56,17 +75,31 @@ export default function AgentModal({ agent, onClose, api }) {
     const root = scrollRootRef.current;
     if (!root) return undefined;
 
-    const update = () => setShowJumpToBottom(!isNearBottom(root));
+    // A large transcript is thousands of nodes; re-rendering it on every
+    // scroll event is what made scrolling feel laggy. Coalesce to one check
+    // per frame, and only touch state when the answer actually changes.
+    let frame = null;
+    const update = () => {
+      frame = null;
+      const next = !isNearBottom(root);
+      setShowJumpToBottom((prev) => (prev === next ? prev : next));
+    };
+    const schedule = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(update);
+    };
+
     update();
-    root.addEventListener('scroll', update, { passive: true });
+    root.addEventListener('scroll', schedule, { passive: true });
 
     // Content grows as details load and images decode; re-evaluate on resize.
     const observer =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
     observer?.observe(root);
 
     return () => {
-      root.removeEventListener('scroll', update);
+      if (frame !== null) cancelAnimationFrame(frame);
+      root.removeEventListener('scroll', schedule);
       observer?.disconnect();
     };
   }, [details, pendingLabel]);
@@ -316,12 +349,7 @@ export default function AgentModal({ agent, onClose, api }) {
                   >
                     <ActivityTimeline
                       activities={details.activities}
-                      renderMessage={(content) => (
-                        <MemoizedMarkdownBlock
-                          content={content}
-                          className="mt-2 border-l-2 border-slate-100 pl-3 text-slate-700 dark:border-slate-700 dark:text-slate-300"
-                        />
-                      )}
+                      renderMessage={renderActivityMarkdown}
                       showMedia={agent.provider === 'jules'}
                       mediaApi={api}
                       mediaSessionId={sessionId}
@@ -335,7 +363,7 @@ export default function AgentModal({ agent, onClose, api }) {
                   <SectionHeader label="Conversation" icon="forum" defaultOpen>
                     <ConversationList
                       conversation={details.conversation}
-                      renderMessage={(content) => <MemoizedMarkdownBlock content={content} />}
+                      renderMessage={renderMarkdown}
                     />
                   </SectionHeader>
                 )}
@@ -349,7 +377,7 @@ export default function AgentModal({ agent, onClose, api }) {
                     <ChatTranscript
                       messages={details.messages}
                       assistantLabel={getProviderDisplayName(agent.provider)}
-                      renderContent={(content) => <MemoizedMarkdownBlock content={content} />}
+                      renderContent={renderMarkdown}
                       pending={pendingLabel}
                     />
                     <FollowUpComposer

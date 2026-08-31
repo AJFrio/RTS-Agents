@@ -125,7 +125,8 @@ test.describe('Modal Tests', () => {
     // Verify modal content from mocked getAgentDetails
     await expect(page.locator('#modal-title')).toHaveText('Test Agent Details');
     await expect(page.locator('#modal-status-badge')).toHaveText('RUNNING');
-    await expect(page.locator('#modal-content')).toContainText('Detailed prompt content');
+    // Prompt section removed by design; the feed renders activity + conversation.
+    await expect(page.locator('#modal-content')).toContainText('Task started');
     await expect(page.locator('#modal-content')).toContainText('Agent summary text');
     await expect(page.locator('#modal-content')).toContainText('Hello agent');
 
@@ -139,7 +140,7 @@ test.describe('Modal Tests', () => {
     await expect(modal).not.toBeVisible();
   });
 
-  test('Agent modal spans desktop width and sections collapse', async () => {
+  test('Agent modal spans desktop width with pinned context and unified feed', async () => {
     const agentCard = page.locator('.agent-card').first();
     await expect(agentCard).toBeVisible();
     await agentCard.click();
@@ -165,12 +166,10 @@ test.describe('Modal Tests', () => {
     };
     await expect.poll(fillRatio).toBeGreaterThanOrEqual(0.9);
 
-    // Metadata context starts collapsed and expands on demand.
-    const contextHeader = modal.getByRole('button', { name: /context/i }).first();
-    await expect(contextHeader).toHaveAttribute('aria-expanded', 'false');
-    await contextHeader.click();
-    await expect(contextHeader).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('#modal-content')).toContainText('https://github.com/user/test-repo');
+    // Context is pinned, not collapsed: the repo URL is visible with no
+    // expand click, and no collapsible context header remains.
+    await expect(content).toContainText('https://github.com/user/test-repo');
+    await expect(modal.getByRole('button', { name: /context/i })).toHaveCount(0);
   });
 
   test('New Task Modal should work correctly', async () => {

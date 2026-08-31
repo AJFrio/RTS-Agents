@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../ui/Modal.jsx';
 import Button from '../ui/Button.jsx';
 import { SERVICE_CATALOG, getServiceDefinition } from './service-catalog.js';
+import { buildCloudflareTokenUrl } from '../../utils/cloudflare-token-url.js';
 
 function getInitialValues(service, state) {
   if (!service) return {};
@@ -180,6 +181,52 @@ export default function ServiceOnboardingModal({
     }
   };
 
+  const canDetectCloudflareAccount =
+    service?.kind === 'cloudflare' && typeof api?.discoverCloudflareAccount === 'function';
+
+  const handleOpenTokenPage = () => {
+    const url = buildCloudflareTokenUrl();
+    if (api?.openExternal) {
+      api.openExternal(url);
+    } else {
+      window.open(url, '_blank', 'noopener');
+    }
+  };
+
+  const handleDetectAccountId = async () => {
+    const apiToken = (formValues.apiToken || '').trim();
+    if (!apiToken) {
+      setFeedback({
+        type: 'error',
+        message: 'Paste your API token first, then detect your account ID.',
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await api.discoverCloudflareAccount(apiToken);
+      if (result?.success && result?.accounts?.length > 0) {
+        updateValue('accountId', result.accounts[0].id);
+        setFeedback({
+          type: 'success',
+          message: `Detected Cloudflare account ${result.accounts[0].name}.`,
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: 'Could not detect account ID — enter it manually.',
+        });
+      }
+    } catch {
+      setFeedback({
+        type: 'error',
+        message: 'Could not detect account ID — enter it manually.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleConnect = async () => {
     if (!service) return;
     if (!api) {
@@ -328,28 +375,30 @@ export default function ServiceOnboardingModal({
 
   return (
     <Modal open={open} onClose={closeBlocked ? undefined : onClose}>
-      <div className="relative bg-white dark:bg-[#111318] w-[92vw] max-w-6xl h-[88vh] rounded-3xl border border-slate-200 dark:border-border-dark shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 dark:border-border-dark">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Service Onboarding</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+      <div className="relative flex h-[min(88vh,900px)] w-[92vw] max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-border-dark dark:bg-[#111318]">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5 dark:border-border-dark">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-slate-900 sm:text-xl dark:text-white">
+              Service Onboarding
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Connect assistants and integrations one service at a time, and verify each one before
               you leave.
             </p>
           </div>
-          <Button variant="ghost" onClick={onClose} disabled={closeBlocked}>
+          <Button variant="ghost" onClick={onClose} disabled={closeBlocked} className="shrink-0">
             <span className="material-symbols-outlined">close</span>
           </Button>
         </div>
 
-        <div className="grid grid-cols-[300px_1fr] h-[calc(88vh-78px)]">
-          <div className="border-r border-slate-200 dark:border-border-dark overflow-y-auto p-4 bg-slate-50/80 dark:bg-[#0c0f14]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[260px_1fr]">
+          <div className="max-h-44 shrink-0 overflow-y-auto border-b border-slate-200 bg-slate-50/80 p-3 sm:p-4 md:max-h-none md:border-b-0 md:border-r dark:border-border-dark dark:bg-[#0c0f14]">
             {Object.entries(groupedServices).map(([category, services]) => (
-              <div key={category} className="mb-6">
-                <div className="text-[11px] font-black tracking-[0.24em] uppercase text-slate-400 mb-3">
+              <div key={category} className="mb-4 last:mb-0 md:mb-6">
+                <div className="mb-2 text-[11px] font-black tracking-[0.24em] uppercase text-slate-400 md:mb-3">
                   {category}
                 </div>
-                <div className="space-y-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 md:block md:space-y-2 md:overflow-visible md:pb-0">
                   {services.map((entry) => {
                     const selected = entry.id === activeServiceId;
                     return (
@@ -357,21 +406,21 @@ export default function ServiceOnboardingModal({
                         key={entry.id}
                         type="button"
                         onClick={() => setActiveServiceId(entry.id)}
-                        className={`w-full text-left rounded-2xl border px-4 py-3 transition-all ${
+                        className={`shrink-0 rounded-2xl border px-3 py-2.5 text-left transition-all md:w-full md:px-4 md:py-3 ${
                           selected
                             ? 'border-primary bg-primary/10'
-                            : 'border-slate-200 dark:border-border-dark bg-white dark:bg-[#12161d] hover:border-primary/40'
+                            : 'border-slate-200 bg-white hover:border-primary/40 dark:border-border-dark dark:bg-[#12161d]'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 md:gap-3">
                           <span className="material-symbols-outlined text-slate-500">
                             {entry.icon}
                           </span>
-                          <div>
-                            <div className="font-semibold text-slate-900 dark:text-white">
+                          <div className="min-w-0">
+                            <div className="whitespace-nowrap font-semibold text-slate-900 md:whitespace-normal dark:text-white">
                               {entry.title}
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                            <div className="hidden text-xs text-slate-500 md:block dark:text-slate-400">
                               {entry.subtitle}
                             </div>
                           </div>
@@ -384,16 +433,16 @@ export default function ServiceOnboardingModal({
             ))}
           </div>
 
-          <div className="overflow-y-auto p-8">
-            <div className="max-w-2xl space-y-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="material-symbols-outlined text-primary text-2xl">
+          <div className="min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8">
+            <div className="mx-auto max-w-2xl space-y-6">
+              <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                <div className="min-w-0">
+                  <div className="mb-2 flex items-center gap-3">
+                    <span className="material-symbols-outlined shrink-0 text-2xl text-primary">
                       {service.icon}
                     </span>
-                    <div>
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
                         {service.title}
                       </h3>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -401,7 +450,7 @@ export default function ServiceOnboardingModal({
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
+                  <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
                     {service.description}
                   </p>
                 </div>
@@ -426,6 +475,28 @@ export default function ServiceOnboardingModal({
                 </div>
               )}
 
+              {service.kind === 'cloudflare' && (
+                <div className="rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50/60 dark:bg-[#0d1118] p-5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">bolt</span>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Quick Setup
+                    </h4>
+                  </div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
+                    1. Approve the pre-configured token in your browser (Workers KV Storage: Edit
+                    is selected for you). 2. Copy the secret token Cloudflare shows. 3. Paste it
+                    below — we&apos;ll detect your account ID automatically.
+                  </p>
+                  <div>
+                    <Button variant="primary" onClick={handleOpenTokenPage} disabled={busy}>
+                      <span className="material-symbols-outlined text-sm">token</span>
+                      Create Token on Cloudflare
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {service.fields.map((field) => (
                 <div key={field.key} className="space-y-2">
                   <label className="block text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">
@@ -444,6 +515,17 @@ export default function ServiceOnboardingModal({
                         <span className="material-symbols-outlined text-sm">folder_open</span>
                       </Button>
                     )}
+                    {service.kind === 'cloudflare' &&
+                      field.key === 'accountId' &&
+                      canDetectCloudflareAccount && (
+                        <Button
+                          variant="secondary"
+                          onClick={handleDetectAccountId}
+                          disabled={busy}
+                        >
+                          Detect Account ID
+                        </Button>
+                      )}
                   </div>
                 </div>
               ))}
@@ -489,13 +571,13 @@ export default function ServiceOnboardingModal({
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4">
+              <div className="flex flex-col gap-4 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark">
                 <div className="text-sm text-slate-500 dark:text-slate-400">
                   {closeBlocked
                     ? 'Connect at least one service to finish onboarding.'
                     : 'You can return later to connect more services.'}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex shrink-0 gap-3">
                   <Button variant="secondary" onClick={onClose} disabled={closeBlocked || busy}>
                     Cancel
                   </Button>

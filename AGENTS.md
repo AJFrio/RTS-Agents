@@ -47,7 +47,7 @@ docs/                        # Knowledge base (design, specs, plans)
 
 - **2 spaces**, **semicolons** everywhere.
 - **Main**: CommonJS, singleton services in `src/main/services/`.
-- **Renderer**: React hooks, ESM, Tailwind + `dark:` + `slate` palette, `AppContext` for shared state.
+- **Renderer**: React hooks, ESM, Tailwind + `dark:` + neutral (white/grey/black) palette — color is status-only (emerald good, amber queued, red bad) per [docs/DESIGN.md](docs/DESIGN.md); `AppContext` for shared state.
 - **Files**: kebab-case modules; PascalCase component filenames.
 - **Secrets**: `config-store` / electron-store only — never commit keys.
 - **IPC**: renderer ↔ main only via `preload.js`; validate paths and inputs in main.

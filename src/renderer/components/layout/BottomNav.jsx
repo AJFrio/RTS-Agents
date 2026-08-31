@@ -43,7 +43,7 @@ export default function BottomNav() {
   return (
     <nav
       id="bottom-nav"
-      className="bottom-nav safe-bottom fixed bottom-0 left-0 right-0 z-30 h-16 border-t border-border-light bg-card-light shadow-lg md:hidden dark:border-border-dark dark:bg-card-dark"
+      className="bottom-nav safe-bottom fixed bottom-0 left-0 right-0 z-30 h-16 border-t border-border-light bg-card-light md:hidden dark:border-border-dark dark:bg-card-dark"
     >
       <div className="mx-auto flex h-full max-w-xl items-center justify-around overflow-x-auto">
         {NAV_ITEMS.map(({ view, Icon, label }) => {

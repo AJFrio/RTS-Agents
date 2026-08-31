@@ -4,6 +4,21 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
 import TaskInfoModal from '../modals/TaskInfoModal.jsx';
+import {
+  IconRepositories,
+  IconKey,
+  IconExternal,
+  IconSync,
+  IconCheck,
+  IconTasks,
+} from '../components/ui/icons.jsx';
+import { statusMeta } from '../components/ui/status.jsx';
+
+function prStateMeta(pr) {
+  if (pr.state === 'open') return { key: 'running', label: 'Open' };
+  if (pr.merged_at) return { key: 'completed', label: 'Merged' };
+  return { key: 'idle', label: 'Closed' };
+}
 
 export default function BranchesPage() {
   const { state, dispatch, setView, api, openPrModal, openNewTaskModal } = useApp();
@@ -183,21 +198,23 @@ export default function BranchesPage() {
 
   return (
     <div id="view-branches" className="view-content h-full">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full overflow-hidden">
-        <div className="lg:col-span-1 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-full overflow-hidden">
-          <div className="p-4 border-b border-slate-200 dark:border-border-dark">
+      <div className="grid h-full grid-cols-1 gap-4 overflow-hidden lg:grid-cols-3">
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark lg:col-span-1">
+          <div className="border-b border-border-light p-2 dark:border-border-dark">
             <input
               type="text"
               id="repo-filter"
               placeholder="Filter repos..."
               value={repoFilter}
               onChange={(e) => setRepoFilter(e.target.value)}
-              className="w-full bg-white dark:bg-black border border-slate-200 dark:border-border-dark text-slate-800 dark:text-slate-300 text-xs py-2 px-3 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full"
             />
           </div>
-          <div id="repo-list" className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
+          <div id="repo-list" className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-1.5">
             {filteredRepos.length === 0 ? (
-              <div className="px-4 py-6 text-center text-slate-500 text-sm font-medium">No repositories found</div>
+              <div className="px-3 py-6 text-center text-[13px] font-medium text-neutral-500 dark:text-neutral-400">
+                No repositories found
+              </div>
             ) : (
               filteredRepos.map((repo) => (
                 <div
@@ -206,22 +223,24 @@ export default function BranchesPage() {
                   tabIndex={0}
                   onClick={() => selectRepo(repo)}
                   onKeyDown={(e) => e.key === 'Enter' && selectRepo(repo)}
-                  className={`repo-item p-3 border rounded-lg mb-1 cursor-pointer transition-all ${
+                  className={`repo-item cursor-pointer rounded-md border p-2 transition-colors ${
                     selectedRepo?.id === repo.id
-                      ? 'bg-primary/10 border-primary'
-                      : 'border-slate-200 dark:border-transparent hover:border-primary/50 hover:bg-primary/5'
+                      ? 'border-border-strong-light bg-inset-light dark:border-border-strong-dark dark:bg-inset-dark'
+                      : 'border-transparent hover:border-border-strong-light hover:bg-neutral-50 dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold text-slate-800 dark:text-slate-300 text-sm truncate pr-2">
+                  <div className="mb-0.5 flex items-start justify-between gap-2">
+                    <span className="truncate pr-1 text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
                       {repo.name}
                     </span>
-                    {repo.private && <span className="material-symbols-outlined text-xs text-slate-500">lock</span>}
+                    {repo.private && (
+                      <IconKey size={11} className="mt-0.5 shrink-0 text-neutral-400" />
+                    )}
                   </div>
-                  <div className="flex justify-between items-center text-xs text-slate-500">
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
                     <span>{formatTimeAgo(repo.updated_at)}</span>
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-xs">star</span> {repo.stargazers_count ?? 0}
+                    <span title="Stars" className="shrink-0 font-mono tabular-nums">
+                      {repo.stargazers_count ?? 0}
                     </span>
                   </div>
                 </div>
@@ -230,39 +249,47 @@ export default function BranchesPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-2 border border-slate-200 dark:border-border-dark bg-white dark:bg-[#1A1A1A] rounded-xl flex flex-col h-full overflow-hidden">
+        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark lg:col-span-2">
           {!selectedRepo ? (
-            <div id="repo-details-placeholder" className="flex flex-col items-center justify-center h-full text-slate-500">
-              <span className="material-symbols-outlined text-4xl mb-2">arrow_back</span>
-              <span className="text-sm font-medium">Select a repository</span>
+            <div
+              id="repo-details-placeholder"
+              className="flex h-full flex-col items-center justify-center text-neutral-500 dark:text-neutral-400"
+            >
+              <IconRepositories size={20} />
+              <span className="mt-2 text-[13px] font-medium">Select a repository</span>
             </div>
           ) : (
-            <div id="repo-details-content" className="flex flex-col h-full">
-              <div className="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-center bg-slate-50 dark:bg-black/20">
-                <h2 id="selected-repo-name" className="text-xl font-semibold text-slate-800 dark:text-white tracking-tight">
+            <div id="repo-details-content" className="flex h-full flex-col">
+              <div className="flex items-center justify-between gap-2 border-b border-border-light bg-sidebar-light px-4 py-2.5 dark:border-border-dark dark:bg-sidebar-dark">
+                <h2
+                  id="selected-repo-name"
+                  className="truncate text-[15px] font-semibold text-neutral-900 dark:text-neutral-100"
+                >
                   {selectedRepo.name}
                 </h2>
-                <div className="flex items-center gap-3">
+                <div className="flex shrink-0 items-center gap-2">
                   <a
                     id="selected-repo-link"
                     href={selectedRepo.html_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-primary text-black px-3 py-1.5 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 flex items-center gap-2"
+                    className="inline-flex items-center gap-1.5 rounded-sm bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
                     onClick={(e) => {
                       e.preventDefault();
                       api?.openExternal?.(selectedRepo.html_url);
                     }}
                   >
-                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    <IconExternal size={12} />
                     Visit Repo
                   </a>
-                  <div className="flex bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-0.5 rounded-lg gap-0.5">
+                  <div className="flex rounded-sm border border-border-light bg-inset-light p-0.5 dark:border-border-dark dark:bg-inset-dark">
                     <button
                       type="button"
                       id="pr-filter-open"
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                        prFilter === 'open' ? 'bg-primary text-black' : 'text-slate-600 dark:text-slate-400'
+                      className={`rounded-[4px] px-2.5 py-1 text-xs font-medium transition-colors ${
+                        prFilter === 'open'
+                          ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                          : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
                       }`}
                       onClick={() => setPrFilterAndReload('open')}
                     >
@@ -271,89 +298,116 @@ export default function BranchesPage() {
                     <button
                       type="button"
                       id="pr-filter-closed"
-                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                        prFilter === 'closed' ? 'bg-primary text-black' : 'text-slate-600 dark:text-slate-400'
+                      className={`rounded-[4px] px-2.5 py-1 text-xs font-medium transition-colors ${
+                        prFilter === 'closed'
+                          ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900'
+                          : 'text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
                       }`}
                       onClick={() => setPrFilterAndReload('closed')}
                     >
                       Closed
                     </button>
                   </div>
-                  <span className="px-2 py-1.5 text-xs font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-lg">
-                    <span id="pr-count">{loadingPrs ? '…' : prs.length}</span> {prFilter === 'open' ? 'Open PRs' : 'Closed PRs'}
+                  <span className="rounded-sm border border-border-light bg-inset-light px-2 py-1 text-[11px] font-medium text-neutral-600 dark:border-border-dark dark:bg-inset-dark dark:text-neutral-400">
+                    <span id="pr-count">{loadingPrs ? '…' : prs.length}</span>{' '}
+                    {prFilter === 'open' ? 'Open PRs' : 'Closed PRs'}
                   </span>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col overflow-hidden relative">
-                <div id="pr-list" className={`${updatesContent ? 'flex-1 min-h-0 border-b border-slate-200 dark:border-border-dark' : 'flex-1 min-h-0'} overflow-y-auto p-6 space-y-4 transition-all duration-300`}>
+              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div
+                  id="pr-list"
+                  className={`${
+                    updatesContent
+                      ? 'min-h-0 flex-1 border-b border-border-light dark:border-border-dark'
+                      : 'min-h-0 flex-1'
+                  } space-y-1.5 overflow-y-auto p-3`}
+                >
                   {loadingPrs && prs.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-32">
-                      <span className="material-symbols-outlined text-primary text-3xl animate-spin">sync</span>
-                      <span className="text-sm text-slate-500 mt-2">Loading PRs...</span>
+                    <div className="flex flex-col items-center justify-center py-10">
+                      <IconSync size={18} className="animate-spin text-neutral-400" />
+                      <span className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                        Loading PRs...
+                      </span>
                     </div>
                   )}
                   {prError && (
-                    <div className="p-4 border border-red-500/50 bg-red-500/10 text-red-500 text-sm font-medium text-center rounded-lg">
+                    <div className="rounded-md border border-red-500/30 bg-red-500/10 p-2.5 text-center text-xs font-medium text-red-700 dark:text-red-400">
                       Failed to load PRs: {prError}
                     </div>
                   )}
                   {!loadingPrs && !prError && prs.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-                      <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
-                      <span className="text-sm font-medium">No {prFilter} pull requests</span>
+                    <div className="flex flex-col items-center justify-center py-12 text-neutral-500 dark:text-neutral-400">
+                      <IconCheck size={20} className="opacity-60" />
+                      <span className="mt-2 text-[13px] font-medium">
+                        No {prFilter} pull requests
+                      </span>
                     </div>
                   )}
-                  {!loadingPrs && prs.length > 0 &&
-                    prs.map((pr) => (
-                      <div
-                        key={pr.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => openPrModal(pr)}
-                        className="pr-card p-4 border border-slate-200 dark:border-border-dark rounded-xl hover:border-primary/50 cursor-pointer transition-all"
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-slate-500 technical-font text-sm">#{pr.number}</span>
-                          <span
-                            className={`px-2.5 py-1 text-xs font-medium rounded-md ${
-                              pr.state === 'open'
-                                ? 'bg-emerald-500/20 text-emerald-500'
-                                : pr.merged_at
-                                  ? 'bg-purple-500/20 text-purple-500'
-                                  : 'bg-red-500/20 text-red-500'
-                            }`}
-                          >
-                            {pr.state === 'open' ? 'Open' : pr.merged_at ? 'Merged' : 'Closed'}
-                          </span>
+                  {!loadingPrs &&
+                    prs.length > 0 &&
+                    prs.map((pr) => {
+                      const stateInfo = prStateMeta(pr);
+                      const meta = statusMeta(stateInfo.key);
+                      return (
+                        <div
+                          key={pr.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openPrModal(pr)}
+                          className="pr-card cursor-pointer rounded-md border border-border-light bg-card-light p-3 transition-colors hover:border-border-strong-light dark:border-border-dark dark:bg-card-dark dark:hover:border-border-strong-dark"
+                        >
+                          <div className="mb-1 flex items-center justify-between gap-2">
+                            <span className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
+                              #{pr.number}
+                            </span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${meta.bg} ${meta.text}`}
+                            >
+                              {stateInfo.label}
+                            </span>
+                          </div>
+                          <h4 className="line-clamp-2 text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
+                            {pr.title}
+                          </h4>
+                          <div className="mt-1 truncate text-[11px] text-neutral-500 dark:text-neutral-400">
+                            <span className="font-mono">{pr.head?.ref}</span> →{' '}
+                            <span className="font-mono">{pr.base?.ref}</span> ·{' '}
+                            {formatTimeAgo(pr.updated_at)}
+                          </div>
                         </div>
-                        <h4 className="font-semibold text-slate-800 dark:text-white line-clamp-2">{pr.title}</h4>
-                        <div className="mt-2 text-xs text-slate-500">
-                          {pr.head?.ref} → {pr.base?.ref} · {formatTimeAgo(pr.updated_at)}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
                 {updatesContent && (
-                  <div id="updates-section" className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-black/20 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                    <div className="p-4 border-b border-slate-200 dark:border-border-dark flex items-center gap-2 bg-white dark:bg-[#1A1A1A]">
-                      <span className="material-symbols-outlined text-primary">campaign</span>
-                      <span className="font-semibold text-sm text-slate-700 dark:text-slate-300">Tasks</span>
+                  <div
+                    id="updates-section"
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden bg-sidebar-light dark:bg-sidebar-dark"
+                  >
+                    <div className="flex items-center gap-2 border-b border-border-light bg-card-light px-3 py-2 dark:border-border-dark dark:bg-card-dark">
+                      <IconTasks size={13} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                        Tasks
+                      </span>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-6">
+                    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
                       {parsedTasks.length === 0 ? (
-                        <div className="text-slate-500 text-sm italic">No tasks found in UPDATES.md</div>
+                        <div className="text-[13px] text-neutral-500 dark:text-neutral-400">
+                          No tasks found in UPDATES.md
+                        </div>
                       ) : (
                         parsedTasks.map((task, index) => (
                           <div
                             key={`task-${index}`}
-                            className="p-4 border border-slate-200 dark:border-border-dark rounded-xl bg-white dark:bg-[#1A1A1A] flex justify-between items-center gap-4 mb-2 cursor-pointer hover:border-primary/50 transition-all"
+                            className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border-light bg-card-light p-2.5 transition-colors hover:border-border-strong-light dark:border-border-dark dark:bg-card-dark dark:hover:border-border-strong-dark"
                             onClick={() => setSelectedTask(task)}
                           >
-                            <div className="flex-1 font-medium text-slate-800 dark:text-slate-200 text-sm">
+                            <div className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-800 dark:text-neutral-200">
                               {task.title}
                             </div>
                             <button
-                              className="px-3 py-1.5 text-xs font-semibold bg-primary text-black rounded hover:bg-primary/90 transition-colors shrink-0"
+                              type="button"
+                              className="shrink-0 rounded-sm bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openNewTaskModal({

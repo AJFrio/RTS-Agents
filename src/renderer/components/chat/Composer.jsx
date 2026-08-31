@@ -100,7 +100,7 @@ export default function Composer({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         rows={minRows}
-        className="block w-full resize-none border-0 bg-transparent px-4 pt-3 text-[14px] leading-[22px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-0 dark:text-neutral-100 dark:placeholder-neutral-500"
+        className="block w-full resize-none border-0 bg-transparent px-4 pt-3 font-sans text-sm leading-[22px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-0 dark:text-neutral-100 dark:placeholder-neutral-500"
       />
 
       <div className="flex items-end justify-between gap-2 px-2 pb-2 pt-1">

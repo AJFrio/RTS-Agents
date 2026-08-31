@@ -20,6 +20,7 @@ test.describe('Modal Tests', () => {
   });
 
   test.beforeEach(async () => {
+    // Launch Electron app
     page = await electronApp.firstWindow();
 
     // Inject mock API before the page loads/reloads
@@ -110,80 +111,39 @@ test.describe('Modal Tests', () => {
     await page.waitForLoadState('domcontentloaded');
   });
 
-  test('Agent Details Modal should open and display correct info', async () => {
+  test('Task detail view should open on the canvas and display correct info', async () => {
     // Wait for agents to load (the mock returns one agent)
     const agentCard = page.locator('.agent-card').first();
     await expect(agentCard).toBeVisible();
 
-    // Click the agent card
+    // Click the agent card — the task chat log opens on the canvas
     await agentCard.click();
 
-    // Check if modal opens
-    const modal = page.locator('#agent-modal');
-    await expect(modal).toBeVisible();
+    // The canvas switches to the task detail view
+    await expect(page.locator('#view-title')).toHaveText('Test Agent');
 
-    // Verify modal content from mocked getAgentDetails
-    await expect(page.locator('#modal-title')).toHaveText('Test Agent Details');
-    await expect(page.locator('#modal-status-badge')).toHaveText('RUNNING');
-    // Prompt section removed by design; the feed renders activity + conversation.
-    await expect(page.locator('#modal-content')).toContainText('Task started');
-    await expect(page.locator('#modal-content')).toContainText('Agent summary text');
-    await expect(page.locator('#modal-content')).toContainText('Hello agent');
+    // The unified feed renders activity + conversation from mocked getAgentDetails
+    const canvas = page.locator('main');
+    await expect(canvas).toContainText('Task started');
+    await expect(canvas).toContainText('Hello agent');
 
-    // Close the modal
-    const closeBtn = modal.locator('button').filter({ hasText: 'close' });
-    // Or finding the close button by icon
-    const closeIcon = modal.locator('.material-symbols-outlined', { hasText: 'close' });
-    await closeIcon.click();
-
-    // Verify modal is closed (unmounted, so no longer visible)
-    await expect(modal).not.toBeVisible();
+    // Close the task view and return to the task list
+    await page.locator('button[aria-label="Close task"]').click();
+    await expect(page.locator('#view-title')).toHaveText('All Tasks');
   });
 
-  test('Agent modal spans desktop width with pinned context and unified feed', async () => {
-    const agentCard = page.locator('.agent-card').first();
-    await expect(agentCard).toBeVisible();
-    await agentCard.click();
-
-    const modal = page.locator('#agent-modal');
-    await expect(modal).toBeVisible();
-
-    // Desktop width contract: task detail modal covers ~80% of the window.
-    // page.viewportSize() is null under Electron; measure the real window instead.
-    const windowWidth = await page.evaluate(() => window.innerWidth);
-    await expect
-      .poll(async () => (await modal.boundingBox())?.width ?? 0)
-      .toBeGreaterThanOrEqual(windowWidth * 0.75);
-
-    // Content fills the modal: the details stack must span the modal body
-    // (minus its px-6/lg:px-8 padding), not be capped at a fixed max width.
-    const content = page.locator('#modal-content');
-    const fillRatio = async () => {
-      const contentBox = await content.boundingBox();
-      const stackBox = await content.locator('> div').first().boundingBox();
-      if (!contentBox || !stackBox) return 0;
-      return stackBox.width / contentBox.width;
-    };
-    await expect.poll(fillRatio).toBeGreaterThanOrEqual(0.9);
-
-    // Context is pinned, not collapsed: the repo URL is visible with no
-    // expand click, and no collapsible context header remains.
-    await expect(content).toContainText('https://github.com/user/test-repo');
-    await expect(modal.getByRole('button', { name: /context/i })).toHaveCount(0);
-  });
-
-  test('New Task Modal should work correctly', async () => {
-    // Open New Task Modal
+  test('New Task page should work correctly', async () => {
+    // Open New Task tab
     const newTaskBtn = page.locator('#new-task-btn');
     await newTaskBtn.click();
 
-    const modal = page.locator('#new-task-modal');
-    await expect(modal).toBeVisible();
+    const pageRoot = page.locator('#new-task-modal');
+    await expect(pageRoot).toBeVisible();
 
     // Select a service (e.g., Antigravity)
     const antigravityBtn = page.locator('#service-antigravity');
     await antigravityBtn.click();
-    await expect(antigravityBtn).toHaveClass(/border-primary/);
+    await expect(antigravityBtn).toHaveClass(/border-neutral-900/);
 
     // Repo search should become enabled and populated
     const repoSearch = page.locator('#task-repo-search');
@@ -211,6 +171,5 @@ test.describe('Modal Tests', () => {
     // Create Task button should be enabled
     const createBtn = page.locator('#create-task-btn');
     await expect(createBtn).toBeEnabled();
-    await expect(createBtn).toContainText('Create Task');
   });
 });

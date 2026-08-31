@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import Button from '../components/ui/Button.jsx';
+import { IconClose, IconGitBranch, IconSync } from '../components/ui/icons.jsx';
 import { useApp } from '../context/AppContext.jsx';
 
 export default function CreateRepoModal({ open, onClose, api }) {
@@ -79,29 +80,34 @@ export default function CreateRepoModal({ open, onClose, api }) {
   if (!open) return null;
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <div className="bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark w-full max-w-2xl flex flex-col shadow-2xl rounded-2xl overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-border-dark p-6 flex justify-between items-center bg-slate-50 dark:bg-black/40">
-          <div className="flex items-center gap-4">
-            <div className="bg-primary/10 p-2 rounded-lg">
-              <span className="material-symbols-outlined text-primary text-2xl">source</span>
-            </div>
+    <Modal open={open} onClose={handleClose} size="md">
+      <div className="flex max-h-[85vh] flex-col">
+        <div className="flex shrink-0 items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
+          <div className="flex items-center gap-2.5">
+            <span className="rounded-md bg-inset-light p-1.5 text-neutral-600 dark:bg-inset-dark dark:text-neutral-300">
+              <IconGitBranch size={15} />
+            </span>
             <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Create Repository</h2>
-              <p className="text-xs text-slate-500 font-medium">GitHub, local, or remote computer</p>
+              <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">Create Repository</h2>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">GitHub, local, or remote computer</p>
             </div>
           </div>
-          <button type="button" onClick={handleClose} className="text-slate-400 hover:text-primary transition-colors">
-            <span className="material-symbols-outlined">close</span>
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close create repository"
+            className="rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+          >
+            <IconClose size={16} />
           </button>
         </div>
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
           <div>
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Where to create</label>
+            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Where to create</label>
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
+              className="w-full"
             >
               <option value="github">GitHub</option>
               <option value="local">This Computer (Local)</option>
@@ -109,23 +115,23 @@ export default function CreateRepoModal({ open, onClose, api }) {
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Repository name</label>
+            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Repository name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="my-new-repo"
-              className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
+              className="w-full"
             />
           </div>
           {location === 'github' && (
             <>
               <div>
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Owner</label>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Owner</label>
                 <select
                   value={githubOwner}
                   onChange={(e) => setGithubOwner(e.target.value)}
-                  className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
+                  className="w-full"
                 >
                   <option value="">Select...</option>
                   {owners.map((o) => (
@@ -137,41 +143,41 @@ export default function CreateRepoModal({ open, onClose, api }) {
                 <button
                   type="button"
                   onClick={() => setGithubPrivate(false)}
-                  className={`flex-1 p-4 border rounded-lg text-left transition-colors ${!githubPrivate ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary/50'}`}
+                  className={`flex-1 rounded-md border p-3 text-left transition-colors ${!githubPrivate ? 'border-neutral-900 bg-neutral-900/5 dark:border-neutral-100 dark:bg-neutral-100/5' : 'border-border-light hover:border-border-strong-light dark:border-border-dark dark:hover:border-border-strong-dark'}`}
                 >
-                  <span className={`text-sm font-bold ${!githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>Public</span>
-                  <p className="text-xs text-slate-400 mt-1">Anyone can see this repository</p>
+                  <span className={`text-[13px] font-semibold ${!githubPrivate ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 dark:text-neutral-400'}`}>Public</span>
+                  <p className="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">Anyone can see this repository</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setGithubPrivate(true)}
-                  className={`flex-1 p-4 border rounded-lg text-left transition-colors ${githubPrivate ? 'border-primary bg-primary/10' : 'border-slate-200 dark:border-border-dark hover:border-primary/50'}`}
+                  className={`flex-1 rounded-md border p-3 text-left transition-colors ${githubPrivate ? 'border-neutral-900 bg-neutral-900/5 dark:border-neutral-100 dark:bg-neutral-100/5' : 'border-border-light hover:border-border-strong-light dark:border-border-dark dark:hover:border-border-strong-dark'}`}
                 >
-                  <span className={`text-sm font-bold ${githubPrivate ? 'text-primary' : 'text-slate-500 dark:text-slate-400'}`}>Private</span>
-                  <p className="text-xs text-slate-400 mt-1">You choose who can see this repository</p>
+                  <span className={`text-[13px] font-semibold ${githubPrivate ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 dark:text-neutral-400'}`}>Private</span>
+                  <p className="mt-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">You choose who can see this repository</p>
                 </button>
               </div>
             </>
           )}
           {location === 'local' && (
             <div>
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Directory</label>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Directory</label>
               <input
                 type="text"
                 value={localDir}
                 onChange={(e) => setLocalDir(e.target.value)}
                 placeholder={(state.settings.githubPaths || [])[0] || 'e.g., ~/GitHub'}
-                className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
+                className="w-full font-mono text-[12px]"
               />
             </div>
           )}
           {location === 'remote' && (
             <div>
-              <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 block">Target device</label>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Target device</label>
               <select
                 value={remoteDeviceId}
                 onChange={(e) => setRemoteDeviceId(e.target.value)}
-                className="w-full bg-white dark:!bg-slate-900 border border-slate-200 dark:border-border-dark text-slate-900 dark:!text-slate-200 text-sm py-3 px-4 rounded-lg focus:border-primary outline-none"
+                className="w-full"
               >
                 <option value="">Select a computer...</option>
                 {(state.computers?.list || []).map((d) => (
@@ -180,14 +186,14 @@ export default function CreateRepoModal({ open, onClose, api }) {
               </select>
             </div>
           )}
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-[13px] text-red-600 dark:text-red-400">{error}</p>}
         </div>
-        <div className="border-t border-slate-200 dark:border-border-dark p-6 flex justify-between items-center bg-slate-50 dark:bg-black/20">
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Name required</span>
-          <div className="flex gap-4">
+        <div className="flex shrink-0 items-center justify-between border-t border-border-light px-4 py-3 dark:border-border-dark">
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">Name required</span>
+          <div className="flex gap-2">
             <Button variant="secondary" onClick={handleClose}>Cancel</Button>
             <Button variant="primary" onClick={handleSubmit} disabled={loading}>
-              {loading ? <span className="material-symbols-outlined text-sm animate-spin">sync</span> : null}
+              {loading ? <IconSync size={13} className="animate-spin" /> : null}
               Create
             </Button>
           </div>

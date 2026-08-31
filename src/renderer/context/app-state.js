@@ -370,6 +370,7 @@ export function appReducer(state, action) {
         newTaskModalOpen: true,
         newTask: {
           ...state.newTask,
+          newTaskLaunchId: (state.newTask?.newTaskLaunchId || 0) + 1,
           initialPrompt: action.payload?.initialPrompt ?? '',
           presetEnvironment:
             action.payload?.presetEnvironment !== undefined

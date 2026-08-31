@@ -27,14 +27,6 @@ test.describe('Settings View', () => {
     const settingsView = window.locator('#view-settings');
     await expect(settingsView).toBeVisible();
 
-    // Verify the new connected services summary is visible
-    const connectedServicesHeader = window.locator('h2:has-text("Connected Services")');
-    await expect(connectedServicesHeader).toBeVisible();
-
-    // Verify onboarding entry point exists
-    const addServiceBtn = window.locator('button:has-text("ADD SERVICE")');
-    await expect(addServiceBtn).toBeVisible();
-
     // Check for Theme options
     const themeSection = window.locator('h3:has-text("Display")');
     await expect(themeSection).toBeVisible();
@@ -46,11 +38,11 @@ test.describe('Settings View', () => {
     await expect(darkThemeBtn).toBeVisible();
   });
 
-  test('should open the onboarding modal from settings', async () => {
-    const settingsBtn = window.locator('button[data-view="settings"]');
-    await settingsBtn.click();
+  test('should open the onboarding modal from the Plugins tab', async () => {
+    const pluginsBtn = window.locator('button[data-view="plugins"]');
+    await pluginsBtn.click();
 
-    const addServiceBtn = window.locator('button:has-text("ADD SERVICE")');
+    const addServiceBtn = window.locator('button:has-text("Add service")').first();
     await addServiceBtn.click();
 
     const onboardingTitle = window.locator('h2:has-text("Service Onboarding")');
@@ -83,8 +75,8 @@ test.describe('Settings View', () => {
       await closeModalBtn.click();
     }
 
-    await window.locator('button[data-view="settings"]').click();
-    await window.locator('button:has-text("ADD SERVICE")').click();
+    await window.locator('button[data-view="plugins"]').click();
+    await window.locator('button:has-text("Add service")').first().click();
     await expect(window.locator('h2:has-text("Service Onboarding")')).toBeVisible();
 
     await window.locator('button:has-text("Sync integration")').click();

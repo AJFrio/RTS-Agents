@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../ui/Modal.jsx';
 import Button from '../ui/Button.jsx';
+import { IconClose } from '../ui/icons.jsx';
 import { SERVICE_CATALOG, getServiceDefinition } from './service-catalog.js';
 import { buildCloudflareTokenUrl } from '../../utils/cloudflare-token-url.js';
 
@@ -375,30 +376,36 @@ export default function ServiceOnboardingModal({
 
   return (
     <Modal open={open} onClose={closeBlocked ? undefined : onClose}>
-      <div className="relative flex h-[min(88vh,900px)] w-[92vw] max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-border-dark dark:bg-[#111318]">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5 dark:border-border-dark">
+      <div className="flex h-[min(88vh,900px)] w-[92vw] max-w-6xl flex-col overflow-hidden">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark">
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-slate-900 sm:text-xl dark:text-white">
+            <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
               Service Onboarding
             </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
               Connect assistants and integrations one service at a time, and verify each one before
               you leave.
             </p>
           </div>
-          <Button variant="ghost" onClick={onClose} disabled={closeBlocked} className="shrink-0">
-            <span className="material-symbols-outlined">close</span>
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            disabled={closeBlocked}
+            aria-label="Close service onboarding"
+            className="shrink-0"
+          >
+            <IconClose size={16} />
           </Button>
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[260px_1fr]">
-          <div className="max-h-44 shrink-0 overflow-y-auto border-b border-slate-200 bg-slate-50/80 p-3 sm:p-4 md:max-h-none md:border-b-0 md:border-r dark:border-border-dark dark:bg-[#0c0f14]">
+          <div className="max-h-44 shrink-0 overflow-y-auto border-b border-border-light bg-sidebar-light p-3 md:max-h-none md:border-b-0 md:border-r dark:border-border-dark dark:bg-sidebar-dark">
             {Object.entries(groupedServices).map(([category, services]) => (
-              <div key={category} className="mb-4 last:mb-0 md:mb-6">
-                <div className="mb-2 text-[11px] font-black tracking-[0.24em] uppercase text-slate-400 md:mb-3">
+              <div key={category} className="mb-4 last:mb-0 md:mb-5">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
                   {category}
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 md:block md:space-y-2 md:overflow-visible md:pb-0">
+                <div className="flex gap-2 overflow-x-auto pb-1 md:block md:space-y-1.5 md:overflow-visible md:pb-0">
                   {services.map((entry) => {
                     const selected = entry.id === activeServiceId;
                     return (
@@ -406,21 +413,21 @@ export default function ServiceOnboardingModal({
                         key={entry.id}
                         type="button"
                         onClick={() => setActiveServiceId(entry.id)}
-                        className={`shrink-0 rounded-2xl border px-3 py-2.5 text-left transition-all md:w-full md:px-4 md:py-3 ${
+                        className={`shrink-0 rounded-md border px-3 py-2 text-left transition-colors md:w-full ${
                           selected
-                            ? 'border-primary bg-primary/10'
-                            : 'border-slate-200 bg-white hover:border-primary/40 dark:border-border-dark dark:bg-[#12161d]'
+                            ? 'border-neutral-900 bg-neutral-900/5 dark:border-neutral-100 dark:bg-neutral-100/5'
+                            : 'border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-neutral-800/50'
                         }`}
                       >
-                        <div className="flex items-center gap-2 md:gap-3">
-                          <span className="material-symbols-outlined text-slate-500">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[16px] text-neutral-500 dark:text-neutral-400" aria-hidden="true">
                             {entry.icon}
                           </span>
                           <div className="min-w-0">
-                            <div className="whitespace-nowrap font-semibold text-slate-900 md:whitespace-normal dark:text-white">
+                            <div className={`whitespace-nowrap text-[13px] font-medium md:whitespace-normal ${selected ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-700 dark:text-neutral-300'}`}>
                               {entry.title}
                             </div>
-                            <div className="hidden text-xs text-slate-500 md:block dark:text-slate-400">
+                            <div className="hidden text-[11px] text-neutral-500 md:block dark:text-neutral-400">
                               {entry.subtitle}
                             </div>
                           </div>
@@ -433,24 +440,24 @@ export default function ServiceOnboardingModal({
             ))}
           </div>
 
-          <div className="min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8">
-            <div className="mx-auto max-w-2xl space-y-6">
-              <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+          <div className="min-h-0 overflow-y-auto p-4 md:p-6">
+            <div className="mx-auto max-w-2xl space-y-5">
+              <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
                 <div className="min-w-0">
-                  <div className="mb-2 flex items-center gap-3">
-                    <span className="material-symbols-outlined shrink-0 text-2xl text-primary">
+                  <div className="mb-1.5 flex items-center gap-2.5">
+                    <span className="material-symbols-outlined shrink-0 text-[20px] text-neutral-700 dark:text-neutral-300" aria-hidden="true">
                       {service.icon}
                     </span>
                     <div className="min-w-0">
-                      <h3 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+                      <h3 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
                         {service.title}
                       </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
                         {service.subtitle}
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  <p className="text-[13px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                     {service.description}
                   </p>
                 </div>
@@ -463,10 +470,10 @@ export default function ServiceOnboardingModal({
 
               {service.requiresInstall && (
                 <div
-                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                  className={`rounded-md border px-3 py-2 text-[13px] ${
                     installReady
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
-                      : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                      : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
                   }`}
                 >
                   {installReady
@@ -476,21 +483,23 @@ export default function ServiceOnboardingModal({
               )}
 
               {service.kind === 'cloudflare' && (
-                <div className="rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50/60 dark:bg-[#0d1118] p-5 space-y-4">
+                <div className="rounded-md border border-border-light dark:border-border-dark bg-inset-light dark:bg-inset-dark p-4 space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-xl">bolt</span>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    <span className="material-symbols-outlined text-[16px] text-neutral-600 dark:text-neutral-300" aria-hidden="true">
+                      bolt
+                    </span>
+                    <h4 className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
                       Quick Setup
                     </h4>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
+                  <p className="text-[13px] text-neutral-600 dark:text-neutral-300 leading-relaxed">
                     1. Approve the pre-configured token in your browser (Workers KV Storage: Edit
                     is selected for you). 2. Copy the secret token Cloudflare shows. 3. Paste it
                     below — we&apos;ll detect your account ID automatically.
                   </p>
                   <div>
                     <Button variant="primary" onClick={handleOpenTokenPage} disabled={busy}>
-                      <span className="material-symbols-outlined text-sm">token</span>
+                      <span className="material-symbols-outlined text-sm" aria-hidden="true">token</span>
                       Create Token on Cloudflare
                     </Button>
                   </div>
@@ -498,8 +507,8 @@ export default function ServiceOnboardingModal({
               )}
 
               {service.fields.map((field) => (
-                <div key={field.key} className="space-y-2">
-                  <label className="block text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">
+                <div key={field.key} className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                     {field.label}
                   </label>
                   <div className="flex gap-2">
@@ -508,11 +517,11 @@ export default function ServiceOnboardingModal({
                       value={formValues[field.key] || ''}
                       onChange={(event) => updateValue(field.key, event.target.value)}
                       placeholder={field.placeholder}
-                      className="flex-1 bg-white dark:bg-[#0d1118] border border-slate-200 dark:border-border-dark rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
+                      className="flex-1"
                     />
                     {field.type === 'path' && (
-                      <Button variant="secondary" onClick={browseForPath}>
-                        <span className="material-symbols-outlined text-sm">folder_open</span>
+                      <Button variant="secondary" onClick={browseForPath} aria-label="Browse for folder">
+                        <span className="material-symbols-outlined text-sm" aria-hidden="true">folder_open</span>
                       </Button>
                     )}
                     {service.kind === 'cloudflare' &&
@@ -531,25 +540,26 @@ export default function ServiceOnboardingModal({
               ))}
 
               {existingPaths.length > 0 && (
-                <div className="space-y-3">
-                  <div className="text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">
+                <div className="space-y-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                     Connected Paths
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {existingPaths.map((pathValue) => (
                       <div
                         key={pathValue}
-                        className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-[#0d1118] px-4 py-3"
+                        className="flex items-center justify-between gap-3 rounded-md border border-border-light dark:border-border-dark bg-inset-light dark:bg-inset-dark px-3 py-2"
                       >
-                        <span className="truncate text-sm text-slate-700 dark:text-slate-300">
+                        <span className="truncate font-mono text-[12px] text-neutral-700 dark:text-neutral-300">
                           {pathValue}
                         </span>
                         <Button
                           variant="ghost"
                           onClick={() => handleRemovePath(pathValue)}
                           disabled={busy}
+                          aria-label={`Remove ${pathValue}`}
                         >
-                          <span className="material-symbols-outlined text-sm">close</span>
+                          <IconClose size={14} />
                         </Button>
                       </div>
                     ))}
@@ -559,25 +569,25 @@ export default function ServiceOnboardingModal({
 
               {feedback && (
                 <div
-                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                  className={`rounded-md border px-3 py-2 text-[13px] ${
                     feedback.type === 'success'
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                       : feedback.type === 'info'
-                        ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-300'
-                        : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300'
+                        ? 'border-border-strong-light bg-neutral-100 text-neutral-600 dark:border-border-strong-dark dark:bg-neutral-800 dark:text-neutral-300'
+                        : 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400'
                   }`}
                 >
                   {feedback.message}
                 </div>
               )}
 
-              <div className="flex flex-col gap-4 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark">
-                <div className="text-sm text-slate-500 dark:text-slate-400">
+              <div className="flex flex-col gap-3 border-t border-border-light pt-3 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark">
+                <div className="text-xs text-neutral-500 dark:text-neutral-400">
                   {closeBlocked
                     ? 'Connect at least one service to finish onboarding.'
                     : 'You can return later to connect more services.'}
                 </div>
-                <div className="flex shrink-0 gap-3">
+                <div className="flex shrink-0 gap-2">
                   <Button variant="secondary" onClick={onClose} disabled={closeBlocked || busy}>
                     Cancel
                   </Button>

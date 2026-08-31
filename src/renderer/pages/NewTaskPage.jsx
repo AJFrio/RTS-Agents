@@ -449,7 +449,8 @@ export default function NewTaskPage() {
 
   return (
     <div id="new-task-modal" className="mx-auto flex h-full min-h-0 max-w-3xl flex-col px-4 py-4 md:px-6">
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-4">
+        <div className="mx-auto w-full space-y-8 my-auto py-1">
         <section>
           <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Run location
@@ -616,7 +617,7 @@ export default function NewTaskPage() {
                   <ul
                     id="repo-dropdown"
                     ref={repoListRef}
-                    className="fixed z-20 max-h-48 overflow-y-auto rounded-md border border-border-light bg-card-light py-1 shadow-lg dark:border-border-dark dark:bg-card-dark"
+                    className="fixed z-20 max-h-48 overflow-y-auto rounded-md border border-border-light bg-card-light py-1 dark:border-border-dark dark:bg-card-dark"
                     role="listbox"
                     style={{ top: repoDropdownPos.top, left: repoDropdownPos.left, width: repoDropdownPos.width }}
                   >
@@ -641,7 +642,7 @@ export default function NewTaskPage() {
                                 setFieldErrors((prev) => ({ ...prev, repo: null }));
                               }}
                               className={`repo-option w-full px-3 py-2 text-left font-mono text-[12px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                                isHighlighted ? 'bg-neutral-100 dark:bg-neutral-800' : ''
+                                isHighlighted ? 'active-repo-option bg-neutral-100 dark:bg-neutral-800' : ''
                               } ${isSelected ? 'font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400'}`}
                             >
                               {label}
@@ -656,12 +657,22 @@ export default function NewTaskPage() {
             </div>
           </section>
         )}
+        </div>
       </div>
 
       <div className="shrink-0">
         {currentErrors.prompt && (
           <p className="mb-2 text-[12px] text-red-600 dark:text-red-400">{currentErrors.prompt}</p>
         )}
+        {(() => {
+          const reason = Object.values(validate())[0];
+          if (reason) {
+            return (
+              <p className="mb-2 text-[12px] text-amber-700 dark:text-amber-400">{reason}</p>
+            );
+          }
+          return null;
+        })()}
         <Composer
           value={prompt}
           onChange={(value) => {
@@ -671,6 +682,7 @@ export default function NewTaskPage() {
           onSubmit={handleSubmit}
           busy={creating}
           disabled={creating}
+          textareaId="task-prompt"
           submitId="create-task-btn"
           submitLabel="Create task"
           placeholder="Describe the task, expected output, and any constraints…"
@@ -681,9 +693,11 @@ export default function NewTaskPage() {
           onRemoveAttachment={(id) => setAttachments((prev) => prev.filter((a) => a.id !== id))}
           onFiles={handleFiles}
           onPaste={handlePaste}
-          footerNote={`${getProviderDisplayName(selectedProvider) || 'No agent selected'} · ${
-            shortRepo(selectedRepo) || (repoRequired ? 'repo required' : 'no repo')
-          }${autoPr ? ' · auto-PR on' : ''}`}
+          footerNote={`${
+            getProviderDisplayName(selectedProvider) || 'No agent selected'
+          } · ${shortRepo(selectedRepo) || (repoRequired ? 'repo required' : 'no repo')}${
+            autoPr ? ' · auto-PR on' : ''
+          }`}
         >
           {showModelPill && (
             <div className="relative" ref={modelInputContainerRef}>
@@ -707,7 +721,7 @@ export default function NewTaskPage() {
                   <ul
                     id="model-dropdown"
                     ref={modelListRef}
-                    className="fixed z-20 max-h-48 w-56 overflow-y-auto rounded-md border border-border-light bg-card-light py-1 shadow-lg dark:border-border-dark dark:bg-card-dark"
+                    className="fixed z-20 max-h-48 w-56 overflow-y-auto rounded-md border border-border-light bg-card-light py-1 dark:border-border-dark dark:bg-card-dark"
                     role="listbox"
                     style={{ top: modelDropdownPos.top, left: modelDropdownPos.left }}
                   >

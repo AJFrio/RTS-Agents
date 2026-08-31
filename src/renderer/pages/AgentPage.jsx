@@ -212,26 +212,21 @@ export default function AgentPage() {
   const lastCards = lastAssistant?.taskCards || [];
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-light px-4 py-2 dark:border-border-dark">
-        <span className="truncate text-[12px] font-medium text-neutral-500 dark:text-neutral-400">
-          {selectedModel.replace(/^openrouter\//, '')}
-        </span>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setBrowserOpen((v) => !v)}
-            aria-expanded={browserOpen}
-            className="rounded-md border border-border-light px-2.5 py-1 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
-          >
-            Tasks
-          </button>
-          <ModelSelector value={selectedModel} onChange={handleModelChange} />
-        </div>
+    <div id="view-agent" className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-end gap-2 border-b border-border-light px-4 py-2 dark:border-border-dark">
+        <button
+          type="button"
+          onClick={() => setBrowserOpen((v) => !v)}
+          aria-expanded={browserOpen}
+          className="rounded-md border border-border-light px-2.5 py-1 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
+        >
+          Tasks
+        </button>
+        <ModelSelector value={selectedModel} onChange={handleModelChange} />
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl px-4 py-6">
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-4 py-6">
           {browserOpen && <TaskBrowserPanel onClose={() => setBrowserOpen(false)} />}
 
           {messages.length === 0 && !busy ? (

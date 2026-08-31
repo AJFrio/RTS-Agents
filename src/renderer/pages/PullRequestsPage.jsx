@@ -2,6 +2,14 @@ import React, { useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
+import {
+  IconAlert,
+  IconCheck,
+  IconSearch,
+  IconClock,
+  IconArrowRight,
+  IconChevronRight,
+} from '../components/ui/icons.jsx';
 import { formatTimeAgo } from '../utils/format.js';
 
 export default function PullRequestsPage() {
@@ -61,18 +69,17 @@ export default function PullRequestsPage() {
     return (
       <div
         id="view-pull-requests"
-        className="view-content flex flex-col items-center justify-center h-full"
+        className="view-content flex h-full flex-col items-center justify-center"
       >
-        <div className="text-red-500 mb-2">
-          <span className="material-symbols-outlined text-4xl">error</span>
-        </div>
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-white mb-1">
+        <IconAlert size={22} className="text-red-600 dark:text-red-400" />
+        <h2 className="mt-3 text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
           Failed to load Pull Requests
         </h2>
-        <p className="text-sm text-slate-500">{allPrsError}</p>
+        <p className="mt-1 text-[13px] text-neutral-500 dark:text-neutral-400">{allPrsError}</p>
         <button
+          type="button"
           onClick={() => loadAllPrs()}
-          className="mt-4 px-4 py-2 bg-primary text-black rounded-lg text-sm font-medium hover:brightness-110"
+          className="mt-4 rounded-sm bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
         >
           Retry
         </button>
@@ -81,81 +88,75 @@ export default function PullRequestsPage() {
   }
 
   return (
-    <div id="view-pull-requests" className="view-content p-6">
-      <div className="max-w-5xl mx-auto">
-        {allPrs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">check_circle</span>
-            <span className="text-sm font-medium">No open pull requests</span>
-          </div>
-        ) : visiblePrs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-            <span className="material-symbols-outlined text-4xl mb-2 opacity-50">
-              filter_list_off
-            </span>
-            <span className="text-sm font-medium">No pull requests match your repo filter</span>
-            <button
-              type="button"
-              onClick={() => dispatch({ type: 'SET_PR_HIDDEN_REPOS', payload: [] })}
-              className="mt-4 px-4 py-2 bg-primary text-black rounded-lg text-xs font-semibold hover:brightness-110"
-            >
-              Clear Filter
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {visiblePrs.map((pr) => {
-              // Extract repo name if available in pr object structure
-              // Usually pr.base.repo.full_name or similar
-              const repoName =
-                pr.base?.repo?.full_name || pr.repository?.full_name || 'Unknown Repository';
+    <div id="view-pull-requests" className="view-content mx-auto w-full max-w-5xl">
+      {allPrs.length === 0 ? (
+        <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border-light text-neutral-500 dark:border-border-dark dark:text-neutral-400">
+          <IconCheck size={20} className="opacity-60" />
+          <span className="mt-2 text-[13px] font-medium">No open pull requests</span>
+        </div>
+      ) : visiblePrs.length === 0 ? (
+        <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border-light text-neutral-500 dark:border-border-dark dark:text-neutral-400">
+          <IconSearch size={20} className="opacity-60" />
+          <span className="mt-2 text-[13px] font-medium">
+            No pull requests match your repo filter
+          </span>
+          <button
+            type="button"
+            onClick={() => dispatch({ type: 'SET_PR_HIDDEN_REPOS', payload: [] })}
+            className="mt-4 rounded-sm bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
+          >
+            Clear Filter
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-2">
+          {visiblePrs.map((pr) => {
+            // Extract repo name if available in pr object structure
+            // Usually pr.base.repo.full_name or similar
+            const repoName =
+              pr.base?.repo?.full_name || pr.repository?.full_name || 'Unknown Repository';
 
-              return (
-                <div
-                  key={pr.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openPrModal(pr)}
-                  onKeyDown={(e) => e.key === 'Enter' && openPrModal(pr)}
-                  className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark rounded-xl p-4 hover:border-primary/50 cursor-pointer transition-all shadow-sm hover:shadow-md group"
-                >
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 text-xs text-slate-500">
-                        <span className="font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md truncate max-w-[200px]">
-                          {repoName}
-                        </span>
-                        <span>•</span>
-                        <span className="font-mono">{pr.head.ref}</span>
-                        <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
-                        <span className="font-mono">{pr.base.ref}</span>
-                      </div>
-                      <h3 className="text-lg font-semibold text-slate-800 dark:text-white truncate pr-4 group-hover:text-primary transition-colors">
-                        {pr.title}
-                      </h3>
-                      <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
-                        <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-sm">schedule</span>
-                          {formatTimeAgo(pr.updated_at)}
-                        </span>
-                        <span>#{pr.number}</span>
-                        <div className="flex items-center gap-2 ml-auto lg:ml-0">
-                          <span>{pr.user?.login}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 self-center">
-                      <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
-                        chevron_right
+            return (
+              <div
+                key={pr.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openPrModal(pr)}
+                onKeyDown={(e) => e.key === 'Enter' && openPrModal(pr)}
+                className="pr-card group cursor-pointer rounded-lg border border-border-light bg-card-light p-3 transition-colors hover:border-border-strong-light hover:bg-neutral-50 dark:border-border-dark dark:bg-card-dark dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+                      <span className="max-w-[200px] truncate rounded-sm bg-inset-light px-1.5 py-0.5 font-medium text-neutral-600 dark:bg-inset-dark dark:text-neutral-300">
+                        {repoName}
                       </span>
+                      <span className="font-mono">{pr.head.ref}</span>
+                      <IconArrowRight size={10} className="shrink-0" />
+                      <span className="font-mono">{pr.base.ref}</span>
+                    </div>
+                    <h3 className="truncate pr-2 text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
+                      {pr.title}
+                    </h3>
+                    <div className="mt-1.5 flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400">
+                      <span className="flex items-center gap-1">
+                        <IconClock size={11} className="shrink-0" />
+                        {formatTimeAgo(pr.updated_at)}
+                      </span>
+                      <span>#{pr.number}</span>
+                      <span className="ml-auto lg:ml-0">{pr.user?.login}</span>
                     </div>
                   </div>
+                  <IconChevronRight
+                    size={14}
+                    className="mt-1 shrink-0 text-neutral-300 transition-colors group-hover:text-neutral-600 dark:text-neutral-600 dark:group-hover:text-neutral-300"
+                  />
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

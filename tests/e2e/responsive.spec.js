@@ -129,16 +129,16 @@ test.describe('Responsive Tests', () => {
     await page.locator('#bottom-nav button[data-view="settings"]').click();
     await expect(page.locator('#view-title')).toHaveText('Settings');
 
-    await page.locator('#bottom-nav button[data-view="computers"]').click();
-    await expect(page.locator('#view-title')).toHaveText('Computers');
+    await page.locator('#bottom-nav button[data-view="devices"]').click();
+    await expect(page.locator('#view-title')).toHaveText('Devices');
   });
 
-  test('Floating New Task button opens the new task modal on mobile', async () => {
-    const newTaskBtn = page.locator('#new-task-btn-mobile');
+  test('BottomNav New Task button opens the new task page on mobile', async () => {
+    const newTaskBtn = page.locator('#bottom-nav button[data-view="new-task"]');
     await expect(newTaskBtn).toBeVisible();
     await newTaskBtn.click();
 
-    const modal = page.locator('#new-task-modal');
-    await expect(modal).toBeVisible();
+    const view = page.locator('#new-task-modal');
+    await expect(view).toBeVisible();
   });
 });

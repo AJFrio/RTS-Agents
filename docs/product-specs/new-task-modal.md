@@ -1,10 +1,10 @@
-# Spec: New task modal
+# Spec: New task
 
 **Status:** Verified
 
 ## Requirement
 
-Users create new work from the UI with provider-specific fields.
+Users create new work from the New Task canvas tab (formerly a modal) with provider-specific fields.
 
 ## Provider options (desktop)
 
@@ -20,8 +20,8 @@ Users create new work from the UI with provider-specific fields.
 
 ## Model selection (optional)
 
-When a harness reports the models it supports, the modal shows a
-"Model (optional)" dropdown; leaving it on "Harness default" sends no model.
+When a harness reports the models it supports, the composer shows a
+"Model" pill dropdown; leaving it on "Harness default" sends no model.
 
 | Harness | Model list source | Model applied via |
 |---------|-------------------|-------------------|
@@ -38,15 +38,15 @@ threads it into the same service dispatch paths.
 
 ## Acceptance criteria
 
-- [ ] Modal only shows providers that are configured or detected
+- [ ] The tab only shows providers that are configured or detected
 - [ ] Model dropdown only appears when the selected harness reports models
 - [ ] Selected model reaches the CLI args / REST body / remote queue payload
-- [ ] Successful create closes modal and new task appears on dashboard after refresh
+- [ ] Successful create resets the form and the new task appears in the task list after refresh
 - [ ] Validation errors are shown inline (missing repo, missing key)
 
 ## Implementation pointers
 
-- `src/renderer/modals/NewTaskModal.jsx`
+- `src/renderer/pages/NewTaskPage.jsx`
 - `src/main/services/model-registry.js` (per-provider model listing + cache)
 - `models:get` IPC handler in `src/main/ipc/register-tasks.js`
 - Creation IPC handlers in `main.js`

@@ -1,13 +1,19 @@
 import React from 'react';
 
+/**
+ * Button variants (DESIGN.md §3.1): accent is inverted-neutral — near-black
+ * fill with white text in light theme, flipped in dark. Compact paddings,
+ * hairline borders, no shadows.
+ */
 const variants = {
   primary:
-    'bg-primary text-black px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200',
+    'bg-neutral-900 text-white px-3 py-1.5 text-[12px] font-medium rounded-md hover:bg-neutral-700 active:scale-[0.98] transition-colors duration-150 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300',
   secondary:
-    'border border-slate-300 dark:border-border-dark text-slate-600 dark:text-slate-400 px-4 py-2 text-xs font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200',
+    'border border-border-light dark:border-border-dark text-neutral-600 dark:text-neutral-300 px-3 py-1.5 text-[12px] font-medium rounded-md hover:bg-neutral-100 hover:border-border-strong-light dark:hover:bg-neutral-800 dark:hover:border-border-strong-dark active:scale-[0.98] transition-colors duration-150',
   danger:
-    'border border-red-500/50 text-red-400 px-4 py-2 text-xs font-semibold rounded-lg hover:bg-red-500/10 active:scale-[0.98] transition-all duration-200',
-  ghost: 'text-slate-400 hover:text-white px-2 py-1 transition-colors',
+    'border border-red-500/40 text-red-600 dark:text-red-400 px-3 py-1.5 text-[12px] font-medium rounded-md hover:bg-red-500/10 active:scale-[0.98] transition-colors duration-150',
+  ghost:
+    'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100 px-2 py-1 text-[12px] font-medium rounded-md transition-colors duration-150',
 };
 
 export default function Button({

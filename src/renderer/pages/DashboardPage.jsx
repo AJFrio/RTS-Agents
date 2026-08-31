@@ -1,19 +1,24 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { AgentCard } from '../components/ui/Card.jsx';
-import { StatusBadge } from '../components/ui/Badge.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import ErrorBanner from '../components/ui/ErrorBanner.jsx';
 import Pagination from '../components/ui/Pagination.jsx';
 import {
-  getProviderDisplayName,
-  getProviderDot,
-  getStatusLabel,
-  formatTimeAgo,
-  extractRepoName,
-  getProviderText,
-} from '../utils/format.js';
+  providerMeta,
+  IconTasks,
+  IconSync,
+  IconClock,
+  IconCheck,
+  IconAlert,
+  IconFolder,
+  IconGitBranch,
+  IconPullRequests,
+  IconCloud,
+  IconSearch,
+} from '../components/ui/icons.jsx';
+import { StatusPill } from '../components/ui/status.jsx';
+import { formatTimeAgo, extractRepoName } from '../utils/format.js';
 
 function formatShortTool(tool) {
   if (!tool) return '';
@@ -35,28 +40,28 @@ function RemoteActivityRow({ activity }) {
 
   return (
     <div
-      className="mb-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm dark:border-border-dark dark:bg-card-dark sm:flex-row sm:items-center sm:justify-between"
+      className="mb-3 flex flex-col gap-2 rounded-lg border border-border-light bg-card-light px-3 py-2 text-[13px] dark:border-border-dark dark:bg-card-dark sm:flex-row sm:items-center sm:justify-between"
       role="region"
       aria-label="Remote device queue and last run"
     >
       <div className="flex items-center gap-2">
-        <span className="material-symbols-outlined text-base text-primary">dns</span>
-        <span className="font-semibold text-slate-800 dark:text-white">Remote activity</span>
+        <IconCloud size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+        <span className="font-semibold text-neutral-900 dark:text-neutral-100">Remote activity</span>
         {queued > 0 && (
-          <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
             {queued} queued
           </span>
         )}
       </div>
       {lastTask && (
-        <div className="text-xs text-slate-500 dark:text-slate-400">
+        <div className="min-w-0 truncate text-xs text-neutral-500 dark:text-neutral-400">
           Last run on {lastDevice.name || lastDevice.deviceId}: {lastTask.status}
           {lastTask.tool ? ` · ${formatShortTool(lastTask.tool)}` : ''}
           {lastTask.error ? ` · ${lastTask.error}` : ''}
           {lastTask.updatedAt ? ` · ${formatTimeAgo(lastTask.updatedAt)}` : ''}
         </div>
       )}
-      {activity.loading && <span className="text-xs text-slate-500">Updating</span>}
+      {activity.loading && <span className="shrink-0 text-xs text-neutral-500">Updating</span>}
     </div>
   );
 }
@@ -68,10 +73,10 @@ function SummaryStrip({ agents, counts, filters, dispatch, api }) {
     return acc;
   }, {});
   const statuses = [
-    { id: 'running', label: 'Running', icon: 'play_circle' },
-    { id: 'pending', label: 'Pending', icon: 'schedule' },
-    { id: 'completed', label: 'Complete', icon: 'check_circle' },
-    { id: 'failed', label: 'Needs review', icon: 'error' },
+    { id: 'running', label: 'Running', Icon: IconSync },
+    { id: 'pending', label: 'Pending', Icon: IconClock },
+    { id: 'completed', label: 'Complete', Icon: IconCheck },
+    { id: 'failed', label: 'Needs review', Icon: IconAlert },
   ];
 
   const updateStatusFilter = (id, enabled) => {
@@ -84,10 +89,13 @@ function SummaryStrip({ agents, counts, filters, dispatch, api }) {
   };
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
-      <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-border-dark dark:bg-card-dark">
-        <div className="text-xs font-medium text-slate-500 dark:text-slate-400">All tasks</div>
-        <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+    <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="rounded-lg border border-border-light bg-card-light p-3 dark:border-border-dark dark:bg-card-dark">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          <IconTasks size={12} className="shrink-0" />
+          All tasks
+        </div>
+        <div className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
           {counts.total ?? agents.length}
         </div>
       </div>
@@ -98,21 +106,20 @@ function SummaryStrip({ agents, counts, filters, dispatch, api }) {
             key={item.id}
             type="button"
             onClick={() => updateStatusFilter(item.id, enabled)}
-            className={`rounded-lg border p-3 text-left transition-all ${
+            aria-pressed={enabled}
+            className={`rounded-lg border p-3 text-left transition-colors ${
               enabled
-                ? 'border-slate-200 bg-white dark:border-border-dark dark:bg-card-dark'
-                : 'border-slate-300 bg-slate-100 opacity-70 dark:border-slate-700 dark:bg-slate-900'
+                ? 'border-border-light bg-card-light hover:border-border-strong-light dark:border-border-dark dark:bg-card-dark dark:hover:border-border-strong-dark'
+                : 'border-border-light bg-inset-light opacity-60 dark:border-border-dark dark:bg-inset-dark'
             }`}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                 {item.label}
               </span>
-              <span className="material-symbols-outlined text-base text-slate-400">
-                {item.icon}
-              </span>
+              <item.Icon size={12} className="shrink-0 text-neutral-400 dark:text-neutral-500" />
             </div>
-            <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
+            <div className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-100">
               {statusCounts[item.id] || 0}
             </div>
           </button>
@@ -124,54 +131,51 @@ function SummaryStrip({ agents, counts, filters, dispatch, api }) {
 
 const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
   const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
-  const statusLabel = getStatusLabel(agent.status);
-  const providerName = getProviderDisplayName(agent.provider);
-  const dot = getProviderDot(agent.provider);
-  const providerText = getProviderText(agent.provider);
+  const { label: providerName, Icon: ProviderIcon } = providerMeta(agent.provider);
 
   return (
-    <AgentCard className="min-h-[156px]" onClick={onClick}>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
-          <span className={`truncate text-xs font-medium ${providerText}`}>{providerName}</span>
-        </div>
-        <StatusBadge status={agent.status}>{statusLabel}</StatusBadge>
+    <button
+      type="button"
+      className="agent-card flex w-full flex-col gap-2 p-3 text-left"
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border border-border-light bg-inset-light text-neutral-500 dark:border-border-dark dark:bg-inset-dark dark:text-neutral-400">
+          <ProviderIcon size={13} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
+          {agent.name || 'Untitled'}
+        </span>
+        <StatusPill status={agent.status} />
       </div>
-      <h3 className="mb-3 line-clamp-2 text-sm font-bold text-slate-800 dark:text-white">
-        {agent.name || 'Untitled'}
-      </h3>
-      <div className="grid gap-2 text-xs text-slate-600 dark:text-slate-300">
+      <div className="flex items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+        <span className="shrink-0 font-medium text-neutral-600 dark:text-neutral-300">
+          {providerName}
+        </span>
         {agent.repository && (
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="material-symbols-outlined text-xs">folder</span>
-            <span className="truncate">{extractRepoName(agent.repository)}</span>
-          </div>
+          <span className="flex min-w-0 items-center gap-1">
+            <IconFolder size={11} className="shrink-0" />
+            <span className="truncate font-mono">{extractRepoName(agent.repository)}</span>
+          </span>
         )}
-        <div className="flex items-center justify-between gap-3">
-          {agent.branch && (
-            <div className="flex min-w-0 items-center gap-1">
-              <span className="material-symbols-outlined text-xs">fork_right</span>
-              <span className="truncate">{agent.branch}</span>
-            </div>
-          )}
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <span className="material-symbols-outlined text-xs">schedule</span>
-            <span>{timeAgo}</span>
-          </div>
-        </div>
+        {agent.branch && (
+          <span className="flex min-w-0 items-center gap-1">
+            <IconGitBranch size={11} className="shrink-0" />
+            <span className="truncate font-mono">{agent.branch}</span>
+          </span>
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          <IconClock size={11} />
+          {timeAgo}
+        </span>
       </div>
       {agent.prUrl && (
-        <div className="mt-auto pt-3">
-          <div className="border-t border-slate-200 pt-2 dark:border-border-dark">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="material-symbols-outlined text-sm">merge</span>
-              <span>PR available</span>
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5 border-t border-border-light pt-2 text-[11px] font-medium text-emerald-700 dark:border-border-dark dark:text-emerald-400">
+          <IconPullRequests size={11} />
+          PR available
         </div>
       )}
-    </AgentCard>
+    </button>
   );
 });
 
@@ -222,7 +226,7 @@ export default function DashboardPage() {
   return (
     <div id="view-dashboard" className="view-content">
       {remoteQueue?.lastError && (
-        <div className="mb-4 rounded-lg border border-amber-500/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="mb-3 rounded-md border border-amber-500/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           Remote activity could not be refreshed: {remoteQueue.lastError}
         </div>
       )}
@@ -237,17 +241,15 @@ export default function DashboardPage() {
       <ErrorBanner errors={errors} />
 
       {pageItems.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 py-12 text-center dark:border-border-dark">
-          <span className="material-symbols-outlined mb-4 text-4xl text-slate-500">
-            filter_alt_off
-          </span>
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+        <div className="rounded-lg border border-dashed border-border-light py-10 text-center dark:border-border-dark">
+          <IconSearch size={20} className="mx-auto text-neutral-400" />
+          <p className="mt-2 text-[13px] font-medium text-neutral-600 dark:text-neutral-300">
             No tasks match the current filters
           </p>
         </div>
       ) : (
         <>
-          <div id="agents-grid" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div id="agents-grid" className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
             {pageItems.map((agent) => (
               <AgentCardItem
                 key={`${agent.provider}-${agent.rawId || agent.id || Math.random()}`}

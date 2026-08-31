@@ -3,6 +3,7 @@
 | Spec | Status |
 |------|--------|
 | [dashboard-unified-tasks.md](dashboard-unified-tasks.md) | Verified |
+| [ui-shell.md](ui-shell.md) | Verified |
 | [new-task-modal.md](new-task-modal.md) | Verified |
 | [github-pr-workflow.md](github-pr-workflow.md) | Verified |
 | [mobile-remote-dispatch.md](mobile-remote-dispatch.md) | Verified |

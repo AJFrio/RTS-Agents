@@ -53,18 +53,28 @@ test.describe('E2E Tests', () => {
       const settingsView = await window.locator('#view-settings');
       await expect(settingsView).toBeVisible();
 
-      // Settings now uses connected-service cards plus guided onboarding.
-      await expect(settingsView).toContainText('Connected Services');
-      await expect(settingsView.getByRole('button', { name: /add service/i })).toBeVisible();
+      // Settings owns display/polling/system only; services live in Plugins.
+      await expect(settingsView).toContainText('Display');
   });
 
-  test('Should navigate to Computers view', async () => {
+  test('Should navigate to Plugins and offer service onboarding', async () => {
       const window = await electronApp.firstWindow();
 
-      const computersBtn = await window.locator('button[data-view="computers"]');
-      await computersBtn.click();
+      const pluginsBtn = await window.locator('button[data-view="plugins"]');
+      await pluginsBtn.click();
 
-      const computersView = await window.locator('#view-computers');
-      await expect(computersView).toBeVisible();
+      const pluginsView = await window.locator('#view-plugins');
+      await expect(pluginsView).toBeVisible();
+      await expect(pluginsView.getByRole('button', { name: /add service/i }).first()).toBeVisible();
+  });
+
+  test('Should navigate to Devices view', async () => {
+      const window = await electronApp.firstWindow();
+
+      const devicesBtn = await window.locator('button[data-view="devices"]');
+      await devicesBtn.click();
+
+      const devicesView = await window.locator('#view-devices');
+      await expect(devicesView).toBeVisible();
   });
 });

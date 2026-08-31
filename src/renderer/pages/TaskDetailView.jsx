@@ -14,9 +14,9 @@ import { StatusDot, statusMeta } from '../components/ui/status.jsx';
 const FOLLOWUP_PROVIDERS = new Set(['jules', 'cursor', 'claude-cloud', 'codex']);
 const RUNNING_POLL_MS = 15000;
 
-function transcriptMessages(details, task) {
+function transcriptMessages(details) {
   const messages = Array.isArray(details?.messages) ? details.messages : [];
-  const out = messages.map((msg, idx) => ({
+  return messages.map((msg, idx) => ({
     id: msg.id ?? `msg-${idx}`,
     role: msg.role === 'user' ? 'user' : 'assistant',
     content: msg.content ?? '',
@@ -24,10 +24,6 @@ function transcriptMessages(details, task) {
     toolCalls: Array.isArray(msg.toolCalls) ? msg.toolCalls : undefined,
     timestamp: msg.timestamp ?? msg.createdAt ?? null,
   }));
-  if (out.length === 0 && details?.prompt) {
-    out.push({ id: 'prompt', role: 'user', content: details.prompt, timestamp: null });
-  }
-  return out;
 }
 
 /**
@@ -89,12 +85,21 @@ export default function TaskDetailView() {
   }, [details, pendingFollowUps]);
 
   const feed = useMemo(() => (details ? buildUnifiedFeed(details) : []), [details]);
-  const messages = useMemo(() => transcriptMessages(details, task), [details, task]);
+  const messages = useMemo(() => transcriptMessages(details), [details]);
   const hasTranscript = messages.some(
     (m) => (m.content || '').trim() || m.thinking || (m.toolCalls?.length ?? 0) > 0
   );
+  const promptOnlyMessages = useMemo(
+    () =>
+      details?.prompt && !hasTranscript && feed.length === 0 && !details?.content
+        ? [{ id: 'prompt', role: 'user', content: details.prompt, timestamp: null }]
+        : [],
+    [details, hasTranscript, feed.length]
+  );
 
   const supportsFollowUp = FOLLOWUP_PROVIDERS.has(task?.provider);
+
+  const visibleMessages = hasTranscript ? messages : promptOnlyMessages;
 
   const handleFollowUp = async () => {
     const text = followUp.trim();
@@ -121,7 +126,7 @@ export default function TaskDetailView() {
 
   const canOpenTerminal = task.provider === 'opencode' && api?.openOpenCodeSession;
   const transcriptPlusPending = [
-    ...messages,
+    ...visibleMessages,
     ...pendingFollowUps.map((m) => ({
       id: m.id,
       role: 'user',

@@ -28,7 +28,7 @@ const NAV_ITEMS = [
  * stay visible even when their section is collapsed.
  */
 export default function Sidebar() {
-  const { state, setView, setSidebarMode } = useApp();
+  const { state, setView, setSidebarMode, openNewTaskModal } = useApp();
   const { currentView, sidebarMode } = state;
 
   return (
@@ -60,7 +60,9 @@ export default function Sidebar() {
                   id={id ?? undefined}
                   data-view={view}
                   aria-current={isActive ? 'page' : undefined}
-                  onClick={() => setView(view)}
+                  onClick={() =>
+                    view === 'new-task' ? openNewTaskModal() : setView(view)
+                  }
                   className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors ${
                     isActive
                       ? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
@@ -94,7 +96,7 @@ export default function Sidebar() {
                 onClick={() => setSidebarMode(mode)}
                 className={`rounded-sm px-2 py-1 text-[12px] font-medium capitalize transition-colors ${
                   isActive
-                    ? 'bg-card-light text-neutral-900 shadow-sm dark:bg-card-dark dark:text-neutral-100'
+                    ? 'bg-card-light text-neutral-900 dark:bg-card-dark dark:text-neutral-100'
                     : 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
                 }`}
               >

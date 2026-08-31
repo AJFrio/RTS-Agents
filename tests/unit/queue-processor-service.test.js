@@ -8,6 +8,9 @@ jest.mock('../../src/main/services/config-store', () => ({
   getSetting: jest.fn(),
   hasApiKey: jest.fn(),
   setCodexThreads: jest.fn(),
+  setOpenCodeSessions: jest.fn(),
+  getClaudeCliSessions: jest.fn(() => []),
+  setClaudeCliSessions: jest.fn(),
 }));
 
 jest.mock('../../src/main/services/cloudflare-kv-service', () => ({
@@ -32,6 +35,12 @@ jest.mock('../../src/main/services/codex-service', () => ({
   getTrackedThreads: jest.fn(),
 }));
 
+jest.mock('../../src/main/services/opencode-service', () => ({
+  isOpenCodeInstalled: jest.fn(),
+  startSession: jest.fn(),
+  getTrackedSessions: jest.fn(() => []),
+}));
+
 jest.mock('../../src/main/services/project-service', () => ({
   createLocalRepo: jest.fn(),
 }));
@@ -49,6 +58,7 @@ const cloudflareKvService = require('../../src/main/services/cloudflare-kv-servi
 const antigravityService = require('../../src/main/services/antigravity-service');
 const claudeService = require('../../src/main/services/claude-service');
 const codexService = require('../../src/main/services/codex-service');
+const opencodeService = require('../../src/main/services/opencode-service');
 const projectService = require('../../src/main/services/project-service');
 
 describe('QueueProcessorService', () => {
@@ -175,6 +185,29 @@ describe('QueueProcessorService', () => {
           status: 'error',
           error: expect.stringContaining('Unsupported queued tool'),
         })
+      );
+    });
+
+    it('should forward the requested model to the service dispatch', async () => {
+      const task = {
+        tool: 'opencode',
+        repo: { path: '/path/to/repo' },
+        prompt: 'test prompt',
+        model: 'google/gemini-3-pro',
+      };
+      cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
+      opencodeService.isOpenCodeInstalled.mockResolvedValue(true);
+      opencodeService.startSession.mockResolvedValue({ id: 'session1' });
+
+      await queueProcessorService.processQueue('ns1');
+
+      expect(opencodeService.startSession).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'google/gemini-3-pro' })
+      );
+      expect(cloudflareKvService.setDeviceTaskStatus).toHaveBeenCalledWith(
+        'ns1',
+        'device1',
+        expect.objectContaining({ status: 'running' })
       );
     });
   });

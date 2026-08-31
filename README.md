@@ -91,7 +91,7 @@ The worker proxies provider traffic through same-origin `/api/*` routes; API key
 
 ### Prerequisites
 
-- **Node.js**: recommended **Node 18+** (Electron 28 runtime)
+- **Node.js**: recommended **Node 22+** (Electron 44 runtime)
 - **npm** (bundled with Node)
 - **Git** (required for cloning and for the in-app “Update & Restart” feature)
 
@@ -244,7 +244,7 @@ If Claude CLI shows as “not installed”:
 - `npm run dev:headless`: run a lightweight headless device (no Electron UI) that registers to Cloudflare KV, pulls keys, and executes queued remote tasks
 - `npm run smoke:providers`: optional live provider smoke check using stored config or environment variables; reports `not_configured`, `ok`, `auth_failed`, `rate_limited`, or `stale_contract`
 - `npm run test`: Jest unit + integration tests
-- `npm run test:e2e`: Playwright E2E tests (optimized for headless Linux with `xvfb-maybe`)
+- `npm run test:e2e`: Playwright E2E tests. Runs headless on Linux via `xvfb-maybe`. On macOS/Windows Electron always draws real windows, so `E2E_NO_FOCUS=1` shows them without activating, keeping the run from stealing focus.
 - `npm run validate`: docs structure + architecture checks + lint + unit tests (agent harness gate)
 - `npm run validate:docs` / `validate:architecture`: harness validators only
 - `npm run lint` / `format:check`: ESLint and Prettier for the desktop app

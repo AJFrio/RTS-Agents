@@ -234,7 +234,8 @@ export const SERVICE_CATALOG = [
     kind: 'cloudflare',
     provider: 'cloudflare',
     icon: 'cloud_upload',
-    description: 'Connect Cloudflare KV to sync service credentials and remote device state.',
+    description:
+      'Connect Cloudflare KV to sync service credentials and remote device state. Quick Setup deep-links to a pre-configured Workers KV token and can detect your account ID automatically.',
     fields: [
       {
         key: 'accountId',
@@ -246,7 +247,7 @@ export const SERVICE_CATALOG = [
         key: 'apiToken',
         label: 'API Token',
         type: 'password',
-        placeholder: 'Enter Cloudflare API token',
+        placeholder: 'Paste your Cloudflare API token (Quick Setup can create one)',
       },
     ],
   },

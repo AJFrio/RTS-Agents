@@ -27,10 +27,11 @@ RTS Agents reduces context switching between coding agents (Jules, Cursor, Antig
 Modal, task-detail, and create-task surfaces compose from these renderer primitives (`src/renderer/components/ui/`, `src/renderer/components/task/`):
 
 - **Modal `size`** — `sm | md | lg | xl | wide`; `wide` spans ~80% of the window on desktop (`lg:w-[80vw]`, capped at `max-w-screen-2xl`). Consumers own height and inner chrome; `size` is optional so legacy consumers render unchanged.
-- **Collapsible / SectionHeader** — collapsed-by-default disclosure with `aria-expanded`, chevron icon, and keyboard toggling. `mountWhenClosed` keeps panel content mounted (hidden) so transcript text stays in the DOM. `SectionHeader` is the unboxed variant with count badges and header actions.
+- **Collapsible / SectionHeader** — collapsed-by-default disclosure with `aria-expanded`, chevron icon, and keyboard toggling. `mountWhenClosed` keeps panel content mounted (hidden) so transcript text stays in the DOM. `SectionHeader` is the unboxed variant with count badges and header actions. Available to any consumer; the agent detail view no longer uses it.
 - **Task sections** — `TaskContextSection`, `ActivityTimeline`, and `ConversationList` render any provider's details. Provider quirks enter as props (Jules media session, OpenCode header action), never as per-provider components.
+- **Unified activity feed** — `UnifiedActivityFeed` renders one chronological stream merging activities, conversation, and messages (`buildUnifiedFeed` in `src/renderer/utils/agent-feed.js`): chat bubbles for user/assistant turns, timeline rows for activity, expandable rows with running-task auto-expand of the latest entry until the user intervenes. Jules media renders inline.
 
-Detail-view defaults: metadata (Context) starts collapsed; primary content (Prompt, Summary, Conversation, Messages) starts expanded; running tasks auto-expand the latest activity row until the user intervenes.
+Agent detail view (`AgentModal`): slim sticky top bar carries identity + live status (provider badge, pulsing status badge while running, title, relative time, Go To Task / terminal actions); the body is a single scroll with pinned task context and summary above the unified feed — no collapsible sections, no separate Prompt section (the prompt is visible in the chat transcript; rendered standalone only when the feed is empty). Details for running tasks are pre-fetched in the background (`agent-details-cache`) so clicking a running card renders instantly, with the live fetch still refreshing behind the cache seed. Toasts anchor bottom-right.
 
 ## Non-goals (current)
 

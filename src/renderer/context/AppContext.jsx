@@ -5,6 +5,10 @@ import { useAppData } from './hooks/use-app-data.js';
 import { useAppGithub } from './hooks/use-app-github.js';
 import { useAppEffects } from './hooks/use-app-effects.js';
 import { useAppModals } from './hooks/use-app-modals.js';
+import {
+  createAgentDetailsCache,
+  fetchAgentDetails,
+} from './helpers/agent-details-cache.js';
 
 const AppContext = createContext(null);
 
@@ -23,6 +27,12 @@ export function AppProvider({ children }) {
   const { loadBranches, loadAllPrs, removePr } = useAppGithub(api, dispatch);
   const modals = useAppModals(dispatch);
 
+  // Background pre-fetch of running-agent details so AgentModal renders instantly.
+  const agentDetailsCache = useMemo(
+    () => (api ? createAgentDetailsCache({ api, fetchDetails: fetchAgentDetails }) : null),
+    [api]
+  );
+
   useAppEffects({
     api,
     state,
@@ -32,6 +42,7 @@ export function AppProvider({ children }) {
     checkConnectionStatus,
     fetchComputers,
     loadRemoteQueueActivity,
+    agentDetailsCache,
   });
 
   const value = useMemo(
@@ -39,6 +50,7 @@ export function AppProvider({ children }) {
       state,
       dispatch,
       api,
+      agentDetailsCache,
       loadSettings,
       loadAgents,
       checkConnectionStatus,
@@ -52,6 +64,7 @@ export function AppProvider({ children }) {
     [
       state,
       api,
+      agentDetailsCache,
       loadSettings,
       loadAgents,
       checkConnectionStatus,

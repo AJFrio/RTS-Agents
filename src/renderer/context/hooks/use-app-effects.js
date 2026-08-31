@@ -12,6 +12,7 @@ export function useAppEffects({
   checkConnectionStatus,
   fetchComputers,
   loadRemoteQueueActivity,
+  agentDetailsCache,
 }) {
   const bootstrapActionsRef = useRef({
     loadSettings,
@@ -81,4 +82,9 @@ export function useAppEffects({
       previousFiltersRef.current = filters;
     }
   }, [state.agents, state.filters, dispatch]);
+
+  // Pre-fetch details for running agents so opening a task renders instantly.
+  useEffect(() => {
+    agentDetailsCache?.prime(state.agents);
+  }, [state.agents, agentDetailsCache]);
 }

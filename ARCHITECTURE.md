@@ -6,7 +6,7 @@ RTS Agents is an **agent orchestration dashboard**: one place to monitor, create
 
 | Surface | Runtime | Entry | Role |
 |---------|---------|-------|------|
-| Desktop app | Electron 28 | `main.js` | Primary product: IPC, polling, provider services |
+| Desktop app | Electron 44 | `main.js` | Primary product: IPC, polling, provider services |
 | Renderer UI | React 18 + Vite | `src/renderer/` | Dashboard, settings, modals, GitHub/Jira views |
 | Web app | Cloudflare Worker + Workers Assets | `worker/index.ts`, `wrangler.jsonc` | Same renderer served from `dist/renderer`; `/api/*` proxy; dispatches to desktop via KV |
 | Headless node | Node (no UI) | `headless.js` | Registers device, pulls keys, runs queued remote tasks |

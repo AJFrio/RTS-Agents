@@ -65,9 +65,14 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, 'dist/renderer/index.html'));
   }
 
-  // Show window when ready to prevent flash
+  // Show window when ready to prevent flash. Under E2E the window is shown
+  // without activating it, so test runs don't steal focus from the user.
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    if (process.env.E2E_NO_FOCUS === '1') {
+      mainWindow.showInactive();
+    } else {
+      mainWindow.show();
+    }
     initializeServices();
     startDiscoveryWatchers();
     startPollingIfEnabled();

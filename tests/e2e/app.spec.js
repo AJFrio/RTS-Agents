@@ -20,9 +20,11 @@ test.describe('E2E Tests', () => {
 
   test('Window should open with correct title', async () => {
     const window = await electronApp.firstWindow();
-    const title = await window.title();
-    // Default title is typically "RTS Agents Dashboard" or what's in index.html/main.js
-    // Checking index.html to be sure
+    // Wait for the initial loadFile navigation to settle before reading the
+    // title; querying mid-navigation destroys the execution context.
+    await window.waitForLoadState('domcontentloaded');
+    await expect(window.locator('#app')).toBeVisible({ timeout: 15000 });
+    expect(await window.title()).toBeTruthy();
   });
 
   test('Dashboard should load', async () => {

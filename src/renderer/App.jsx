@@ -80,7 +80,7 @@ function App() {
       <JiraIssueModal issue={state.jiraIssueModal} onClose={closeJiraIssueModal} api={api} />
       <ConfirmModal config={state.confirmModal} onClose={closeConfirmModal} />
       <PastedImageModal imageUrl={state.pastedImageModal} onClose={closePastedImageModal} />
-      <Toaster position="bottom-left" richColors theme={toastTheme} />
+      <Toaster position="bottom-right" richColors theme={toastTheme} />
     </>
   );
 }

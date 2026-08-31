@@ -1,5 +1,6 @@
 const { ipcMain } = require('electron');
 const providerHealth = require('../services/provider-health');
+const { discoverCloudflareAccounts } = require('../services/cloudflare-account-discovery');
 
 const SYNCED_API_KEY_PROVIDERS = new Set([
   'jules',
@@ -62,6 +63,16 @@ function registerCloudflareHandlers(deps) {
         endpointLabel: 'GET /client/v4/accounts/:accountId/storage/kv/namespaces',
       });
     }
+  });
+
+  /**
+   * Discover Cloudflare accounts accessible with a pasted API token.
+   * No persistence here — the token is only persisted later via cloudflare:set-config.
+   */
+  ipcMain.handle('cloudflare:discover-account', async (event, { apiToken } = {}) => {
+    const token = typeof apiToken === 'string' ? apiToken.trim() : '';
+    if (!token) return { success: false, error: 'API token is required' };
+    return discoverCloudflareAccounts({ token });
   });
 
   /**

@@ -9,6 +9,7 @@ const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
+const { applySessionUpdate } = require('./opencode-session-parser');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_MODEL = 'gpt-5-codex';
@@ -220,6 +221,11 @@ class CodexService {
       throw new Error(`Codex task not found: ${recordId}`);
     }
 
+    const streamMessages = Array.isArray(record.streamMessages) ? record.streamMessages : [];
+    const streamHasContent = streamMessages.some(
+      (msg) => (msg.content || '').trim() || msg.thinking || (msg.toolCalls?.length ?? 0) > 0
+    );
+
     return {
       ...this.normalizeRecord(record),
       messages: [
@@ -229,16 +235,18 @@ class CodexService {
           content: record.prompt || '',
           createdAt: record.createdAt || null,
         },
-        ...(record.responseText
-          ? [
-              {
-                id: `${record.id}-response`,
-                role: 'assistant',
-                content: record.responseText,
-                createdAt: record.updatedAt || null,
-              },
-            ]
-          : []),
+        ...(streamHasContent
+          ? streamMessages
+          : record.responseText
+            ? [
+                {
+                  id: `${record.id}-response`,
+                  role: 'assistant',
+                  content: record.responseText,
+                  createdAt: record.updatedAt || null,
+                },
+              ]
+            : []),
       ],
       runs: [
         {
@@ -298,6 +306,45 @@ class CodexService {
     return this.normalizeRecord(record);
   }
 
+  /**
+   * Send a follow-up to a stored Responses-API task by chaining the new
+   * input onto the previous response (`previous_response_id`).
+   * Only supported for cloud `response` records, not local CLI launches.
+   * @param {string} recordId
+   * @param {string} message
+   */
+  async sendFollowUp(recordId, message) {
+    if (!message || !message.trim()) {
+      throw new Error('Message is required');
+    }
+    const record = trackedThreads.find((t) => t.id === recordId);
+    if (!record) {
+      throw new Error(`Codex task not found: ${recordId}`);
+    }
+    if (record.type !== 'response') {
+      throw new Error('Follow-up messages are not supported for local Codex CLI sessions');
+    }
+    if (!configStore.hasApiKey('codex')) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const response = await this.request('/responses', 'POST', {
+      model: record.model || CODEX_DEFAULT_MODEL,
+      input: message,
+      store: true,
+      previous_response_id: record.responseId || record.id,
+    });
+
+    this._updateTrackedThread(recordId, {
+      responseId: response.id || record.responseId,
+      responseText: response.output_text || this.extractResponseText(response) || record.responseText,
+      status: response.status || 'completed',
+      error: null,
+    });
+
+    return { success: true };
+  }
+
   extractResponseText(response) {
     const output = Array.isArray(response?.output) ? response.output : [];
     return (
@@ -345,6 +392,7 @@ class CodexService {
       title: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
     });
     record.streamText = '';
+    record.streamMessages = [];
     this._persistThreads();
 
     const buildCard = (message) => ({ ...this.normalizeRecord(record), message });
@@ -373,13 +421,31 @@ class CodexService {
             );
           },
           onUpdate: (update) => {
-            if (update?.sessionUpdate !== 'agent_message_chunk') return;
+            const nextMessages = applySessionUpdate(
+              record.streamMessages,
+              update,
+              new Date().toISOString()
+            );
             const text =
-              typeof update.content === 'string' ? update.content : update.content?.text;
-            if (!text || !text.trim()) return;
-            record.streamText = (record.streamText + text).slice(-STREAM_TEXT_CAP);
-            record.responseText = record.streamText;
-            this._updateTrackedThread(sessionId, { responseText: record.streamText }, true);
+              update?.sessionUpdate === 'agent_message_chunk'
+                ? typeof update.content === 'string'
+                  ? update.content
+                  : update.content?.text
+                : null;
+            if (text && text.trim()) {
+              record.streamText = (record.streamText + text).slice(-STREAM_TEXT_CAP);
+              record.responseText = record.streamText;
+            }
+            if (nextMessages === record.streamMessages && !text) return;
+            record.streamMessages = nextMessages;
+            this._updateTrackedThread(
+              sessionId,
+              {
+                responseText: record.streamText,
+                streamMessages: record.streamMessages,
+              },
+              true
+            );
           },
         })
         .then(({ stopReason }) => {

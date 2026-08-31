@@ -11,7 +11,7 @@ const {
   isValidOpenCodeSessionId,
   parseJsonlEvent,
   appendStreamMessage,
-  appendAgentChunk,
+  applySessionUpdate,
   parseExportToMessages,
 } = require('./opencode-session-parser');
 
@@ -289,15 +289,13 @@ class OpenCodeService {
             );
           },
           onUpdate: (update) => {
-            if (update?.sessionUpdate !== 'agent_message_chunk') return;
-            const text =
-              typeof update.content === 'string' ? update.content : update.content?.text;
-            if (!text || !text.trim()) return;
-            streamState.streamMessages = appendAgentChunk(
+            const next = applySessionUpdate(
               streamState.streamMessages,
-              text,
+              update,
               new Date().toISOString()
             );
+            if (next === streamState.streamMessages) return;
+            streamState.streamMessages = next;
             this._updateSessionDebounced(sessionId, () => ({
               streamMessages: streamState.streamMessages,
             }));

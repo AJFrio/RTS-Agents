@@ -9,7 +9,7 @@ const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
-const { appendStreamMessage, appendAgentChunk } = require('./opencode-session-parser');
+const { appendStreamMessage, applySessionUpdate } = require('./opencode-session-parser');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -577,6 +577,64 @@ class ClaudeService {
     };
   }
 
+  /**
+   * Send a follow-up message to a tracked cloud conversation. Replays the
+   * stored history plus the new user message through the Messages API.
+   * @param {string} conversationId
+   * @param {string} message
+   */
+  async sendFollowUp(conversationId, message) {
+    if (!message || !message.trim()) {
+      throw new Error('Message is required');
+    }
+    const conversation = trackedConversations.find((c) => c.id === conversationId);
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${conversationId}`);
+    }
+    if (!this.apiKey) {
+      throw new Error('Anthropic API key not configured');
+    }
+
+    const messages = [...(conversation.messages || [])];
+    if (conversation.lastResponse) {
+      const responseText = (conversation.lastResponse.content || [])
+        .filter((block) => block?.type === 'text')
+        .map((block) => block.text)
+        .join('\n');
+      if (responseText) {
+        messages.push({ role: 'assistant', content: responseText });
+      }
+    }
+    messages.push({ role: 'user', content: message });
+
+    try {
+      const response = await this.createMessage(messages, {
+        model: conversation.model || CLAUDE_DEFAULT_MODEL,
+        max_tokens: 4096,
+      });
+      this.trackConversation(conversationId, {
+        ...conversation,
+        messages,
+        lastResponse: response,
+        status: 'completed',
+        error: null,
+        updatedAt: new Date().toISOString(),
+      });
+      configStore.setClaudeConversations(trackedConversations);
+      return { success: true };
+    } catch (err) {
+      this.trackConversation(conversationId, {
+        ...conversation,
+        messages,
+        status: 'failed',
+        error: err.message,
+        updatedAt: new Date().toISOString(),
+      });
+      configStore.setClaudeConversations(trackedConversations);
+      throw err;
+    }
+  }
+
   // ============================================
   // Task Creation
   // ============================================
@@ -774,11 +832,13 @@ class ClaudeService {
             );
           },
           onUpdate: (update) => {
-            if (update?.sessionUpdate !== 'agent_message_chunk') return;
-            const text =
-              typeof update.content === 'string' ? update.content : update.content?.text;
-            if (!text || !text.trim()) return;
-            record.streamMessages = appendAgentChunk(record.streamMessages, text, new Date().toISOString());
+            const next = applySessionUpdate(
+              record.streamMessages,
+              update,
+              new Date().toISOString()
+            );
+            if (next === record.streamMessages) return;
+            record.streamMessages = next;
             this._updateTrackedLocalSession(
               sessionId,
               { streamMessages: record.streamMessages },
@@ -959,6 +1019,8 @@ class ClaudeService {
           role: msg.role || 'assistant',
           content: msg.content || '',
           timestamp: msg.timestamp || null,
+          ...(msg.thinking ? { thinking: msg.thinking } : {}),
+          ...(Array.isArray(msg.toolCalls) ? { toolCalls: msg.toolCalls } : {}),
         })),
       ],
       filePath: null,

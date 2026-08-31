@@ -20,6 +20,10 @@ function registerTasksHandlers(deps) {
 
   const createTask = (args) => providerRegistry.createTask(deps, args);
   agentOrchestrator.setCreateTaskCallback(createTask);
+  agentOrchestrator.setListTasksCallback(async () => {
+    const result = await providerRegistry.fetchAllAgents(deps);
+    return Array.isArray(result?.agents) ? result.agents : [];
+  });
 
   ipcMain.handle('orchestrator:get-models', async () => {
     return agentOrchestrator.getAvailableModels();

@@ -465,7 +465,7 @@ async function createTask(deps, { provider, options }) {
 }
 
 async function sendTaskMessage(deps, { provider, rawId, message }) {
-  const { configStore, julesService, cursorService } = deps;
+  const { configStore, julesService, cursorService, claudeService, codexService } = deps;
 
   switch (provider) {
     case 'jules': {
@@ -480,6 +480,20 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
         throw new Error('Cursor API key not configured');
       }
       await cursorService.addFollowUp(rawId, message);
+      return { success: true };
+    }
+    case 'claude-cloud': {
+      if (!configStore.hasApiKey('claude')) {
+        throw new Error('Claude API key not configured');
+      }
+      await claudeService.sendFollowUp(rawId, message);
+      return { success: true };
+    }
+    case 'codex': {
+      if (!configStore.hasApiKey('codex')) {
+        throw new Error('OpenAI API key not configured');
+      }
+      await codexService.sendFollowUp(rawId, message);
       return { success: true };
     }
     default:

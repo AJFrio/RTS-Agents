@@ -4,7 +4,7 @@ const httpService = require('./http-service');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
-const { appendAgentChunk } = require('./opencode-session-parser');
+const { applySessionUpdate } = require('./opencode-session-parser');
 
 const BASE_URL = 'https://api.cursor.com/v1';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
@@ -559,11 +559,13 @@ class CursorService {
             );
           },
           onUpdate: (update) => {
-            if (update?.sessionUpdate !== 'agent_message_chunk') return;
-            const text =
-              typeof update.content === 'string' ? update.content : update.content?.text;
-            if (!text || !text.trim()) return;
-            record.streamMessages = appendAgentChunk(record.streamMessages, text, new Date().toISOString());
+            const next = applySessionUpdate(
+              record.streamMessages,
+              update,
+              new Date().toISOString()
+            );
+            if (next === record.streamMessages) return;
+            record.streamMessages = next;
             this._updateTrackedCliSession(
               sessionId,
               { streamMessages: record.streamMessages },
@@ -676,6 +678,8 @@ class CursorService {
           role: msg.role || 'assistant',
           content: msg.content || '',
           timestamp: msg.timestamp || null,
+          ...(msg.thinking ? { thinking: msg.thinking } : {}),
+          ...(Array.isArray(msg.toolCalls) ? { toolCalls: msg.toolCalls } : {}),
         })),
       ],
     };

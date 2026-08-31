@@ -10,8 +10,8 @@ const source = fs.readFileSync(
   'utf-8'
 );
 const factory = new Function(`${source.replace(/export function/g, 'function')}
-  return { groupMessages, shortenTarget, stripHarnessNoise };`);
-const { groupMessages, shortenTarget, stripHarnessNoise } = factory();
+  return { groupMessages, shortenTarget, stripHarnessNoise, isNearBottom };`);
+const { groupMessages, shortenTarget, stripHarnessNoise, isNearBottom } = factory();
 
 describe('groupMessages', () => {
   test('merges consecutive assistant turns into one group', () => {
@@ -160,5 +160,29 @@ describe('stripHarnessNoise', () => {
   test('returns an empty array for empty or missing input', () => {
     expect(stripHarnessNoise([])).toEqual([]);
     expect(stripHarnessNoise(null)).toEqual([]);
+  });
+});
+
+describe('isNearBottom', () => {
+  test('true when the scroll position is within the threshold of the end', () => {
+    // 1000 tall content, 400 viewport, scrolled to 580 -> 20px from bottom.
+    expect(isNearBottom({ scrollTop: 580, scrollHeight: 1000, clientHeight: 400 })).toBe(true);
+  });
+
+  test('false when scrolled well above the end', () => {
+    expect(isNearBottom({ scrollTop: 100, scrollHeight: 1000, clientHeight: 400 })).toBe(false);
+  });
+
+  test('true when content is shorter than the viewport', () => {
+    // Nothing to scroll: the user is already seeing everything.
+    expect(isNearBottom({ scrollTop: 0, scrollHeight: 300, clientHeight: 400 })).toBe(true);
+  });
+
+  test('true at the exact bottom', () => {
+    expect(isNearBottom({ scrollTop: 600, scrollHeight: 1000, clientHeight: 400 })).toBe(true);
+  });
+
+  test('false for a missing element', () => {
+    expect(isNearBottom(null)).toBe(false);
   });
 });

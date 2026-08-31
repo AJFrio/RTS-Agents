@@ -7,6 +7,7 @@ import UnifiedActivityFeed from '../components/task/UnifiedActivityFeed.jsx';
 import FollowUpComposer from '../components/task/FollowUpComposer.jsx';
 import { getProviderDisplayName, getStatusLabel, formatTimeAgo } from '../utils/format.js';
 import { buildUnifiedFeed } from '../utils/agent-feed.js';
+import { isNearBottom } from '../utils/transcript.js';
 import { parseMarkdown } from '../utils/markdown.js';
 import { useApp } from '../context/AppContext.jsx';
 import DOMPurify from 'dompurify';
@@ -128,6 +129,66 @@ export default function AgentModal({ agent, onClose, api }) {
   const [refreshNonce, setRefreshNonce] = useState(0);
   // Label for the in-flight turn, shown at the end of the transcript.
   const [pendingLabel, setPendingLabel] = useState(null);
+  // Jump-to-bottom affordance: hidden while already at the end.
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const didAutoScrollRef = useRef(false);
+
+  // Stable across renders: an inline arrow here would be a new prop identity
+  // every time, defeating React.memo on every markdown block below it.
+  const renderMarkdown = React.useCallback(
+    (content) => <MemoizedMarkdownBlock content={content} />,
+    []
+  );
+
+  const scrollToBottom = React.useCallback((behavior = 'smooth') => {
+    const root = scrollRootRef.current;
+    if (!root) return;
+    root.scrollTo({ top: root.scrollHeight, behavior });
+  }, []);
+
+  // Track scroll position so the button only appears when it would do something.
+  useEffect(() => {
+    const root = scrollRootRef.current;
+    if (!root) return undefined;
+
+    // A large transcript is thousands of nodes; re-rendering it on every
+    // scroll event is what made scrolling feel laggy. Coalesce to one check
+    // per frame, and only touch state when the answer actually changes.
+    let frame = null;
+    const update = () => {
+      frame = null;
+      const next = !isNearBottom(root);
+      setShowJumpToBottom((prev) => (prev === next ? prev : next));
+    };
+    const schedule = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(update);
+    };
+
+    update();
+    root.addEventListener('scroll', schedule, { passive: true });
+
+    // Content grows as details load and images decode; re-evaluate on resize.
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    observer?.observe(root);
+
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      root.removeEventListener('scroll', schedule);
+      observer?.disconnect();
+    };
+  }, [details, pendingLabel]);
+
+  // A conversation is most useful at its newest message, so open there once
+  // the transcript has loaded. Only on first load per task - re-running would
+  // yank the view out from under someone reading history.
+  useEffect(() => {
+    if (!details || didAutoScrollRef.current) return;
+    didAutoScrollRef.current = true;
+    // Wait for layout so scrollHeight reflects the rendered transcript.
+    requestAnimationFrame(() => scrollToBottom('auto'));
+  }, [details, scrollToBottom]);
 
   const sessionId =
     agent?.provider === 'jules'
@@ -142,6 +203,8 @@ export default function AgentModal({ agent, onClose, api }) {
     setDetailsError(null);
     setExpandedRowIds(new Set());
     setPendingLabel(null);
+    setShowJumpToBottom(false);
+    didAutoScrollRef.current = false;
     userTouchedRef.current = new Set();
 
     const isJules = agent.provider === 'jules';
@@ -303,10 +366,11 @@ export default function AgentModal({ agent, onClose, api }) {
             </button>
           </div>
         </div>
+        <div className="relative min-h-0 flex-1">
         <div
           id="modal-content"
           ref={scrollRootRef}
-          className="min-h-0 flex-1 overflow-y-auto bg-white px-6 py-5 scroll-smooth dark:bg-background-dark lg:px-8"
+          className="h-full overflow-y-auto px-6 py-5 lg:px-8 bg-white dark:bg-background-dark scroll-smooth"
         >
           {loading && <LoadingSpinner />}
           {!loading && details && (() => {
@@ -354,7 +418,7 @@ export default function AgentModal({ agent, onClose, api }) {
                   <>
                     <UnifiedActivityFeed
                       feed={feed}
-                      renderMessage={(content) => <MemoizedMarkdownBlock content={content} />}
+                      renderMessage={renderMarkdown}
                       assistantLabel={providerName}
                       showMedia={agent.provider === 'jules'}
                       mediaApi={api}
@@ -382,6 +446,19 @@ export default function AgentModal({ agent, onClose, api }) {
           {!loading && !details && !detailsError && (
             <p className="text-slate-500">No details available.</p>
           )}
+        </div>
+        {showJumpToBottom && (
+          <button
+            type="button"
+            onClick={() => scrollToBottom()}
+            title="Jump to latest"
+            aria-label="Jump to latest message"
+            className="absolute bottom-4 right-6 flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 py-2 text-xs font-medium text-slate-700 shadow-lg backdrop-blur transition-all hover:border-primary hover:text-primary dark:border-border-dark dark:bg-card-dark/95 dark:text-slate-200 dark:hover:text-primary"
+          >
+            <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+            Latest
+          </button>
+        )}
         </div>
         <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-6 py-3 dark:border-border-dark dark:bg-black flex flex-col items-end gap-1 text-[10px] technical-font text-slate-600">
           {agent.provider === 'opencode' ? (

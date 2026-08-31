@@ -5,6 +5,7 @@
 
 const projectService = require('../services/project-service');
 const acpService = require('../services/acp-service');
+const { resolveProjectRoot } = require('../utils/project-root');
 
 const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'claude-cli', 'codex', 'opencode']);
 const LOCAL_CWD_PROVIDERS = new Set(['antigravity', 'codex', 'claude-cli', 'opencode', 'cursor']);
@@ -43,6 +44,22 @@ function emptyRepoResults() {
     results[key] = [];
   }
   return results;
+}
+
+/**
+ * Tag an agent with the project it belongs to.
+ *
+ * Resolution needs the filesystem, so it happens here rather than in the
+ * renderer. Remote agents carry a repository URL instead of a path and are
+ * grouped by `owner/repo` downstream, so they are left untouched.
+ */
+function withProjectRoot(agent) {
+  const repository = agent?.repository;
+  if (typeof repository !== 'string' || !repository || repository.includes('://')) {
+    return agent;
+  }
+  const projectRoot = resolveProjectRoot(repository);
+  return projectRoot ? { ...agent, projectRoot } : agent;
 }
 
 function sortAgentsByDate(agents) {
@@ -119,7 +136,9 @@ async function fetchAllAgents(deps) {
     applySettledAgentResult(results, AGENT_LIST_KEYS[index], entry, reportFlags[index]);
   });
 
-  const allAgents = sortAgentsByDate(AGENT_LIST_KEYS.flatMap((key) => results[key]));
+  const allAgents = sortAgentsByDate(AGENT_LIST_KEYS.flatMap((key) => results[key])).map(
+    withProjectRoot
+  );
 
   const counts = { total: allAgents.length };
   for (const key of AGENT_LIST_KEYS) {

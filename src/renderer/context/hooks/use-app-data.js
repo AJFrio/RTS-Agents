@@ -109,6 +109,9 @@ export function useAppData(api, state, dispatch) {
       if (typeof result.filters?.search === 'string') {
         dispatch({ type: 'SET_FILTERS', payload: { search: result.filters.search } });
       }
+      if (result.filters?.dashboardMode === 'projects' || result.filters?.dashboardMode === 'grid') {
+        dispatch({ type: 'SET_DASHBOARD_MODE', payload: result.filters.dashboardMode });
+      }
       dispatch({
         type: 'SET_COMPUTERS',
         payload: { configured: !!(result.cloudflare?.configured || result.apiKeys?.cloudflare) },

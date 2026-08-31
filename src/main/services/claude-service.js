@@ -1210,6 +1210,10 @@ class ClaudeService {
     let title = null;
     let startTime = null;
     let lastUpdated = null;
+    // The working directory the session ran in. Recorded on transcript
+    // records and the only reliable source of a project location - the
+    // parent folder name is dash-encoded and cannot be reversed.
+    let cwd = null;
 
     for (const line of content.split('\n')) {
       const trimmed = line.trim();
@@ -1221,6 +1225,10 @@ class ClaudeService {
       } catch {
         // Truncated or partially-flushed line; skip it and keep going.
         continue;
+      }
+
+      if (!cwd && typeof record.cwd === 'string' && record.cwd) {
+        cwd = record.cwd;
       }
 
       if (record.type === 'ai-title' && record.aiTitle) {
@@ -1272,6 +1280,7 @@ class ClaudeService {
     if (title) session.title = title;
     if (startTime) session.startTime = startTime;
     if (lastUpdated) session.lastUpdated = lastUpdated;
+    if (cwd) session.cwd = cwd;
     return session;
   }
 
@@ -1458,10 +1467,16 @@ class ClaudeService {
       const infoPath = path.join(projectPath, 'project-info.json');
       const content = await fsPromises.readFile(infoPath, 'utf-8');
       const info = JSON.parse(content);
-      return info.repository || info.path || null;
+      const fromInfo = info.repository || info.path;
+      if (fromInfo) return fromInfo;
     } catch {
-      return null;
+      // No project-info.json - fall through to the transcript's own cwd.
     }
+
+    // Claude Code writes the working directory onto transcript records. It is
+    // the only reliable project location: the parent folder name replaces
+    // path separators with dashes, which cannot be reversed unambiguously.
+    return session.cwd || null;
   }
 
   /**

@@ -122,6 +122,11 @@ export const initialState = {
     pageSize: 50,
     totalPages: 1,
   },
+  // 'grid' is the flat agent list; 'projects' groups them by project and
+  // drills into a per-project chat list. Persisted with the other filters.
+  dashboardMode: 'grid',
+  // Project key currently drilled into, or null while browsing the grid.
+  selectedProjectKey: null,
   newTask: {
     initialPrompt: '',
     selectedService: null,
@@ -224,6 +229,15 @@ export function appReducer(state, action) {
         errors: action.payload.errors ?? state.errors,
       };
     }
+    case 'SET_DASHBOARD_MODE':
+      // Leaving project mode drops the drill-down so returning starts fresh.
+      return {
+        ...state,
+        dashboardMode: action.payload,
+        selectedProjectKey: action.payload === 'projects' ? state.selectedProjectKey : null,
+      };
+    case 'SELECT_PROJECT':
+      return { ...state, selectedProjectKey: action.payload };
     case 'SET_FILTERED_AGENTS':
       return { ...state, filteredAgents: action.payload };
     case 'SET_FILTERS':

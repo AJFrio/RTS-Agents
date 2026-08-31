@@ -102,3 +102,23 @@ export function stripHarnessNoise(messages) {
 
   return cleaned;
 }
+
+// How close to the end still counts as "at the bottom". Generous enough to
+// absorb sub-pixel rounding and the last line's descender.
+const BOTTOM_THRESHOLD_PX = 80;
+
+/**
+ * Whether a scroll container is at (or near) its end.
+ *
+ * Content shorter than the viewport counts as at the bottom: there is nothing
+ * to scroll, so offering a jump would be noise.
+ *
+ * @param {{scrollTop: number, scrollHeight: number, clientHeight: number}|null} el
+ * @returns {boolean}
+ */
+export function isNearBottom(el) {
+  if (!el) return false;
+  const { scrollTop = 0, scrollHeight = 0, clientHeight = 0 } = el;
+  if (scrollHeight <= clientHeight) return true;
+  return scrollHeight - (scrollTop + clientHeight) <= BOTTOM_THRESHOLD_PX;
+}

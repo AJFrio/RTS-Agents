@@ -40,7 +40,7 @@ function formatDay(timestamp) {
  * One tool call, collapsed to a chip. Expands to show the input and,
  * when the transcript captured it, the result.
  */
-function ToolChip({ call }) {
+const ToolChip = React.memo(function ToolChip({ call }) {
   const [open, setOpen] = useState(false);
   const result = call.result ? String(call.result) : '';
   const truncated = result.length > MAX_RESULT_CHARS;
@@ -95,7 +95,7 @@ function ToolChip({ call }) {
       )}
     </div>
   );
-}
+});
 
 /** Extended reasoning, collapsed by default. */
 function ThinkingBlock({ text }) {
@@ -161,7 +161,7 @@ function PendingTurn({ label, assistantLabel }) {
   );
 }
 
-export default function ChatTranscript({
+function ChatTranscript({
   messages,
   renderContent,
   assistantLabel = 'Assistant',
@@ -245,3 +245,8 @@ export default function ChatTranscript({
     </div>
   );
 }
+
+// A long transcript is thousands of nodes. With a stable `renderContent`
+// from the caller, this keeps unrelated modal state changes (scroll position,
+// pending label) from re-rendering every message.
+export default React.memo(ChatTranscript);

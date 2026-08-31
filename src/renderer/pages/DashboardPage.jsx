@@ -6,12 +6,15 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import ErrorBanner from '../components/ui/ErrorBanner.jsx';
 import Pagination from '../components/ui/Pagination.jsx';
+import ProjectGrid from '../components/project/ProjectGrid.jsx';
+import ProjectDetail from '../components/project/ProjectDetail.jsx';
+import { groupAgentsByProject } from '../utils/group-agents.js';
 import {
   getProviderDisplayName,
   getProviderDot,
   getStatusLabel,
   formatTimeAgo,
-  extractRepoName,
+  repoLabel,
   getProviderText,
 } from '../utils/format.js';
 
@@ -57,6 +60,41 @@ function RemoteActivityRow({ activity }) {
         </div>
       )}
       {activity.loading && <span className="text-xs text-slate-500">Updating</span>}
+    </div>
+  );
+}
+
+/** Switch between the flat agent grid and the project-grouped view. */
+function ModeToggle({ mode, dispatch, filters, api }) {
+  const options = [
+    { id: 'grid', label: 'All tasks', icon: 'grid_view' },
+    { id: 'projects', label: 'Projects', icon: 'folder' },
+  ];
+
+  return (
+    <div className="mb-4 inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-border-dark">
+      {options.map((option) => {
+        const active = mode === option.id;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => {
+              dispatch({ type: 'SET_DASHBOARD_MODE', payload: option.id });
+              api?.saveFilters?.({ ...filters, dashboardMode: option.id })?.catch(console.error);
+            }}
+            aria-pressed={active}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              active
+                ? 'bg-primary/15 text-slate-900 dark:text-white'
+                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">{option.icon}</span>
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -128,6 +166,8 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
   const providerName = getProviderDisplayName(agent.provider);
   const dot = getProviderDot(agent.provider);
   const providerText = getProviderText(agent.provider);
+  // Repo for remote agents, project directory name for local ones.
+  const location = repoLabel(agent.repository);
 
   return (
     <AgentCard className="min-h-[156px]" onClick={onClick}>
@@ -142,12 +182,6 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
         {agent.name || 'Untitled'}
       </h3>
       <div className="grid gap-2 text-xs text-slate-600 dark:text-slate-300">
-        {agent.repository && (
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="material-symbols-outlined text-xs">folder</span>
-            <span className="truncate">{extractRepoName(agent.repository)}</span>
-          </div>
-        )}
         <div className="flex items-center justify-between gap-3">
           {agent.branch && (
             <div className="flex min-w-0 items-center gap-1">
@@ -161,13 +195,26 @@ const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
           </div>
         </div>
       </div>
-      {agent.prUrl && (
+      {(location || agent.prUrl) && (
         <div className="mt-auto pt-3">
-          <div className="border-t border-slate-200 pt-2 dark:border-border-dark">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <span className="material-symbols-outlined text-sm">merge</span>
-              <span>PR available</span>
-            </div>
+          <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2 dark:border-border-dark">
+            {location ? (
+              <div
+                className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300"
+                title={agent.repository}
+              >
+                <span className="material-symbols-outlined text-sm text-slate-400">folder</span>
+                <span className="truncate">{location}</span>
+              </div>
+            ) : (
+              <span />
+            )}
+            {agent.prUrl && (
+              <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="material-symbols-outlined text-sm">merge</span>
+                <span>PR available</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -187,6 +234,16 @@ export default function DashboardPage() {
   const pageItems = useMemo(
     () => filteredAgents.slice(startIndex, endIndex),
     [filteredAgents, startIndex, endIndex]
+  );
+
+  const { dashboardMode, selectedProjectKey } = state;
+  const projectGroups = useMemo(
+    () => (dashboardMode === 'projects' ? groupAgentsByProject(filteredAgents) : []),
+    [dashboardMode, filteredAgents]
+  );
+  const selectedProject = useMemo(
+    () => projectGroups.find((group) => group.key === selectedProjectKey) || null,
+    [projectGroups, selectedProjectKey]
   );
 
   const goPrev = () =>
@@ -235,8 +292,23 @@ export default function DashboardPage() {
       />
       <RemoteActivityRow activity={remoteQueue} />
       <ErrorBanner errors={errors} />
+      <ModeToggle mode={dashboardMode} dispatch={dispatch} filters={state.filters} api={api} />
 
-      {pageItems.length === 0 ? (
+      {dashboardMode === 'projects' ? (
+        selectedProject ? (
+          <ProjectDetail
+            group={selectedProject}
+            onBack={() => dispatch({ type: 'SELECT_PROJECT', payload: null })}
+            onOpenChat={openAgentModal}
+            activeAgentId={state.agentModal?.id || state.agentModal?.rawId || null}
+          />
+        ) : (
+          <ProjectGrid
+            groups={projectGroups}
+            onOpen={(key) => dispatch({ type: 'SELECT_PROJECT', payload: key })}
+          />
+        )
+      ) : pageItems.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 py-12 text-center dark:border-border-dark">
           <span className="material-symbols-outlined mb-4 text-4xl text-slate-500">
             filter_alt_off

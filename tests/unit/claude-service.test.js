@@ -127,6 +127,60 @@ describe('ClaudeService', () => {
     });
   });
 
+  describe('parseTranscript cwd capture', () => {
+    test('captures the working directory recorded in the transcript', () => {
+      const content = [
+        JSON.stringify({ type: 'summary', leafUuid: 'x' }),
+        JSON.stringify({
+          type: 'user',
+          cwd: '/Users/me/projects/sellout',
+          message: { role: 'user', content: 'hello' },
+        }),
+      ].join('\n');
+
+      expect(claudeService.parseTranscript(content).cwd).toBe('/Users/me/projects/sellout');
+    });
+
+    test('is undefined when no record carries a cwd', () => {
+      const content = JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'hello' },
+      });
+
+      expect(claudeService.parseTranscript(content).cwd).toBeUndefined();
+    });
+
+    test('keeps the first cwd seen', () => {
+      const content = [
+        JSON.stringify({ type: 'user', cwd: '/first', message: { role: 'user', content: 'a' } }),
+        JSON.stringify({ type: 'user', cwd: '/second', message: { role: 'user', content: 'b' } }),
+      ].join('\n');
+
+      expect(claudeService.parseTranscript(content).cwd).toBe('/first');
+    });
+  });
+
+  describe('extractRepository', () => {
+    test('falls back to the transcript cwd when no project-info.json exists', async () => {
+      fs.promises.readFile.mockRejectedValue(new Error('ENOENT'));
+
+      const repo = await claudeService.extractRepository('/any/project/dir', {
+        cwd: '/Users/me/projects/sellout',
+      });
+
+      expect(repo).toBe('/Users/me/projects/sellout');
+    });
+
+    test('prefers an explicit repository over the cwd', async () => {
+      const repo = await claudeService.extractRepository('/any', {
+        repository: 'https://github.com/me/repo',
+        cwd: '/Users/me/projects/sellout',
+      });
+
+      expect(repo).toBe('https://github.com/me/repo');
+    });
+  });
+
   describe('parseTranscript rich content', () => {
     const richFixture = () =>
       realFs.readFileSync(path.join(__dirname, '../fixtures/claude-session-rich.jsonl'), 'utf-8');

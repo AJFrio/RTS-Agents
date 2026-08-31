@@ -10,6 +10,7 @@ const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
 const { appendStreamMessage, appendAgentChunk } = require('./opencode-session-parser');
+const { createFollowUpController } = require('./acp-follow-up');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -48,6 +49,25 @@ class ClaudeService {
     this.apiKey = null;
     this.trackedLocalSessions = [];
     this._persistTimer = null;
+    // Interactive follow-up turns over live (or resumed) ACP adapters.
+    this.followUp = createFollowUpController({
+      provider: 'Claude Code',
+      acpService,
+      adapterName: 'claude',
+      permissionPolicy: 'safe-tools',
+      hooks: {
+        getRecord: (taskId) => this.trackedLocalSessions.find((x) => x.id === taskId) || null,
+        onUserMessage: (taskId, text) => this._appendTranscriptMessage(taskId, 'user', text),
+        onTurnStart: (taskId) =>
+          this._updateTrackedLocalSession(taskId, { status: 'running', error: null }),
+        onTurnEnd: (taskId, { error }) =>
+          this._updateTrackedLocalSession(taskId, {
+            status: error ? 'failed' : 'completed',
+            error: error || null,
+          }),
+        onStreamText: (taskId, text) => this._appendStreamChunk(taskId, text),
+      },
+    });
   }
 
   setTrackedLocalSessions(sessions) {
@@ -758,11 +778,12 @@ class ClaudeService {
         }
       };
 
+      // Interactive path: keep the adapter alive after the opening turn so
+      // the user can send follow-up prompts into the same conversation.
       acpService
-        .runPrompt({
+        .openSession({
           command: adapter,
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'safe-tools',
           onSessionId: () => {
@@ -778,13 +799,21 @@ class ClaudeService {
             const text =
               typeof update.content === 'string' ? update.content : update.content?.text;
             if (!text || !text.trim()) return;
-            record.streamMessages = appendAgentChunk(record.streamMessages, text, new Date().toISOString());
-            this._updateTrackedLocalSession(
-              sessionId,
-              { streamMessages: record.streamMessages },
-              true
-            );
+            // Always read the live tracked entry: _updateTrackedLocalSession
+            // replaces the object on every patch, so a closure over `record`
+            // would drop follow-up turns and merge replies into the wrong
+            // assistant message.
+            this._appendStreamChunk(sessionId, text);
           },
+        })
+        .then((session) => {
+          this.followUp.register(sessionId, session, { projectPath });
+          // Persist the adapter's own session id so this task can be resumed
+          // via session/load after a restart.
+          if (session.sessionId) {
+            this._updateTrackedLocalSession(sessionId, { acpSessionId: session.sessionId });
+          }
+          return session.prompt(prompt);
         })
         .then(({ stopReason }) => {
           const failed = stopReason === 'error' || stopReason === 'cancelled';
@@ -815,6 +844,53 @@ class ClaudeService {
           resolveOnce(buildCard('failed', err?.message || 'ACP dispatch failed.'));
         });
     });
+  }
+
+  /**
+   * Whether this task can take a follow-up right now: either its adapter is
+   * still live, or we stored an ACP session id we can resume via
+   * session/load. Sessions are lost on crash and idle reaping, so this is a
+   * point-in-time answer.
+   */
+  supportsFollowUp(taskId) {
+    return this.followUp.supportsFollowUp(taskId);
+  }
+
+  sendFollowUp(taskId, message) {
+    return this.followUp.sendFollowUp(taskId, message);
+  }
+
+  /** Tear down every live adapter (app quit). */
+  disposeLiveSessions() {
+    this.followUp.disposeAll();
+  }
+
+  /** Append a whole message, breaking any in-progress assistant merge. */
+  _appendTranscriptMessage(taskId, role, content) {
+    const record = this.trackedLocalSessions.find((x) => x.id === taskId);
+    if (!record) return;
+    const next = [
+      ...(Array.isArray(record.streamMessages) ? record.streamMessages : []),
+      {
+        role,
+        content,
+        timestamp: new Date().toISOString(),
+        id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      },
+    ];
+    this._updateTrackedLocalSession(taskId, { streamMessages: next });
+  }
+
+  /** Merge a streamed chunk into the trailing assistant message. */
+  _appendStreamChunk(taskId, text) {
+    const record = this.trackedLocalSessions.find((x) => x.id === taskId);
+    if (!record) return;
+    const next = appendAgentChunk(
+      Array.isArray(record.streamMessages) ? record.streamMessages : [],
+      text,
+      new Date().toISOString()
+    );
+    this._updateTrackedLocalSession(taskId, { streamMessages: next }, true);
   }
 
   _spawnLegacySession({ prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command, model }, sessionId) {

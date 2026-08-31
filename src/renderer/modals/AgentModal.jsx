@@ -7,6 +7,7 @@ import SectionHeader from '../components/ui/SectionHeader.jsx';
 import TaskContextSection, { hasTaskContext } from '../components/task/TaskContextSection.jsx';
 import ActivityTimeline from '../components/task/ActivityTimeline.jsx';
 import ConversationList from '../components/task/ConversationList.jsx';
+import FollowUpComposer from '../components/task/FollowUpComposer.jsx';
 import { getProviderDisplayName, getStatusLabel } from '../utils/format.js';
 import { parseMarkdown } from '../utils/markdown.js';
 import DOMPurify from 'dompurify';
@@ -34,6 +35,9 @@ export default function AgentModal({ agent, onClose, api }) {
   const [expandedRowIds, setExpandedRowIds] = useState(() => new Set());
   const scrollRootRef = useRef(null);
   const userTouchedRef = useRef(new Set());
+  // Bumped after a follow-up is sent so the transcript reloads; the details
+  // effect below is otherwise a one-shot fetch.
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const sessionId =
     agent?.provider === 'jules'
@@ -83,7 +87,7 @@ export default function AgentModal({ agent, onClose, api }) {
         setDetailsError(err?.message || 'Failed to load agent details');
       })
       .finally(() => setLoading(false));
-  }, [agent?.provider, agent?.rawId, agent?.id, agent?.filePath, api]);
+  }, [agent?.provider, agent?.rawId, agent?.id, agent?.filePath, api, refreshNonce]);
 
   useEffect(() => {
     if (!details) return;
@@ -300,6 +304,11 @@ export default function AgentModal({ agent, onClose, api }) {
                       messages={details.messages}
                       assistantLabel={getProviderDisplayName(agent.provider)}
                       renderContent={(content) => <MemoizedMarkdownBlock content={content} />}
+                    />
+                    <FollowUpComposer
+                      agent={agent}
+                      api={api}
+                      onSent={() => setRefreshNonce((n) => n + 1)}
                     />
                   </SectionHeader>
                 )}

@@ -7,6 +7,7 @@ const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
+const { createFollowUpController } = require('./acp-follow-up');
 const {
   isValidOpenCodeSessionId,
   parseJsonlEvent,
@@ -72,6 +73,76 @@ class OpenCodeService {
   constructor() {
     this.trackedSessions = [];
     this._persistTimer = null;
+    // Interactive follow-up turns over live (or resumed) ACP adapters.
+    // OpenCode already persists the adapter session id as opencodeSessionId,
+    // so it is mapped onto the controller's generic acpSessionId.
+    this.followUp = createFollowUpController({
+      provider: 'OpenCode',
+      acpService,
+      adapterName: 'opencode',
+      adapterArgs: ['acp'],
+      permissionPolicy: 'allow-all',
+      hooks: {
+        getRecord: (taskId) => {
+          const entry = this.trackedSessions.find((x) => x.id === taskId);
+          if (!entry) return null;
+          return { ...entry, acpSessionId: entry.opencodeSessionId || null };
+        },
+        onUserMessage: (taskId, text) => this._appendTranscriptMessage(taskId, 'user', text),
+        onTurnStart: (taskId) =>
+          this._updateSession(taskId, { status: 'running', error: null }),
+        onTurnEnd: (taskId, { error }) =>
+          this._updateSession(taskId, {
+            status: error ? 'failed' : 'completed',
+            exitCode: error ? 1 : 0,
+            error: error || null,
+          }),
+        onStreamText: (taskId, text) => this._appendStreamChunk(taskId, text),
+      },
+    });
+  }
+
+  supportsFollowUp(taskId) {
+    return this.followUp.supportsFollowUp(taskId);
+  }
+
+  sendFollowUp(taskId, message) {
+    return this.followUp.sendFollowUp(taskId, message);
+  }
+
+  disposeLiveSessions() {
+    this.followUp.disposeAll();
+  }
+
+  /** Append a whole message, breaking any in-progress assistant merge. */
+  _appendTranscriptMessage(taskId, role, content) {
+    const entry = this.trackedSessions.find((x) => x.id === taskId);
+    if (!entry) return;
+    const next = [
+      ...(Array.isArray(entry.streamMessages) ? entry.streamMessages : []),
+      {
+        role,
+        content,
+        timestamp: new Date().toISOString(),
+        id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      },
+    ];
+    this._updateSession(taskId, { streamMessages: next });
+  }
+
+  /** Merge a streamed chunk into the trailing assistant message. */
+  _appendStreamChunk(taskId, text) {
+    const entry = this.trackedSessions.find((x) => x.id === taskId);
+    if (!entry) return;
+    const next = appendAgentChunk(
+      Array.isArray(entry.streamMessages) ? entry.streamMessages : [],
+      text,
+      new Date().toISOString()
+    );
+    // Update in-memory state immediately so consecutive chunks accumulate;
+    // only the disk write is debounced. Deferring the whole update would drop
+    // every chunk except the last one in the debounce window.
+    this._updateSession(taskId, { streamMessages: next }, true);
   }
 
   setTrackedSessions(sessions) {
@@ -155,7 +226,12 @@ class OpenCodeService {
     });
   }
 
-  _updateSession(sessionId, patch) {
+  /**
+   * Patch a tracked session. In-memory state always updates immediately; when
+   * `debounced` is set only the disk write is deferred, so high-frequency
+   * stream chunks do not thrash the config store.
+   */
+  _updateSession(sessionId, patch, debounced = false) {
     const idx = this.trackedSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
     this.trackedSessions[idx] = {
@@ -163,6 +239,14 @@ class OpenCodeService {
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    if (debounced) {
+      if (this._persistTimer) clearTimeout(this._persistTimer);
+      this._persistTimer = setTimeout(() => {
+        this._persistTimer = null;
+        configStore.setOpenCodeSessions(this.trackedSessions);
+      }, ACP_PERSIST_DEBOUNCE_MS);
+      return;
+    }
     // An immediate write flushes any pending debounced stream update.
     if (this._persistTimer) {
       clearTimeout(this._persistTimer);
@@ -271,12 +355,13 @@ class OpenCodeService {
         }
       };
 
+      // Interactive path: keep the adapter alive after the opening turn so
+      // the user can send follow-up prompts into the same conversation.
       acpService
-        .runPrompt({
+        .openSession({
           command: opencodeCmd,
           args: ['acp'],
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'allow-all',
           onSessionId: (acpSessionId) => {
@@ -293,15 +378,14 @@ class OpenCodeService {
             const text =
               typeof update.content === 'string' ? update.content : update.content?.text;
             if (!text || !text.trim()) return;
-            streamState.streamMessages = appendAgentChunk(
-              streamState.streamMessages,
-              text,
-              new Date().toISOString()
-            );
-            this._updateSessionDebounced(sessionId, () => ({
-              streamMessages: streamState.streamMessages,
-            }));
+            // Read the live tracked entry rather than the dispatch-time
+            // closure, so follow-up turns are not merged into stale state.
+            this._appendStreamChunk(sessionId, text);
           },
+        })
+        .then((session) => {
+          this.followUp.register(sessionId, session, { projectPath });
+          return session.prompt(prompt);
         })
         .then(({ stopReason }) => {
           const failed = stopReason === 'error' || stopReason === 'cancelled';
@@ -312,13 +396,11 @@ class OpenCodeService {
                   status: 'failed',
                   exitCode: 1,
                   error: `OpenCode ACP turn ended with stopReason ${stopReason}`,
-                  streamMessages: streamState.streamMessages,
                 }
               : {
                   status: 'completed',
                   exitCode: 0,
                   error: null,
-                  streamMessages: streamState.streamMessages,
                 }
           );
           resolveOnce(buildCard('OpenCode task finished.'));
@@ -338,7 +420,6 @@ class OpenCodeService {
           this._updateSession(sessionId, {
             status: 'failed',
             error: err?.message || String(err),
-            streamMessages: streamState.streamMessages,
           });
           resolveOnce(buildCard(err?.message || 'ACP dispatch failed.'));
         });

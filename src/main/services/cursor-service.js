@@ -5,6 +5,7 @@ const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
 const { appendAgentChunk } = require('./opencode-session-parser');
+const { createFollowUpController } = require('./acp-follow-up');
 
 const BASE_URL = 'https://api.cursor.com/v1';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
@@ -15,6 +16,66 @@ class CursorService {
     this.apiKey = null;
     this.trackedCliSessions = [];
     this._persistTimer = null;
+    // Interactive follow-up turns over live (or resumed) ACP adapters.
+    this.followUp = createFollowUpController({
+      provider: 'Cursor',
+      acpService,
+      adapterName: 'cursor',
+      adapterArgs: ['acp'],
+      permissionPolicy: 'allow-all',
+      hooks: {
+        getRecord: (taskId) => this.trackedCliSessions.find((x) => x.id === taskId) || null,
+        onUserMessage: (taskId, text) => this._appendTranscriptMessage(taskId, 'user', text),
+        onTurnStart: (taskId) =>
+          this._updateTrackedCliSession(taskId, { status: 'running', error: null }),
+        onTurnEnd: (taskId, { error }) =>
+          this._updateTrackedCliSession(taskId, {
+            status: error ? 'failed' : 'completed',
+            error: error || null,
+          }),
+        onStreamText: (taskId, text) => this._appendStreamChunk(taskId, text),
+      },
+    });
+  }
+
+  supportsFollowUp(taskId) {
+    return this.followUp.supportsFollowUp(taskId);
+  }
+
+  sendFollowUp(taskId, message) {
+    return this.followUp.sendFollowUp(taskId, message);
+  }
+
+  disposeLiveSessions() {
+    this.followUp.disposeAll();
+  }
+
+  /** Append a whole message, breaking any in-progress assistant merge. */
+  _appendTranscriptMessage(taskId, role, content) {
+    const record = this.trackedCliSessions.find((x) => x.id === taskId);
+    if (!record) return;
+    const next = [
+      ...(Array.isArray(record.streamMessages) ? record.streamMessages : []),
+      {
+        role,
+        content,
+        timestamp: new Date().toISOString(),
+        id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      },
+    ];
+    this._updateTrackedCliSession(taskId, { streamMessages: next });
+  }
+
+  /** Merge a streamed chunk into the trailing assistant message. */
+  _appendStreamChunk(taskId, text) {
+    const record = this.trackedCliSessions.find((x) => x.id === taskId);
+    if (!record) return;
+    const next = appendAgentChunk(
+      Array.isArray(record.streamMessages) ? record.streamMessages : [],
+      text,
+      new Date().toISOString()
+    );
+    this._updateTrackedCliSession(taskId, { streamMessages: next }, true);
   }
 
   setApiKey(apiKey) {
@@ -542,12 +603,13 @@ class CursorService {
         }
       };
 
+      // Interactive path: keep the adapter alive after the opening turn so
+      // the user can send follow-up prompts into the same conversation.
       acpService
-        .runPrompt({
+        .openSession({
           command: adapter,
           args: ['acp'],
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'allow-all',
           onSessionId: () => {
@@ -563,13 +625,18 @@ class CursorService {
             const text =
               typeof update.content === 'string' ? update.content : update.content?.text;
             if (!text || !text.trim()) return;
-            record.streamMessages = appendAgentChunk(record.streamMessages, text, new Date().toISOString());
-            this._updateTrackedCliSession(
-              sessionId,
-              { streamMessages: record.streamMessages },
-              true
-            );
+            // Always read the live tracked entry; _updateTrackedCliSession
+            // replaces the object on every patch, so a closure over `record`
+            // would drop follow-up turns and merge replies incorrectly.
+            this._appendStreamChunk(sessionId, text);
           },
+        })
+        .then((session) => {
+          this.followUp.register(sessionId, session, { projectPath });
+          if (session.sessionId) {
+            this._updateTrackedCliSession(sessionId, { acpSessionId: session.sessionId });
+          }
+          return session.prompt(prompt);
         })
         .then(({ stopReason }) => {
           const failed = stopReason === 'error' || stopReason === 'cancelled';

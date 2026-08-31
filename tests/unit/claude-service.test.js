@@ -33,6 +33,7 @@ jest.mock('../../src/main/services/config-store', () => ({
 jest.mock('../../src/main/services/acp-service', () => ({
   resolveAdapter: jest.fn(),
   runPrompt: jest.fn(),
+  openSession: jest.fn(),
   clearAdapterCache: jest.fn(),
   pickPermissionOption: jest.fn(),
   buildSpawnArgs: jest.fn(),
@@ -484,12 +485,217 @@ describe('ClaudeService', () => {
     });
   });
 
+  describe('interactive follow-up turns', () => {
+    function mockOpenSession({ promptImpl, sessionId = 'acp-live-1', alive = true } = {}) {
+      acpService.resolveAdapter.mockReturnValue('claude-agent-acp');
+      const session = {
+        sessionId,
+        capabilities: {},
+        canLoadSession: false,
+        prompt: jest.fn(promptImpl || (() => Promise.resolve({ stopReason: 'end_turn' }))),
+        dispose: jest.fn(),
+        isAlive: jest.fn(() => alive),
+      };
+      let captured = {};
+      acpService.openSession.mockImplementation((opts) => {
+        captured = opts;
+        // Real adapters fire onSessionId as soon as session/new returns; the
+        // task card resolves off this, not off the first turn finishing.
+        if (opts.onSessionId) opts.onSessionId(sessionId);
+        return Promise.resolve(session);
+      });
+      return { session, handlers: () => captured };
+    }
+
+    test('sendFollowUp rejects for a task it has never heard of', async () => {
+      await expect(
+        claudeService.sendFollowUp('claude-cli-does-not-exist', 'are you there?')
+      ).rejects.toThrow(/unknown claude code task/i);
+    });
+
+    test('sendFollowUp rejects when the task has no live session and nothing to resume', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      mockOpenSession();
+      const card = await claudeService.startLocalSession({
+        prompt: 'first',
+        projectPath: '/repo',
+      });
+      await new Promise((r) => setImmediate(r));
+
+      // Drop the live adapter and clear the resumable id.
+      claudeService.disposeLiveSessions();
+      const tracked = claudeService.getTrackedLocalSessions().find((t) => t.id === card.id);
+      delete tracked.acpSessionId;
+
+      await expect(claudeService.sendFollowUp(card.id, 'hi')).rejects.toThrow(
+        /no live session and nothing to resume/i
+      );
+    });
+
+    test('sendFollowUp prompts the existing session without respawning', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      const { session, handlers } = mockOpenSession();
+
+      const card = await claudeService.startLocalSession({
+        prompt: 'first task',
+        projectPath: '/repo',
+      });
+      // Let the opening turn settle.
+      await new Promise((r) => setImmediate(r));
+
+      await claudeService.sendFollowUp(card.id, 'now also update the docs');
+
+      expect(acpService.openSession).toHaveBeenCalledTimes(1);
+      expect(session.prompt).toHaveBeenLastCalledWith('now also update the docs');
+      // The adapter must not have been torn down between turns.
+      expect(session.dispose).not.toHaveBeenCalled();
+      expect(handlers().cwd).toBe('/repo');
+    });
+
+    test('records the user follow-up in the transcript before the reply', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      // Each turn streams its own reply chunk, as a real adapter would.
+      let turn = 0;
+      const replies = ['first reply', 'second reply'];
+      const { session, handlers } = mockOpenSession({
+        promptImpl: () => {
+          const text = replies[turn];
+          turn += 1;
+          handlers().onUpdate(
+            { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } },
+            'acp-live-1'
+          );
+          return Promise.resolve({ stopReason: 'end_turn' });
+        },
+      });
+
+      const card = await claudeService.startLocalSession({
+        prompt: 'first task',
+        projectPath: '/repo',
+      });
+      await new Promise((r) => setImmediate(r));
+
+      await claudeService.sendFollowUp(card.id, 'follow up question');
+
+      const tracked = claudeService.getTrackedLocalSessions().find((t) => t.id === card.id);
+      const roles = tracked.streamMessages.map((m) => `${m.role}:${m.content}`);
+
+      // The user turn must break the assistant chunk merge, otherwise the
+      // second reply would be concatenated onto the first.
+      expect(roles).toEqual([
+        'assistant:first reply',
+        'user:follow up question',
+        'assistant:second reply',
+      ]);
+      expect(session.prompt).toHaveBeenCalledTimes(2);
+    });
+
+    test('sets the task back to running during a follow-up and completed after', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      // Each turn gets its own resolver so releasing turn 1 cannot be
+      // clobbered by turn 2 starting.
+      const releases = [];
+      mockOpenSession({
+        promptImpl: () => new Promise((resolve) => { releases.push(resolve); }),
+      });
+
+      const card = await claudeService.startLocalSession({
+        prompt: 'first',
+        projectPath: '/repo',
+      });
+      // The opening prompt has already been issued by the time the card
+      // resolves, so its resolver is queued and ready to release.
+      releases.shift()({ stopReason: 'end_turn' });
+      await new Promise((r) => setImmediate(r));
+
+      const followUp = claudeService.sendFollowUp(card.id, 'more work');
+      await new Promise((r) => setImmediate(r));
+
+      expect(
+        claudeService.getTrackedLocalSessions().find((t) => t.id === card.id).status
+      ).toBe('running');
+
+      releases.shift()({ stopReason: 'end_turn' });
+      await followUp;
+
+      expect(
+        claudeService.getTrackedLocalSessions().find((t) => t.id === card.id).status
+      ).toBe('completed');
+    });
+
+    test('marks the task failed when the follow-up turn errors', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      let calls = 0;
+      mockOpenSession({
+        promptImpl: () => {
+          calls += 1;
+          if (calls === 1) return Promise.resolve({ stopReason: 'end_turn' });
+          const err = new Error('adapter died');
+          err.phase = 'exit';
+          return Promise.reject(err);
+        },
+      });
+
+      const card = await claudeService.startLocalSession({
+        prompt: 'first',
+        projectPath: '/repo',
+      });
+      await new Promise((r) => setImmediate(r));
+
+      await expect(claudeService.sendFollowUp(card.id, 'more')).rejects.toThrow('adapter died');
+
+      const tracked = claudeService.getTrackedLocalSessions().find((t) => t.id === card.id);
+      expect(tracked.status).toBe('failed');
+      expect(tracked.error).toMatch(/adapter died/);
+    });
+
+    test('supportsFollowUp reflects whether a live session exists', async () => {
+      fs.promises.access.mockResolvedValue(undefined);
+      mockOpenSession();
+
+      const card = await claudeService.startLocalSession({
+        prompt: 'first',
+        projectPath: '/repo',
+      });
+      await new Promise((r) => setImmediate(r));
+
+      expect(claudeService.supportsFollowUp(card.id)).toBe(true);
+      expect(claudeService.supportsFollowUp('claude-cli-other')).toBe(false);
+    });
+  });
+
   describe('ACP-backed local sessions', () => {
+    // The interactive dispatch path now opens a long-lived session and then
+    // prompts it; this helper preserves the old per-turn assertions by
+    // driving the same callbacks through the session handle.
     function mockAcpRunPrompt(overrides = {}) {
       acpService.resolveAdapter.mockReturnValue('claude-agent-acp');
-      acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
-        if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
-        return overrides.promise || Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      // Handlers are handed to the caller as soon as the session opens.
+      const captureOpen = overrides.onOpen;
+      // A pre-session failure (spawn/initialize) must reject from openSession
+      // itself - that is the only window where legacy fallback is legal.
+      if (overrides.openError) {
+        acpService.openSession.mockRejectedValue(overrides.openError);
+        return;
+      }
+      acpService.openSession.mockImplementation(({ onSessionId, onUpdate }) => {
+        const session = {
+          sessionId: 'acp-1',
+          capabilities: {},
+          canLoadSession: false,
+          isAlive: () => true,
+          dispose: jest.fn(),
+          prompt: jest.fn(() => {
+            if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
+            return (
+              overrides.promise ||
+              Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' })
+            );
+          }),
+        };
+        if (captureOpen) captureOpen({ onSessionId, onUpdate });
+        if (onSessionId) onSessionId('acp-1');
+        return Promise.resolve(session);
       });
     }
 
@@ -511,14 +717,16 @@ describe('ClaudeService', () => {
         projectPath: '/repo',
       });
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.openSession).toHaveBeenCalledWith(
         expect.objectContaining({
           command: 'claude-agent-acp',
           cwd: '/repo',
-          prompt: 'Fix the failing tests',
           permissionPolicy: 'safe-tools',
         })
       );
+      // The prompt is now sent as a turn on the session, not at open time.
+      const openedSession = await acpService.openSession.mock.results[0].value;
+      expect(openedSession.prompt).toHaveBeenCalledWith('Fix the failing tests');
       expect(result).toMatchObject({
         provider: 'claude',
         source: 'local',
@@ -549,7 +757,7 @@ describe('ClaudeService', () => {
       });
 
       await claudeService.startLocalSession({ prompt: 'Fix it', projectPath: '/repo' });
-      await Promise.resolve();
+      await new Promise((r) => setImmediate(r));
 
       const tracked = claudeService.getTrackedLocalSessions();
       expect(tracked[0].status).toBe('completed');
@@ -567,7 +775,7 @@ describe('ClaudeService', () => {
         let captured;
         mockAcpRunPrompt({
           promise: new Promise(() => {}),
-          onRun: (handlers) => {
+          onOpen: (handlers) => {
             captured = handlers;
           },
         });
@@ -607,7 +815,7 @@ describe('ClaudeService', () => {
       });
 
       await claudeService.startLocalSession({ prompt: 'Fix it', projectPath: '/repo' });
-      await Promise.resolve();
+      await new Promise((r) => setImmediate(r));
 
       expect(claudeService.getTrackedLocalSessions()[0]).toMatchObject({
         status: 'failed',
@@ -619,12 +827,10 @@ describe('ClaudeService', () => {
     test('falls back to legacy spawn when ACP fails before any agent work', async () => {
       fs.promises.access.mockResolvedValue(undefined);
       mockAcpRunPrompt({
-        promise: Promise.reject(
-          Object.assign(new Error('Failed to start ACP adapter'), {
-            phase: 'spawn',
-            fallbackAllowed: true,
-          })
-        ),
+        openError: Object.assign(new Error('Failed to start ACP adapter'), {
+          phase: 'spawn',
+          fallbackAllowed: true,
+        }),
       });
       spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
 
@@ -649,7 +855,7 @@ describe('ClaudeService', () => {
 
       await claudeService.startLocalSession({ prompt: 'Fix it', projectPath: '/repo' });
 
-      expect(acpService.runPrompt).not.toHaveBeenCalled();
+      expect(acpService.openSession).not.toHaveBeenCalled();
       expect(spawn).toHaveBeenCalledWith(
         'claude',
         ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash'],
@@ -743,10 +949,17 @@ describe('ClaudeService', () => {
       );
     });
 
-    test('ACP dispatch forwards the requested model to runPrompt', async () => {
+    test('ACP dispatch forwards the requested model to openSession', async () => {
       fs.promises.access.mockResolvedValue(undefined);
       acpService.resolveAdapter.mockReturnValue('claude-agent-acp');
-      acpService.runPrompt.mockResolvedValue({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      acpService.openSession.mockResolvedValue({
+        sessionId: 'acp-1',
+        capabilities: {},
+        canLoadSession: false,
+        isAlive: () => true,
+        dispose: jest.fn(),
+        prompt: jest.fn().mockResolvedValue({ stopReason: 'end_turn' }),
+      });
 
       await claudeService.startLocalSession({
         prompt: 'Fix it',
@@ -754,7 +967,7 @@ describe('ClaudeService', () => {
         model: 'sonnet',
       });
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.openSession).toHaveBeenCalledWith(
         expect.objectContaining({ model: 'sonnet' })
       );
     });

@@ -15,6 +15,8 @@ jest.mock('../../src/main/services/config-store', () => ({
 jest.mock('../../src/main/services/acp-service', () => ({
   resolveAdapter: jest.fn(),
   runPrompt: jest.fn(),
+  openSession: jest.fn(),
+  loadSession: jest.fn(),
   clearAdapterCache: jest.fn(),
   pickPermissionOption: jest.fn(),
   buildSpawnArgs: jest.fn(),
@@ -408,6 +410,28 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
   describe('ACP local dispatch', () => {
     function mockAcp(overrides = {}) {
       acpService.resolveAdapter.mockReturnValue('agent');
+      if (overrides.openError) {
+        acpService.openSession.mockRejectedValue(overrides.openError);
+        return;
+      }
+      acpService.openSession.mockImplementation(({ onSessionId, onUpdate }) => {
+        const session = {
+          sessionId: 'acp-1',
+          capabilities: {},
+          canLoadSession: false,
+          isAlive: () => true,
+          dispose: jest.fn(),
+          prompt: jest.fn(() => {
+            if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
+            return (
+              overrides.promise ||
+              Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' })
+            );
+          }),
+        };
+        if (onSessionId) onSessionId('acp-1');
+        return Promise.resolve(session);
+      });
       acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
         if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
         return overrides.promise || Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' });
@@ -441,15 +465,17 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.openSession).toHaveBeenCalledWith(
         expect.objectContaining({
           command: 'agent',
           args: ['acp'],
           cwd: '/repo',
-          prompt: 'Fix the login bug',
           permissionPolicy: 'allow-all',
         })
       );
+      // The prompt is now a turn on the session, not an open-time option.
+      const opened = await acpService.openSession.mock.results[0].value;
+      expect(opened.prompt).toHaveBeenCalledWith('Fix the login bug');
       expect(result).toMatchObject({
         provider: 'cursor',
         source: 'local',
@@ -481,12 +507,10 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     test('cleans up and rejects when ACP fails before start', async () => {
       mockAccess.mockResolvedValue(undefined);
       mockAcp({
-        promise: Promise.reject(
-          Object.assign(new Error('Failed to start ACP adapter'), {
-            phase: 'spawn',
-            fallbackAllowed: true,
-          })
-        ),
+        openError: Object.assign(new Error('Failed to start ACP adapter'), {
+          phase: 'spawn',
+          fallbackAllowed: true,
+        }),
       });
 
       await expect(

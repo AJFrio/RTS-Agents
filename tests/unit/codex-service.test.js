@@ -6,6 +6,8 @@ jest.mock('../../src/main/services/config-store', () => ({
 jest.mock('../../src/main/services/acp-service', () => ({
   resolveAdapter: jest.fn(),
   runPrompt: jest.fn(),
+  openSession: jest.fn(),
+  loadSession: jest.fn(),
   clearAdapterCache: jest.fn(),
   pickPermissionOption: jest.fn(),
   buildSpawnArgs: jest.fn(),
@@ -232,9 +234,27 @@ describe('Codex Service', () => {
   describe('ACP dispatch', () => {
     function mockAcp(overrides = {}) {
       acpService.resolveAdapter.mockReturnValue('codex-acp');
-      acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
-        if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
-        return overrides.promise || Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      if (overrides.openError) {
+        acpService.openSession.mockRejectedValue(overrides.openError);
+        return;
+      }
+      acpService.openSession.mockImplementation(({ onSessionId, onUpdate }) => {
+        const session = {
+          sessionId: 'acp-1',
+          capabilities: {},
+          canLoadSession: false,
+          isAlive: () => true,
+          dispose: jest.fn(),
+          prompt: jest.fn(() => {
+            if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
+            return (
+              overrides.promise ||
+              Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' })
+            );
+          }),
+        };
+        if (onSessionId) onSessionId('acp-1');
+        return Promise.resolve(session);
       });
     }
 
@@ -289,14 +309,15 @@ describe('Codex Service', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.openSession).toHaveBeenCalledWith(
         expect.objectContaining({
           command: 'codex-acp',
           cwd: '/path/to/repo',
-          prompt: 'Fix tests',
           permissionPolicy: 'allow-all',
         })
       );
+      const opened = await acpService.openSession.mock.results[0].value;
+      expect(opened.prompt).toHaveBeenCalledWith('Fix tests');
       expect(result.message).toContain('ACP');
 
       const threads = codexService.getTrackedThreads();
@@ -314,12 +335,10 @@ describe('Codex Service', () => {
       fs.promises.access.mockResolvedValue(undefined);
       pathExists.mockResolvedValue(true);
       mockAcp({
-        promise: Promise.reject(
-          Object.assign(new Error('Failed to start ACP adapter'), {
-            phase: 'spawn',
-            fallbackAllowed: true,
-          })
-        ),
+        openError: Object.assign(new Error('Failed to start ACP adapter'), {
+          phase: 'spawn',
+          fallbackAllowed: true,
+        }),
       });
       spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
 
@@ -351,6 +370,8 @@ describe('Codex Service', () => {
       });
 
       await codexService.startSession({ prompt: 'Fix tests', projectPath: '/path/to/repo' });
+      // Dispatch now has an extra hop (openSession -> prompt); let it settle.
+      await new Promise((r) => setImmediate(r));
 
       const threads = codexService.getTrackedThreads();
       expect(threads[0]).toMatchObject({
@@ -372,7 +393,7 @@ describe('Codex Service', () => {
         command: 'custom-codex',
       });
 
-      expect(acpService.runPrompt).not.toHaveBeenCalled();
+      expect(acpService.openSession).not.toHaveBeenCalled();
       expect(spawn).toHaveBeenCalledWith(
         'custom-codex',
         ['exec', '--sandbox', 'workspace-write', 'Fix tests'],
@@ -417,10 +438,17 @@ describe('Codex Service', () => {
       );
     });
 
-    test('ACP dispatch forwards the requested model to runPrompt', async () => {
+    test('ACP dispatch forwards the requested model to openSession', async () => {
       pathExists.mockResolvedValue(true);
       acpService.resolveAdapter.mockReturnValue('codex-acp');
-      acpService.runPrompt.mockResolvedValue({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      acpService.openSession.mockResolvedValue({
+        sessionId: 'acp-1',
+        capabilities: {},
+        canLoadSession: false,
+        isAlive: () => true,
+        dispose: jest.fn(),
+        prompt: jest.fn().mockResolvedValue({ stopReason: 'end_turn' }),
+      });
 
       await codexService.startSession({
         prompt: 'Fix tests',
@@ -428,7 +456,7 @@ describe('Codex Service', () => {
         model: 'gpt-5.2-codex',
       });
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.openSession).toHaveBeenCalledWith(
         expect.objectContaining({ model: 'gpt-5.2-codex' })
       );
     });

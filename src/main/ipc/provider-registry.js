@@ -464,8 +464,34 @@ async function createTask(deps, { provider, options }) {
   }
 }
 
+/**
+ * Local CLI providers that hold a live ACP adapter open between turns, and
+ * can resume a prior conversation via session/load after a restart.
+ */
+function acpFollowUpService(deps, provider) {
+  switch (provider) {
+    case 'claude-cli':
+      return deps.claudeService;
+    case 'codex':
+      return deps.codexService;
+    case 'opencode':
+      return deps.opencodeService;
+    default:
+      return null;
+  }
+}
+
 async function sendTaskMessage(deps, { provider, rawId, message }) {
   const { configStore, julesService, cursorService } = deps;
+
+  // A follow-up continues the same conversation rather than starting a new
+  // one. If the adapter is gone the service resumes it via session/load, and
+  // reports a clear error when neither is possible.
+  const acpService_ = acpFollowUpService(deps, provider);
+  if (acpService_) {
+    await acpService_.sendFollowUp(rawId, message);
+    return { success: true };
+  }
 
   switch (provider) {
     case 'jules': {
@@ -476,6 +502,11 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
       return { success: true };
     }
     case 'cursor': {
+      // Cursor CLI tasks run over ACP locally; cloud agents use the REST API.
+      if (cursorService.supportsFollowUp?.(rawId)) {
+        await cursorService.sendFollowUp(rawId, message);
+        return { success: true };
+      }
       if (!configStore.hasApiKey('cursor')) {
         throw new Error('Cursor API key not configured');
       }
@@ -484,6 +515,34 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
     }
     default:
       throw new Error(`Provider ${provider} does not support follow-up messages`);
+  }
+}
+
+/**
+ * Point-in-time check for whether a task can accept a follow-up message.
+ *
+ * Remote providers can always take one (the conversation lives server-side).
+ * Local CLI providers need a live ACP adapter, which is lost on restart,
+ * crash, or idle reaping.
+ */
+function canSendTaskMessage(deps, { provider, rawId }) {
+  const { configStore, cursorService } = deps;
+
+  const acpService_ = acpFollowUpService(deps, provider);
+  if (acpService_) {
+    return Boolean(acpService_.supportsFollowUp?.(rawId));
+  }
+
+  switch (provider) {
+    case 'jules':
+      return configStore.hasApiKey('jules');
+    case 'cursor':
+      // Either a local ACP session we can continue, or a cloud agent.
+      return (
+        Boolean(cursorService?.supportsFollowUp?.(rawId)) || configStore.hasApiKey('cursor')
+      );
+    default:
+      return false;
   }
 }
 
@@ -497,5 +556,6 @@ module.exports = {
   fetchAllRepositories,
   createTask,
   sendTaskMessage,
+  canSendTaskMessage,
   sortAgentsByDate,
 };

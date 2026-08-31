@@ -14,6 +14,8 @@ jest.mock('child_process', () => ({
 jest.mock('../../src/main/services/acp-service', () => ({
   resolveAdapter: jest.fn(),
   runPrompt: jest.fn(),
+  openSession: jest.fn(),
+  loadSession: jest.fn(),
   clearAdapterCache: jest.fn(),
   pickPermissionOption: jest.fn(),
   buildSpawnArgs: jest.fn(),
@@ -59,9 +61,28 @@ describe('OpenCodeService', () => {
 
   describe('ACP dispatch', () => {
     function mockAcp(overrides = {}) {
-      acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
-        if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
-        return overrides.promise || Promise.resolve({ sessionId: 'ses_acp1', stopReason: 'end_turn' });
+      if (overrides.openError) {
+        acpService.openSession.mockRejectedValue(overrides.openError);
+        return;
+      }
+      acpService.openSession.mockImplementation(({ onSessionId, onUpdate }) => {
+        const session = {
+          sessionId: 'ses_acp1',
+          capabilities: {},
+          canLoadSession: false,
+          isAlive: () => true,
+          dispose: jest.fn(),
+          prompt: jest.fn(() => {
+            if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
+            return (
+              overrides.promise ||
+              Promise.resolve({ sessionId: 'ses_acp1', stopReason: 'end_turn' })
+            );
+          }),
+        };
+        if (overrides.onOpen) overrides.onOpen({ onSessionId, onUpdate });
+        if (onSessionId) onSessionId('ses_acp1');
+        return Promise.resolve(session);
       });
     }
 
@@ -82,15 +103,16 @@ describe('OpenCodeService', () => {
         projectPath: '/repo',
       });
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.openSession).toHaveBeenCalledWith(
         expect.objectContaining({
           command: 'opencode',
           args: ['acp'],
           cwd: '/repo',
-          prompt: 'Fix the bug',
           permissionPolicy: 'allow-all',
         })
       );
+      const opened = await acpService.openSession.mock.results[0].value;
+      expect(opened.prompt).toHaveBeenCalledWith('Fix the bug');
       expect(result.message).toContain('ACP');
       expect(result.opencodeSessionId).toBe('ses_acp1');
 
@@ -109,14 +131,11 @@ describe('OpenCodeService', () => {
 
     test('falls back to legacy run when ACP fails before any agent work', async () => {
       pathExists.mockResolvedValue(true);
-      acpService.runPrompt.mockImplementation(
-        () =>
-          Promise.reject(
-            Object.assign(new Error('ACP adapter exited (code 1)'), {
-              phase: 'exit',
-              fallbackAllowed: true,
-            })
-          )
+      acpService.openSession.mockRejectedValue(
+        Object.assign(new Error('ACP adapter exited (code 1)'), {
+          phase: 'exit',
+          fallbackAllowed: true,
+        })
       );
       spawnSync.mockReturnValue({ status: 0 });
       spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn(), stdout: null, stderr: null });
@@ -148,6 +167,8 @@ describe('OpenCodeService', () => {
       });
 
       await opencodeService.startSession({ prompt: 'Fix the bug', projectPath: '/repo' });
+      // Dispatch now has an extra hop (openSession -> prompt); let it settle.
+      await new Promise((r) => setImmediate(r));
 
       const tracked = opencodeService.getTrackedSessions();
       expect(tracked[0]).toMatchObject({
@@ -206,7 +227,7 @@ describe('OpenCodeService', () => {
         command: 'custom-opencode',
       });
 
-      expect(acpService.runPrompt).not.toHaveBeenCalled();
+      expect(acpService.openSession).not.toHaveBeenCalled();
       expect(spawn).toHaveBeenCalledWith(
         'custom-opencode',
         expect.arrayContaining(['run', 'Fix the bug']),

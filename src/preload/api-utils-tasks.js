@@ -12,6 +12,8 @@ module.exports = {
   getProviderModels: (provider) => ipcRenderer.invoke('models:get', { provider }),
   sendMessage: (provider, rawId, message) =>
     ipcRenderer.invoke('tasks:send-message', { provider, rawId, message }),
+  canSendMessage: (provider, rawId) =>
+    ipcRenderer.invoke('tasks:can-send-message', { provider, rawId }),
   orchestratorGetModels: () => ipcRenderer.invoke('orchestrator:get-models'),
   orchestratorChat: (messages, selectedModel) =>
     ipcRenderer.invoke('orchestrator:chat', { messages, selectedModel })

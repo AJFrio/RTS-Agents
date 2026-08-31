@@ -335,3 +335,160 @@ describe('acp-service model selection (session modes)', () => {
     expect(updates).toContain('mode:none');
   });
 });
+
+describe('acp-service openSession (multi-turn live sessions)', () => {
+  test('sends several prompts over one session and keeps context alive', async () => {
+    const updates = [];
+    const session = await acpService.openSession(
+      fixtureOptions('multi-turn', {
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+
+    try {
+      const first = await session.prompt('first question');
+      const second = await session.prompt('second question');
+      const third = await session.prompt('third question');
+
+      expect(first.stopReason).toBe('end_turn');
+      expect(second.stopReason).toBe('end_turn');
+      expect(third.stopReason).toBe('end_turn');
+
+      // Same adapter process throughout: the turn counter keeps incrementing.
+      expect(updates).toContain('turn:1:first question');
+      expect(updates).toContain('turn:2:second question');
+      expect(updates).toContain('turn:3:third question');
+
+      expect(session.sessionId).toMatch(/^ses-fake-\d+-1$/);
+      expect(session.isAlive()).toBe(true);
+    } finally {
+      session.dispose();
+    }
+  }, 15000);
+
+  test('does not kill the adapter between turns, and does on dispose', async () => {
+    const exitFile = path.join(
+      os.tmpdir(),
+      `acp-session-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+
+    const session = await acpService.openSession(
+      fixtureOptions('multi-turn', { env: { FAKE_ACP_EXIT_FILE: exitFile } })
+    );
+
+    await session.prompt('still here?');
+
+    // The adapter must still be running after a completed turn.
+    expect(fs.existsSync(exitFile)).toBe(false);
+    expect(session.isAlive()).toBe(true);
+
+    session.dispose();
+
+    expect(await waitForFile(exitFile, 5000)).toBe(true);
+    expect(session.isAlive()).toBe(false);
+    fs.unlinkSync(exitFile);
+  }, 15000);
+
+  test('reports adapter capabilities from initialize', async () => {
+    const session = await acpService.openSession(fixtureOptions('multi-turn'));
+    try {
+      // The fake adapter advertises no loadSession support.
+      expect(session.capabilities).toBeDefined();
+      expect(session.canLoadSession).toBe(false);
+    } finally {
+      session.dispose();
+    }
+  }, 10000);
+
+  test('rejects a prompt sent after dispose without hanging', async () => {
+    const session = await acpService.openSession(fixtureOptions('multi-turn'));
+    await session.prompt('one');
+    session.dispose();
+
+    await expect(session.prompt('two')).rejects.toMatchObject({ phase: 'disposed' });
+  }, 10000);
+
+  test('rejects concurrent prompts on the same session', async () => {
+    const session = await acpService.openSession(fixtureOptions('multi-turn'));
+    try {
+      const inflight = session.prompt('first');
+      await expect(session.prompt('overlapping')).rejects.toMatchObject({ phase: 'busy' });
+      await inflight;
+    } finally {
+      session.dispose();
+    }
+  }, 10000);
+
+  test('surfaces adapter death mid-session to the pending prompt', async () => {
+    const session = await acpService.openSession(fixtureOptions('multi-turn'));
+    await session.prompt('warm up');
+
+    session.killForTest();
+
+    await expect(session.prompt('after death')).rejects.toMatchObject({ phase: 'exit' });
+    expect(session.isAlive()).toBe(false);
+  }, 10000);
+
+  test('runPrompt still resolves and still kills the adapter (one-shot contract)', async () => {
+    const exitFile = path.join(
+      os.tmpdir(),
+      `acp-oneshot-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+
+    const result = await acpService.runPrompt(
+      fixtureOptions('happy', { env: { FAKE_ACP_EXIT_FILE: exitFile } })
+    );
+
+    expect(result.stopReason).toBe('end_turn');
+    expect(await waitForFile(exitFile, 5000)).toBe(true);
+    fs.unlinkSync(exitFile);
+  }, 10000);
+});
+
+describe('acp-service session/load (resuming a prior conversation)', () => {
+  test('advertises loadSession when the adapter supports it', async () => {
+    const session = await acpService.openSession(fixtureOptions('loadable'));
+    try {
+      expect(session.canLoadSession).toBe(true);
+    } finally {
+      session.dispose();
+    }
+  }, 10000);
+
+  test('loadSession replays prior history then accepts new turns', async () => {
+    const updates = [];
+    const session = await acpService.loadSession(
+      fixtureOptions('loadable', {
+        acpSessionId: 'ses-previous-run',
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+
+    try {
+      // The spec requires history replay before the load response.
+      expect(updates).toContain('history:one');
+      expect(updates).toContain('history:two');
+      expect(session.sessionId).toBe('ses-previous-run');
+
+      const result = await session.prompt('continue where we left off');
+      expect(result.stopReason).toBe('end_turn');
+      expect(updates).toContain('turn:1:continue where we left off');
+    } finally {
+      session.dispose();
+    }
+  }, 15000);
+
+  test('refuses to load when the adapter does not advertise the capability', async () => {
+    await expect(
+      acpService.loadSession(
+        fixtureOptions('not-loadable', { acpSessionId: 'ses-previous-run' })
+      )
+    ).rejects.toMatchObject({ phase: 'load-unsupported', fallbackAllowed: true });
+  }, 10000);
+
+  test('requires an acpSessionId to load', async () => {
+    await expect(
+      acpService.loadSession(fixtureOptions('loadable'))
+    ).rejects.toThrow(/acpSessionId/i);
+  }, 10000);
+});

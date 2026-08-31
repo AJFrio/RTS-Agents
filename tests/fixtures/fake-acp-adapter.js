@@ -19,6 +19,17 @@
   model-modes      - session/new advertises modes default/sonnet; records any
                      session/set_mode selection and reports it as the first
                      "mode:<id|none>" chunk of the turn.
+  multi-turn       - minimal turn (no permission/unknown round-trips): each
+                     session/prompt replies end_turn after emitting
+                     "turn:<n>:<prompt text>". Stays alive between turns so
+                     tests can drive several prompts over one session.
+  loadable         - like multi-turn, but advertises agentCapabilities
+                     .loadSession and implements session/load: replays two
+                     history chunks as session/update notifications before
+                     replying to the load request.
+  not-loadable     - like multi-turn, but session/load returns a JSON-RPC
+                     error (capability absent); used to prove the client
+                     checks the capability before calling.
  */
 const fs = require('fs');
 const readline = require('readline');
@@ -30,6 +41,7 @@ const SEP = scenario === 'crlf' ? '\r\n' : '\n';
 let currentSessionId = null;
 let promptId = null;
 let selectedMode = null;
+let turnCount = 0;
 
 process.on('exit', () => {
   if (exitFile) {
@@ -160,7 +172,8 @@ rl.on('line', (line) => {
       return;
     }
     const version = scenario === 'version-mismatch' ? 99 : 1;
-    reply(msg.id, { protocolVersion: version, agentCapabilities: {} });
+    const agentCapabilities = scenario === 'loadable' ? { loadSession: true } : {};
+    reply(msg.id, { protocolVersion: version, agentCapabilities });
     return;
   }
 
@@ -184,6 +197,19 @@ rl.on('line', (line) => {
     return;
   }
 
+  if (msg.method === 'session/load') {
+    if (scenario !== 'loadable') {
+      replyError(msg.id, { code: -32601, message: 'Method not found' });
+      return;
+    }
+    currentSessionId = msg.params?.sessionId || null;
+    // The spec requires replaying prior history before responding.
+    notify('history:one');
+    notify('history:two');
+    reply(msg.id, {});
+    return;
+  }
+
   if (msg.method === 'session/set_mode') {
     selectedMode = msg.params?.modeId || null;
     reply(msg.id, {});
@@ -192,6 +218,13 @@ rl.on('line', (line) => {
 
   if (msg.method === 'session/prompt') {
     promptId = msg.id;
+    if (scenario === 'multi-turn' || scenario === 'loadable' || scenario === 'not-loadable') {
+      turnCount += 1;
+      const text = msg.params?.prompt?.[0]?.text ?? '';
+      notify(`turn:${turnCount}:${text}`);
+      reply(promptId, { stopReason: 'end_turn' });
+      return;
+    }
     runTurn();
   }
 });

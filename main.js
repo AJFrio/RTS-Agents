@@ -342,6 +342,21 @@ function stopAutoUpdateTimer() {
   }
 }
 
+/**
+ * Tear down any live ACP adapter processes held open for interactive
+ * follow-up turns. These are real child processes holding a project
+ * directory, so they must never outlive the app.
+ */
+function disposeLiveAgentSessions() {
+  for (const service of [claudeService, codexService, opencodeService, cursorService]) {
+    try {
+      service?.disposeLiveSessions?.();
+    } catch (err) {
+      console.error('Failed to dispose live agent sessions:', err?.message || err);
+    }
+  }
+}
+
 function startDiscoveryWatchers() {
   const deps = {
     configStore,
@@ -431,6 +446,7 @@ app.on('window-all-closed', () => {
   stopDiscoveryWatchers();
   stopCloudflareHeartbeat();
   stopAutoUpdateTimer();
+  disposeLiveAgentSessions();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -441,6 +457,7 @@ app.on('before-quit', (event) => {
   stopDiscoveryWatchers();
   stopCloudflareHeartbeat();
   stopAutoUpdateTimer();
+  disposeLiveAgentSessions();
 
   if (isQuitting) return;
   isQuitting = true;

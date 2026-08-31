@@ -65,6 +65,11 @@ const schema = {
         repository: { type: 'string' },
         branch: { type: 'string' },
         title: { type: 'string' },
+        acpSessionId: { type: 'string' },
+        streamMessages: {
+          type: 'array',
+          items: { type: 'object' },
+        },
       },
     },
     default: [],
@@ -113,6 +118,7 @@ const schema = {
         projectPath: { type: 'string' },
         status: { type: 'string' },
         error: { type: 'string' },
+        acpSessionId: { type: 'string' },
         streamMessages: {
           type: 'array',
           items: { type: 'object' },
@@ -134,6 +140,7 @@ const schema = {
         projectPath: { type: 'string' },
         status: { type: 'string' },
         error: { type: 'string' },
+        acpSessionId: { type: 'string' },
         streamMessages: {
           type: 'array',
           items: { type: 'object' },

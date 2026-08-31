@@ -150,41 +150,53 @@ function pickPermissionOption(update, policy) {
 }
 
 /**
- * Run one prompt turn against an ACP adapter.
+ * Open a long-lived ACP session against an adapter.
+ *
+ * Runs `initialize -> session/new -> [session/set_mode]` and then leaves the
+ * adapter process running so the caller can drive several prompt turns over
+ * the same conversation. The protocol explicitly supports this: "Once a
+ * prompt turn completes, the Client may send another session/prompt to
+ * continue the conversation, building on the context established in previous
+ * turns."
+ *
+ * The returned handle owns a real child process. Callers MUST call
+ * `dispose()` when finished, otherwise the adapter keeps running and holds
+ * its project directory open.
  *
  * @param {object} options
  * @param {string} options.command - Adapter command (already resolved).
  * @param {string[]} [options.args] - Extra adapter CLI args (e.g. ['acp']).
  * @param {string} options.cwd - Project directory for session/new.
- * @param {string} options.prompt - User prompt text.
  * @param {string} [options.model] - Requested model id; applied via
  *   session/set_mode when the adapter offers it among its session modes.
  * @param {'allow-all'|'safe-tools'} [options.permissionPolicy]
  * @param {(update: object, sessionId: string) => void} [options.onUpdate]
- * @param {(sessionId: string) => void} [options.onSessionId] - Fires once
- *   the ACP session is created (before the agent starts working), so
- *   callers can resolve their task card early.
+ * @param {(sessionId: string) => void} [options.onSessionId]
+ * @param {(info: {reason: string, message: string}) => void} [options.onClosed]
+ *   Fires once when the session ends for any reason (adapter exit, dispose).
  * @param {object} [options.env] - Extra environment variables.
  * @param {number} [options.initTimeoutMs]
- * @returns {Promise<{sessionId: string, stopReason: string}>} Resolves when
- *   the prompt turn completes. Never re-dispatch after a rejection whose
- *   `fallbackAllowed` is false.
+ * @returns {Promise<AcpSession>} Resolves once the session is ready to accept
+ *   prompts. Rejects with `fallbackAllowed: true` for pre-session failures.
  */
-function runPrompt(options) {
+function openSession(options) {
   const {
     command,
     args = [],
     cwd,
-    prompt,
     model,
     permissionPolicy = 'allow-all',
     onUpdate,
     onSessionId,
+    onClosed,
     env,
     initTimeoutMs = DEFAULT_INIT_TIMEOUT_MS,
+    // When set, resume this prior conversation via session/load instead of
+    // creating a fresh one. Only legal if the adapter advertises loadSession.
+    acpSessionId = null,
   } = options;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolveSession, rejectSession) => {
     const spec = buildSpawnArgs(command, args);
     let child;
     try {
@@ -199,40 +211,23 @@ function runPrompt(options) {
       const error = new Error(`Failed to start ACP adapter: ${err.message}`);
       error.phase = 'spawn';
       error.fallbackAllowed = true;
-      reject(error);
+      rejectSession(error);
       return;
     }
 
-    let settled = false;
-    let promptSent = false;
+    // Session-lifetime state. `pending` and `nextId` intentionally span every
+    // turn: JSON-RPC ids must stay unique for the life of the connection.
+    let ready = false;      // session/new completed
+    let closed = false;     // adapter gone or disposed
+    let disposed = false;   // dispose() was called explicitly
     let sessionId = null;
+    let capabilities = {};
     let nextId = 1;
     let initTimer = null;
     let stderrTail = '';
     let stdoutBuf = '';
-    const pending = new Map(); // request id -> { phase, onResult, onError }
-
-    function fail(phase, message, fallbackAllowed) {
-      if (settled) return;
-      settled = true;
-      if (initTimer) clearTimeout(initTimer);
-      pending.clear();
-      killChild();
-      const error = new Error(message);
-      error.phase = phase;
-      error.fallbackAllowed = fallbackAllowed;
-      error.stderrTail = stderrTail;
-      reject(error);
-    }
-
-    function succeed() {
-      if (settled) return;
-      settled = true;
-      if (initTimer) clearTimeout(initTimer);
-      pending.clear();
-      killChild();
-      resolve({ sessionId, stopReason: 'end_turn' });
-    }
+    let activeTurn = null;  // { resolve, reject } for the in-flight prompt
+    const pending = new Map();
 
     function killChild() {
       if (!child) return;
@@ -256,11 +251,48 @@ function runPrompt(options) {
       }
     }
 
+    /**
+     * Tear the session down. Any in-flight turn is rejected: after the prompt
+     * was sent we can never re-dispatch it elsewhere without risking the work
+     * running twice, so `fallbackAllowed` is false for turn failures.
+     */
+    function closeSession(phase, message, fallbackAllowed) {
+      if (closed) return;
+      closed = true;
+      if (initTimer) clearTimeout(initTimer);
+
+      const error = new Error(message);
+      error.phase = phase;
+      error.fallbackAllowed = fallbackAllowed;
+      error.stderrTail = stderrTail;
+
+      pending.clear();
+      const turn = activeTurn;
+      activeTurn = null;
+      killChild();
+
+      if (!ready) {
+        rejectSession(error);
+      } else if (turn) {
+        turn.reject(error);
+      }
+      safeCall(onClosed, { reason: phase, message });
+    }
+
     function sendRaw(message) {
+      // The adapter can die between our last read and this write; `exit`
+      // fires asynchronously, so `closed` may still be false here. Writing to
+      // an ended pipe throws asynchronously and would escape the try/catch,
+      // so check writability first.
+      if (!child.stdin || child.stdin.destroyed || child.stdin.writableEnded) {
+        return false;
+      }
       try {
         child.stdin.write(`${JSON.stringify(message)}\n`);
+        return true;
       } catch {
         // child died mid-write; the exit handler rejects pending work
+        return false;
       }
     }
 
@@ -280,68 +312,162 @@ function runPrompt(options) {
         phase,
         onResult,
         onError: (err) =>
-          fail(phase, `ACP ${phase} failed: ${err.message || JSON.stringify(err)}`, phase === 'initialize'),
+          closeSession(
+            phase,
+            `ACP ${phase} failed: ${err.message || JSON.stringify(err)}`,
+            phase === 'initialize'
+          ),
       });
-      sendRaw({ jsonrpc: '2.0', id, method, params });
+      if (!sendRaw({ jsonrpc: '2.0', id, method, params })) {
+        // Pipe is gone. Close now rather than waiting on `exit`, so the
+        // caller gets a rejection instead of hanging forever.
+        pending.delete(id);
+        closeSession(
+          'exit',
+          `ACP adapter is not writable (${phase}); the process has exited.`,
+          !ready
+        );
+      }
+    }
+
+    const session = {
+      get sessionId() {
+        return sessionId;
+      },
+      get capabilities() {
+        return capabilities;
+      },
+      /**
+       * True when the adapter advertised ACP's optional session/load support,
+       * which is what a future cold-start resume path would require. Clients
+       * MUST NOT call session/load when this is false.
+       */
+      get canLoadSession() {
+        return capabilities?.loadSession === true;
+      },
+      isAlive() {
+        return !closed;
+      },
+      /**
+       * Run one prompt turn. Rejects rather than queueing if a turn is
+       * already in flight - ACP has no defined semantics for overlapping
+       * prompts on one session, so serialising is the caller's job.
+       */
+      prompt(text) {
+        return new Promise((resolve, reject) => {
+          if (closed) {
+            const err = new Error(
+              disposed ? 'ACP session was disposed' : 'ACP session is closed'
+            );
+            err.phase = disposed ? 'disposed' : 'exit';
+            err.fallbackAllowed = false;
+            reject(err);
+            return;
+          }
+          if (activeTurn) {
+            const err = new Error('ACP session already has a prompt in flight');
+            err.phase = 'busy';
+            err.fallbackAllowed = false;
+            reject(err);
+            return;
+          }
+
+          activeTurn = { resolve, reject };
+          request(
+            'session/prompt',
+            { sessionId, prompt: [{ type: 'text', text }] },
+            'prompt',
+            (result) => {
+              const turn = activeTurn;
+              activeTurn = null;
+              if (turn) {
+                turn.resolve({
+                  sessionId,
+                  stopReason: result?.stopReason || 'end_turn',
+                });
+              }
+            }
+          );
+        });
+      },
+      dispose() {
+        if (closed) return;
+        disposed = true;
+        closeSession('disposed', 'ACP session disposed by caller', false);
+      },
+      // Test seam: simulate the adapter dying underneath us.
+      killForTest() {
+        killChild();
+      },
+    };
+
+    function applyModeThenReady(result) {
+      const availableModes = Array.isArray(result?.modes?.availableModes)
+        ? result.modes.availableModes
+        : [];
+      const match = model
+        ? availableModes.find((m) => (m?.id ?? m?.value) === model)
+        : null;
+
+      const finish = () => {
+        ready = true;
+        resolveSession(session);
+      };
+
+      if (match && match.id !== result?.modes?.currentModeId) {
+        request('session/set_mode', { sessionId, modeId: match.id }, 'set-mode', finish);
+      } else {
+        finish();
+      }
     }
 
     function sendSessionNew() {
+      request('session/new', { cwd, mcpServers: [] }, 'session-new', (result) => {
+        sessionId = result?.sessionId || null;
+        if (!sessionId) {
+          closeSession('session-new', 'ACP adapter returned no sessionId', false);
+          return;
+        }
+        safeCall(onSessionId, sessionId);
+        applyModeThenReady(result);
+      });
+    }
+
+    /**
+     * Resume a prior conversation. The agent replays the full history as
+     * session/update notifications before responding, so `onUpdate` fires
+     * for past messages too - callers that persist their own transcript
+     * should expect duplicates and reconcile.
+     */
+    function sendSessionLoad() {
+      if (capabilities?.loadSession !== true) {
+        // The spec requires clients to verify the capability before calling.
+        closeSession(
+          'load-unsupported',
+          'ACP adapter does not advertise the loadSession capability',
+          true
+        );
+        return;
+      }
+      sessionId = acpSessionId;
       request(
-        'session/new',
-        { cwd, mcpServers: [] },
-        'session-new',
+        'session/load',
+        { sessionId: acpSessionId, cwd, mcpServers: [] },
+        'session-load',
         (result) => {
-          sessionId = result?.sessionId || null;
-          if (!sessionId) {
-            fail('session-new', 'ACP adapter returned no sessionId', false);
-            return;
-          }
           safeCall(onSessionId, sessionId);
-          const availableModes = Array.isArray(result?.modes?.availableModes)
-            ? result.modes.availableModes
-            : [];
-          const match = model
-            ? availableModes.find((m) => (m?.id ?? m?.value) === model)
-            : null;
-          if (match && match.id !== result?.modes?.currentModeId) {
-            request(
-              'session/set_mode',
-              { sessionId, modeId: match.id },
-              'set-mode',
-              () => sendPrompt()
-            );
-          } else {
-            sendPrompt();
-          }
+          applyModeThenReady(result);
         }
       );
     }
 
-    function sendPrompt() {
-      promptSent = true;
-      request(
-        'session/prompt',
-        { sessionId, prompt: [{ type: 'text', text: prompt }] },
-        'prompt',
-        () => succeed()
-      );
-    }
-
     initTimer = setTimeout(() => {
-      fail(
+      closeSession(
         'initialize',
         `ACP adapter did not respond to initialize within ${initTimeoutMs}ms`,
         true
       );
     }, initTimeoutMs);
-
-    pending.set(nextId, {
-      phase: 'initialize',
-      // id booked below via request-like flow; initialize is sent directly
-      onResult: null,
-      onError: null,
-    });
-    pending.delete(nextId); // initialize is sent explicitly below
 
     const initId = nextId;
     nextId += 1;
@@ -350,17 +476,22 @@ function runPrompt(options) {
       onResult: (result) => {
         if (initTimer) clearTimeout(initTimer);
         if (result?.protocolVersion !== PROTOCOL_VERSION) {
-          fail(
+          closeSession(
             'version',
             `ACP adapter responded with unsupported protocol version ${result?.protocolVersion}`,
             true
           );
           return;
         }
-        sendSessionNew();
+        capabilities = result?.agentCapabilities || {};
+        if (acpSessionId) {
+          sendSessionLoad();
+        } else {
+          sendSessionNew();
+        }
       },
       onError: (err) =>
-        fail(
+        closeSession(
           'initialize',
           `ACP initialize failed: ${err.message || JSON.stringify(err)}`,
           true
@@ -380,7 +511,7 @@ function runPrompt(options) {
     });
 
     child.on('error', (err) => {
-      fail('spawn', `Failed to start ACP adapter: ${err.message}`, true);
+      closeSession('spawn', `Failed to start ACP adapter: ${err.message}`, true);
     });
 
     child.stdout.on('data', (chunk) => {
@@ -402,10 +533,12 @@ function runPrompt(options) {
     });
 
     child.on('exit', (code) => {
-      fail(
+      // Fallback is only legal before the session was ever usable; once a
+      // prompt has gone out, re-dispatching could run the work twice.
+      closeSession(
         'exit',
         `ACP adapter exited (code ${code}).${stderrTail.trim() ? `\n${stderrTail.trim()}` : ''}`,
-        !promptSent
+        !ready
       );
     });
 
@@ -460,11 +593,67 @@ function runPrompt(options) {
   });
 }
 
+/**
+ * Resume a previously created ACP session by id.
+ *
+ * Spawns a fresh adapter, verifies it advertises the optional `loadSession`
+ * capability, and calls `session/load`. The agent replays the prior
+ * conversation as `session/update` notifications before the load resolves,
+ * so `onUpdate` fires for historical messages as well as new ones.
+ *
+ * Rejects with `phase: 'load-unsupported'` when the adapter cannot load; the
+ * caller should fall back to read-only rather than silently starting a fresh
+ * conversation that has lost all prior context.
+ *
+ * @param {object} options - As `openSession`, plus:
+ * @param {string} options.acpSessionId - The prior session id to resume.
+ * @returns {Promise<AcpSession>}
+ */
+function loadSession(options) {
+  const { acpSessionId } = options || {};
+  if (!acpSessionId) {
+    return Promise.reject(new Error('acpSessionId is required to load a session'));
+  }
+  return openSession(options);
+}
+
+/**
+ * Run exactly one prompt turn against an ACP adapter, then shut it down.
+ *
+ * This is the unattended-dispatch path: it opens a session, sends a single
+ * prompt, and always disposes the adapter before resolving. Interactive
+ * callers that need follow-up turns should use `openSession` instead.
+ *
+ * @param {object} options - As `openSession`, plus:
+ * @param {string} options.prompt - User prompt text.
+ * @returns {Promise<{sessionId: string, stopReason: string}>} Resolves when
+ *   the prompt turn completes. Never re-dispatch after a rejection whose
+ *   `fallbackAllowed` is false.
+ */
+function runPrompt(options) {
+  const { prompt, ...sessionOptions } = options;
+
+  return openSession(sessionOptions).then((session) => {
+    return session
+      .prompt(prompt)
+      .then((result) => {
+        session.dispose();
+        return result;
+      })
+      .catch((err) => {
+        session.dispose();
+        throw err;
+      });
+  });
+}
+
 module.exports = {
   PROTOCOL_VERSION,
   buildSpawnArgs,
   clearAdapterCache,
   pickPermissionOption,
   resolveAdapter,
+  openSession,
+  loadSession,
   runPrompt,
 };

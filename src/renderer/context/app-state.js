@@ -9,6 +9,7 @@ export const VIEWS = [
 ];
 
 const PR_HIDDEN_REPOS_STORAGE_KEY = 'rts_pr_hidden_repos_v1';
+const ARCHIVED_PROJECTS_STORAGE_KEY = 'rts_archived_projects_v1';
 
 function getStoredPrHiddenRepos() {
   try {
@@ -27,6 +28,26 @@ function setStoredPrHiddenRepos(repos) {
     }
   } catch {
     // Ignore storage failures; the in-memory filter still applies for this session.
+  }
+}
+
+function getStoredArchivedProjects() {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const parsed = JSON.parse(localStorage.getItem(ARCHIVED_PROJECTS_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((key) => typeof key === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function setStoredArchivedProjects(keys) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(ARCHIVED_PROJECTS_STORAGE_KEY, JSON.stringify(keys));
+    }
+  } catch {
+    // Ignore storage failures; the in-memory filter still applies this session.
   }
 }
 
@@ -127,6 +148,10 @@ export const initialState = {
   dashboardMode: 'grid',
   // Project key currently drilled into, or null while browsing the grid.
   selectedProjectKey: null,
+  // Projects hidden from the grid. A display preference, not a data change.
+  archivedProjects: getStoredArchivedProjects(),
+  // Reveals archived projects in place without unarchiving them.
+  showArchivedProjects: false,
   newTask: {
     initialPrompt: '',
     selectedService: null,
@@ -236,6 +261,24 @@ export function appReducer(state, action) {
         dashboardMode: action.payload,
         selectedProjectKey: action.payload === 'projects' ? state.selectedProjectKey : null,
       };
+    case 'TOGGLE_PROJECT_ARCHIVED': {
+      const key = action.payload;
+      const current = new Set(state.archivedProjects);
+      if (current.has(key)) current.delete(key);
+      else current.add(key);
+      const archivedProjects = [...current].sort();
+      setStoredArchivedProjects(archivedProjects);
+      return {
+        ...state,
+        archivedProjects,
+        // Archiving the project you are inside returns you to the grid;
+        // staying in a now-hidden project is a dead end.
+        selectedProjectKey:
+          current.has(key) && state.selectedProjectKey === key ? null : state.selectedProjectKey,
+      };
+    }
+    case 'SET_SHOW_ARCHIVED_PROJECTS':
+      return { ...state, showArchivedProjects: !!action.payload };
     case 'SELECT_PROJECT':
       return { ...state, selectedProjectKey: action.payload };
     case 'SET_FILTERED_AGENTS':

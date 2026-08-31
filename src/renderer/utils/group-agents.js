@@ -103,3 +103,36 @@ export function groupAgentsByProject(agents) {
 export function sortAgentsByRecency(agents) {
   return [...(agents || [])].sort((a, b) => timestamp(b) - timestamp(a));
 }
+
+/**
+ * Split project groups into what should be shown and what has been archived.
+ *
+ * Archiving is a display choice for stale projects — a one-off directory, a
+ * finished experiment — not a data operation; nothing is deleted and the
+ * sessions stay reachable.
+ *
+ * A project with running work is never hidden. Archiving is usually done once
+ * and forgotten, and a live agent disappearing from the dashboard because of
+ * a months-old decision is a worse outcome than a slightly longer list.
+ *
+ * @param {Array<object>} groups - Output of groupAgentsByProject.
+ * @param {string[]} archivedKeys
+ * @returns {{active: Array<object>, archived: Array<object>}}
+ */
+export function partitionArchivedProjects(groups, archivedKeys) {
+  if (!Array.isArray(groups) || !groups.length) return { active: [], archived: [] };
+
+  const archivedSet = new Set(Array.isArray(archivedKeys) ? archivedKeys : []);
+  if (!archivedSet.size) return { active: groups, archived: [] };
+
+  const active = [];
+  const archived = [];
+
+  for (const group of groups) {
+    const hasRunning = (group?.counts?.running || 0) > 0;
+    if (archivedSet.has(group.key) && !hasRunning) archived.push(group);
+    else active.push(group);
+  }
+
+  return { active, archived };
+}

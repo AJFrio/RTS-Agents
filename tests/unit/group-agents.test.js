@@ -9,7 +9,7 @@ const source = fs.readFileSync(
 );
 const factory = new Function(
   `${source.replace(/export function/g, 'function').replace(/export const/g, 'const')}
-   return { groupAgentsByProject, UNGROUPED_KEY };`
+   return { groupAgentsByProject, UNGROUPED_KEY, partitionArchivedProjects };`
 );
 const { groupAgentsByProject, UNGROUPED_KEY } = factory();
 
@@ -111,5 +111,53 @@ describe('groupAgentsByProject', () => {
 
     expect(groups).toHaveLength(1);
     expect(groups[0].providers.sort()).toEqual(['claude', 'opencode']);
+  });
+});
+
+describe('partitionArchivedProjects', () => {
+  const { partitionArchivedProjects } = factory();
+
+  const group = (key, over = {}) => ({ key, label: key, agents: [], counts: { total: 1 }, ...over });
+
+  test('splits groups into active and archived by key', () => {
+    const groups = [group('path:/a'), group('path:/b'), group('path:/c')];
+
+    const { active, archived } = partitionArchivedProjects(groups, ['path:/b']);
+
+    expect(active.map((g) => g.key)).toEqual(['path:/a', 'path:/c']);
+    expect(archived.map((g) => g.key)).toEqual(['path:/b']);
+  });
+
+  test('treats an empty archive list as everything active', () => {
+    const groups = [group('path:/a'), group('path:/b')];
+    const { active, archived } = partitionArchivedProjects(groups, []);
+
+    expect(active).toHaveLength(2);
+    expect(archived).toHaveLength(0);
+  });
+
+  test('ignores archived keys that no longer match a project', () => {
+    // A project can disappear when its last session ages out; a stale key
+    // must not error or hide anything else.
+    const { active, archived } = partitionArchivedProjects([group('path:/a')], ['path:/gone']);
+
+    expect(active.map((g) => g.key)).toEqual(['path:/a']);
+    expect(archived).toHaveLength(0);
+  });
+
+  test('keeps a project active when a running agent is present', () => {
+    // Archiving is for stale projects. Hiding one with live work would make
+    // running agents invisible, which is worse than a slightly longer list.
+    const groups = [group('path:/a', { counts: { total: 2, running: 1 } })];
+
+    const { active, archived } = partitionArchivedProjects(groups, ['path:/a']);
+
+    expect(active.map((g) => g.key)).toEqual(['path:/a']);
+    expect(archived).toHaveLength(0);
+  });
+
+  test('handles missing input without throwing', () => {
+    expect(partitionArchivedProjects(null, null)).toEqual({ active: [], archived: [] });
+    expect(partitionArchivedProjects([], undefined)).toEqual({ active: [], archived: [] });
   });
 });

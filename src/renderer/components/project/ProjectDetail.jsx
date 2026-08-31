@@ -42,7 +42,15 @@ const ChatRow = React.memo(function ChatRow({ agent, isActive, onOpen }) {
  * existing task modal, so follow-up messaging and transcript rendering are
  * shared rather than reimplemented here.
  */
-export default function ProjectDetail({ group, onBack, onOpenChat, activeAgent, api }) {
+export default function ProjectDetail({
+  group,
+  onBack,
+  onOpenChat,
+  activeAgent,
+  api,
+  onToggleArchive,
+  isArchived,
+}) {
   const [query, setQuery] = useState('');
 
   const chats = useMemo(() => {
@@ -82,6 +90,19 @@ export default function ProjectDetail({ group, onBack, onOpenChat, activeAgent, 
           <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             {group.counts.total} chats
           </span>
+          {onToggleArchive && (
+            <button
+              type="button"
+              onClick={() => onToggleArchive(group.key)}
+              title={isArchived ? 'Restore project' : 'Archive project'}
+              className="flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs text-slate-600 transition-colors hover:border-primary hover:text-primary dark:border-border-dark dark:text-slate-300"
+            >
+              <span className="material-symbols-outlined text-sm">
+                {isArchived ? 'unarchive' : 'archive'}
+              </span>
+              {isArchived ? 'Restore' : 'Archive'}
+            </button>
+          )}
         </div>
       </div>
 

@@ -8,7 +8,7 @@ import ErrorBanner from '../components/ui/ErrorBanner.jsx';
 import Pagination from '../components/ui/Pagination.jsx';
 import ProjectGrid from '../components/project/ProjectGrid.jsx';
 import ProjectDetail from '../components/project/ProjectDetail.jsx';
-import { groupAgentsByProject } from '../utils/group-agents.js';
+import { groupAgentsByProject, partitionArchivedProjects } from '../utils/group-agents.js';
 import {
   getProviderDisplayName,
   getProviderDot,
@@ -242,10 +242,19 @@ export default function DashboardPage() {
     () => (dashboardMode === 'projects' ? groupAgentsByProject(filteredAgents) : []),
     [dashboardMode, filteredAgents]
   );
+  const { active: activeProjects, archived: archivedProjects } = useMemo(
+    () => partitionArchivedProjects(projectGroups, state.archivedProjects),
+    [projectGroups, state.archivedProjects]
+  );
+  // Drill-down works for archived projects too, so a restore can be decided
+  // after looking at what is inside.
   const selectedProject = useMemo(
     () => projectGroups.find((group) => group.key === selectedProjectKey) || null,
     [projectGroups, selectedProjectKey]
   );
+  const visibleProjects = state.showArchivedProjects
+    ? [...activeProjects, ...archivedProjects]
+    : activeProjects;
 
   const goPrev = () =>
     dispatch({ type: 'SET_PAGINATION', payload: { currentPage: Math.max(1, currentPage - 1) } });
@@ -306,15 +315,44 @@ export default function DashboardPage() {
             onOpenChat={setSelectedChat}
             activeAgent={selectedChat}
             api={api}
+            onToggleArchive={(key) => dispatch({ type: 'TOGGLE_PROJECT_ARCHIVED', payload: key })}
+            isArchived={state.archivedProjects.includes(selectedProject.key)}
           />
         ) : (
-          <ProjectGrid
-            groups={projectGroups}
-            onOpen={(key) => {
-              setSelectedChat(null);
-              dispatch({ type: 'SELECT_PROJECT', payload: key });
-            }}
-          />
+          <>
+            {archivedProjects.length > 0 && (
+              <div className="mb-3 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() =>
+                    dispatch({
+                      type: 'SET_SHOW_ARCHIVED_PROJECTS',
+                      payload: !state.showArchivedProjects,
+                    })
+                  }
+                  className="flex items-center gap-1.5 text-xs text-slate-500 transition-colors hover:text-primary"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    {state.showArchivedProjects ? 'visibility_off' : 'inventory_2'}
+                  </span>
+                  {state.showArchivedProjects
+                    ? 'Hide archived'
+                    : `Show archived (${archivedProjects.length})`}
+                </button>
+              </div>
+            )}
+            <ProjectGrid
+              groups={visibleProjects}
+              onOpen={(key) => {
+                setSelectedChat(null);
+                dispatch({ type: 'SELECT_PROJECT', payload: key });
+              }}
+              onToggleArchive={(key) =>
+                dispatch({ type: 'TOGGLE_PROJECT_ARCHIVED', payload: key })
+              }
+              archivedKeys={state.archivedProjects}
+            />
+          </>
         )
       ) : pageItems.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 py-12 text-center dark:border-border-dark">

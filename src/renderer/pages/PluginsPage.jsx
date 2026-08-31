@@ -110,7 +110,7 @@ function ServiceCard({
  * Plugins tab: the service hub (replaces the Settings connected-services
  * card and the service onboarding entry point). Shows everything that is
  * connected plus the full catalog of services that can be added; clicking
- * an unconnected service opens the guided onboarding modal.
+ * an unconnected service opens a focused single-service setup modal.
  */
 export default function PluginsPage() {
   const { state, api, loadSettings, checkConnectionStatus, setView } = useApp();
@@ -125,7 +125,7 @@ export default function PluginsPage() {
     [connectedServices, state]
   );
 
-  const openOnboarding = useCallback((serviceId = null) => {
+  const openOnboarding = useCallback((serviceId) => {
     setActiveServiceId(serviceId);
     setOnboardingOpen(true);
   }, []);
@@ -143,22 +143,13 @@ export default function PluginsPage() {
   return (
     <div id="view-plugins" className="view-content mx-auto w-full max-w-5xl space-y-8">
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-              Your services
-            </h2>
-            <p className="mt-0.5 text-[12px] text-neutral-500 dark:text-neutral-400">
-              Everything RTS is connected to right now.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openOnboarding()}
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
-          >
-            Add service
-          </button>
+        <div className="mb-4">
+          <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+            Your services
+          </h2>
+          <p className="mt-0.5 text-[12px] text-neutral-500 dark:text-neutral-400">
+            Everything RTS is connected to right now.
+          </p>
         </div>
 
         {connectedGroups.length === 0 ? (
@@ -246,9 +237,6 @@ export default function PluginsPage() {
         loadSettings={loadSettings}
         checkConnectionStatus={checkConnectionStatus}
         onClose={() => setOnboardingOpen(false)}
-        onConnected={() => {
-          setActiveServiceId(null);
-        }}
       />
     </div>
   );

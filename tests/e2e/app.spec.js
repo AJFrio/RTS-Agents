@@ -27,19 +27,25 @@ test.describe('E2E Tests', () => {
     expect(await window.title()).toBeTruthy();
   });
 
-  test('Dashboard should load', async () => {
+  test('Agent is the default landing view', async () => {
       const window = await electronApp.firstWindow();
       // Wait for the app to load (React mounts into #root then renders #app)
       await window.waitForLoadState('domcontentloaded');
       await window.waitForSelector('#app', { state: 'visible', timeout: 15000 });
 
-      // Check for main container or specific elements
       const app = window.locator('#app');
       await expect(app).toBeVisible();
 
-      // Check sidebar exists
-      const sidebar = await window.locator('#sidebar');
+      const sidebar = window.locator('#sidebar');
       await expect(sidebar).toBeVisible();
+
+      await expect(window.locator('#view-agent')).toBeVisible();
+      await expect(window.locator('#agent-recent-tasks')).toBeVisible();
+      await expect(window.locator('#view-dashboard')).toBeHidden();
+
+      // Logo still opens the dashboard card grid
+      await window.locator('#sidebar button[data-view="dashboard"]').click();
+      await expect(window.locator('#view-dashboard')).toBeVisible();
   });
 
   test('Should navigate to Settings', async () => {
@@ -63,9 +69,28 @@ test.describe('E2E Tests', () => {
       const pluginsBtn = await window.locator('button[data-view="plugins"]');
       await pluginsBtn.click();
 
-      const pluginsView = await window.locator('#view-plugins');
+      const pluginsView = window.locator('#view-plugins');
       await expect(pluginsView).toBeVisible();
-      await expect(pluginsView.getByRole('button', { name: /add service/i }).first()).toBeVisible();
+      await expect(pluginsView.getByRole('heading', { name: 'Available services' })).toBeVisible();
+
+      // Header Add service is gone; connect from a catalog card (or Manage on a connected card).
+      const headerAdd = pluginsView
+        .locator('section')
+        .filter({ has: pluginsView.getByRole('heading', { name: 'Your services' }) })
+        .locator(':scope > div')
+        .first()
+        .getByRole('button', { name: /add service/i });
+      await expect(headerAdd).toHaveCount(0);
+
+      const cardAdd = pluginsView
+        .locator('section')
+        .filter({ hasText: 'Available services' })
+        .getByRole('button', { name: /add service/i });
+      const cardManage = pluginsView
+        .locator('section')
+        .filter({ hasText: 'Your services' })
+        .getByRole('button', { name: /^Manage$/ });
+      await expect(cardAdd.or(cardManage).first()).toBeVisible();
   });
 
   test('Should navigate to Devices view', async () => {

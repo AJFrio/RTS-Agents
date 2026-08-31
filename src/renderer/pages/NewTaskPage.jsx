@@ -106,9 +106,9 @@ function ControlPill({ label, value, onClick, active, id }) {
 }
 
 /**
- * New Task tab: the canvas version of the old New Task modal. Pick the run
- * location, harness, and repo; the Composer carries the prompt with model,
- * branch, and image-attachment controls (DESIGN.md §2.1).
+ * New Task tab: a tight top-aligned location/agent strip plus a Composer
+ * whose footer pills carry repo, device, model, branch, and auto-PR
+ * (DESIGN.md §5 — power controls as composer pills).
  */
 export default function NewTaskPage() {
   const { state, api, fetchComputers, loadAgents } = useApp();
@@ -265,7 +265,11 @@ export default function NewTaskPage() {
   useEffect(() => {
     if (repoDropdownOpen && repoInputContainerRef.current) {
       const rect = repoInputContainerRef.current.getBoundingClientRect();
-      setRepoDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      setRepoDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 280),
+      });
       setHighlightedIndex(-1);
     }
   }, [repoDropdownOpen]);
@@ -448,11 +452,10 @@ export default function NewTaskPage() {
   };
 
   return (
-    <div id="new-task-modal" className="mx-auto flex h-full min-h-0 max-w-3xl flex-col px-4 py-4 md:px-6">
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-4">
-        <div className="mx-auto w-full space-y-8 my-auto py-1">
+    <div id="new-task-modal" className="mx-auto h-full min-h-0 max-w-3xl overflow-y-auto px-4 py-4 md:px-6">
+      <div className="space-y-3">
         <section>
-          <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Run location
           </h3>
           <div className="grid grid-cols-3 gap-1.5">
@@ -484,14 +487,14 @@ export default function NewTaskPage() {
             ))}
           </div>
           {environment === 'remote' && (
-            <p className="mt-2 text-[11px] text-neutral-400 dark:text-neutral-500">
+            <p className="mt-1.5 text-[11px] text-neutral-400 dark:text-neutral-500">
               Remote tasks queue in Cloudflare KV and run when the machine is online.
             </p>
           )}
         </section>
 
         <section>
-          <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          <h3 className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Agent
             {currentErrors.agent && (
               <span className="font-medium normal-case tracking-normal text-red-600 dark:text-red-400">
@@ -499,9 +502,9 @@ export default function NewTaskPage() {
               </span>
             )}
           </h3>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          <div className="flex flex-wrap gap-1.5">
             {agentsForEnv.length === 0 ? (
-              <p className="col-span-full py-3 text-[13px] text-neutral-400">
+              <p className="py-1 text-[13px] text-neutral-400">
                 No agents are available for this run location. Connect one in Plugins.
               </p>
             ) : (
@@ -518,7 +521,7 @@ export default function NewTaskPage() {
                       setFieldErrors((prev) => ({ ...prev, agent: null }));
                     }}
                     aria-pressed={isSelected}
-                    className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-[13px] font-medium transition-colors ${
+                    className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
                       isSelected
                         ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
                         : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
@@ -533,50 +536,93 @@ export default function NewTaskPage() {
           </div>
         </section>
 
-        {environment === 'remote' && (
-          <section>
-            <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              Device
-              {currentErrors.device && (
-                <span className="font-medium normal-case tracking-normal text-red-600 dark:text-red-400">
-                  {currentErrors.device}
-                </span>
-              )}
-            </h3>
-            <select
-              id="task-device"
-              value={targetDeviceId}
-              onChange={(e) => setTargetDeviceId(e.target.value)}
-              aria-label="Select remote device"
-              className="w-full"
-            >
-              <option value="">Select a device…</option>
-              {computersList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.id === state.localDeviceId ? `${c.name || c.id} (this device)` : c.name || c.id}
-                </option>
-              ))}
-            </select>
-          </section>
+        {currentErrors.prompt && (
+          <p className="text-[12px] text-red-600 dark:text-red-400">{currentErrors.prompt}</p>
         )}
+        {(() => {
+          const reason = Object.values(validate())[0];
+          if (reason) {
+            return (
+              <p className="text-[12px] text-amber-700 dark:text-amber-400">{reason}</p>
+            );
+          }
+          return null;
+        })()}
 
-        {showRepoSection && (
-          <section>
-            <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              {environment === 'local' ? 'Project path' : 'Repository'}
-              {repoRequired ? '' : ' (optional)'}
-              {currentErrors.repo && (
-                <span className="font-medium normal-case tracking-normal text-red-600 dark:text-red-400">
-                  {currentErrors.repo}
-                </span>
-              )}
-            </h3>
+        <Composer
+          value={prompt}
+          onChange={(value) => {
+            setPrompt(value);
+            if (fieldErrors.prompt) setFieldErrors((prev) => ({ ...prev, prompt: null }));
+          }}
+          onSubmit={handleSubmit}
+          busy={creating}
+          disabled={creating}
+          textareaId="task-prompt"
+          submitId="create-task-btn"
+          submitLabel="Create task"
+          placeholder="Describe the task, expected output, and any constraints…"
+          submitOnEnter={false}
+          minRows={3}
+          maxRows={12}
+          attachments={attachments}
+          onRemoveAttachment={(id) => setAttachments((prev) => prev.filter((a) => a.id !== id))}
+          onFiles={handleFiles}
+          onPaste={handlePaste}
+          footerNote={`${
+            getProviderDisplayName(selectedProvider) || 'No agent selected'
+          } · ${shortRepo(selectedRepo) || (repoRequired ? 'repo required' : 'no repo')}${
+            autoPr ? ' · auto-PR on' : ''
+          }`}
+        >
+          {environment === 'remote' && (
+            <label
+              className={`inline-flex max-w-[200px] items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                currentErrors.device
+                  ? 'border-red-400 text-neutral-600 dark:border-red-400 dark:text-neutral-400'
+                  : targetDeviceId
+                    ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
+                    : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
+              }`}
+            >
+              <span className="shrink-0 opacity-70">Device</span>
+              <select
+                id="task-device"
+                value={targetDeviceId}
+                onChange={(e) => {
+                  setTargetDeviceId(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, device: null }));
+                }}
+                aria-label="Select remote device"
+                className="min-w-[4.5rem] max-w-[140px] cursor-pointer appearance-none border-0 bg-transparent p-0 text-[11px] text-inherit focus:border-transparent focus:outline-none focus:ring-0"
+              >
+                <option value="">Select…</option>
+                {computersList.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.id === state.localDeviceId ? `${c.name || c.id} (this device)` : c.name || c.id}
+                  </option>
+                ))}
+              </select>
+              <svg className="pointer-events-none shrink-0 opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </label>
+          )}
+
+          {showRepoSection && (
             <div className="relative" ref={repoInputContainerRef}>
-              <div
-                className={`flex items-center rounded-md border bg-card-light dark:bg-card-dark ${
-                  currentErrors.repo ? 'border-red-400' : 'border-border-light dark:border-border-dark'
+              <label
+                className={`inline-flex max-w-[200px] items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  currentErrors.repo
+                    ? 'border-red-400 text-neutral-600 dark:border-red-400 dark:text-neutral-400'
+                    : selectedRepo
+                      ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
+                      : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
                 }`}
               >
+                <span className="shrink-0 opacity-70">
+                  {environment === 'local' ? 'Path' : 'Repo'}
+                </span>
                 <input
                   id="task-repo-search"
                   type="text"
@@ -587,8 +633,8 @@ export default function NewTaskPage() {
                   }}
                   onFocus={() => setRepoDropdownOpen(true)}
                   onKeyDown={handleRepoKeyDown}
-                  placeholder={loadingRepos && repos.length === 0 ? 'Loading…' : 'Select repository or path'}
-                  className="flex-1 border-0 bg-transparent font-mono text-[13px] focus:ring-0"
+                  placeholder={loadingRepos && repos.length === 0 ? 'Loading…' : 'Select…'}
+                  className="min-w-0 w-28 truncate border-0 bg-transparent p-0 font-mono text-[11px] text-inherit placeholder:text-neutral-400 focus:border-transparent focus:outline-none focus:ring-0 dark:placeholder:text-neutral-500"
                   aria-label="Search or select repository"
                   aria-expanded={repoDropdownOpen}
                   aria-haspopup="listbox"
@@ -597,13 +643,13 @@ export default function NewTaskPage() {
                   type="button"
                   onClick={() => setRepoDropdownOpen(!repoDropdownOpen)}
                   aria-label="Toggle repository list"
-                  className="p-2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                  className="shrink-0 text-current opacity-70 hover:opacity-100"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <path d="m6 9 6 6 6-6" />
                   </svg>
                 </button>
-              </div>
+              </label>
               {repoDropdownOpen && (
                 <>
                   <div
@@ -655,50 +701,8 @@ export default function NewTaskPage() {
                 </>
               )}
             </div>
-          </section>
-        )}
-        </div>
-      </div>
+          )}
 
-      <div className="shrink-0">
-        {currentErrors.prompt && (
-          <p className="mb-2 text-[12px] text-red-600 dark:text-red-400">{currentErrors.prompt}</p>
-        )}
-        {(() => {
-          const reason = Object.values(validate())[0];
-          if (reason) {
-            return (
-              <p className="mb-2 text-[12px] text-amber-700 dark:text-amber-400">{reason}</p>
-            );
-          }
-          return null;
-        })()}
-        <Composer
-          value={prompt}
-          onChange={(value) => {
-            setPrompt(value);
-            if (fieldErrors.prompt) setFieldErrors((prev) => ({ ...prev, prompt: null }));
-          }}
-          onSubmit={handleSubmit}
-          busy={creating}
-          disabled={creating}
-          textareaId="task-prompt"
-          submitId="create-task-btn"
-          submitLabel="Create task"
-          placeholder="Describe the task, expected output, and any constraints…"
-          submitOnEnter={false}
-          minRows={3}
-          maxRows={12}
-          attachments={attachments}
-          onRemoveAttachment={(id) => setAttachments((prev) => prev.filter((a) => a.id !== id))}
-          onFiles={handleFiles}
-          onPaste={handlePaste}
-          footerNote={`${
-            getProviderDisplayName(selectedProvider) || 'No agent selected'
-          } · ${shortRepo(selectedRepo) || (repoRequired ? 'repo required' : 'no repo')}${
-            autoPr ? ' · auto-PR on' : ''
-          }`}
-        >
           {showModelPill && (
             <div className="relative" ref={modelInputContainerRef}>
               <ControlPill

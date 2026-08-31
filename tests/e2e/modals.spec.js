@@ -112,12 +112,12 @@ test.describe('Modal Tests', () => {
   });
 
   test('Task detail view should open on the canvas and display correct info', async () => {
-    // Wait for agents to load (the mock returns one agent)
-    const agentCard = page.locator('.agent-card').first();
-    await expect(agentCard).toBeVisible();
+    await expect(page.locator('#view-agent')).toBeVisible();
+    const recentRow = page.locator('#agent-recent-tasks .agent-recent-task').first();
+    await expect(recentRow).toBeVisible();
 
-    // Click the agent card — the task chat log opens on the canvas
-    await agentCard.click();
+    // Click the recent-task row — the task chat log opens on the canvas
+    await recentRow.click();
 
     // The canvas switches to the task detail view
     await expect(page.locator('#view-title')).toHaveText('Test Agent');
@@ -127,9 +127,10 @@ test.describe('Modal Tests', () => {
     await expect(canvas).toContainText('Task started');
     await expect(canvas).toContainText('Hello agent');
 
-    // Close the task view and return to the task list
+    // Close the task view and return to Agent (previous view / default)
     await page.locator('button[aria-label="Close task"]').click();
-    await expect(page.locator('#view-title')).toHaveText('All Tasks');
+    await expect(page.locator('#view-title')).toHaveText('Agent');
+    await expect(page.locator('#view-agent')).toBeVisible();
   });
 
   test('New Task page should work correctly', async () => {

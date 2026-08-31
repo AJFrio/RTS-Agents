@@ -17,6 +17,14 @@ renders every task's transcript as a chat log on the canvas.
 - Canvas (right region) renders the selected tab; chat views own their scroll
   with a fixed composer footer.
 
+## Default landing
+
+- First load opens the Agent tab (`currentView: 'agent'` in
+  `src/renderer/context/app-state.js`).
+- Closing a task (`CLOSE_TASK`) returns to `previousView`, or Agent if none.
+- The sidebar wordmark (`data-view="dashboard"`) still opens the All Tasks
+  dashboard card grid. Mobile bottom nav keeps a Tasks tab for that view.
+
 ## Sidebar sections
 
 - Toggle (persisted in `rts_sidebar_mode_v1`): **Repos** groups tasks by
@@ -33,7 +41,11 @@ renders every task's transcript as a chat log on the canvas.
 - The orchestrator's tool calls render as expandable rows; every task it
   starts or references surfaces as a clickable task card that opens the task
   chat log on the canvas.
-- The "Tasks" panel lists previous tasks with harness and repo filters.
+- An always-visible **Recent tasks** list (`#agent-recent-tasks`) sits below
+  the chat: title, status, harness, repo, relative time. Rows use
+  `.agent-recent-task`. Sorted by `updatedAt`/`createdAt`, capped at 20.
+  Clicking a row calls `openTask` → task-detail.
+- There is no Tasks header toggle or `TaskBrowserPanel`.
 
 ## Task chat log (canvas task detail)
 
@@ -52,8 +64,17 @@ renders every task's transcript as a chat log on the canvas.
 
 ## Service hub
 
-- Plugins tab owns connected-service cards (manage/disconnect), the full
-  addable catalog, and guided onboarding (the ServiceOnboardingModal).
+- Plugins tab owns connected-service cards (Manage / Disconnect) and the
+  addable catalog. There is no page-header **Add service** button.
+- Each catalog card has **Add service**; connected cards have **Manage**.
+  Both open a focused single-service modal (`ServiceOnboardingModal`,
+  `Modal` `size="md"`) with no catalog sidebar.
+- Modal title is `Connect {service}` or `Manage {service}` (e.g. Connect
+  Cloudflare KV), never "Service Onboarding".
+- Cloudflare KV is token-first. **Detect & connect** discovers the account
+  and verifies in one shot (`src/renderer/components/settings/service-onboarding.js`).
+  The detect control is hidden when `discoverCloudflareAccount` is missing
+  (web degradation).
 - Settings keeps only Display, Data polling, and System sections.
 - Devices tab replaces the old Computers page: device cards open a detail
   pane with services, repositories, running tasks (local device) or the
@@ -61,10 +82,15 @@ renders every task's transcript as a chat log on the canvas.
 
 ## Acceptance criteria
 
+- [ ] First load shows `#view-agent` with `#agent-recent-tasks` visible
+- [ ] Sidebar wordmark opens `#view-dashboard`; CLOSE_TASK returns to the
+      previous view or Agent
 - [ ] Sidebar resize clamps to [200px, 33% window] and persists across restarts
 - [ ] Running tasks stay visible when their repo/harness section is collapsed
 - [ ] Orchestrator tool calls and task cards render in the chat; clicking a
-      card opens the task chat log
+      card or a `.agent-recent-task` row opens the task chat log
+- [ ] Plugins has no header Add service; card Add service / Manage opens a
+      focused `Connect` / `Manage` modal with no catalog sidebar
 - [ ] ACP-dispatched sessions stream tool calls and thinking into the task
       chat log, collapsed and expandable
 - [ ] Follow-ups work for jules, cursor, claude-cloud, and codex cloud tasks
@@ -77,7 +103,10 @@ renders every task's transcript as a chat log on the canvas.
 - `src/renderer/modals/RepoSessionsModal.jsx`
 - `src/renderer/pages/AgentPage.jsx`, `NewTaskPage.jsx`, `TaskDetailView.jsx`,
   `PluginsPage.jsx`, `DevicesPage.jsx`
-- `src/renderer/components/chat/` (Composer, TaskCard)
+- `src/renderer/context/app-state.js` (default view, CLOSE_TASK)
+- `src/renderer/components/chat/` (Composer, TaskCard, RecentTasksList)
+- `src/renderer/components/settings/ServiceOnboardingModal.jsx`,
+  `service-onboarding.js`
 - `src/main/services/opencode-session-parser.js` (`applySessionUpdate`)
 - `src/main/services/agent-orchestrator.js` (tools, task cards)
 - `src/main/ipc/provider-registry.js` (`sendTaskMessage` follow-up providers)

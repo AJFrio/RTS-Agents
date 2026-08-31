@@ -66,7 +66,8 @@ function setStoredPrHiddenRepos(repos) {
 }
 
 export const initialState = {
-  currentView: 'dashboard',
+  currentView: 'agent',
+  previousView: null,
   agents: [],
   agentListRevision: 0,
   filteredAgents: [],
@@ -233,10 +234,27 @@ export function appReducer(state, action) {
   switch (action.type) {
     case 'SET_VIEW':
       return { ...state, currentView: action.payload };
-    case 'OPEN_TASK':
-      return { ...state, selectedTask: action.payload, currentView: 'task-detail' };
-    case 'CLOSE_TASK':
-      return { ...state, selectedTask: null, currentView: 'dashboard' };
+    case 'OPEN_TASK': {
+      const fromView = state.currentView;
+      const previousView =
+        fromView && fromView !== 'task-detail'
+          ? fromView
+          : state.previousView || 'agent';
+      return {
+        ...state,
+        selectedTask: action.payload,
+        currentView: 'task-detail',
+        previousView,
+      };
+    }
+    case 'CLOSE_TASK': {
+      const prev = state.previousView;
+      const nextView =
+        typeof prev === 'string' && prev !== 'task-detail' && VIEWS.includes(prev)
+          ? prev
+          : 'agent';
+      return { ...state, selectedTask: null, currentView: nextView, previousView: null };
+    }
     case 'SET_SIDEBAR_WIDTH': {
       const width = Math.min(Math.max(action.payload, SIDEBAR_MIN_WIDTH), sidebarMaxWidth());
       try {

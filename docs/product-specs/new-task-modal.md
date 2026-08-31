@@ -6,6 +6,18 @@
 
 Users create new work from the New Task canvas tab (formerly a modal) with provider-specific fields.
 
+## Layout
+
+- Compact top-aligned strip (`space-y-3`, no vertical centering / `my-auto`).
+  Location is a 3-segment Cloud / Local / Remote control; agent chips wrap
+  in a row. Selecting an agent does not insert a Device or Repo block
+  between the chips and the prompt.
+- Device and Repository / project path live in the Composer footer as pills
+  (same pattern as Branch / Auto-PR / Model; DESIGN.md §5).
+- Stable ids for e2e: `#new-task-modal`, `#environment-*`, `#service-*`,
+  `#task-repo-search`, `#repo-dropdown`, `#task-device`, `#create-task-btn`.
+- Validation copy stays inline. Do not reserve a large empty error panel.
+
 ## Provider options (desktop)
 
 | Provider | Required input |
@@ -38,6 +50,8 @@ threads it into the same service dispatch paths.
 
 ## Acceptance criteria
 
+- [ ] Control strip is top-aligned; Device and Repo appear as composer footer
+      pills, not as mid-page sections
 - [ ] The tab only shows providers that are configured or detected
 - [ ] Model dropdown only appears when the selected harness reports models
 - [ ] Selected model reaches the CLI args / REST body / remote queue payload

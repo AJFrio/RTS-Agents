@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import { ProviderBadge, StatusBadge } from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
@@ -12,15 +12,19 @@ import { parseMarkdown } from '../utils/markdown.js';
 import DOMPurify from 'dompurify';
 
 function MarkdownBlock({ content, className = '' }) {
+  const html = useMemo(
+    () => DOMPurify.sanitize(parseMarkdown(String(content ?? ''))),
+    [content]
+  );
   return (
     <div
       className={`prose prose-sm max-w-none text-slate-800 dark:prose-invert dark:text-slate-200 ${className}`}
-      dangerouslySetInnerHTML={{
-        __html: DOMPurify.sanitize(parseMarkdown(String(content ?? ''))),
-      }}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }
+
+const MemoizedMarkdownBlock = React.memo(MarkdownBlock);
 
 export default function AgentModal({ agent, onClose, api }) {
   const [details, setDetails] = useState(null);
@@ -206,7 +210,7 @@ export default function AgentModal({ agent, onClose, api }) {
             if (hasContent) {
               return (
                 <div
-                  className="markdown-content prose dark:prose-invert prose-sm max-w-4xl"
+                  className="markdown-content prose dark:prose-invert prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(details.content) }}
                 />
               );
@@ -228,7 +232,7 @@ export default function AgentModal({ agent, onClose, api }) {
               return <p className="text-slate-500">No details available.</p>;
             }
             return (
-              <div className="max-w-4xl space-y-6">
+              <div className="max-w-none space-y-6">
                 {hasContext && (
                   <TaskContextSection
                     details={details}
@@ -242,7 +246,7 @@ export default function AgentModal({ agent, onClose, api }) {
                 )}
                 {hasPrompt && (
                   <SectionHeader label="Prompt" icon="description" defaultOpen>
-                    <MarkdownBlock content={details.prompt} />
+                    <MemoizedMarkdownBlock content={details.prompt} />
                   </SectionHeader>
                 )}
                 {hasSummary && (
@@ -263,7 +267,7 @@ export default function AgentModal({ agent, onClose, api }) {
                     <ActivityTimeline
                       activities={details.activities}
                       renderMessage={(content) => (
-                        <MarkdownBlock
+                        <MemoizedMarkdownBlock
                           content={content}
                           className="mt-2 border-l-2 border-slate-100 pl-3 text-slate-700 dark:border-slate-700 dark:text-slate-300"
                         />
@@ -281,7 +285,7 @@ export default function AgentModal({ agent, onClose, api }) {
                   <SectionHeader label="Conversation" icon="forum" defaultOpen>
                     <ConversationList
                       conversation={details.conversation}
-                      renderMessage={(content) => <MarkdownBlock content={content} />}
+                      renderMessage={(content) => <MemoizedMarkdownBlock content={content} />}
                     />
                   </SectionHeader>
                 )}
@@ -295,7 +299,7 @@ export default function AgentModal({ agent, onClose, api }) {
                     <ChatTranscript
                       messages={details.messages}
                       assistantLabel={getProviderDisplayName(agent.provider)}
-                      renderContent={(content) => <MarkdownBlock content={content} />}
+                      renderContent={(content) => <MemoizedMarkdownBlock content={content} />}
                     />
                   </SectionHeader>
                 )}

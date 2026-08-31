@@ -148,9 +148,22 @@ test.describe('Modal Tests', () => {
     await expect(modal).toBeVisible();
 
     // Desktop width contract: task detail modal covers ~80% of the window.
-    const viewport = page.viewportSize();
-    const box = await modal.boundingBox();
-    expect(box.width).toBeGreaterThanOrEqual(viewport.width * 0.75);
+    // page.viewportSize() is null under Electron; measure the real window instead.
+    const windowWidth = await page.evaluate(() => window.innerWidth);
+    await expect
+      .poll(async () => (await modal.boundingBox())?.width ?? 0)
+      .toBeGreaterThanOrEqual(windowWidth * 0.75);
+
+    // Content fills the modal: the details stack must span the modal body
+    // (minus its px-6/lg:px-8 padding), not be capped at a fixed max width.
+    const content = page.locator('#modal-content');
+    const fillRatio = async () => {
+      const contentBox = await content.boundingBox();
+      const stackBox = await content.locator('> div').first().boundingBox();
+      if (!contentBox || !stackBox) return 0;
+      return stackBox.width / contentBox.width;
+    };
+    await expect.poll(fillRatio).toBeGreaterThanOrEqual(0.9);
 
     // Metadata context starts collapsed and expands on demand.
     const contextHeader = modal.getByRole('button', { name: /context/i }).first();

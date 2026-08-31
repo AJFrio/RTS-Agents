@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { groupMessages, shortenTarget } from '../../utils/transcript.js';
+import { groupMessages, shortenTarget, stripHarnessNoise } from '../../utils/transcript.js';
 
 const TOOL_ICONS = {
   Bash: 'terminal',
@@ -128,10 +128,50 @@ function ThinkingBlock({ text }) {
  * Chat-style transcript: user turns right-aligned, assistant left,
  * consecutive turns grouped, tool calls and reasoning collapsed.
  */
-export default function ChatTranscript({ messages, renderContent, assistantLabel = 'Assistant' }) {
-  const groups = useMemo(() => groupMessages(messages), [messages]);
+/**
+ * Placeholder shown while a follow-up turn is in flight.
+ *
+ * Resuming a session spawns a fresh adapter before the agent even starts, so
+ * the wait has two distinct phases. Naming the current one is the difference
+ * between "the app froze" and "it is working".
+ */
+function PendingTurn({ label, assistantLabel }) {
+  return (
+    <div className="flex justify-start gap-2" role="status" aria-live="polite">
+      <div
+        aria-hidden="true"
+        className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"
+      >
+        <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+      </div>
+      <div className="flex max-w-[78%] flex-col gap-1 items-start">
+        <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          {assistantLabel}
+        </span>
+        <div className="rounded-2xl rounded-bl-sm bg-slate-100 px-3.5 py-2.5 dark:bg-slate-800">
+          <span className="flex items-center gap-2 text-sm italic text-slate-500 dark:text-slate-400">
+            <span className="material-symbols-outlined animate-spin text-[16px]">
+              progress_activity
+            </span>
+            {label}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  if (!groups.length) return null;
+export default function ChatTranscript({
+  messages,
+  renderContent,
+  assistantLabel = 'Assistant',
+  pending = null,
+}) {
+  // Transcripts interleave real user input with harness bookkeeping; strip it
+  // before grouping so a dropped block cannot split one speaker's run in two.
+  const groups = useMemo(() => groupMessages(stripHarnessNoise(messages)), [messages]);
+
+  if (!groups.length && !pending) return null;
 
   let lastDay = '';
 
@@ -200,6 +240,8 @@ export default function ChatTranscript({ messages, renderContent, assistantLabel
           </React.Fragment>
         );
       })}
+
+      {pending && <PendingTurn label={pending} assistantLabel={assistantLabel} />}
     </div>
   );
 }

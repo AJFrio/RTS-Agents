@@ -56,10 +56,8 @@ function registerTasksHandlers(deps) {
   // per task rather than assumed from the provider alone.
   ipcMain.handle('tasks:can-send-message', async (event, { provider, rawId, filePath }) => {
     try {
-      return {
-        success: true,
-        canSend: providerRegistry.canSendTaskMessage(deps, { provider, rawId, filePath }),
-      };
+      const state = providerRegistry.taskFollowUpState(deps, { provider, rawId, filePath });
+      return { success: true, canSend: state.canSend, live: state.live };
     } catch (err) {
       console.error(`Error checking follow-up support for ${provider}:`, err);
       return { success: false, canSend: false, error: err.message };

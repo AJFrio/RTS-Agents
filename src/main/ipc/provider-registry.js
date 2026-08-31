@@ -527,6 +527,15 @@ async function sendTaskMessage(deps, { provider, rawId, message, filePath }) {
  * Local CLI providers need a live ACP adapter, which is lost on restart,
  * crash, or idle reaping.
  */
+function taskFollowUpState(deps, { provider, rawId, filePath }) {
+  const acpService_ = acpFollowUpService(deps, provider);
+  if (!acpService_) return { canSend: canSendTaskMessage(deps, { provider, rawId, filePath }), live: false };
+  return {
+    canSend: Boolean(acpService_.supportsFollowUp?.(rawId, filePath)),
+    live: Boolean(acpService_.hasLiveSession?.(rawId)),
+  };
+}
+
 function canSendTaskMessage(deps, { provider, rawId, filePath }) {
   const { configStore, cursorService } = deps;
 
@@ -534,6 +543,7 @@ function canSendTaskMessage(deps, { provider, rawId, filePath }) {
   if (acpService_) {
     return Boolean(acpService_.supportsFollowUp?.(rawId, filePath));
   }
+
 
   switch (provider) {
     case 'jules':
@@ -559,5 +569,6 @@ module.exports = {
   createTask,
   sendTaskMessage,
   canSendTaskMessage,
+  taskFollowUpState,
   sortAgentsByDate,
 };

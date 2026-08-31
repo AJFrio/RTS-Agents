@@ -921,6 +921,11 @@ class ClaudeService {
     return Boolean(this.recordForFollowUp(taskId, filePath));
   }
 
+  /** True when an adapter is already warm for this task (no resume needed). */
+  hasLiveSession(taskId) {
+    return this.followUp.hasLiveSession(taskId);
+  }
+
   sendFollowUp(taskId, message, filePath = null) {
     // Discovered sessions have no tracked record, so hand the derived one to
     // the controller for this call.

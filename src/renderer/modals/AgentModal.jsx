@@ -38,6 +38,8 @@ export default function AgentModal({ agent, onClose, api }) {
   // Bumped after a follow-up is sent so the transcript reloads; the details
   // effect below is otherwise a one-shot fetch.
   const [refreshNonce, setRefreshNonce] = useState(0);
+  // Label for the in-flight turn, shown at the end of the transcript.
+  const [pendingLabel, setPendingLabel] = useState(null);
 
   const sessionId =
     agent?.provider === 'jules'
@@ -52,6 +54,7 @@ export default function AgentModal({ agent, onClose, api }) {
     setDetailsError(null);
     setActivityOpen(true);
     setExpandedRowIds(new Set());
+    setPendingLabel(null);
     userTouchedRef.current = new Set();
 
     const isJules = agent.provider === 'jules';
@@ -304,10 +307,12 @@ export default function AgentModal({ agent, onClose, api }) {
                       messages={details.messages}
                       assistantLabel={getProviderDisplayName(agent.provider)}
                       renderContent={(content) => <MemoizedMarkdownBlock content={content} />}
+                      pending={pendingLabel}
                     />
                     <FollowUpComposer
                       agent={agent}
                       api={api}
+                      onPendingChange={setPendingLabel}
                       onSent={() => setRefreshNonce((n) => n + 1)}
                     />
                   </SectionHeader>

@@ -100,6 +100,11 @@ function createFollowUpController({
       return Boolean(resumableIdFor(taskId));
     },
 
+    /** True only when an adapter is already running for this task. */
+    hasLiveSession(taskId) {
+      return registry.has(taskId);
+    },
+
     /**
      * @param {object} [options]
      * @param {object} [options.record] - Record to use instead of the hook

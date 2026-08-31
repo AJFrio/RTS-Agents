@@ -10,8 +10,8 @@ const source = fs.readFileSync(
   'utf-8'
 );
 const factory = new Function(`${source.replace(/export function/g, 'function')}
-  return { groupMessages, shortenTarget };`);
-const { groupMessages, shortenTarget } = factory();
+  return { groupMessages, shortenTarget, stripHarnessNoise };`);
+const { groupMessages, shortenTarget, stripHarnessNoise } = factory();
 
 describe('groupMessages', () => {
   test('merges consecutive assistant turns into one group', () => {
@@ -93,5 +93,72 @@ describe('shortenTarget', () => {
   test('handles empty and non-string input', () => {
     expect(shortenTarget('')).toBe('');
     expect(shortenTarget(undefined)).toBe('');
+  });
+});
+
+describe('stripHarnessNoise', () => {
+  test('drops a message that is only a task-notification block', () => {
+    const messages = [
+      { role: 'user', content: 'real question' },
+      {
+        role: 'user',
+        content:
+          '<task-notification>\n<task-id>abc</task-id>\n<status>stopped</status>\n</task-notification>',
+      },
+      { role: 'assistant', content: 'real answer' },
+    ];
+
+    expect(stripHarnessNoise(messages)).toEqual([
+      { role: 'user', content: 'real question' },
+      { role: 'assistant', content: 'real answer' },
+    ]);
+  });
+
+  test('strips a harness block but keeps the user text around it', () => {
+    const messages = [
+      {
+        role: 'user',
+        content:
+          '<task-notification>\n<task-id>abc</task-id>\n</task-notification>\nTesting this from the actual RTS app.',
+      },
+    ];
+
+    const [message] = stripHarnessNoise(messages);
+    expect(message.content).toBe('Testing this from the actual RTS app.');
+  });
+
+  test('strips system-reminder and local-command wrappers', () => {
+    const messages = [
+      { role: 'user', content: '<system-reminder>bookkeeping</system-reminder>keep me' },
+      {
+        role: 'user',
+        content:
+          '<local-command-stdout>noise</local-command-stdout><command-name>/clear</command-name>',
+      },
+    ];
+
+    const result = stripHarnessNoise(messages);
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe('keep me');
+  });
+
+  test('keeps image references, which are real user content', () => {
+    const messages = [
+      { role: 'user', content: '[Image: source: /tmp/shot.png] what is this?' },
+    ];
+    expect(stripHarnessNoise(messages)).toEqual(messages);
+  });
+
+  test('leaves assistant messages untouched even if they quote a tag', () => {
+    // The assistant discussing a tag is real content, not harness plumbing.
+    const messages = [
+      { role: 'assistant', content: 'The <task-notification> block is from the harness.' },
+    ];
+    expect(stripHarnessNoise(messages)).toEqual(messages);
+  });
+
+  test('returns an empty array for empty or missing input', () => {
+    expect(stripHarnessNoise([])).toEqual([]);
+    expect(stripHarnessNoise(null)).toEqual([]);
   });
 });

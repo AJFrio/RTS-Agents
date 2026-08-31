@@ -8,8 +8,11 @@ import React, { useEffect, useRef, useState } from 'react';
  * on app restart, adapter crash, or idle reaping - so availability is asked
  * per task rather than inferred from the provider.
  */
-export default function FollowUpComposer({ agent, api, onSent }) {
+export default function FollowUpComposer({ agent, api, onSent, onPendingChange }) {
   const [canSend, setCanSend] = useState(false);
+  // Whether an adapter is already warm. A cold task must spawn one and replay
+  // history first, which is the multi-second part of the wait.
+  const [hasLiveSession, setHasLiveSession] = useState(false);
   const [checking, setChecking] = useState(true);
   const [value, setValue] = useState('');
   const [sending, setSending] = useState(false);
@@ -34,7 +37,9 @@ export default function FollowUpComposer({ agent, api, onSent }) {
     api
       .canSendMessage(provider, rawId, filePath)
       .then((result) => {
-        if (!cancelled) setCanSend(Boolean(result?.canSend));
+        if (cancelled) return;
+        setCanSend(Boolean(result?.canSend));
+        setHasLiveSession(Boolean(result?.live));
       })
       .catch(() => {
         if (!cancelled) setCanSend(false);
@@ -54,21 +59,30 @@ export default function FollowUpComposer({ agent, api, onSent }) {
 
     setSending(true);
     setError(null);
+    // A task with no live adapter has to spawn and replay history first, which
+    // is the slow part; say so rather than leaving the UI silent for seconds.
+    onPendingChange?.(hasLiveSession ? 'Working…' : 'Resuming session…');
     try {
       const result = await api.sendMessage(provider, rawId, text, filePath);
       if (result && result.success === false) {
         throw new Error(result.error || 'Failed to send message');
       }
       setValue('');
+      setHasLiveSession(true);
+      onPendingChange?.(null);
       onSent?.();
     } catch (err) {
+      onPendingChange?.(null);
       setError(err?.message || 'Failed to send message');
       // The session may have died with the failure; re-check availability so
       // the composer disappears instead of offering a send that cannot work.
       if (api?.canSendMessage) {
         api
           .canSendMessage(provider, rawId, filePath)
-          .then((result) => setCanSend(Boolean(result?.canSend)))
+          .then((result) => {
+            setCanSend(Boolean(result?.canSend));
+            setHasLiveSession(Boolean(result?.live));
+          })
           .catch(() => setCanSend(false));
       }
     } finally {

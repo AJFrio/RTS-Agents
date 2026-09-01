@@ -1,17 +1,23 @@
 import React, { useId, useState } from 'react';
+import { IconChevronDown, IconChevronRight } from './icons.jsx';
 
+/**
+ * Collapsible (DESIGN.md §5): hairline neutral variants, borders-only.
+ * Caller-supplied `icon` stays a Material Symbol name during the icon-port
+ * transition (DESIGN.md §9).
+ */
 const VARIANTS = {
   solid: {
-    root: 'rounded-md border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/50',
-    panel: 'border-t border-slate-200 dark:border-slate-700',
+    root: 'rounded-md border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark',
+    panel: 'border-t border-border-light dark:border-border-dark',
   },
   dashed: {
-    root: 'rounded-md border border-dashed border-slate-300 dark:border-slate-700',
-    panel: 'border-t border-slate-200 dark:border-slate-700',
+    root: 'rounded-md border border-dashed border-border-strong-light dark:border-border-strong-dark',
+    panel: 'border-t border-border-light dark:border-border-dark',
   },
   plain: {
     root: 'rounded-md',
-    panel: 'border-t border-slate-100 dark:border-slate-800',
+    panel: 'border-t border-border-light dark:border-border-dark',
   },
 };
 
@@ -35,6 +41,7 @@ export default function Collapsible({
   const headerId = `collapsible-${id}-header`;
   const panelId = `collapsible-${id}-panel`;
   const styles = VARIANTS[variant] ?? VARIANTS.solid;
+  const Chevron = isOpen ? IconChevronDown : IconChevronRight;
 
   const toggle = (next) => {
     if (open === undefined) setInternalOpen(next);
@@ -61,13 +68,11 @@ export default function Collapsible({
         aria-controls={mountWhenClosed || isOpen ? panelId : undefined}
         onClick={() => toggle(!isOpen)}
         onKeyDown={handleKeyDown}
-        className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/70 ${headerClassName}`}
+        className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[12px] text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800/60 ${headerClassName}`}
       >
-        <span className="material-symbols-outlined text-[14px] text-slate-400" aria-hidden="true">
-          {isOpen ? 'expand_more' : 'chevron_right'}
-        </span>
+        <Chevron size={14} className="shrink-0 text-neutral-400" />
         {icon && (
-          <span className="material-symbols-outlined text-[14px] text-slate-400" aria-hidden="true">
+          <span className="material-symbols-outlined text-[14px] text-neutral-400" aria-hidden="true">
             {icon}
           </span>
         )}

@@ -23,7 +23,7 @@ import { createProviders } from './providers/index.mjs';
 import { createAgentHub } from './web-agent-hub.mjs';
 import { createCloudflareSync } from './web-cloudflare-sync.mjs';
 
-const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'codex', 'claude', 'github', 'jira', 'openrouter']);
+const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'claude', 'github', 'jira', 'openrouter']);
 
 function defaultTimers() {
   return {
@@ -79,8 +79,6 @@ export function createWebApi(options = {}) {
         return providers.jules.testConnection();
       case 'cursor':
         return providers.cursor.testConnection();
-      case 'codex':
-        return providers.codex.testConnection();
       case 'claude':
         return providers.claude.testConnection();
       case 'github':

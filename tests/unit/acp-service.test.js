@@ -1,10 +1,27 @@
-const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 const acpService = require('../../src/main/services/acp-service');
 const installStatus = require('../../src/main/utils/install-status');
+const { platformBin } = require('../../src/main/utils/cli-spawn');
+
+function writeRunnableBin(dir, name) {
+  const binName = platformBin(name);
+  const full = path.join(dir, binName);
+  const content =
+    process.platform === 'win32' ? '@echo off\r\nexit /b 0\r\n' : '#!/bin/sh\nexit 0\n';
+  fs.writeFileSync(full, content);
+  if (process.platform !== 'win32') fs.chmodSync(full, 0o755);
+  return { binName, full };
+}
+
+/** Isolate PATH to `binDir` while still resolving cmd.exe on Windows. */
+function isolatedPath(binDir) {
+  if (process.platform !== 'win32') return binDir;
+  const system32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
+  return `${binDir}${path.delimiter}${system32}`;
+}
 
 const FIXTURE = path.join(__dirname, '..', 'fixtures', 'fake-acp-adapter.js');
 
@@ -69,6 +86,7 @@ describe('acp-service runPrompt (real fake-adapter child processes)', () => {
       phase: 'version',
       fallbackAllowed: true,
     });
+    await expect(acpService.runPrompt(fixtureOptions('version-mismatch'))).rejects.toThrow(/v2 is draft/i);
   });
 
   test('rejects on initialize error response', async () => {
@@ -151,20 +169,52 @@ describe('acp-service resolveAdapter', () => {
     expect(acpService.resolveAdapter('opencode')).toBeNull();
   });
 
+  test('lists dedicated adapters plus native acp/--acp candidates', () => {
+    const claude = acpService.adapterCandidates('claude');
+    expect(claude.some((c) => c.command.includes('claude-agent-acp'))).toBe(true);
+    expect(claude.some((c) => c.args[0] === 'acp' || c.args[0] === '--acp')).toBe(true);
+    expect(acpService.adapterCandidates('codex').some((c) => c.args[0] === 'acp')).toBe(true);
+    expect(acpService.adapterCandidates('antigravity').length).toBeGreaterThan(0);
+  });
+
+  test('falls back to native claude acp when the dedicated adapter is missing', () => {
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-claude-native-'));
+    const { binName } = writeRunnableBin(binDir, 'claude');
+
+    const originalPath = process.env.PATH;
+    process.env.PATH = isolatedPath(binDir);
+    try {
+      expect(acpService.resolveAdapter('claude')).toEqual({ command: binName, args: ['acp'] });
+    } finally {
+      process.env.PATH = originalPath;
+      acpService.clearAdapterCache();
+    }
+  });
+
   test('unknown providers resolve to null', () => {
-    expect(acpService.resolveAdapter('antigravity')).toBeNull();
     expect(acpService.resolveAdapter('jules')).toBeNull();
+  });
+
+  test('antigravity is absent when agy is not on PATH', () => {
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-agy-empty-'));
+    const originalPath = process.env.PATH;
+    process.env.PATH = binDir;
+    try {
+      expect(acpService.resolveAdapter('antigravity')).toBeNull();
+    } finally {
+      process.env.PATH = originalPath;
+      acpService.clearAdapterCache();
+    }
   });
 
   test('detects the cursor agent binary (agent)', () => {
     const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-cursor-'));
-    fs.writeFileSync(path.join(binDir, 'agent'), '#!/bin/sh\nexit 0\n');
-    fs.chmodSync(path.join(binDir, 'agent'), 0o755);
+    const { binName } = writeRunnableBin(binDir, 'agent');
 
     const originalPath = process.env.PATH;
     process.env.PATH = `${binDir}${path.delimiter}${originalPath}`;
     try {
-      expect(acpService.resolveAdapter('cursor')).toBe('agent');
+      expect(acpService.resolveAdapter('cursor')).toEqual({ command: binName, args: ['acp'] });
     } finally {
       process.env.PATH = originalPath;
       acpService.clearAdapterCache();
@@ -173,13 +223,15 @@ describe('acp-service resolveAdapter', () => {
 
   test('falls back to the legacy cursor-agent binary name', () => {
     const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-cursor-legacy-'));
-    fs.writeFileSync(path.join(binDir, 'cursor-agent'), '#!/bin/sh\nexit 0\n');
-    fs.chmodSync(path.join(binDir, 'cursor-agent'), 0o755);
+    const { binName } = writeRunnableBin(binDir, 'cursor-agent');
 
     const originalPath = process.env.PATH;
-    process.env.PATH = binDir;
+    process.env.PATH = isolatedPath(binDir);
     try {
-      expect(acpService.resolveAdapter('cursor')).toBe('cursor-agent');
+      expect(acpService.resolveAdapter('cursor')).toEqual({
+        command: binName,
+        args: ['acp'],
+      });
     } finally {
       process.env.PATH = originalPath;
       acpService.clearAdapterCache();
@@ -200,14 +252,15 @@ describe('acp-service resolveAdapter', () => {
 
   test('detects an adapter present on PATH', () => {
     const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-path-'));
-    const binPath = path.join(binDir, 'claude-agent-acp');
-    fs.writeFileSync(binPath, '#!/bin/sh\nexit 0\n');
-    fs.chmodSync(binPath, 0o755);
+    const { binName } = writeRunnableBin(binDir, 'claude-agent-acp');
 
     const originalPath = process.env.PATH;
     process.env.PATH = `${binDir}${path.delimiter}${originalPath}`;
     try {
-      expect(acpService.resolveAdapter('claude')).toBe('claude-agent-acp');
+      expect(acpService.resolveAdapter('claude')).toEqual({
+        command: binName,
+        args: [],
+      });
     } finally {
       process.env.PATH = originalPath;
     }
@@ -227,18 +280,16 @@ describe('acp-service resolveAdapter', () => {
 
   test('caches probe results until cleared', () => {
     const binDir = fs.mkdtempSync(path.join(os.tmpdir(), 'acp-cache-'));
-    const binPath = path.join(binDir, 'codex-acp');
-    fs.writeFileSync(binPath, '#!/bin/sh\nexit 0\n');
-    fs.chmodSync(binPath, 0o755);
+    const { binName, full } = writeRunnableBin(binDir, 'codex-acp');
 
     const originalPath = process.env.PATH;
     process.env.PATH = `${binDir}${path.delimiter}${originalPath}`;
     try {
-      expect(acpService.resolveAdapter('codex')).toBe('codex-acp');
+      expect(acpService.resolveAdapter('codex')).toEqual({ command: binName, args: [] });
       // Remove the binary and clear PATH; cached result must survive.
-      fs.unlinkSync(binPath);
+      fs.unlinkSync(full);
       process.env.PATH = binDir;
-      expect(acpService.resolveAdapter('codex')).toBe('codex-acp');
+      expect(acpService.resolveAdapter('codex')).toEqual({ command: binName, args: [] });
       acpService.clearAdapterCache();
       expect(acpService.resolveAdapter('codex')).toBeNull();
     } finally {

@@ -62,7 +62,7 @@ export default function TaskContextSection({ details, onOpenExternal, onOpenOpen
               <button
                 type="button"
                 onClick={() => onOpenExternal(details.prUrl)}
-                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 break-all text-left"
+                className="text-neutral-900 underline underline-offset-2 hover:decoration-2 dark:text-neutral-100 break-all text-left"
               >
                 {details.prUrl}
               </button>
@@ -88,7 +88,7 @@ export default function TaskContextSection({ details, onOpenExternal, onOpenOpen
                 <button
                   type="button"
                   onClick={() => onOpenOpenCodeSession(details.opencodeSessionId, projectPath)}
-                  className="technical-font text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 break-all text-left"
+                  className="text-xs font-medium text-neutral-900 underline underline-offset-2 hover:decoration-2 dark:text-neutral-100 break-all text-left"
                   title="Open this session in a terminal (OpenCode TUI)"
                 >
                   {details.opencodeSessionId}

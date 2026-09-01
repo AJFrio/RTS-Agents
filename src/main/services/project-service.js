@@ -49,9 +49,22 @@ class ProjectService {
     const uniquePaths = [...new Set(paths)];
 
     const results = await Promise.all(uniquePaths.map(async (basePath) => {
+      const found = [];
+
       try {
-        // Check if directory exists by trying to read it
-        // This replaces the synchronous fs.existsSync check
+        await fsp.access(path.join(basePath, '.git'));
+        found.push({
+          id: basePath,
+          name: path.basename(basePath),
+          path: basePath,
+          displayName: path.basename(basePath),
+          hasExistingSessions: false
+        });
+      } catch {
+        // The configured path itself is not a git repo; scan children.
+      }
+
+      try {
         const entries = await fsp.readdir(basePath, { withFileTypes: true });
 
         const dirPromises = entries.map(async (entry) => {
@@ -62,7 +75,6 @@ class ProjectService {
             const gitPath = path.join(dirPath, '.git');
 
             try {
-              // Check if .git exists asynchronously
               await fsp.access(gitPath);
 
               return {
@@ -73,7 +85,6 @@ class ProjectService {
                 hasExistingSessions: false
               };
             } catch (err) {
-              // Not a git repo
               return null;
             }
           }
@@ -81,11 +92,12 @@ class ProjectService {
         });
 
         const dirs = await Promise.all(dirPromises);
-        return dirs.filter(dir => dir !== null);
+        found.push(...dirs.filter((dir) => dir !== null));
       } catch (err) {
         // Ignore error (e.g. basePath doesn't exist or not readable)
-        return [];
       }
+
+      return found;
     }));
 
     // Flatten results

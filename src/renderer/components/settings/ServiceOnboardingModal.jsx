@@ -1,25 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from '../ui/Modal.jsx';
 import Button from '../ui/Button.jsx';
-import { SERVICE_CATALOG, getServiceDefinition } from './service-catalog.js';
+import { IconClose, IconFolder, providerMeta } from '../ui/icons.jsx';
+import { getServiceDefinition } from './service-catalog.js';
 import { buildCloudflareTokenUrl } from '../../utils/cloudflare-token-url.js';
-
-function getInitialValues(service, state) {
-  if (!service) return {};
-  if (service.kind === 'jira') {
-    return {
-      baseUrl: state.settings?.jiraBaseUrl || '',
-      apiKey: '',
-    };
-  }
-  if (service.kind === 'cloudflare') {
-    return {
-      accountId: state.serviceInfo?.cloudflare?.accountId || '',
-      apiToken: '',
-    };
-  }
-  return { path: '', apiKey: '' };
-}
+import {
+  detectAndConnectCloudflare,
+  getInitialValues,
+  getOnboardingFieldHelper,
+  getOnboardingModalTitle,
+  verifyCloudflareConnection,
+} from './service-onboarding.js';
 
 function getExistingPaths(serviceId, state) {
   switch (serviceId) {
@@ -148,27 +139,32 @@ export default function ServiceOnboardingModal({
   onClose,
   onConnected,
 }) {
-  const [activeServiceId, setActiveServiceId] = useState(initialServiceId || SERVICE_CATALOG[0].id);
   const [formValues, setFormValues] = useState({});
   const [feedback, setFeedback] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const service = useMemo(() => getServiceDefinition(activeServiceId), [activeServiceId]);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
+  const service = useMemo(
+    () => (open ? getServiceDefinition(initialServiceId) : null),
+    [open, initialServiceId]
+  );
+
+  // Seed only when the modal opens or the focused service changes — not on
+  // every `state` tick (that would wipe a pasted apiToken).
   useEffect(() => {
-    if (!open) return;
-    setActiveServiceId(initialServiceId || SERVICE_CATALOG[0].id);
+    if (!open || !initialServiceId) return;
+    setFormValues(getInitialValues(getServiceDefinition(initialServiceId), stateRef.current));
+    setFeedback(null);
   }, [open, initialServiceId]);
 
-  useEffect(() => {
-    setFormValues(getInitialValues(service, state));
-    setFeedback(null);
-  }, [service, state]);
-
-  const existingPaths = getExistingPaths(activeServiceId, state);
-  const installReady = getInstallState(activeServiceId, state);
+  const existingPaths = getExistingPaths(initialServiceId, state);
+  const installReady = getInstallState(initialServiceId, state);
   const closeBlocked = requiredConnection && !hasConnectedServices;
   const serviceConnected = isServiceConnected(service, state, existingPaths);
+  const modalTitle = getOnboardingModalTitle(service, serviceConnected);
+  const ServiceIcon = providerMeta(service?.provider).Icon;
 
   const updateValue = (key, value) => {
     setFormValues((prev) => ({ ...prev, [key]: value }));
@@ -193,35 +189,33 @@ export default function ServiceOnboardingModal({
     }
   };
 
-  const handleDetectAccountId = async () => {
-    const apiToken = (formValues.apiToken || '').trim();
-    if (!apiToken) {
+  const refreshAfterConnect = async () => {
+    await loadSettings?.();
+    await checkConnectionStatus?.();
+  };
+
+  const handleDetectAndConnect = async () => {
+    if (!api) {
       setFeedback({
         type: 'error',
-        message: 'Paste your API token first, then detect your account ID.',
+        message: 'Desktop bridge is unavailable. Restart the app and try again.',
       });
       return;
     }
+
     setBusy(true);
+    setFeedback({ type: 'info', message: 'Detecting Cloudflare account...' });
     try {
-      const result = await api.discoverCloudflareAccount(apiToken);
-      if (result?.success && result?.accounts?.length > 0) {
-        updateValue('accountId', result.accounts[0].id);
-        setFeedback({
-          type: 'success',
-          message: `Detected Cloudflare account ${result.accounts[0].name}.`,
-        });
-      } else {
-        setFeedback({
-          type: 'error',
-          message: 'Could not detect account ID — enter it manually.',
-        });
+      const token = (formValues.apiToken || '').trim();
+      const result = await detectAndConnectCloudflare({ api, apiToken: token });
+      if (result.formPatch) {
+        setFormValues((prev) => ({ ...prev, ...result.formPatch }));
       }
-    } catch {
-      setFeedback({
-        type: 'error',
-        message: 'Could not detect account ID — enter it manually.',
-      });
+      if (result.ok) {
+        await refreshAfterConnect();
+        onConnected?.(service.id);
+      }
+      setFeedback(result.feedback);
     } finally {
       setBusy(false);
     }
@@ -271,18 +265,15 @@ export default function ServiceOnboardingModal({
           await api.setJiraBaseUrl('');
         }
       } else if (service.kind === 'cloudflare') {
-        const accountId = (formValues.accountId || '').trim();
-        const apiToken = (formValues.apiToken || '').trim();
-        if (!accountId || !apiToken) {
-          throw new Error('Enter both the Cloudflare account ID and API token.');
+        const verify = await verifyCloudflareConnection({
+          api,
+          accountId: formValues.accountId,
+          apiToken: formValues.apiToken,
+        });
+        if (!verify.ok) {
+          throw new Error(verify.feedback.message);
         }
-        setFeedback({ type: 'info', message: 'Saving Cloudflare settings...' });
-        await api.setCloudflareConfig(accountId, apiToken);
-        setFeedback({ type: 'info', message: 'Testing Cloudflare KV access...' });
-        result = await api.testCloudflare();
-        if (!result?.success) {
-          await api.clearCloudflareConfig();
-        }
+        result = { success: true, message: verify.feedback.message };
       } else if (service.kind === 'local-path') {
         const selectedPath = (formValues.path || '').trim();
         if (!selectedPath) {
@@ -304,8 +295,15 @@ export default function ServiceOnboardingModal({
         throw new Error(result?.error || result?.message || 'Verification failed.');
       }
 
-      await loadSettings?.();
-      await checkConnectionStatus?.();
+      await refreshAfterConnect();
+
+      if (service.kind === 'local-path' || service.kind === 'cloud-api-key' || service.kind === 'jira') {
+        setFormValues((prev) => ({
+          ...prev,
+          path: '',
+          apiKey: '',
+        }));
+      }
 
       setFeedback({
         type: 'success',
@@ -327,8 +325,7 @@ export default function ServiceOnboardingModal({
     setBusy(true);
     try {
       await removePathForService(service.id, pathValue, api);
-      await loadSettings?.();
-      await checkConnectionStatus?.();
+      await refreshAfterConnect();
       setFeedback(null);
     } finally {
       setBusy(false);
@@ -353,8 +350,8 @@ export default function ServiceOnboardingModal({
         }
       }
 
-      await loadSettings?.();
-      await checkConnectionStatus?.();
+      await refreshAfterConnect();
+      setFormValues(getInitialValues(service, {}));
       setFeedback({ type: 'success', message: `${service.title} disconnected.` });
     } catch (err) {
       setFeedback({ type: 'error', message: err?.message || 'Unable to disconnect this service.' });
@@ -363,230 +360,187 @@ export default function ServiceOnboardingModal({
     }
   };
 
-  const groupedServices = SERVICE_CATALOG.reduce((groups, entry) => {
-    if (!groups[entry.category]) {
-      groups[entry.category] = [];
-    }
-    groups[entry.category].push(entry);
-    return groups;
-  }, {});
-
   if (!open || !service) return null;
 
   return (
-    <Modal open={open} onClose={closeBlocked ? undefined : onClose}>
-      <div className="relative flex h-[min(88vh,900px)] w-[92vw] max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-border-dark dark:bg-[#111318]">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5 dark:border-border-dark">
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold text-slate-900 sm:text-xl dark:text-white">
-              Service Onboarding
-            </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Connect assistants and integrations one service at a time, and verify each one before
-              you leave.
-            </p>
-          </div>
-          <Button variant="ghost" onClick={onClose} disabled={closeBlocked} className="shrink-0">
-            <span className="material-symbols-outlined">close</span>
-          </Button>
+    <Modal open={open} onClose={closeBlocked ? undefined : onClose} size="md">
+      <div className="flex max-h-[85vh] flex-col">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark">
+          <h2 className="min-w-0 truncate text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+            {modalTitle}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={closeBlocked}
+            aria-label="Close service setup"
+            className="shrink-0 rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+          >
+            <IconClose size={16} />
+          </button>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[260px_1fr]">
-          <div className="max-h-44 shrink-0 overflow-y-auto border-b border-slate-200 bg-slate-50/80 p-3 sm:p-4 md:max-h-none md:border-b-0 md:border-r dark:border-border-dark dark:bg-[#0c0f14]">
-            {Object.entries(groupedServices).map(([category, services]) => (
-              <div key={category} className="mb-4 last:mb-0 md:mb-6">
-                <div className="mb-2 text-[11px] font-black tracking-[0.24em] uppercase text-slate-400 md:mb-3">
-                  {category}
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 md:block md:space-y-2 md:overflow-visible md:pb-0">
-                  {services.map((entry) => {
-                    const selected = entry.id === activeServiceId;
-                    return (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        onClick={() => setActiveServiceId(entry.id)}
-                        className={`shrink-0 rounded-2xl border px-3 py-2.5 text-left transition-all md:w-full md:px-4 md:py-3 ${
-                          selected
-                            ? 'border-primary bg-primary/10'
-                            : 'border-slate-200 bg-white hover:border-primary/40 dark:border-border-dark dark:bg-[#12161d]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 md:gap-3">
-                          <span className="material-symbols-outlined text-slate-500">
-                            {entry.icon}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="whitespace-nowrap font-semibold text-slate-900 md:whitespace-normal dark:text-white">
-                              {entry.title}
-                            </div>
-                            <div className="hidden text-xs text-slate-500 md:block dark:text-slate-400">
-                              {entry.subtitle}
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+        <div className="space-y-4 overflow-y-auto px-4 py-4">
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-border-light bg-inset-light text-neutral-600 dark:border-border-dark dark:bg-inset-dark dark:text-neutral-300">
+              <ServiceIcon size={15} />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
+                {service.title}
+              </h3>
+              <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+                {service.description}
+              </p>
+            </div>
           </div>
 
-          <div className="min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8">
-            <div className="mx-auto max-w-2xl space-y-6">
-              <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
-                <div className="min-w-0">
-                  <div className="mb-2 flex items-center gap-3">
-                    <span className="material-symbols-outlined shrink-0 text-2xl text-primary">
-                      {service.icon}
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
-                        {service.title}
-                      </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {service.subtitle}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {service.description}
-                  </p>
-                </div>
-                {serviceConnected && (
-                  <Button variant="secondary" onClick={handleDisconnect} disabled={busy}>
-                    Disconnect
-                  </Button>
-                )}
+          {service.requiresInstall && (
+            <div
+              className={`rounded-md border px-3 py-2 text-[12px] ${
+                installReady
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+              }`}
+            >
+              {installReady
+                ? `${service.title} is detected on this machine.`
+                : `${service.title} is not detected yet. Install it locally before completing this step.`}
+            </div>
+          )}
+
+          {service.kind === 'cloudflare' && (
+            <div className="rounded-md border border-border-light bg-inset-light px-3 py-2.5 dark:border-border-dark dark:bg-inset-dark">
+              <p className="text-[12px] leading-relaxed text-neutral-600 dark:text-neutral-300">
+                Create a Workers KV token, paste it below, then Detect & connect.
+              </p>
+              <div className="mt-2">
+                <Button variant="secondary" onClick={handleOpenTokenPage} disabled={busy}>
+                  Create token on Cloudflare
+                </Button>
               </div>
+            </div>
+          )}
 
-              {service.requiresInstall && (
-                <div
-                  className={`rounded-2xl border px-4 py-3 text-sm ${
-                    installReady
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
-                      : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300'
-                  }`}
-                >
-                  {installReady
-                    ? `${service.title} is detected on this machine.`
-                    : `${service.title} is not detected yet. Install it locally before completing this step.`}
-                </div>
-              )}
+          {service.fields.map((field) => {
+            const helper = getOnboardingFieldHelper(service, field.key);
+            const isPath = field.type === 'path';
+            const showDetect =
+              service.kind === 'cloudflare' && field.key === 'accountId' && canDetectCloudflareAccount;
 
-              {service.kind === 'cloudflare' && (
-                <div className="rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50/60 dark:bg-[#0d1118] p-5 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-xl">bolt</span>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Quick Setup
-                    </h4>
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
-                    1. Approve the pre-configured token in your browser (Workers KV Storage: Edit
-                    is selected for you). 2. Copy the secret token Cloudflare shows. 3. Paste it
-                    below — we&apos;ll detect your account ID automatically.
-                  </p>
-                  <div>
-                    <Button variant="primary" onClick={handleOpenTokenPage} disabled={busy}>
-                      <span className="material-symbols-outlined text-sm">token</span>
-                      Create Token on Cloudflare
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {service.fields.map((field) => (
-                <div key={field.key} className="space-y-2">
-                  <label className="block text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">
-                    {field.label}
-                  </label>
-                  <div className="flex gap-2">
+            return (
+              <div key={field.key} className="space-y-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  {field.label}
+                </label>
+                {isPath ? (
+                  <div className="flex overflow-hidden rounded-sm border border-border-light dark:border-border-dark">
                     <input
-                      type={field.type === 'password' ? 'password' : 'text'}
+                      type="text"
                       value={formValues[field.key] || ''}
                       onChange={(event) => updateValue(field.key, event.target.value)}
                       placeholder={field.placeholder}
-                      className="flex-1 bg-white dark:bg-[#0d1118] border border-slate-200 dark:border-border-dark rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white"
+                      className="min-w-0 flex-1 rounded-none border-0"
                     />
-                    {field.type === 'path' && (
-                      <Button variant="secondary" onClick={browseForPath}>
-                        <span className="material-symbols-outlined text-sm">folder_open</span>
-                      </Button>
-                    )}
-                    {service.kind === 'cloudflare' &&
-                      field.key === 'accountId' &&
-                      canDetectCloudflareAccount && (
-                        <Button
-                          variant="secondary"
-                          onClick={handleDetectAccountId}
-                          disabled={busy}
-                        >
-                          Detect Account ID
-                        </Button>
-                      )}
+                    <button
+                      type="button"
+                      onClick={browseForPath}
+                      aria-label="Browse for folder"
+                      className="inline-flex shrink-0 items-center gap-1.5 border-l border-border-light px-2.5 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    >
+                      <IconFolder size={14} />
+                      Browse
+                    </button>
                   </div>
-                </div>
-              ))}
-
-              {existingPaths.length > 0 && (
-                <div className="space-y-3">
-                  <div className="text-[11px] font-black tracking-[0.18em] uppercase text-slate-400">
-                    Connected Paths
+                ) : showDetect ? (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={formValues[field.key] || ''}
+                      onChange={(event) => updateValue(field.key, event.target.value)}
+                      placeholder={field.placeholder}
+                      className="min-w-0 flex-1"
+                    />
+                    <Button variant="secondary" onClick={handleDetectAndConnect} disabled={busy}>
+                      {busy ? 'Connecting…' : 'Detect & connect'}
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    {existingPaths.map((pathValue) => (
-                      <div
-                        key={pathValue}
-                        className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-[#0d1118] px-4 py-3"
-                      >
-                        <span className="truncate text-sm text-slate-700 dark:text-slate-300">
-                          {pathValue}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          onClick={() => handleRemovePath(pathValue)}
-                          disabled={busy}
-                        >
-                          <span className="material-symbols-outlined text-sm">close</span>
-                        </Button>
-                      </div>
-                    ))}
+                ) : (
+                  <input
+                    type={field.type === 'password' ? 'password' : 'text'}
+                    value={formValues[field.key] || ''}
+                    onChange={(event) => updateValue(field.key, event.target.value)}
+                    placeholder={field.placeholder}
+                    className="w-full"
+                  />
+                )}
+                {helper ? (
+                  <p className="text-[12px] text-neutral-500 dark:text-neutral-400">{helper}</p>
+                ) : null}
+              </div>
+            );
+          })}
+
+          {existingPaths.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                Connected paths
+              </div>
+              <div className="divide-y divide-border-light dark:divide-border-dark">
+                {existingPaths.map((pathValue) => (
+                  <div key={pathValue} className="flex items-center gap-2 py-1.5">
+                    <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-neutral-700 dark:text-neutral-300">
+                      {pathValue}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePath(pathValue)}
+                      disabled={busy}
+                      aria-label={`Remove ${pathValue}`}
+                      className="shrink-0 rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-800 disabled:opacity-50 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                    >
+                      <IconClose size={14} />
+                    </button>
                   </div>
-                </div>
-              )}
-
-              {feedback && (
-                <div
-                  className={`rounded-2xl border px-4 py-3 text-sm ${
-                    feedback.type === 'success'
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300'
-                      : feedback.type === 'info'
-                        ? 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-300'
-                        : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300'
-                  }`}
-                >
-                  {feedback.message}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-4 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark">
-                <div className="text-sm text-slate-500 dark:text-slate-400">
-                  {closeBlocked
-                    ? 'Connect at least one service to finish onboarding.'
-                    : 'You can return later to connect more services.'}
-                </div>
-                <div className="flex shrink-0 gap-3">
-                  <Button variant="secondary" onClick={onClose} disabled={closeBlocked || busy}>
-                    Cancel
-                  </Button>
-                  <Button variant="primary" onClick={handleConnect} disabled={busy}>
-                    {busy ? 'VERIFYING...' : 'VERIFY & CONNECT'}
-                  </Button>
-                </div>
+                ))}
               </div>
             </div>
+          )}
+
+          {feedback && (
+            <div
+              className={`rounded-md border px-3 py-2 text-[13px] ${
+                feedback.type === 'success'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : feedback.type === 'info'
+                    ? 'border-border-strong-light bg-neutral-100 text-neutral-600 dark:border-border-strong-dark dark:bg-neutral-800 dark:text-neutral-300'
+                    : 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400'
+              }`}
+            >
+              {feedback.message}
+            </div>
+          )}
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-2 border-t border-border-light px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-border-dark">
+          <div className="min-w-0">
+            {closeBlocked ? (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                Connect at least one service to finish onboarding.
+              </p>
+            ) : serviceConnected ? (
+              <Button variant="danger" onClick={handleDisconnect} disabled={busy}>
+                Disconnect
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="secondary" onClick={onClose} disabled={closeBlocked || busy}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConnect} disabled={busy}>
+              {busy ? 'VERIFYING...' : 'VERIFY & CONNECT'}
+            </Button>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const providerRegistry = require('./provider-registry');
 const modelRegistry = require('../services/model-registry');
+const agentDiscoveryCache = require('../services/agent-discovery-cache');
 
 function registerTasksHandlers(deps) {
   const { agentOrchestrator } = deps;
@@ -20,6 +21,14 @@ function registerTasksHandlers(deps) {
 
   const createTask = (args) => providerRegistry.createTask(deps, args);
   agentOrchestrator.setCreateTaskCallback(createTask);
+  agentOrchestrator.setListTasksCallback(async () => {
+    const cached = agentDiscoveryCache.peekAgents();
+    if (cached) return cached;
+    const result = await agentDiscoveryCache.getAgents(deps);
+    return Array.isArray(result?.agents) ? result.agents : [];
+  }, {
+    peek: () => agentDiscoveryCache.peekAgents(),
+  });
 
   ipcMain.handle('orchestrator:get-models', async () => {
     return agentOrchestrator.getAvailableModels();

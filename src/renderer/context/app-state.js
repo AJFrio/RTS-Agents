@@ -1,14 +1,49 @@
 export const VIEWS = [
   'agent',
+  'new-task',
+  'plugins',
+  'devices',
   'dashboard',
   'branches',
   'pull-requests',
-  'computers',
   'jira',
   'settings',
+  'task-detail',
 ];
 
+export const SIDEBAR_MIN_WIDTH = 200;
+export const SIDEBAR_DEFAULT_WIDTH = 240;
+const SIDEBAR_MAX_FRACTION = 1 / 3;
+
+export function sidebarMaxWidth() {
+  if (typeof window === 'undefined') return 480;
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.floor(window.innerWidth * SIDEBAR_MAX_FRACTION));
+}
+
 const PR_HIDDEN_REPOS_STORAGE_KEY = 'rts_pr_hidden_repos_v1';
+const SIDEBAR_WIDTH_STORAGE_KEY = 'rts_sidebar_width_v1';
+const SIDEBAR_MODE_STORAGE_KEY = 'rts_sidebar_mode_v1';
+
+function getStoredSidebarWidth() {
+  try {
+    if (typeof localStorage === 'undefined') return SIDEBAR_DEFAULT_WIDTH;
+    const raw = Number(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+    if (!Number.isFinite(raw)) return SIDEBAR_DEFAULT_WIDTH;
+    return Math.min(Math.max(raw, SIDEBAR_MIN_WIDTH), sidebarMaxWidth());
+  } catch {
+    return SIDEBAR_DEFAULT_WIDTH;
+  }
+}
+
+function getStoredSidebarMode() {
+  try {
+    if (typeof localStorage === 'undefined') return 'repos';
+    const raw = localStorage.getItem(SIDEBAR_MODE_STORAGE_KEY);
+    return raw === 'agents' ? 'agents' : 'repos';
+  } catch {
+    return 'repos';
+  }
+}
 
 function getStoredPrHiddenRepos() {
   try {
@@ -31,7 +66,8 @@ function setStoredPrHiddenRepos(repos) {
 }
 
 export const initialState = {
-  currentView: 'dashboard',
+  currentView: 'agent',
+  previousView: null,
   agents: [],
   agentListRevision: 0,
   filteredAgents: [],
@@ -183,7 +219,16 @@ export const initialState = {
     error: null,
   },
   localDeviceId: null,
-  agentModal: null,
+  orchestratorChat: {
+    messages: [],
+    input: '',
+    busy: false,
+    recentTasksVisible: true,
+  },
+  selectedTask: null,
+  focusedDeviceId: null,
+  sidebarWidth: getStoredSidebarWidth(),
+  sidebarMode: getStoredSidebarMode(),
   newTaskModalOpen: false,
   createRepoModalOpen: false,
   prModal: null,
@@ -196,6 +241,51 @@ export function appReducer(state, action) {
   switch (action.type) {
     case 'SET_VIEW':
       return { ...state, currentView: action.payload };
+    case 'SET_FOCUSED_DEVICE':
+      return { ...state, focusedDeviceId: action.payload || null };
+    case 'OPEN_TASK': {
+      const fromView = state.currentView;
+      const previousView =
+        fromView && fromView !== 'task-detail'
+          ? fromView
+          : state.previousView || 'agent';
+      return {
+        ...state,
+        selectedTask: action.payload,
+        currentView: 'task-detail',
+        previousView,
+      };
+    }
+    case 'CLOSE_TASK': {
+      const prev = state.previousView;
+      const nextView =
+        typeof prev === 'string' && prev !== 'task-detail' && VIEWS.includes(prev)
+          ? prev
+          : 'agent';
+      return { ...state, selectedTask: null, currentView: nextView, previousView: null };
+    }
+    case 'SET_SIDEBAR_WIDTH': {
+      const width = Math.min(Math.max(action.payload, SIDEBAR_MIN_WIDTH), sidebarMaxWidth());
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
+        }
+      } catch {
+        // Ignore storage failures; the in-memory width still applies for this session.
+      }
+      return { ...state, sidebarWidth: width };
+    }
+    case 'SET_SIDEBAR_MODE': {
+      const mode = action.payload === 'agents' ? 'agents' : 'repos';
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(SIDEBAR_MODE_STORAGE_KEY, mode);
+        }
+      } catch {
+        // Ignore storage failures; the in-memory mode still applies for this session.
+      }
+      return { ...state, sidebarMode: mode };
+    }
     case 'SET_AGENTS':
       return {
         ...state,
@@ -301,16 +391,13 @@ export function appReducer(state, action) {
       return { ...state, createRepo: { ...state.createRepo, ...action.payload } };
     case 'SET_LOCAL_DEVICE_ID':
       return { ...state, localDeviceId: action.payload };
-    case 'OPEN_AGENT_MODAL':
-      return { ...state, agentModal: action.payload };
-    case 'CLOSE_AGENT_MODAL':
-      return { ...state, agentModal: null };
     case 'OPEN_NEW_TASK_MODAL':
       return {
         ...state,
         newTaskModalOpen: true,
         newTask: {
           ...state.newTask,
+          newTaskLaunchId: (state.newTask?.newTaskLaunchId || 0) + 1,
           initialPrompt: action.payload?.initialPrompt ?? '',
           presetEnvironment:
             action.payload?.presetEnvironment !== undefined
@@ -358,6 +445,21 @@ export function appReducer(state, action) {
       return { ...state, pastedImageModal: action.payload };
     case 'CLOSE_PASTED_IMAGE_MODAL':
       return { ...state, pastedImageModal: null };
+    case 'SET_ORCHESTRATOR_CHAT':
+      return {
+        ...state,
+        orchestratorChat: { ...state.orchestratorChat, ...action.payload },
+      };
+    case 'RESET_ORCHESTRATOR_CHAT':
+      return {
+        ...state,
+        orchestratorChat: {
+          messages: [],
+          input: '',
+          busy: false,
+          recentTasksVisible: true,
+        },
+      };
     default:
       return state;
   }

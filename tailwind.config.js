@@ -8,41 +8,40 @@ module.exports = {
   ],
   // Safelist dynamic classes used in JavaScript
   safelist: [
-    // Provider colors - borders and backgrounds
-    'border-emerald-500', 'bg-emerald-500/5', 'text-emerald-500',
-    'border-primary', 'bg-primary/5', 'text-primary',
-    'border-blue-500', 'bg-blue-500/5', 'text-blue-500',
-    'border-cyan-500', 'bg-cyan-500/5', 'text-cyan-500',
-    'border-orange-500', 'bg-orange-500/5', 'text-orange-500',
-    // Provider hover states
-    'hover:border-emerald-500', 'hover:border-primary', 'hover:border-blue-500',
-    'hover:border-cyan-500', 'hover:border-orange-500',
+    // Provider neutral styles
+    'border-neutral-300', 'bg-neutral-400/10', 'text-neutral-600', 'dark:text-neutral-400',
     // Status colors
-    'bg-primary', 'text-black',
-    'border-emerald-500', 'text-emerald-500',
-    'border-yellow-500', 'text-yellow-500',
-    'border-red-500', 'text-red-500',
-    'border-slate-600', 'text-slate-400',
-    // Card hover
-    'hover:border-primary',
+    'border-emerald-500', 'text-emerald-600', 'dark:text-emerald-400', 'bg-emerald-500/10',
+    'border-amber-500', 'text-amber-600', 'dark:text-amber-400', 'bg-amber-500/10',
+    'border-red-500', 'text-red-600', 'dark:text-red-400', 'bg-red-500/10',
+    'border-neutral-400', 'text-neutral-500', 'dark:text-neutral-500', 'bg-neutral-400/10',
   ],
   theme: {
     extend: {
       colors: {
-        primary: "#93b8c5", // Light Blue/Cyan
-        "primary-hover": "#7aa5b3",
-        "background-light": "#F5F5F0",
-        "background-dark": "#121212", // Matte Charcoal
-        "sidebar-dark": "#0D0D0D",
-        "card-dark": "#1A1A1A",
-        "border-dark": "#2A2A2A",
+        // Accent = inverted neutral (light theme). Dark theme overrides at usage sites.
+        primary: "#171717", // near-black accent (buttons, active nav)
+        "background-light": "#fafafa", // canvas background (light)
+        "background-dark": "#0f0f0f", // canvas background (dark)
+        "sidebar-light": "#f4f4f5", // sidebar surface (light)
+        "sidebar-dark": "#181818", // sidebar surface (dark)
+        "card-light": "#ffffff",
+        "card-dark": "#1e1e1e",
+        "inset-light": "#f4f4f5", // inset wells (light)
+        "inset-dark": "#141414", // inset wells (dark)
+        "border-light": "#e5e5e5", // hairline border (light)
+        "border-dark": "#262626", // hairline border (dark)
+        "border-strong-light": "#d4d4d4",
+        "border-strong-dark": "#404040",
       },
       fontFamily: {
         display: ["Plus Jakarta Sans", "Inter", "system-ui", "-apple-system", "sans-serif"],
         sans: ["Plus Jakarta Sans", "Inter", "system-ui", "-apple-system", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "monospace"],
       },
       borderRadius: {
-        DEFAULT: "8px", // Modern rounded corners
+        DEFAULT: "8px", // cards, modals, composer
+        sm: "6px", // inputs, controls
       },
     },
   },

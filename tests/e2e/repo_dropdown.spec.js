@@ -77,7 +77,7 @@ test.describe('Repository Dropdown Navigation', () => {
 
     // First item should be active
     await expect(options.nth(0)).toHaveClass(/active-repo-option/);
-    await expect(options.nth(0)).toHaveClass(/bg-primary\/10/);
+    await expect(options.nth(0)).toHaveClass(/bg-neutral-100/);
 
     // Press ArrowDown again
     await repoSearch.press('ArrowDown');

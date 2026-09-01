@@ -24,6 +24,11 @@ class AgentDiscoveryCache {
     this.configSignature = null;
   }
 
+  /** In-memory snapshot for Janus — no provider rescan. */
+  peekAgents() {
+    return Array.isArray(this.snapshot?.agents) ? this.snapshot.agents : null;
+  }
+
   stopWatchers() {
     for (const w of this.watchers) {
       try {

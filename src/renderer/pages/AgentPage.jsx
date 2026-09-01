@@ -1,183 +1,256 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext.jsx';
+import Composer from '../components/chat/Composer.jsx';
+import RecentTasksList from '../components/chat/RecentTasksList.jsx';
+import SurfaceCard from '../components/chat/SurfaceCard.jsx';
+import ModelSelector from '../components/settings/ModelSelector.jsx';
+import MarkdownText from '../components/ui/Markdown.jsx';
+import ChatTranscript from '../components/ui/ChatTranscript.jsx';
+import { IconJanusWorking, IconPlus } from '../components/ui/icons.jsx';
 
+function nextMessageId() {
+  return `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function buildHistory(messages) {
+  return messages
+    .filter((msg) => msg.sender === 'user' || (msg.sender === 'assistant' && msg.text))
+    .map((msg) => ({ role: msg.sender === 'user' ? 'user' : 'assistant', content: msg.text }));
+}
+
+const SUGGESTIONS = [
+  'What tasks are currently running?',
+  'Start a task in the RTS-Agents repo using Jules',
+  'Summarize recent work across my repos',
+  'Show me my available devices and their repos',
+  'What pull requests are open?',
+];
+
+/**
+ * Agent tab (the orchestrator, DESIGN.md §2.1): heading + Cursor-style
+ * composer. Sending a message animates Recent tasks closed so the chat
+ * owns the canvas. Chat state lives in AppContext so it survives tab
+ * switches.
+ */
 export default function AgentPage() {
-  const { api, state } = useApp();
-  const [messages, setMessages] = useState([]);
-  const [inputValue, setInputValue] = useState('');
-  const selectedModel = state.settings?.selectedModel || 'openrouter/openai/gpt-4o';
-  const [thinking, setThinking] = useState(false);
-  const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const { state, api, dispatch } = useApp();
+  const chat = state.orchestratorChat || {
+    messages: [],
+    input: '',
+    busy: false,
+    recentTasksVisible: true,
   };
+  const { messages, input, busy, recentTasksVisible } = chat;
+  const scrollRef = useRef(null);
+  const selectedModel = state.settings?.selectedModel || 'openrouter/openai/gpt-4o';
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, thinking]);
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, busy]);
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || thinking) return;
+  const handleModelChange = (model) => {
+    dispatch({ type: 'SET_SETTINGS', payload: { selectedModel: model } });
+    if (api?.setModel) api.setModel(model);
+  };
 
-    const newMessage = {
-      id: Date.now(),
-      sender: 'user', // UI uses 'sender' instead of 'role'
-      role: 'user', // Backend expects 'role'
-      text: inputValue,
-      content: inputValue, // Backend expects 'content'
+  const resetChat = () => {
+    dispatch({ type: 'RESET_ORCHESTRATOR_CHAT' });
+  };
+
+  const send = async (text) => {
+    const prompt = (text ?? input).trim();
+    if (!prompt || busy) return;
+
+    const userMessage = {
+      id: nextMessageId(),
+      sender: 'user',
+      text: prompt,
     };
-
-    const newMessages = [...messages, newMessage];
-    setMessages(newMessages);
-    setInputValue('');
-    setThinking(true);
+    const nextMessages = [...messages, userMessage];
+    dispatch({
+      type: 'SET_ORCHESTRATOR_CHAT',
+      payload: {
+        messages: nextMessages,
+        input: '',
+        busy: true,
+        recentTasksVisible: false,
+      },
+    });
 
     try {
-      // Convert UI messages to backend format
-      const history = newMessages.map((m) => ({
-        role: m.role || (m.sender === 'user' ? 'user' : 'assistant'),
-        content: m.content || m.text,
-      }));
-
-      const response = await api.orchestratorChat(history, selectedModel);
-
-      if (response) {
-        const assistantMsg = {
-          id: Date.now() + 1,
-          sender: 'assistant',
-          role: 'assistant',
-          text: response.content,
-          content: response.content,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      }
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 1,
-          sender: 'assistant',
-          text: `Error: ${err.message}`,
-          isError: true,
+      const history = buildHistory(nextMessages);
+      const result = await api.orchestratorChat(history, selectedModel);
+      dispatch({
+        type: 'SET_ORCHESTRATOR_CHAT',
+        payload: {
+          messages: [
+            ...nextMessages,
+            {
+              id: nextMessageId(),
+              sender: 'assistant',
+              text: result?.content || '',
+              toolCalls: result?.toolCalls || [],
+              cards: result?.cards || (result?.taskCards || []).map((card) => ({ ...card, kind: 'task' })),
+              isError: /error/i.test(result?.content || '') && !result?.toolCalls?.length,
+            },
+          ],
+          busy: false,
         },
-      ]);
-    } finally {
-      setThinking(false);
+      });
+    } catch (err) {
+      dispatch({
+        type: 'SET_ORCHESTRATOR_CHAT',
+        payload: {
+          messages: [
+            ...nextMessages,
+            {
+              id: nextMessageId(),
+              sender: 'assistant',
+              text: err?.message || 'The Janus request failed.',
+              isError: true,
+            },
+          ],
+          busy: false,
+        },
+      });
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
+  const transcriptMessages = useMemo(
+    () =>
+      messages.map((msg) => ({
+        id: msg.id,
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.text,
+        toolCalls:
+          msg.sender === 'assistant' && msg.toolCalls?.length
+            ? msg.toolCalls.map((call, i) => ({
+                id: `${msg.id}-tool-${i}`,
+                name: call.tool,
+                target: JSON.stringify(call.args || {}).slice(0, 72),
+                input: call.args,
+                result: call.result,
+                status: 'completed',
+              }))
+            : undefined,
+        cards:
+          msg.sender === 'assistant' && msg.cards?.length
+            ? msg.cards
+            : msg.sender === 'assistant' && msg.taskCards?.length
+              ? msg.taskCards.map((card) => ({ ...card, kind: 'task' }))
+              : undefined,
+      })),
+    [messages]
+  );
+
+  const isEmpty = messages.length === 0 && !busy;
+  const showNewChat = messages.length > 0 || !recentTasksVisible;
 
   return (
-    <div id="view-agent" className="view-content h-full flex flex-col relative">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && !thinking && (
-          <div className="mx-auto flex h-full max-w-3xl flex-col justify-center">
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-border-dark dark:bg-card-dark">
-              <div className="mb-4 flex items-center justify-between gap-4">
+    <div id="view-agent" className="relative flex h-full min-h-0 flex-col">
+      {showNewChat && (
+        <button
+          type="button"
+          onClick={resetChat}
+          className="absolute left-3 top-2.5 z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-500 dark:hover:bg-neutral-800/70 dark:hover:text-neutral-200"
+        >
+          <IconPlus size={11} />
+          New chat
+        </button>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div
+            className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-6 ${
+              isEmpty ? 'justify-center' : 'justify-start pb-4'
+            }`}
+          >
+            {isEmpty ? (
+              <div className="flex flex-col items-center gap-5 py-6 text-center">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Ask the orchestrator
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    Use this for cross-provider status checks, task planning, and next-action
-                    summaries.
+                  <h2 className="text-[22px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+                    What should we work on?
+                  </h2>
+                  <p className="mt-1.5 text-[13px] text-neutral-500 dark:text-neutral-400">
+                    Janus can start tasks, browse devices and repos, and
+                    open pull requests.
                   </p>
                 </div>
-                <span className="rounded-lg bg-primary/15 px-3 py-1 text-xs font-medium text-slate-700 dark:text-slate-200">
-                  {selectedModel}
-                </span>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {['Summarize active work', 'Find stuck tasks', 'Draft a new agent task'].map(
-                  (suggestion) => (
+                <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
+                  {SUGGESTIONS.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
-                      onClick={() => setInputValue(suggestion)}
-                      className="rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:border-primary hover:bg-primary/5 dark:border-border-dark dark:text-slate-200 dark:hover:bg-primary/10"
+                      onClick={() => send(suggestion)}
+                      className="rounded-lg border border-border-light px-3 py-2.5 text-left text-[13px] text-neutral-600 transition-colors hover:border-border-strong-light hover:bg-neutral-50 dark:border-border-dark dark:text-neutral-400 dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40"
                     >
                       {suggestion}
                     </button>
-                  )
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <ChatTranscript
+                  messages={transcriptMessages}
+                  assistantLabel="Janus"
+                  renderContent={(content) => <MarkdownText text={content} />}
+                  renderCards={(cards) => (
+                    <div className="space-y-2">
+                      {cards.map((card) => (
+                        <SurfaceCard key={`${card.kind || 'task'}-${card.id}`} card={card} />
+                      ))}
+                    </div>
+                  )}
+                />
+
+                {busy && (
+                  <div className="mt-4 flex items-center gap-2 pl-10 text-[13px] text-neutral-400">
+                    <IconJanusWorking size={14} />
+                    Working…
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        )}
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[70%] text-sm ${
-                msg.sender === 'user'
-                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl rounded-br-none px-4 py-3 shadow-sm'
-                  : 'text-slate-800 dark:text-slate-200 pl-2 whitespace-pre-wrap'
-              } ${msg.isError ? 'text-red-500' : ''}`}
+        </div>
+
+        <div className="shrink-0 px-4 pb-3 pt-1">
+          <div className="mx-auto w-full max-w-3xl">
+            <Composer
+              value={input}
+              onChange={(value) =>
+                dispatch({ type: 'SET_ORCHESTRATOR_CHAT', payload: { input: value } })
+              }
+              onSubmit={() => send()}
+              busy={busy}
+              disabled={busy}
+              placeholder="Ask Janus to start, find, or summarize work…"
+              textareaId="agent-input"
+              submitLabel="Send message"
+              autoFocus
             >
-              {msg.text}
-            </div>
+              <ModelSelector
+                variant="inline"
+                value={selectedModel}
+                onChange={handleModelChange}
+              />
+            </Composer>
           </div>
-        ))}
-        {thinking && (
-          <div className="flex justify-start">
-            <div className="text-slate-400 text-sm pl-2 italic flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm animate-spin">
-                progress_activity
-              </span>
-              Thinking...
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      <div className="p-4">
-        <div className="w-full max-w-4xl mx-auto">
-          <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-[2rem] p-2 flex flex-col gap-1 shadow-sm transition-colors duration-200">
-            <textarea
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={thinking ? 'Agent is working...' : 'Ask Agent'}
-              disabled={thinking}
-              rows={1}
-              className="w-full !bg-transparent !border-0 !ring-0 !shadow-none resize-none text-slate-800 dark:text-slate-200 placeholder-slate-500 text-sm min-h-[24px] px-0 focus:!ring-0 focus:outline-none disabled:opacity-50"
-            />
-            <div className="flex items-center justify-between mt-1">
-              <div className="flex items-center gap-2">
-                <button
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
-                  title="Add attachment"
-                  disabled
-                >
-                  <span className="material-symbols-outlined text-xl">add</span>
-                </button>
-                <span className="text-xs text-slate-500 dark:text-slate-400">{selectedModel}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
-                  title="Send"
-                  onClick={() => {
-                    if (inputValue.trim()) handleSendMessage();
-                  }}
-                  disabled={thinking || !inputValue.trim()}
-                >
-                  <span className="material-symbols-outlined text-xl">send</span>
-                </button>
-              </div>
-            </div>
-          </div>
+      <div
+        className={`grid max-h-[40%] min-h-0 shrink-0 transition-[grid-template-rows,opacity] duration-200 ease-out ${
+          recentTasksVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+        aria-hidden={!recentTasksVisible}
+        {...(!recentTasksVisible ? { inert: '' } : {})}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <RecentTasksList />
         </div>
       </div>
     </div>

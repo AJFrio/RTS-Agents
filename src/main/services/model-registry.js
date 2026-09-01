@@ -1,11 +1,9 @@
-const { spawn } = require('child_process');
-
 const configStore = require('./config-store');
 const acpService = require('./acp-service');
+const { spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
 const opencodeService = require('./opencode-service');
 const antigravityService = require('./antigravity-service');
 const cursorService = require('./cursor-service');
-const codexService = require('./codex-service');
 const claudeService = require('./claude-service');
 
 const CLAUDE_CLI_MODELS = ['default', 'sonnet', 'opus', 'haiku', 'fable', 'best', 'opusplan'];
@@ -29,15 +27,11 @@ function parseCliModelLines(stdout) {
 
 function listFromCli(command, args, timeoutMs = CLI_LIST_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
-    const spec = acpService.buildSpawnArgs(command, args);
     let child;
     try {
-      child = spawn(spec.command, spec.args, {
-        shell: false,
+      child = spawnCli(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: timeoutMs,
-        windowsHide: true,
-        env: { ...process.env },
       });
     } catch (err) {
       reject(err);
@@ -84,9 +78,12 @@ async function listCursorModels() {
   if (configStore.hasApiKey('cursor')) {
     return { models: normalizeModelIds(await cursorService.listModels()), source: 'api' };
   }
-  const adapter = acpService.resolveAdapter('cursor');
+  const adapter = toAdapterSpec(acpService.resolveAdapter('cursor'), ['acp']);
   if (adapter) {
-    return { models: parseCliModelLines(await listFromCli(adapter, ['models'])), source: 'cli' };
+    return {
+      models: parseCliModelLines(await listFromCli(adapter.command, ['models'])),
+      source: 'cli',
+    };
   }
   return { models: [], source: 'none' };
 }
@@ -116,9 +113,7 @@ async function getModelsForProvider(provider) {
         break;
       }
       case 'codex': {
-        result = configStore.hasApiKey('codex')
-          ? { success: true, models: normalizeModelIds(await codexService.listModels()), source: 'api' }
-          : { success: true, models: [], source: 'none' };
+        result = { success: true, models: [], source: 'none' };
         break;
       }
       case 'claude-cloud': {

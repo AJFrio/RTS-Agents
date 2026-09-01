@@ -1,14 +1,18 @@
 import React, { useCallback, useMemo } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import FilterDropdown from '../ui/FilterDropdown.jsx';
+import { IconSync, IconPlus } from '../ui/icons.jsx';
 import { debounce } from '../../utils/debounce.js';
 
 const VIEW_TITLES = {
-  agent: 'Agent Chat',
-  dashboard: 'Agent Dashboard',
+  agent: 'Agent',
+  'new-task': 'New Task',
+  plugins: 'Plugins',
+  devices: 'Devices',
+  'task-detail': 'Task',
+  dashboard: 'All Tasks',
   branches: 'Repositories',
   'pull-requests': 'Pull Requests',
-  computers: 'Computers',
   jira: 'Jira',
   settings: 'Settings',
 };
@@ -27,17 +31,15 @@ export default function Header() {
   const {
     state,
     dispatch,
-    setView,
     loadAgents,
     fetchComputers,
     loadBranches,
     loadAllPrs,
     openCreateRepoModal,
     openPrRepoFilter,
-    checkConnectionStatus,
     loadRemoteQueueActivity,
   } = useApp();
-  const { currentView, counts, filters, refreshing, github } = state;
+  const { currentView, counts, filters, refreshing, github, selectedTask } = state;
 
   const handleSearch = useMemo(
     () =>
@@ -53,21 +55,18 @@ export default function Header() {
       loadRemoteQueueActivity();
     } else if (currentView === 'branches') loadBranches();
     else if (currentView === 'pull-requests') loadAllPrs();
-    else if (currentView === 'computers') fetchComputers();
-    else if (currentView === 'agent') void checkConnectionStatus();
-    else if (currentView === 'jira') setView('jira');
+    else if (currentView === 'devices') fetchComputers();
   }, [
     currentView,
     loadAgents,
-    setView,
     fetchComputers,
     loadBranches,
     loadAllPrs,
     loadRemoteQueueActivity,
-    checkConnectionStatus,
   ]);
 
-  const showHeaderActions = currentView !== 'settings' && currentView !== 'agent';
+  const showHeaderActions =
+    ['dashboard', 'branches', 'pull-requests', 'devices'].includes(currentView);
   const activeFilterCount = getActiveFilterCount(filters);
   const hiddenPrRepoCount = github?.hiddenPrRepos?.length || 0;
   const visiblePrCount = useMemo(() => {
@@ -85,58 +84,73 @@ export default function Header() {
         ? github?.loadingAllPrs || false
         : refreshing;
 
+  const headerTitle =
+    currentView === 'task-detail'
+      ? selectedTask?.name || 'Task'
+      : VIEW_TITLES[currentView] || 'Dashboard';
+
   const taskCount =
-    currentView === 'agent'
-      ? state.settings?.selectedModel || 'No model selected'
-      : currentView === 'settings'
-        ? ''
-        : currentView === 'computers'
-          ? `${state.computers.list.length} Computer${state.computers.list.length !== 1 ? 's' : ''}`
-          : currentView === 'branches'
-            ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
-            : currentView === 'pull-requests'
-              ? hiddenPrRepoCount > 0
-                ? `${visiblePrCount} of ${github?.allPrs?.length || 0} PRs`
-                : `${github?.allPrs?.length || 0} PR${(github?.allPrs?.length || 0) !== 1 ? 's' : ''}`
-              : currentView === 'jira'
-                ? `${state.jira?.issues?.length || 0} Issue${(state.jira?.issues?.length || 0) !== 1 ? 's' : ''}`
-                : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
+    currentView === 'devices'
+      ? `${state.computers.list.length} Device${state.computers.list.length !== 1 ? 's' : ''}`
+      : currentView === 'branches'
+        ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
+        : currentView === 'pull-requests'
+          ? hiddenPrRepoCount > 0
+            ? `${visiblePrCount} of ${github?.allPrs?.length || 0} PRs`
+            : `${github?.allPrs?.length || 0} PR${(github?.allPrs?.length || 0) !== 1 ? 's' : ''}`
+          : currentView === 'jira'
+            ? `${state.jira?.issues?.length || 0} Issue${(state.jira?.issues?.length || 0) !== 1 ? 's' : ''}`
+            : ['agent', 'new-task', 'plugins', 'settings', 'task-detail'].includes(currentView)
+              ? ''
+              : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
 
   return (
-    <header className="h-16 shrink-0 flex items-center justify-between px-4 sm:px-8 border-b border-slate-200 dark:border-border-dark bg-white/80 dark:bg-sidebar-dark/80 backdrop-blur-md sticky top-0 z-10">
-      <div className="flex items-baseline gap-2 sm:gap-4">
+    <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between border-b border-border-light bg-background-light/90 px-4 backdrop-blur-sm dark:border-border-dark dark:bg-background-dark/90 sm:px-6">
+      <div className="flex min-w-0 items-baseline gap-2 sm:gap-4">
         <h2
           id="view-title"
-          className="text-xl font-display font-bold tracking-tight text-slate-900 dark:text-white"
+          className="truncate text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100"
         >
-          {VIEW_TITLES[currentView] || 'Dashboard'}
+          {headerTitle}
         </h2>
         {taskCount && (
-          <span id="total-count" className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <span id="total-count" className="shrink-0 text-[12px] text-neutral-500 dark:text-neutral-400">
             {taskCount}
           </span>
         )}
       </div>
       {showHeaderActions && (
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {currentView === 'dashboard' && (
             <>
               <div className="relative">
-                <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none">
-                  <span className="material-symbols-outlined text-sm">search</span>
-                </span>
                 <input
                   type="text"
                   id="search-input"
                   placeholder="Search tasks"
                   defaultValue={filters.search}
-                  className="bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm py-2 pl-10 pr-4 w-40 sm:w-64 rounded-lg text-slate-800 dark:text-white placeholder:text-slate-500 transition-all duration-200"
+                  className="w-40 rounded-md py-1.5 pl-8 text-[13px] sm:w-56"
                   onChange={handleSearch}
                 />
+                <svg
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
               </div>
               <FilterDropdown />
               {activeFilterCount > 0 && (
-                <span className="text-xs font-medium text-primary">
+                <span className="hidden text-[11px] font-medium text-neutral-600 dark:text-neutral-300 sm:inline">
                   {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
                 </span>
               )}
@@ -148,25 +162,20 @@ export default function Header() {
               <button
                 type="button"
                 id="create-repo-btn"
-                className="bg-primary text-black flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg shadow-sm hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={openCreateRepoModal}
               >
-                <span className="material-symbols-outlined text-sm">add</span>
+                <IconPlus size={13} />
                 <span className="hidden sm:inline">New Repo</span>
               </button>
               <button
                 type="button"
                 id="refresh-branches-btn"
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] disabled:opacity-60 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >
-                <span
-                  id="refresh-icon"
-                  className={`material-symbols-outlined text-sm ${isRefreshing ? 'animate-spin' : ''}`}
-                >
-                  refresh
-                </span>
+                <IconSync size={13} className={isRefreshing ? 'animate-spin' : ''} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
             </>
@@ -176,31 +185,29 @@ export default function Header() {
                 <button
                   type="button"
                   id="pr-repo-filter-btn"
-                  className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border active:scale-[0.98] transition-all duration-200 disabled:opacity-60 ${
+                  className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors active:scale-[0.98] ${
                     hiddenPrRepoCount > 0
-                      ? 'border-primary/60 bg-primary/10 text-slate-800 dark:text-primary'
-                      : 'border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
+                      : 'border-border-light text-neutral-700 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800'
                   }`}
                   onClick={openPrRepoFilter}
                   aria-label="Filter pull request repositories"
                 >
-                  <span className="material-symbols-outlined text-sm">filter_list</span>
                   FILTER{hiddenPrRepoCount > 0 ? ` (${hiddenPrRepoCount})` : ''}
                 </button>
               )}
               <button
                 type="button"
                 id="refresh-btn"
-                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-border-dark hover:bg-slate-200 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200 text-slate-600 dark:text-slate-400 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] disabled:opacity-60 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >
-                <span
+                <IconSync
+                  size={13}
                   id="refresh-icon"
-                  className={`material-symbols-outlined text-sm ${isRefreshing ? 'animate-spin' : ''}`}
-                >
-                  refresh
-                </span>
+                  className={isRefreshing ? 'animate-spin' : ''}
+                />
                 <span className="hidden sm:inline">SYNC</span>
               </button>
             </>

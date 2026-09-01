@@ -1,319 +1,35 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import Button from '../components/ui/Button.jsx';
-import ModelSelector from '../components/settings/ModelSelector.jsx';
-import ServiceOnboardingModal from '../components/settings/ServiceOnboardingModal.jsx';
-import { getServiceDefinition } from '../components/settings/service-catalog.js';
 
-function getStatusMeta(status) {
-  if (!status) {
-    return {
-      label: 'Pending',
-      className: 'text-slate-500 bg-slate-100 dark:bg-slate-800/80 dark:text-slate-300',
-    };
-  }
-  if (status.success || status.connected) {
-    return {
-      label: 'Connected',
-      className: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-300',
-    };
-  }
-  return {
-    label: 'Attention',
-    className: 'text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300',
-  };
+function ChoiceTile({ id, active, onClick, label, children }) {
+  return (
+    <button
+      key={label}
+      type="button"
+      id={id}
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex flex-col items-center gap-2 rounded-md border p-4 transition-colors ${
+        active
+          ? 'border-neutral-900 bg-neutral-900/5 dark:border-neutral-100 dark:bg-neutral-100/5'
+          : 'border-border-light hover:bg-neutral-100 dark:border-border-dark dark:hover:bg-neutral-800/50'
+      }`}
+    >
+      {children}
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
+        {label}
+      </span>
+    </button>
+  );
 }
 
-function buildConnectedServices(state) {
-  const services = [];
-  const apiKeys = state.serviceInfo?.apiKeys || {};
-
-  if (apiKeys.jules) services.push('jules-cloud');
-  if (apiKeys.cursor) services.push('cursor-cloud');
-  if ((state.settings?.cursorPaths || []).length > 0 || state.connectionStatus?.['cursor-cli']?.success)
-    services.push('cursor-local');
-  if (apiKeys.codex) services.push('codex-cloud');
-  if ((state.settings?.codexPaths || []).length > 0) services.push('codex-local');
-  if (apiKeys.claude) services.push('claude-cloud');
-  if (state.serviceInfo?.installations?.claude || (state.settings?.claudePaths || []).length > 0)
-    services.push('claude-local');
-  if (
-    state.serviceInfo?.installations?.antigravity ||
-    (state.settings?.antigravityPaths || []).length > 0
-  )
-    services.push('antigravity-local');
-  if (
-    state.serviceInfo?.installations?.opencode ||
-    (state.settings?.opencodePaths || []).length > 0
-  )
-    services.push('opencode-local');
-  if (apiKeys.openrouter) services.push('openrouter-cloud');
-  if (apiKeys.github) services.push('github-cloud');
-  if ((state.settings?.githubPaths || []).length > 0) services.push('github-local');
-  if (apiKeys.jira || state.settings?.jiraBaseUrl) services.push('jira-cloud');
-  if (state.serviceInfo?.cloudflare?.configured || state.computers?.configured)
-    services.push('cloudflare-sync');
-
-  return [...new Set(services)];
-}
-
-const SERVICE_GROUPS = [
-  { id: 'jules', title: 'Jules', icon: 'cloud', members: ['jules-cloud'] },
-  { id: 'cursor', title: 'Cursor', icon: 'ads_click', members: ['cursor-cloud', 'cursor-local'] },
-  { id: 'codex', title: 'Codex', icon: 'terminal', members: ['codex-cloud', 'codex-local'] },
-  { id: 'claude', title: 'Claude', icon: 'psychology', members: ['claude-cloud', 'claude-local'] },
-  { id: 'antigravity', title: 'Antigravity CLI', icon: 'computer', members: ['antigravity-local'] },
-  { id: 'opencode', title: 'OpenCode', icon: 'smart_toy', members: ['opencode-local'] },
-  { id: 'openrouter', title: 'OpenRouter', icon: 'hub', members: ['openrouter-cloud'] },
-  { id: 'github', title: 'GitHub', icon: 'source', members: ['github-cloud', 'github-local'] },
-  { id: 'jira', title: 'Jira', icon: 'assignment', members: ['jira-cloud'] },
-  { id: 'cloudflare', title: 'Cloudflare Sync', icon: 'sync', members: ['cloudflare-sync'] },
-];
-
-function buildConnectedServiceGroups(connectedServices, state) {
-  return SERVICE_GROUPS.map((group) => {
-    const services = group.members.filter((serviceId) => connectedServices.includes(serviceId));
-    if (services.length === 0) return null;
-    const statuses = services.map((serviceId) => getServiceStatus(serviceId, state));
-    const attention = statuses.find((status) => status && !status.success && !status.connected);
-    const summaries = services.map((serviceId) =>
-      getServiceSummary(serviceId, state, getServiceStatus(serviceId, state))
-    );
-    return {
-      ...group,
-      services,
-      status: attention || statuses[0],
-      summary: summaries.join(' · '),
-      modeLabel: services
-        .map((serviceId) =>
-          serviceId.endsWith('-local') ? 'Local' : serviceId.endsWith('-cloud') ? 'Cloud' : 'Sync'
-        )
-        .join(' + '),
-      disconnectable: services.some((serviceId) => isDisconnectable(serviceId, state)),
-    };
-  }).filter(Boolean);
-}
-
-function getServiceStatus(serviceId, state) {
-  switch (serviceId) {
-    case 'jules-cloud':
-      return state.connectionStatus?.jules;
-    case 'cursor-cloud':
-      return state.connectionStatus?.cursor;
-    case 'cursor-local':
-      return state.connectionStatus?.['cursor-cli']?.success
-        ? { success: true, connected: true }
-        : { success: false, error: 'Cursor CLI not detected' };
-    case 'codex-cloud':
-      return state.connectionStatus?.codex;
-    case 'claude-cloud':
-      return state.connectionStatus?.['claude-cloud'];
-    case 'claude-local':
-      return (
-        state.connectionStatus?.['claude-cli'] || {
-          success: !!state.serviceInfo?.installations?.claude,
-        }
-      );
-    case 'antigravity-local':
-      return (
-        state.connectionStatus?.antigravity || {
-          success: !!state.serviceInfo?.installations?.antigravity,
-        }
-      );
-    case 'opencode-local':
-      return (
-        state.connectionStatus?.opencode || {
-          success: !!state.serviceInfo?.installations?.opencode,
-        }
-      );
-    case 'openrouter-cloud':
-      return state.connectionStatus?.openrouter;
-    case 'github-cloud':
-      return state.connectionStatus?.github;
-    case 'jira-cloud':
-      return state.connectionStatus?.jira;
-    case 'cloudflare-sync':
-      return state.computers?.configured
-        ? { success: true, connected: true }
-        : { success: false, error: 'Not configured' };
-    default:
-      return { success: true, connected: true };
-  }
-}
-
-function getServiceSummary(serviceId, state, status) {
-  switch (serviceId) {
-    case 'cursor-local':
-      if (!state.connectionStatus?.['cursor-cli']?.success) {
-        return 'Repository roots saved, but Cursor CLI is not detected locally';
-      }
-      return state.settings?.cursorPaths?.length > 0
-        ? `${state.settings.cursorPaths.length} repository roots linked`
-        : 'Cursor CLI detected — add repository roots to enable local tasks';
-    case 'codex-local':
-      return `${state.settings?.codexPaths?.length || 0} repository roots connected`;
-    case 'claude-local':
-      return state.serviceInfo?.installations?.claude
-        ? `${state.settings?.claudePaths?.length || 0} repository roots linked`
-        : 'Repository roots saved, but Claude Code is not detected locally';
-    case 'antigravity-local':
-      return state.serviceInfo?.installations?.antigravity
-        ? `${state.settings?.antigravityPaths?.length || 0} repository roots linked`
-        : 'Repository roots saved, but Antigravity CLI is not detected locally';
-    case 'opencode-local':
-      return state.serviceInfo?.installations?.opencode
-        ? `${state.settings?.opencodePaths?.length || 0} repository roots linked`
-        : 'Repository roots saved, but OpenCode CLI is not detected locally';
-    case 'github-local':
-      return `${state.settings?.githubPaths?.length || 0} repository roots connected`;
-    case 'jira-cloud':
-      return state.settings?.jiraBaseUrl || status?.error || 'Jira is configured';
-    case 'cloudflare-sync':
-      return state.serviceInfo?.cloudflare?.accountId
-        ? `Account ${state.serviceInfo.cloudflare.accountId}`
-        : 'Cloudflare KV sync enabled';
-    default:
-      return status?.error || 'Verified and ready to use';
-  }
-}
-
-function isDisconnectable(serviceId, state) {
-  if (
-    [
-      'jules-cloud',
-      'cursor-cloud',
-      'codex-cloud',
-      'claude-cloud',
-      'openrouter-cloud',
-      'github-cloud',
-      'jira-cloud',
-      'cloudflare-sync',
-    ].includes(serviceId)
-  ) {
-    return true;
-  }
-  if (serviceId === 'cursor-local') return (state.settings?.cursorPaths || []).length > 0;
-  if (serviceId === 'codex-local') return (state.settings?.codexPaths || []).length > 0;
-  if (serviceId === 'opencode-local') return (state.settings?.opencodePaths || []).length > 0;
-  if (serviceId === 'claude-local') return (state.settings?.claudePaths || []).length > 0;
-  if (serviceId === 'antigravity-local') return (state.settings?.antigravityPaths || []).length > 0;
-  if (serviceId === 'github-local') return (state.settings?.githubPaths || []).length > 0;
-  return false;
-}
-
+/**
+ * Settings tab: display, polling, and system controls. Service connections
+ * live in the Plugins tab and the orchestrator model lives in the Agent tab
+ * (DESIGN.md §2.1); everything here is neutral-themed only.
+ */
 export default function SettingsPage() {
-  const { state, dispatch, api, loadSettings, checkConnectionStatus, openConfirmModal } = useApp();
-  const [selectedModel, setSelectedModel] = useState(
-    state.settings.selectedModel || 'openrouter/openai/gpt-4o'
-  );
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [activeServiceId, setActiveServiceId] = useState(null);
-  const [busyServiceId, setBusyServiceId] = useState(null);
-
-  const connectedServices = useMemo(() => buildConnectedServices(state), [state]);
-  const connectedServiceGroups = useMemo(
-    () => buildConnectedServiceGroups(connectedServices, state),
-    [connectedServices, state]
-  );
-
-  useEffect(() => {
-    setSelectedModel(state.settings.selectedModel || 'openrouter/openai/gpt-4o');
-  }, [state.settings.selectedModel]);
-
-  const saveModel = useCallback(
-    async (model) => {
-      setSelectedModel(model);
-      if (api?.setModel) {
-        await api.setModel(model);
-        dispatch({ type: 'SET_SETTINGS', payload: { selectedModel: model } });
-      }
-    },
-    [api, dispatch]
-  );
-
-  const openOnboarding = useCallback((serviceId = null) => {
-    setActiveServiceId(serviceId);
-    setOnboardingOpen(true);
-  }, []);
-
-  const closeOnboarding = useCallback(() => {
-    setOnboardingOpen(false);
-  }, []);
-
-  const disconnectService = useCallback(
-    async (serviceId) => {
-      if (!api) return;
-
-      setBusyServiceId(serviceId);
-      try {
-        if (serviceId === 'jules-cloud') {
-          await api.removeApiKey('jules');
-        } else if (serviceId === 'cursor-cloud') {
-          await api.removeApiKey('cursor');
-        } else if (serviceId === 'codex-cloud') {
-          await api.removeApiKey('codex');
-        } else if (serviceId === 'claude-cloud') {
-          await api.removeApiKey('claude');
-        } else if (serviceId === 'openrouter-cloud') {
-          await api.removeApiKey('openrouter');
-        } else if (serviceId === 'github-cloud') {
-          await api.removeApiKey('github');
-        } else if (serviceId === 'jira-cloud') {
-          await api.removeApiKey('jira');
-          await api.setJiraBaseUrl('');
-        } else if (serviceId === 'cloudflare-sync') {
-          await api.clearCloudflareConfig();
-        } else if (serviceId === 'cursor-local') {
-          for (const pathValue of state.settings?.cursorPaths || []) {
-            await api.removeCursorPath(pathValue);
-          }
-        } else if (serviceId === 'codex-local') {
-          for (const pathValue of state.settings?.codexPaths || []) {
-            await api.removeCodexPath(pathValue);
-          }
-        } else if (serviceId === 'opencode-local') {
-          for (const pathValue of state.settings?.opencodePaths || []) {
-            await api.removeOpenCodePath(pathValue);
-          }
-        } else if (serviceId === 'claude-local') {
-          for (const pathValue of state.settings?.claudePaths || []) {
-            await api.removeClaudePath(pathValue);
-          }
-        } else if (serviceId === 'antigravity-local') {
-          for (const pathValue of state.settings?.antigravityPaths || []) {
-            await api.removeAntigravityPath(pathValue);
-          }
-        } else if (serviceId === 'github-local') {
-          for (const pathValue of state.settings?.githubPaths || []) {
-            await api.removeGithubPath(pathValue);
-          }
-        }
-
-        await loadSettings();
-        await checkConnectionStatus();
-      } finally {
-        setBusyServiceId(null);
-      }
-    },
-    [api, checkConnectionStatus, loadSettings, state.settings]
-  );
-
-  const disconnectServiceGroup = useCallback(
-    (group) => {
-      openConfirmModal({
-        title: `Disconnect ${group.title}?`,
-        message: `This will remove the saved ${group.modeLabel.toLowerCase()} connection for ${group.title}.`,
-        onConfirm: async () => {
-          for (const serviceId of group.services) {
-            if (isDisconnectable(serviceId, state)) {
-              await disconnectService(serviceId);
-            }
-          }
-        },
-      });
-    },
-    [disconnectService, openConfirmModal, state]
-  );
+  const { state, dispatch, api } = useApp();
 
   const setTheme = useCallback(
     (theme) => {
@@ -344,272 +60,181 @@ export default function SettingsPage() {
   }, [api]);
 
   return (
-    <>
-      <div id="view-settings" className="view-content max-w-6xl mx-auto w-full space-y-8">
-        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="material-symbols-outlined text-primary text-3xl">link</span>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                  Connected Services
-                </h2>
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-6">
-                Setup now happens through guided onboarding. Settings only shows services that are
-                already linked, along with their current connection state.
-              </p>
-            </div>
-            {connectedServices.length > 0 && (
-              <Button variant="primary" onClick={() => openOnboarding()}>
-                ADD SERVICE
-              </Button>
-            )}
-          </div>
+    <div id="view-settings" className="view-content mx-auto w-full max-w-3xl space-y-5">
+      <SettingSection icon={<MonitorIcon />} title="Display">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          App theme
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          {['system', 'light', 'dark'].map((theme) => (
+            <ChoiceTile
+              key={theme}
+              id={`theme-${theme}`}
+              active={state.settings.theme === theme}
+              onClick={() => setTheme(theme)}
+              label={theme}
+            >
+              <ThemeIcon theme={theme} />
+            </ChoiceTile>
+          ))}
+        </div>
 
-          {connectedServices.length === 0 ? (
-            <div className="text-center py-12 space-y-4 mt-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary">
-                <span className="material-symbols-outlined text-3xl">hub</span>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  No services connected yet
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                  Add a local or cloud assistant when you are ready.
-                </p>
-              </div>
-              <Button variant="primary" onClick={() => openOnboarding()}>
-                ADD SERVICE
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mt-8">
-              {connectedServiceGroups.map((group) => {
-                const definition = getServiceDefinition(group.services[0]);
-                const statusMeta = getStatusMeta(group.status);
+        <label className="mb-2 mt-6 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          Window mode
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          {['windowed', 'fullscreen'].map((mode) => (
+            <ChoiceTile
+              key={mode}
+              active={state.settings.displayMode === mode}
+              onClick={() => setDisplayMode(mode)}
+              label={mode === 'windowed' ? 'Windowed' : 'Full screen'}
+            >
+              <WindowIcon mode={mode} />
+            </ChoiceTile>
+          ))}
+        </div>
+      </SettingSection>
 
-                return (
-                  <div
-                    key={group.id}
-                    className="rounded-xl border border-slate-200 dark:border-border-dark bg-slate-50/60 dark:bg-[#11151b] p-6"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined">
-                            {group.icon || definition?.icon || 'link'}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                              {group.title}
-                            </h3>
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold ${statusMeta.className}`}
-                            >
-                              {statusMeta.label}
-                            </span>
-                            <span className="px-2 py-1 rounded-md text-xs font-medium bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-border-dark">
-                              {group.modeLabel}
-                            </span>
-                          </div>
-                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                            {definition?.subtitle}
-                          </p>
-                          <p className="text-sm text-slate-600 dark:text-slate-300 mt-3">
-                            {group.summary}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+      <SettingSection icon={<RefreshIcon />} title="Data polling">
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={state.settings.autoPolling !== false}
+            onChange={(e) => updatePolling(e.target.checked, state.settings.pollingInterval)}
+            aria-label="Enable auto refresh"
+          />
+          <span className="text-[13px] text-neutral-700 dark:text-neutral-300">
+            Enable auto refresh
+          </span>
+        </label>
+        <div className="mt-4 flex items-end justify-between">
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+            Refresh interval
+          </label>
+          <span className="font-mono text-[12px] font-semibold text-neutral-800 dark:text-neutral-200">
+            {Math.round((state.settings.pollingInterval || 30000) / 1000)}s
+          </span>
+        </div>
+        <input
+          type="range"
+          min="5"
+          max="300"
+          step="5"
+          value={Math.round((state.settings.pollingInterval || 30000) / 1000)}
+          onChange={(e) =>
+            updatePolling(
+              state.settings.autoPolling !== false,
+              parseInt(e.target.value, 10) * 1000
+            )
+          }
+          className="mt-2 w-full"
+          aria-label="Refresh interval in seconds"
+        />
+      </SettingSection>
 
-                    <div className="flex gap-3 mt-6">
-                      <Button variant="secondary" onClick={() => openOnboarding(group.services[0])}>
-                        MANAGE
-                      </Button>
-                      {group.disconnectable && (
-                        <Button
-                          variant="secondary"
-                          className="border-red-300 text-red-500 hover:bg-red-500/10 dark:border-red-500/40 dark:text-red-300"
-                          onClick={() => disconnectServiceGroup(group)}
-                          disabled={group.services.includes(busyServiceId)}
-                        >
-                          {group.services.includes(busyServiceId)
-                            ? 'DISCONNECTING...'
-                            : 'DISCONNECT'}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
-          <div className="flex items-center gap-3 mb-8">
-            <span className="material-symbols-outlined text-primary">smart_toy</span>
-            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">
-              Agent Model
-            </h3>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">
-              Orchestrator Model
-            </label>
-            <ModelSelector value={selectedModel} onChange={saveModel} />
-            <p className="text-[10px] technical-font text-slate-500 opacity-60">
-              The AI model used for the main agent chat.
+      <SettingSection icon={<SystemIcon />} title="System">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h4 className="text-[13px] font-semibold text-neutral-800 dark:text-neutral-200">
+              Update application
+            </h4>
+            <p className="mt-0.5 text-[12px] text-neutral-500 dark:text-neutral-400">
+              Pull latest changes from GitHub and restart.
             </p>
           </div>
-        </section>
+          <button
+            type="button"
+            id="update-app-btn"
+            onClick={updateApp}
+            className="shrink-0 rounded-md bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
+          >
+            Update & restart
+          </button>
+        </div>
+      </SettingSection>
+    </div>
+  );
+}
 
-        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
-          <div className="flex items-center gap-3 mb-8">
-            <span className="material-symbols-outlined text-primary">monitor</span>
-            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">Display</h3>
-          </div>
-          <div className="space-y-4">
-            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">
-              App Theme
-            </label>
-            <div className="grid grid-cols-3 gap-4">
-              {['system', 'light', 'dark'].map((theme) => (
-                <button
-                  key={theme}
-                  id={`theme-${theme}`}
-                  type="button"
-                  onClick={() => setTheme(theme)}
-                  className={`flex flex-col items-center gap-3 p-4 border rounded-lg transition-all ${
-                    state.settings.theme === theme
-                      ? 'border-primary bg-primary/10'
-                      : 'border-slate-200 dark:border-border-dark hover:border-primary'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-slate-500">
-                    {theme === 'system'
-                      ? 'settings_brightness'
-                      : theme === 'light'
-                        ? 'light_mode'
-                        : 'dark_mode'}
-                  </span>
-                  <span className="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">
-                    {theme.toUpperCase()}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-4 mt-8">
-            <label className="block text-[10px] technical-font text-slate-500 dark:text-slate-400">
-              Window Mode
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              {['windowed', 'fullscreen'].map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setDisplayMode(mode)}
-                  className={`flex flex-col items-center gap-3 p-4 border rounded-lg transition-all ${
-                    state.settings.displayMode === mode
-                      ? 'border-primary bg-primary/10'
-                      : 'border-slate-200 dark:border-border-dark hover:border-primary'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-slate-500">
-                    {mode === 'windowed' ? 'grid_view' : 'fullscreen'}
-                  </span>
-                  <span className="text-[10px] technical-font font-bold text-slate-600 dark:text-slate-400">
-                    {mode === 'windowed' ? 'WINDOWED' : 'FULL SCREEN'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
-          <div className="flex items-center gap-3 mb-8">
-            <span className="material-symbols-outlined text-primary">history</span>
-            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">
-              Data Polling
-            </h3>
-          </div>
-          <div className="space-y-4">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={state.settings.autoPolling !== false}
-                onChange={(e) => updatePolling(e.target.checked, state.settings.pollingInterval)}
-                className="form-checkbox h-4 w-4 bg-transparent border-primary text-primary focus:ring-0"
-              />
-              <span className="text-sm text-slate-700 dark:text-slate-300">
-                Enable auto refresh
-              </span>
-            </label>
-            <div className="flex justify-between items-end">
-              <label className="text-[10px] technical-font text-slate-500">Refresh interval</label>
-              <span className="text-primary font-display font-bold">
-                {Math.round((state.settings.pollingInterval || 30000) / 1000)} SECONDS
-              </span>
-            </div>
-            <input
-              type="range"
-              min="5"
-              max="300"
-              step="5"
-              value={Math.round((state.settings.pollingInterval || 30000) / 1000)}
-              onChange={(e) =>
-                updatePolling(
-                  state.settings.autoPolling !== false,
-                  parseInt(e.target.value, 10) * 1000
-                )
-              }
-              className="w-full cursor-pointer"
-            />
-          </div>
-        </section>
-
-        <section className="bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark p-8 rounded-2xl">
-          <div className="flex items-center gap-3 mb-8">
-            <span className="material-symbols-outlined text-primary">system_update</span>
-            <h3 className="text-lg font-bold dark:text-white uppercase tracking-tight">System</h3>
-          </div>
-          <div className="flex justify-between items-center gap-4">
-            <div>
-              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                Update Application
-              </h4>
-              <p className="text-[10px] technical-font text-slate-500 mt-1">
-                Pull latest changes from GitHub and restart the application.
-              </p>
-            </div>
-            <Button id="update-app-btn" variant="primary" onClick={updateApp}>
-              <span className="material-symbols-outlined text-sm">download</span>
-              UPDATE & RESTART
-            </Button>
-          </div>
-        </section>
+function SettingSection({ icon, title, children }) {
+  return (
+    <section className="rounded-lg border border-border-light bg-card-light p-6 dark:border-border-dark dark:bg-card-dark">
+      <div className="mb-5 flex items-center gap-2.5">
+        <span className="text-neutral-400 dark:text-neutral-500">{icon}</span>
+        <h3 className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          {title}
+        </h3>
       </div>
+      {children}
+    </section>
+  );
+}
 
-      <ServiceOnboardingModal
-        open={onboardingOpen}
-        initialServiceId={activeServiceId}
-        requiredConnection={false}
-        hasConnectedServices={connectedServices.length > 0}
-        state={state}
-        api={api}
-        loadSettings={loadSettings}
-        checkConnectionStatus={checkConnectionStatus}
-        onClose={closeOnboarding}
-        onConnected={() => {
-          setActiveServiceId(null);
-        }}
-      />
-    </>
+function MonitorIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+      <path d="M20 4v4h-4" />
+    </svg>
+  );
+}
+
+function SystemIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function ThemeIcon({ theme }) {
+  if (theme === 'light') {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" />
+      </svg>
+    );
+  }
+  if (theme === 'dark') {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="14" rx="2" />
+      <path d="M12 4v14" />
+      <path d="M2 8h4M18 16h4" />
+    </svg>
+  );
+}
+
+function WindowIcon({ mode }) {
+  if (mode === 'windowed') {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <path d="M4 9h16" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8V5a2 2 0 0 1 2-2h3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M21 16v3a2 2 0 0 1-2 2h-3" />
+    </svg>
   );
 }

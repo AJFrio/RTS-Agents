@@ -19,7 +19,15 @@
  * must NOT be re-dispatched through the legacy CLI path.
  */
 
-const { spawn, spawnSync } = require('child_process');
+const { spawnSync } = require('child_process');
+const {
+  buildSpawnArgs,
+  isCommandRunnable,
+  platformBin,
+  spawnCli,
+  spawnCliSync,
+  toAdapterSpec,
+} = require('../utils/cli-spawn');
 
 const PROTOCOL_VERSION = 1;
 const STDERR_CAP = 2000;
@@ -27,99 +35,87 @@ const DEFAULT_INIT_TIMEOUT_MS = 15000;
 const ADAPTER_PROBE_TIMEOUT_MS = 3000;
 const SAFE_TOOL_KINDS = new Set(['read', 'edit', 'execute']);
 
-// Adapters are distributed as npm packages (bin shims on Windows). Cursor
-// ships its agent CLI as `agent` (official name); older installs use
-// `cursor-agent`.
-const ADAPTER_BINARIES = {
-  claude: process.platform === 'win32' ? 'claude-agent-acp.cmd' : 'claude-agent-acp',
-  codex: process.platform === 'win32' ? 'codex-acp.cmd' : 'codex-acp',
-};
-const CURSOR_BINARIES =
-  process.platform === 'win32' ? ['agent.cmd', 'cursor-agent.cmd'] : ['agent', 'cursor-agent'];
-
-// provider -> command | null (probe results are cached for the session)
+// provider -> { command, args } | null (probe results are cached for the session)
 const adapterCache = new Map();
 
 function adapterCandidates(provider) {
-  if (provider === 'cursor') return CURSOR_BINARIES;
-  const base = ADAPTER_BINARIES[provider];
-  return base ? [base] : [];
+  switch (provider) {
+    case 'claude':
+      return [
+        { command: platformBin('claude-agent-acp'), args: [], probe: 'version' },
+        { command: platformBin('claude-code-acp'), args: [], probe: 'version' },
+        { command: platformBin('claude'), args: ['acp'], probe: 'help-subcommand' },
+        { command: platformBin('claude'), args: ['--acp'], probe: 'help-flag' },
+      ];
+    case 'codex':
+      return [
+        { command: platformBin('codex-acp'), args: [], probe: 'version' },
+        { command: platformBin('codex'), args: ['acp'], probe: 'help-subcommand' },
+      ];
+    case 'cursor':
+      return [
+        { command: platformBin('agent'), args: ['acp'], probe: 'version' },
+        { command: platformBin('cursor-agent'), args: ['acp'], probe: 'version' },
+      ];
+    case 'antigravity':
+      return [
+        { command: 'agy', args: ['acp'], probe: 'help-subcommand' },
+        { command: 'agy', args: ['--acp'], probe: 'help-flag' },
+      ];
+    default:
+      return [];
+  }
+}
+
+function probeCandidate(candidate) {
+  if (candidate.probe === 'version') {
+    return isCommandRunnable(candidate.command, ['--version'], {
+      timeout: ADAPTER_PROBE_TIMEOUT_MS,
+    });
+  }
+  if (candidate.probe === 'help-subcommand') {
+    return isCommandRunnable(candidate.command, [...candidate.args, '--help'], {
+      timeout: ADAPTER_PROBE_TIMEOUT_MS,
+    });
+  }
+  if (candidate.probe === 'help-flag') {
+    try {
+      const result = spawnCliSync(candidate.command, ['--help'], {
+        timeout: ADAPTER_PROBE_TIMEOUT_MS,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      if (result.error) return false;
+      const text = `${result.stdout || ''}\n${result.stderr || ''}`;
+      return candidate.args.some((flag) => text.includes(flag));
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 /**
- * Build spawn arguments for an adapter command. On Windows, npm bin shims
- * (.cmd/.bat) cannot be spawned directly with shell:false on current Node
- * (EINVAL), so they are routed through cmd.exe with canonical per-argument
- * quoting (never shell:true with interpolated strings).
- */
-function buildSpawnArgs(command, args = []) {
-  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(String(command))) {
-    const line = [command, ...args].map(quoteWinArg).join(' ');
-    return { command: 'cmd.exe', args: ['/d', '/s', '/c', line] };
-  }
-  return { command, args };
-}
-
-/** Canonical Windows argument quoting (MS command-line rules). */
-function quoteWinArg(arg) {
-  const value = String(arg);
-  if (value === '') return '""';
-  if (!/[\s"]/.test(value) && !/\\$/.test(value)) return value;
-  let out = '"';
-  let backslashes = 0;
-  for (const ch of value) {
-    if (ch === '\\') {
-      backslashes += 1;
-      out += ch;
-      continue;
-    }
-    if (ch === '"') {
-      out += '\\'.repeat(backslashes + 1) + '"';
-      backslashes = 0;
-      continue;
-    }
-    backslashes = 0;
-    out += ch;
-  }
-  if (backslashes > 0) out += '\\'.repeat(backslashes);
-  return `${out}"`;
-}
-
-/**
- * Resolve the ACP adapter command for a provider, probing PATH once and
- * caching the result. OpenCode ships its own ACP server (`opencode acp`),
- * so it is resolved by opencode-service (null here).
- * @returns {string|null}
+ * Resolve the ACP adapter for a provider, probing PATH once and caching.
+ * OpenCode ships its own ACP server (`opencode acp`) and is resolved by
+ * opencode-service (null here).
+ * @returns {{command: string, args: string[]}|null}
  */
 function resolveAdapter(provider) {
   const candidates = adapterCandidates(provider);
   if (candidates.length === 0) return null;
   if (adapterCache.has(provider)) return adapterCache.get(provider);
 
-  let command = null;
-  for (const base of candidates) {
-    const spec = buildSpawnArgs(base, ['--version']);
-    try {
-      const probe = spawnSync(spec.command, spec.args, {
-        shell: false,
-        stdio: 'ignore',
-        timeout: ADAPTER_PROBE_TIMEOUT_MS,
-        windowsHide: true,
-        // Load-bearing: without an explicit env, Jest's process.env snapshot
-        // hides PATH changes and the probe reports installed adapters as absent.
-        env: { ...process.env },
-      });
-      if (!probe.error && probe.status === 0) {
-        command = base;
-        break;
-      }
-    } catch {
-      command = null;
+  let spec = null;
+  for (const candidate of candidates) {
+    if (probeCandidate(candidate)) {
+      spec = { command: candidate.command, args: [...candidate.args] };
+      break;
     }
   }
 
-  adapterCache.set(provider, command);
-  return command;
+  adapterCache.set(provider, spec);
+  return spec;
 }
 
 function clearAdapterCache() {
@@ -146,6 +142,13 @@ function pickPermissionOption(update, policy) {
     options.find((o) => o?.kind === 'allow_once') ||
     options.find((o) => o?.kind === 'allow_always') ||
     null
+  );
+}
+
+function versionMismatchMessage(protocolVersion) {
+  return (
+    `ACP adapter responded with unsupported protocol version ${protocolVersion} ` +
+    '(RTS speaks ACP v1; v2 is draft). Falling back to the detached CLI when available.'
   );
 }
 
@@ -185,15 +188,12 @@ function runPrompt(options) {
   } = options;
 
   return new Promise((resolve, reject) => {
-    const spec = buildSpawnArgs(command, args);
     let child;
     try {
-      child = spawn(spec.command, spec.args, {
+      child = spawnCli(command, args, {
         cwd,
-        shell: false,
         stdio: ['pipe', 'pipe', 'pipe'],
-        windowsHide: true,
-        env: { ...process.env, ...(env || {}) },
+        env: env || {},
       });
     } catch (err) {
       const error = new Error(`Failed to start ACP adapter: ${err.message}`);
@@ -236,24 +236,37 @@ function runPrompt(options) {
 
     function killChild() {
       if (!child) return;
+      const pid = child.pid;
       try {
         child.stdin.end();
       } catch {
         // stdin already closed - nothing to do
       }
-      try {
-        if (process.platform === 'win32' && child.pid) {
-          // .cmd shims spawn nested processes; SIGTERM would not reap them.
-          spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
-            stdio: 'ignore',
-            windowsHide: true,
-          });
-        } else {
-          child.kill('SIGTERM');
+
+      const forceKill = () => {
+        try {
+          if (process.platform === 'win32' && pid) {
+            // .cmd shims spawn nested processes; SIGTERM would not reap them.
+            spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
+              stdio: 'ignore',
+              windowsHide: true,
+            });
+          } else {
+            child.kill('SIGTERM');
+          }
+        } catch {
+          // best-effort cleanup; the child may already be gone
         }
-      } catch {
-        // best-effort cleanup; the child may already be gone
+      };
+
+      // Give stdin-EOF a chance to run the adapter's graceful exit
+      // (Windows taskkill /F skips Node exit handlers).
+      if (process.platform === 'win32') {
+        const forceTimer = setTimeout(forceKill, 250);
+        child.once('exit', () => clearTimeout(forceTimer));
+        return;
       }
+      forceKill();
     }
 
     function sendRaw(message) {
@@ -335,14 +348,6 @@ function runPrompt(options) {
       );
     }, initTimeoutMs);
 
-    pending.set(nextId, {
-      phase: 'initialize',
-      // id booked below via request-like flow; initialize is sent directly
-      onResult: null,
-      onError: null,
-    });
-    pending.delete(nextId); // initialize is sent explicitly below
-
     const initId = nextId;
     nextId += 1;
     pending.set(initId, {
@@ -350,11 +355,7 @@ function runPrompt(options) {
       onResult: (result) => {
         if (initTimer) clearTimeout(initTimer);
         if (result?.protocolVersion !== PROTOCOL_VERSION) {
-          fail(
-            'version',
-            `ACP adapter responded with unsupported protocol version ${result?.protocolVersion}`,
-            true
-          );
+          fail('version', versionMismatchMessage(result?.protocolVersion), true);
           return;
         }
         sendSessionNew();
@@ -462,9 +463,11 @@ function runPrompt(options) {
 
 module.exports = {
   PROTOCOL_VERSION,
+  adapterCandidates,
   buildSpawnArgs,
   clearAdapterCache,
   pickPermissionOption,
   resolveAdapter,
   runPrompt,
+  toAdapterSpec,
 };

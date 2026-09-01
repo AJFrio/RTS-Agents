@@ -17,6 +17,7 @@ import {
   extractRepoName,
 } from './cursor-runs.mjs';
 
+// Cloud Agents API v1 (replaced v0). There is no Cloud v2 as of 2026-09.
 const BASE_URL = '/api/cursor';
 
 export function createCursorService({ storage, fetchImpl } = {}) {

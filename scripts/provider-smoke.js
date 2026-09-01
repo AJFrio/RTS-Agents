@@ -61,7 +61,6 @@ async function main() {
   const apiKeys = {
     jules: env('JULES_API_KEY') || configStore.getApiKey('jules'),
     cursor: env('CURSOR_API_KEY') || configStore.getApiKey('cursor'),
-    codex: env('OPENAI_API_KEY') || configStore.getApiKey('codex'),
     claude: env('ANTHROPIC_API_KEY') || configStore.getApiKey('claude'),
     github: env('GITHUB_TOKEN') || configStore.getApiKey('github'),
     jira: env('JIRA_API_TOKEN') || configStore.getApiKey('jira'),
@@ -70,7 +69,6 @@ async function main() {
 
   julesService.setApiKey(apiKeys.jules);
   cursorService.setApiKey(apiKeys.cursor);
-  codexService.setApiKey(apiKeys.codex);
   claudeService.setApiKey(apiKeys.claude);
   githubService.setApiKey(apiKeys.github);
   openrouterService.setApiKey(apiKeys.openrouter);
@@ -104,20 +102,18 @@ async function main() {
     [
       'codex',
       () =>
-        apiKeys.codex
-          ? codexService.testConnection()
-          : codexInstalled
-            ? providerHealth.ok('codex', {
-                configured: true,
-                installed: true,
-                endpointLabel: 'codex --version',
-                docsUrl: 'https://developers.openai.com/codex/noninteractive',
-                message: 'Codex CLI is available on this machine.',
-              })
-            : providerHealth.notConfigured('codex', {
-                installed: false,
-                message: 'OpenAI API key not configured and Codex CLI not found',
-              }),
+        codexInstalled
+          ? providerHealth.ok('codex', {
+              configured: true,
+              installed: true,
+              endpointLabel: 'codex --version',
+              docsUrl: 'https://developers.openai.com/codex/noninteractive',
+              message: 'Codex CLI is available on this machine.',
+            })
+          : providerHealth.notConfigured('codex', {
+              installed: false,
+              message: 'Codex CLI not found',
+            }),
     ],
     [
       'claude-cloud',

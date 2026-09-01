@@ -45,19 +45,6 @@ export const SERVICE_CATALOG = [
     ],
   },
   {
-    id: 'codex-cloud',
-    title: 'OpenAI Responses',
-    subtitle: 'Codex-capable models',
-    category: 'Coding Assistants',
-    kind: 'cloud-api-key',
-    provider: 'codex',
-    icon: 'cloud',
-    description: 'Connect OpenAI for Responses API tasks using Codex-capable models.',
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenAI API key' },
-    ],
-  },
-  {
     id: 'codex-local',
     title: 'Codex CLI',
     subtitle: 'Local CLI',
@@ -235,19 +222,19 @@ export const SERVICE_CATALOG = [
     provider: 'cloudflare',
     icon: 'cloud_upload',
     description:
-      'Connect Cloudflare KV to sync service credentials and remote device state. Quick Setup deep-links to a pre-configured Workers KV token and can detect your account ID automatically.',
+      'Connect Cloudflare KV to sync service credentials and remote device state. Paste a Workers KV token and Detect & connect to discover the account and verify access.',
     fields: [
+      {
+        key: 'apiToken',
+        label: 'API Token',
+        type: 'password',
+        placeholder: 'Paste your Cloudflare API token',
+      },
       {
         key: 'accountId',
         label: 'Account ID',
         type: 'text',
         placeholder: 'Enter Cloudflare account ID',
-      },
-      {
-        key: 'apiToken',
-        label: 'API Token',
-        type: 'password',
-        placeholder: 'Paste your Cloudflare API token (Quick Setup can create one)',
       },
     ],
   },

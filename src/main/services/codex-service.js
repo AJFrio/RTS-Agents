@@ -1,16 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { spawn, spawnSync } = require('child_process');
 const { upsertItem } = require('../utils/collection-utils');
-const httpService = require('./http-service');
 const configStore = require('./config-store');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
-const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
+const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
+const { applySessionUpdate } = require('./opencode-session-parser');
 
-const BASE_URL = 'https://api.openai.com/v1';
 const CODEX_DEFAULT_MODEL = 'gpt-5-codex';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 const STREAM_TEXT_CAP = 50000;
@@ -18,30 +16,9 @@ const STREAM_TEXT_CAP = 50000;
 // Stored in configStore as codexThreads for backward compatibility with existing installs.
 let trackedThreads = [];
 
-function isCommandRunnable(cmd, args = ['--version']) {
-  if (!cmd) return false;
-  try {
-    const r = spawnSync(String(cmd), args, {
-      shell: false,
-      stdio: 'ignore',
-      timeout: 3000,
-      windowsHide: true,
-    });
-    if (r.error) return false;
-    return r.status === 0;
-  } catch {
-    return false;
-  }
-}
-
 class CodexService {
   constructor() {
-    this.apiKey = null;
     this._persistTimer = null;
-  }
-
-  setApiKey(apiKey) {
-    this.apiKey = apiKey;
   }
 
   getExecutable() {
@@ -80,59 +57,6 @@ class CodexService {
     const installed = await pathExistsAny(candidates);
     installStatus.setCached('codex', installed);
     return installed;
-  }
-
-  async request(endpoint, method = 'GET', body = null) {
-    if (!this.apiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
-    const url = `${BASE_URL}${endpoint}`;
-
-    try {
-      return await httpService.requestJson(
-        url,
-        method,
-        body,
-        {
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        60000
-      );
-    } catch (err) {
-      if (err.statusCode) {
-        const dataStr = typeof err.data === 'object' ? JSON.stringify(err.data) : err.data;
-        throw new Error(`OpenAI API error: ${err.statusCode} - ${dataStr}`);
-      }
-      throw err;
-    }
-  }
-
-  async listModels() {
-    return this.request('/models');
-  }
-
-  async testConnection() {
-    try {
-      const response = await this.listModels();
-      const models = Array.isArray(response?.data) ? response.data : [];
-      const codexModels = models.filter((model) => String(model?.id || '').includes('codex'));
-      return providerHealth.ok('codex', {
-        configured: true,
-        installed: await this.isCodexInstalled(),
-        docsUrl: 'https://developers.openai.com/api/docs/guides/migrate-to-responses',
-        endpointLabel: 'GET /v1/models',
-        message: `Connected to OpenAI. ${codexModels.length} Codex-capable model${codexModels.length === 1 ? '' : 's'} found.`,
-        diagnostics: { modelCount: models.length, codexModelCount: codexModels.length },
-      });
-    } catch (err) {
-      return providerHealth.fail('codex', err, {
-        configured: !!this.apiKey,
-        installed: await this.isCodexInstalled(),
-        docsUrl: 'https://developers.openai.com/api/docs/guides/migrate-to-responses',
-        endpointLabel: 'GET /v1/models',
-      });
-    }
   }
 
   setTrackedThreads(threads) {
@@ -181,9 +105,7 @@ class CodexService {
       updatedAt: record.updatedAt ? new Date(record.updatedAt) : null,
       summary: record.responseText || record.status || null,
       rawId: record.id,
-      webUrl: record.responseId
-        ? `https://platform.openai.com/logs/response/${record.responseId}`
-        : null,
+      webUrl: null,
       source: record.type || 'response',
     };
   }
@@ -220,6 +142,11 @@ class CodexService {
       throw new Error(`Codex task not found: ${recordId}`);
     }
 
+    const streamMessages = Array.isArray(record.streamMessages) ? record.streamMessages : [];
+    const streamHasContent = streamMessages.some(
+      (msg) => (msg.content || '').trim() || msg.thinking || (msg.toolCalls?.length ?? 0) > 0
+    );
+
     return {
       ...this.normalizeRecord(record),
       messages: [
@@ -229,16 +156,18 @@ class CodexService {
           content: record.prompt || '',
           createdAt: record.createdAt || null,
         },
-        ...(record.responseText
-          ? [
-              {
-                id: `${record.id}-response`,
-                role: 'assistant',
-                content: record.responseText,
-                createdAt: record.updatedAt || null,
-              },
-            ]
-          : []),
+        ...(streamHasContent
+          ? streamMessages
+          : record.responseText
+            ? [
+                {
+                  id: `${record.id}-response`,
+                  role: 'assistant',
+                  content: record.responseText,
+                  createdAt: record.updatedAt || null,
+                },
+              ]
+            : []),
       ],
       runs: [
         {
@@ -250,63 +179,6 @@ class CodexService {
         },
       ],
     };
-  }
-
-  async createResponse(options = {}) {
-    const { prompt, repository, branch, title, model = CODEX_DEFAULT_MODEL, attachments } = options;
-    if (!prompt) {
-      throw new Error('Prompt is required');
-    }
-
-    let input = prompt;
-    if (repository) input += `\n\nRepository context: ${repository}`;
-    if (branch) input += `\nBranch: ${branch}`;
-    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-      input += `\n\nAttachments were provided as data URLs. Review them only if the selected model supports image inputs.`;
-      for (const attachment of attachments) {
-        if (attachment?.dataUrl) {
-          input += `\n${attachment.name || 'Image'}: ${attachment.dataUrl}`;
-        }
-      }
-    }
-
-    const response = await this.request('/responses', 'POST', {
-      model,
-      input,
-      store: true,
-      metadata: {
-        title: title || prompt.substring(0, 50),
-        repository: repository || '',
-        branch: branch || '',
-      },
-    });
-
-    const id = response.id || `response-${Date.now()}`;
-    const record = this.trackThread(id, {
-      id,
-      type: 'response',
-      responseId: response.id,
-      prompt,
-      repository,
-      branch,
-      title: title || prompt.substring(0, 50),
-      model,
-      status: response.status || 'completed',
-      responseText: response.output_text || this.extractResponseText(response),
-    });
-
-    return this.normalizeRecord(record);
-  }
-
-  extractResponseText(response) {
-    const output = Array.isArray(response?.output) ? response.output : [];
-    return (
-      output
-        .flatMap((item) => (Array.isArray(item?.content) ? item.content : []))
-        .map((content) => content?.text || '')
-        .filter(Boolean)
-        .join('\n') || null
-    );
   }
 
   async startSession(options) {
@@ -326,7 +198,9 @@ class CodexService {
     const sessionId = `codex-cli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     // An explicit custom CLI command opts out of ACP (it names the CLI itself).
     const adapter =
-      command && String(command).trim() ? null : acpService.resolveAdapter('codex');
+      command && String(command).trim()
+        ? null
+        : toAdapterSpec(acpService.resolveAdapter('codex'));
 
     if (adapter) {
       return this._startAcpSession(adapter, { prompt, projectPath: cwd, model: options.model }, sessionId);
@@ -345,6 +219,7 @@ class CodexService {
       title: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
     });
     record.streamText = '';
+    record.streamMessages = [];
     this._persistThreads();
 
     const buildCard = (message) => ({ ...this.normalizeRecord(record), message });
@@ -360,7 +235,8 @@ class CodexService {
 
       acpService
         .runPrompt({
-          command: adapter,
+          command: adapter.command,
+          args: adapter.args,
           cwd: projectPath,
           prompt,
           model,
@@ -373,13 +249,31 @@ class CodexService {
             );
           },
           onUpdate: (update) => {
-            if (update?.sessionUpdate !== 'agent_message_chunk') return;
+            const nextMessages = applySessionUpdate(
+              record.streamMessages,
+              update,
+              new Date().toISOString()
+            );
             const text =
-              typeof update.content === 'string' ? update.content : update.content?.text;
-            if (!text || !text.trim()) return;
-            record.streamText = (record.streamText + text).slice(-STREAM_TEXT_CAP);
-            record.responseText = record.streamText;
-            this._updateTrackedThread(sessionId, { responseText: record.streamText }, true);
+              update?.sessionUpdate === 'agent_message_chunk'
+                ? typeof update.content === 'string'
+                  ? update.content
+                  : update.content?.text
+                : null;
+            if (text && text.trim()) {
+              record.streamText = (record.streamText + text).slice(-STREAM_TEXT_CAP);
+              record.responseText = record.streamText;
+            }
+            if (nextMessages === record.streamMessages && !text) return;
+            record.streamMessages = nextMessages;
+            this._updateTrackedThread(
+              sessionId,
+              {
+                responseText: record.streamText,
+                streamMessages: record.streamMessages,
+              },
+              true
+            );
           },
         })
         .then(({ stopReason }) => {
@@ -429,13 +323,10 @@ class CodexService {
     args.push(prompt);
 
     return new Promise((resolve, reject) => {
-      const child = spawn(codexCmd, args, {
+      const child = spawnCli(codexCmd, args, {
         cwd,
-        shell: false,
         detached: true,
         stdio: 'ignore',
-        env: { ...process.env },
-        windowsHide: true,
       });
 
       child.on('error', (err) => {
@@ -505,11 +396,17 @@ class CodexService {
   }
 
   async createTask(options = {}) {
-    const repoPath = options.projectPath || options.repository;
-    if (repoPath && (await pathExists(repoPath)) && (await this.isCodexInstalled())) {
-      return this.startSession({ ...options, projectPath: repoPath });
+    if (!(await this.isCodexInstalled())) {
+      throw new Error('Codex CLI not installed');
     }
-    return this.createResponse(options);
+    const repoPath = options.projectPath || options.repository;
+    if (!repoPath) {
+      throw new Error('Project path is required');
+    }
+    if (!(await pathExists(repoPath))) {
+      throw new Error(`Project path does not exist: ${repoPath}`);
+    }
+    return this.startSession({ ...options, projectPath: repoPath });
   }
 
   async getAvailableLocalRepositories(paths = []) {

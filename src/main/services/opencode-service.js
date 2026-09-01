@@ -1,17 +1,18 @@
 const path = require('path');
 const os = require('os');
-const { spawn, spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 const configStore = require('./config-store');
 const projectService = require('./project-service');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
+const { isCommandRunnable, spawnCli, spawnCliSync } = require('../utils/cli-spawn');
 const {
   isValidOpenCodeSessionId,
   parseJsonlEvent,
   appendStreamMessage,
-  appendAgentChunk,
+  applySessionUpdate,
   parseExportToMessages,
 } = require('./opencode-session-parser');
 
@@ -20,29 +21,11 @@ const EXPORT_TIMEOUT_MS = 60000;
 const STDOUT_BUFFER_CAP = 512 * 1024;
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 
-function isCommandRunnable(cmd) {
-  if (!cmd) return false;
-  try {
-    const r = spawnSync(String(cmd), ['--version'], {
-      shell: false,
-      stdio: 'ignore',
-      timeout: 2000,
-      windowsHide: true,
-    });
-    if (r.error) return false;
-    return r.status === 0;
-  } catch {
-    return false;
-  }
-}
-
 function supportsRunSubcommand(executable) {
   try {
-    const r = spawnSync(executable, ['run', '-h'], {
-      shell: false,
+    const r = spawnCliSync(executable, ['run', '-h'], {
       stdio: 'ignore',
       timeout: 6000,
-      windowsHide: true,
     });
     if (r.error) {
       return r.error.code !== 'ENOENT';
@@ -56,11 +39,9 @@ function supportsRunSubcommand(executable) {
 function isWindowsTerminalAvailable() {
   if (process.platform !== 'win32') return false;
   try {
-    const r = spawnSync('where', ['wt.exe'], {
-      shell: false,
+    const r = spawnCliSync('where', ['wt.exe'], {
       stdio: 'ignore',
       timeout: 3000,
-      windowsHide: true,
     });
     return r.status === 0;
   } catch {
@@ -230,6 +211,11 @@ class OpenCodeService {
 
     const opencodeCmd =
       command && String(command).trim() ? String(command).trim() : this.getExecutable();
+    if (!isCommandRunnable(opencodeCmd)) {
+      throw new Error(
+        'OpenCode CLI is not on PATH. Install with `npm i -g opencode-ai` or set a custom executable in Settings.'
+      );
+    }
     const sessionId = `opencode-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     // An explicit custom CLI command opts out of ACP (it names the CLI itself).
@@ -289,15 +275,13 @@ class OpenCodeService {
             );
           },
           onUpdate: (update) => {
-            if (update?.sessionUpdate !== 'agent_message_chunk') return;
-            const text =
-              typeof update.content === 'string' ? update.content : update.content?.text;
-            if (!text || !text.trim()) return;
-            streamState.streamMessages = appendAgentChunk(
+            const next = applySessionUpdate(
               streamState.streamMessages,
-              text,
+              update,
               new Date().toISOString()
             );
+            if (next === streamState.streamMessages) return;
+            streamState.streamMessages = next;
             this._updateSessionDebounced(sessionId, () => ({
               streamMessages: streamState.streamMessages,
             }));
@@ -329,10 +313,16 @@ class OpenCodeService {
           if (!cardResolved && err?.fallbackAllowed) {
             this.trackedSessions = this.trackedSessions.filter((x) => x.id !== sessionId);
             configStore.setOpenCodeSessions(this.trackedSessions);
-            this._spawnLegacySession(opencodeCmd, {}, { prompt, projectPath }, sessionId).then(
-              (card) => resolveOnce(card),
-              () => resolveOnce(buildCard(err.message))
-            );
+            try {
+              Promise.resolve(
+                this._spawnLegacySession(opencodeCmd, {}, { prompt, projectPath }, sessionId)
+              ).then(
+                (card) => resolveOnce(card),
+                (legacyErr) => resolveOnce(buildCard(legacyErr?.message || err.message))
+              );
+            } catch (legacyErr) {
+              resolveOnce(buildCard(legacyErr?.message || err.message));
+            }
             return;
           }
           this._updateSession(sessionId, {
@@ -351,8 +341,10 @@ class OpenCodeService {
 
   _spawnLegacySession(opencodeCmd, options, { prompt, projectPath }, sessionId) {
     if (!supportsRunSubcommand(opencodeCmd)) {
-      throw new Error(
-        'OpenCode CLI is too old or missing the "run" subcommand. Upgrade from https://opencode.ai/docs/cli/'
+      return Promise.reject(
+        new Error(
+          'OpenCode CLI is too old or missing the "run" subcommand. Upgrade from https://opencode.ai/docs/cli/'
+        )
       );
     }
 
@@ -362,13 +354,10 @@ class OpenCodeService {
     return new Promise((resolve, reject) => {
       let stderr = '';
       let stdoutBuf = '';
-      const child = spawn(opencodeCmd, args, {
+      const child = spawnCli(opencodeCmd, args, {
         cwd: projectPath,
-        shell: false,
         detached: true,
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
-        windowsHide: true,
       });
 
       child.on('error', (err) => {
@@ -471,12 +460,10 @@ class OpenCodeService {
   }
 
   _runExport(opencodeCmd, projectPath, opencodeSessionId) {
-    const result = spawnSync(opencodeCmd, ['export', opencodeSessionId], {
+    const result = spawnCliSync(opencodeCmd, ['export', opencodeSessionId], {
       cwd: projectPath,
-      shell: false,
       encoding: 'utf8',
       timeout: EXPORT_TIMEOUT_MS,
-      windowsHide: true,
       maxBuffer: 10 * 1024 * 1024,
     });
     return {

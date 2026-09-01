@@ -34,10 +34,12 @@ const { spawn, spawnSync } = require('child_process');
 const acpService = require('../../src/main/services/acp-service');
 const configStore = require('../../src/main/services/config-store');
 const opencodeService = require('../../src/main/services/opencode-service');
+const { expectSpawnedCli, platformCli } = require('./helpers/cli-spawn-assert');
 
 describe('OpenCodeService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    spawnSync.mockReturnValue({ status: 0 });
     opencodeService.setTrackedSessions([]);
   });
 
@@ -84,7 +86,7 @@ describe('OpenCodeService', () => {
 
       expect(acpService.runPrompt).toHaveBeenCalledWith(
         expect.objectContaining({
-          command: 'opencode',
+          command: platformCli('opencode'),
           args: ['acp'],
           cwd: '/repo',
           prompt: 'Fix the bug',
@@ -126,10 +128,19 @@ describe('OpenCodeService', () => {
         projectPath: '/repo',
       });
 
-      expect(spawn).toHaveBeenCalledWith(
-        'opencode',
-        expect.arrayContaining(['run', '--dir', '/repo', 'Fix the bug']),
-        expect.objectContaining({ cwd: '/repo', detached: true })
+      expectSpawnedCli(
+        spawn,
+        platformCli('opencode'),
+        [
+          'run',
+          '--dir',
+          '/repo',
+          '--format',
+          'json',
+          '--dangerously-skip-permissions',
+          'Fix the bug',
+        ],
+        expect.objectContaining({ cwd: '/repo', detached: true, shell: false })
       );
       expect(result.message).toContain('opencode run');
       expect(opencodeService.getTrackedSessions()).toHaveLength(1);
@@ -207,10 +218,19 @@ describe('OpenCodeService', () => {
       });
 
       expect(acpService.runPrompt).not.toHaveBeenCalled();
-      expect(spawn).toHaveBeenCalledWith(
+      expectSpawnedCli(
+        spawn,
         'custom-opencode',
-        expect.arrayContaining(['run', 'Fix the bug']),
-        expect.objectContaining({ detached: true })
+        [
+          'run',
+          '--dir',
+          '/repo',
+          '--format',
+          'json',
+          '--dangerously-skip-permissions',
+          'Fix the bug',
+        ],
+        expect.objectContaining({ detached: true, shell: false })
       );
     });
   });

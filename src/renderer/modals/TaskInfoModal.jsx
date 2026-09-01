@@ -2,34 +2,36 @@ import React from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import Button from '../components/ui/Button.jsx';
 import { parseMarkdown } from '../utils/markdown.js';
+import { IconClose } from '../components/ui/icons.jsx';
 import DOMPurify from 'dompurify';
 
 export default function TaskInfoModal({ task, onClose, onBuild }) {
   if (!task) return null;
 
   return (
-    <Modal open={!!task} onClose={onClose}>
-      <div className="bg-white dark:bg-sidebar-dark border border-slate-200 dark:border-border-dark w-full max-w-2xl overflow-hidden flex flex-col shadow-2xl rounded-2xl">
-        <div className="p-6 border-b border-slate-200 dark:border-border-dark flex justify-between items-start bg-white dark:bg-black/40">
-          <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white tracking-tight leading-tight flex-1 mr-4">
+    <Modal open={!!task} onClose={onClose} size="md">
+      <div className="flex max-h-[85vh] flex-col">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark">
+          <h2 className="flex-1 text-[15px] font-semibold leading-snug text-neutral-900 dark:text-neutral-100">
             {task.title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 dark:hover:text-primary transition-colors"
+            aria-label="Close task details"
+            className="rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
           >
-            <span className="material-symbols-outlined">close</span>
+            <IconClose size={16} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-background-dark max-h-[70vh]">
-          <div className="prose dark:prose-invert prose-sm max-w-none text-slate-600 dark:text-slate-300 font-light leading-relaxed">
+        <div className="max-h-[70vh] flex-1 overflow-y-auto p-4">
+          <div className="prose prose-sm max-w-none leading-relaxed text-neutral-600 dark:prose-invert dark:text-neutral-300">
             <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(parseMarkdown(task.description)) }} />
           </div>
         </div>
 
-        <div className="p-4 bg-slate-50 dark:bg-black border-t border-slate-200 dark:border-border-dark flex justify-end gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border-light px-4 py-3 dark:border-border-dark">
           <Button variant="secondary" onClick={onClose}>
             Close
           </Button>

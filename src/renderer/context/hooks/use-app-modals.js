@@ -7,9 +7,14 @@ export function useAppModals(dispatch) {
   return useMemo(
     () => ({
       setView: (view) => dispatch({ type: 'SET_VIEW', payload: view }),
-      openAgentModal: (agent) => dispatch({ type: 'OPEN_AGENT_MODAL', payload: agent }),
-      closeAgentModal: () => dispatch({ type: 'CLOSE_AGENT_MODAL' }),
-      openNewTaskModal: (options) => dispatch({ type: 'OPEN_NEW_TASK_MODAL', payload: options }),
+      openTask: (agent) => dispatch({ type: 'OPEN_TASK', payload: agent }),
+      closeTask: () => dispatch({ type: 'CLOSE_TASK' }),
+      setSidebarWidth: (width) => dispatch({ type: 'SET_SIDEBAR_WIDTH', payload: width }),
+      setSidebarMode: (mode) => dispatch({ type: 'SET_SIDEBAR_MODE', payload: mode }),
+      openNewTaskModal: (options) => {
+        dispatch({ type: 'OPEN_NEW_TASK_MODAL', payload: options });
+        dispatch({ type: 'SET_VIEW', payload: 'new-task' });
+      },
       closeNewTaskModal: () => dispatch({ type: 'CLOSE_NEW_TASK_MODAL' }),
       openCreateRepoModal: () => dispatch({ type: 'OPEN_CREATE_REPO_MODAL' }),
       closeCreateRepoModal: () => dispatch({ type: 'CLOSE_CREATE_REPO_MODAL' }),

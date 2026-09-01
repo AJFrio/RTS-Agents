@@ -28,7 +28,7 @@ export function createAgentOrchestratorService({ openrouter, storage } = {}) {
     if (!storage.hasApiKey('openrouter')) {
       return {
         role: 'assistant',
-        content: 'Please configure an OpenRouter API key in Settings to use the Agent Orchestrator.',
+        content: 'Please configure an OpenRouter API key in Settings to use Janus.',
       };
     }
 

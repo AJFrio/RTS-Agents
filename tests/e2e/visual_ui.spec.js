@@ -28,24 +28,30 @@ test.describe('UI visual smoke coverage', () => {
       'agent',
       'branches',
       'pull-requests',
-      'computers',
+      'devices',
+      'plugins',
       'settings',
     ]) {
       await window.locator(`button[data-view="${view}"]`).click();
       await expect(window.locator(`#view-${view}`)).toBeVisible();
+      await window.mouse.move(0, 0);
+      await window.waitForTimeout(300);
       await window.screenshot({ path: `test-results/visual-${view}-light.png`, fullPage: false });
     }
 
     await window.locator('#new-task-btn').click();
     await expect(window.locator('#new-task-modal')).toBeVisible();
+    await window.mouse.move(0, 0);
+    await window.waitForTimeout(300);
     await window.screenshot({ path: 'test-results/visual-new-task-light.png', fullPage: false });
-    await window.locator('[aria-label="Close modal"]').click({ position: { x: 5, y: 5 } });
 
     await window.locator('button[data-view="settings"]').click();
     await window.locator('#theme-dark').click();
     for (const view of ['dashboard', 'agent', 'settings']) {
       await window.locator(`button[data-view="${view}"]`).click();
       await expect(window.locator(`#view-${view}`)).toBeVisible();
+      await window.mouse.move(0, 0);
+      await window.waitForTimeout(300);
       await window.screenshot({ path: `test-results/visual-${view}-dark.png`, fullPage: false });
     }
   });

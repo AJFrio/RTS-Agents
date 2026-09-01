@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import { IconSync, IconChevronDown, IconCheck } from '../ui/icons.jsx';
 
 function normalizeModel(model) {
   if (!model) return null;
@@ -30,7 +31,14 @@ function normalizeModels(result) {
   return result.models.map(normalizeModel).filter(Boolean);
 }
 
-export default function ModelSelector({ value, onChange }) {
+function shortModelLabel(idOrName) {
+  if (!idOrName) return 'Model';
+  const text = String(idOrName);
+  const parts = text.split('/');
+  return parts[parts.length - 1] || text;
+}
+
+export default function ModelSelector({ value, onChange, variant = 'default' }) {
   const { api } = useApp();
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -163,52 +171,100 @@ export default function ModelSelector({ value, onChange }) {
     }
   }, [highlightedIndex, isOpen]);
 
+  const isInline = variant === 'inline';
+
   return (
-    <div className="relative" ref={containerRef}>
-      <div className="flex items-center bg-white dark:bg-black/40 border border-slate-200 dark:border-border-dark rounded-lg focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-        <input
-          type="text"
-          value={isOpen ? search : (selectedDisplay || '')}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setIsOpen(true);
-            setHighlightedIndex(0);
+    <div className={`relative ${isInline ? '' : 'w-full'}`} ref={containerRef}>
+      {isInline ? (
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(!isOpen);
+            if (isOpen) setSearch('');
           }}
-          onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={loading ? "Loading models..." : "Select or type model..."}
-          className="flex-1 bg-transparent border-none text-sm py-2.5 px-4 text-slate-800 dark:text-white focus:ring-0 placeholder:text-slate-500 w-full"
-        />
-        <div className="flex items-center pr-2">
-            {loading ? (
-                <span className="material-symbols-outlined text-slate-400 animate-spin text-lg">sync</span>
-            ) : (
-                <button
-                    type="button"
-                    onClick={() => {
-                        setIsOpen(!isOpen);
-                        if (isOpen) setSearch('');
-                    }}
-                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                >
-                    <span className="material-symbols-outlined text-lg">
-                        {isOpen ? 'expand_less' : 'expand_more'}
-                    </span>
-                </button>
-            )}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-label="Select Janus model"
+          className="inline-flex max-w-[200px] items-center gap-1 rounded-md px-1.5 py-1 text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+        >
+          <span className="min-w-0 truncate">
+            {loading ? 'Loading…' : shortModelLabel(selectedDisplay)}
+          </span>
+          {loading ? (
+            <IconSync size={12} className="shrink-0 animate-spin" />
+          ) : (
+            <IconChevronDown size={12} className={`shrink-0 opacity-70 ${isOpen ? 'rotate-180' : ''}`} />
+          )}
+        </button>
+      ) : (
+        <div className="flex items-center bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-md focus-within:border-border-strong-light dark:focus-within:border-border-strong-dark transition-colors duration-150">
+          <input
+            type="text"
+            value={isOpen ? search : (selectedDisplay || '')}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setIsOpen(true);
+              setHighlightedIndex(0);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={loading ? "Loading models..." : "Select or type model..."}
+            className="flex-1 bg-transparent border-none text-[13px] py-2 px-3 text-neutral-800 dark:text-neutral-200 focus:outline-none focus:ring-0 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 w-full"
+          />
+          <div className="flex items-center pr-1.5">
+              {loading ? (
+                  <IconSync size={15} className="animate-spin text-neutral-400" />
+              ) : (
+                  <button
+                      type="button"
+                      onClick={() => {
+                          setIsOpen(!isOpen);
+                          if (isOpen) setSearch('');
+                      }}
+                      aria-label={isOpen ? 'Collapse model list' : 'Expand model list'}
+                      className="p-1 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+                  >
+                      <IconChevronDown size={15} className={isOpen ? 'rotate-180' : ''} />
+                  </button>
+              )}
+          </div>
         </div>
-      </div>
+      )}
 
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-border-dark rounded-lg shadow-xl" ref={listRef}>
+        <div
+          className={`absolute z-50 overflow-y-auto bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-md ${
+            isInline
+              ? 'bottom-full left-0 mb-1 max-h-60 w-72'
+              : 'left-0 right-0 mt-1 max-h-60'
+          }`}
+          ref={listRef}
+        >
+          {isInline && (
+            <div className="sticky top-0 border-b border-border-light bg-card-light px-2 py-1.5 dark:border-border-dark dark:bg-card-dark">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setHighlightedIndex(0);
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Search models"
+                aria-label="Search models"
+                className="w-full border-0 bg-transparent px-1 text-[12px] focus:ring-0"
+              />
+            </div>
+          )}
           {Object.keys(groupedModels).length === 0 ? (
-             <div className="px-4 py-3 text-sm text-slate-500 italic">
+             <div className="px-3 py-2.5 text-[13px] text-neutral-500 dark:text-neutral-400">
                {search.trim() ? `Press Enter to use "${search}"` : 'No models found'}
              </div>
           ) : (
             Object.entries(groupedModels).map(([provider, items]) => (
                 <div key={provider}>
-                    <div className="px-3 py-1.5 bg-slate-50 dark:bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 backdrop-blur-sm">
+                    <div className="px-3 py-1.5 bg-inset-light dark:bg-inset-dark text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider sticky top-0">
                         {provider}
                     </div>
                     {items.map((model) => {
@@ -222,14 +278,14 @@ export default function ModelSelector({ value, onChange }) {
                                 type="button"
                                 data-index={index}
                                 onClick={() => selectModel(model)}
-                                className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center justify-between group ${
+                                className={`w-full text-left px-3 py-2 text-[13px] transition-colors flex items-center justify-between group ${
                                     isHighlighted
-                                        ? 'bg-primary/10 text-primary'
-                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
-                                } ${isSelected ? 'font-medium text-primary' : ''}`}
+                                        ? 'bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+                                        : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
+                                } ${isSelected ? 'font-medium' : ''}`}
                             >
                                 <span className="truncate mr-2">{model.name}</span>
-                                {isSelected && <span className="material-symbols-outlined text-lg">check</span>}
+                                {isSelected && <IconCheck size={14} className="shrink-0 text-neutral-700 dark:text-neutral-300" />}
                             </button>
                         );
                     })}

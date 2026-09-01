@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import {
+  IconAgent,
+  IconNewTask,
+  IconDevices,
+  IconPullRequests,
+  IconRepositories,
+  IconSettings,
+  IconTasks,
+} from '../ui/icons.jsx';
 
 const NAV_ITEMS = [
-  { view: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
-  { view: 'agent', icon: 'smart_toy', label: 'Agent Chat' },
-  { view: 'branches', icon: 'source', label: 'Repositories' },
-  { view: 'pull-requests', icon: 'merge_type', label: 'Pull Requests' },
-  { view: 'computers', icon: 'computer', label: 'Computers' },
-  { view: 'jira', icon: 'assignment', label: 'Jira' },
-  { view: 'settings', icon: 'settings', label: 'Settings' },
+  { view: 'agent', Icon: IconAgent, label: 'Agent' },
+  { view: 'new-task', Icon: IconNewTask, label: 'New Task' },
+  { view: 'dashboard', Icon: IconTasks, label: 'Tasks' },
+  { view: 'branches', Icon: IconRepositories, label: 'Repos' },
+  { view: 'pull-requests', Icon: IconPullRequests, label: 'PRs' },
+  { view: 'devices', Icon: IconDevices, label: 'Devices' },
+  { view: 'settings', Icon: IconSettings, label: 'Settings' },
 ];
 
 function useBelowMd() {
@@ -25,66 +34,45 @@ function useBelowMd() {
 }
 
 export default function BottomNav() {
-  const { state, setView, openNewTaskModal } = useApp();
+  const { state, setView } = useApp();
   const { currentView } = state;
   const belowMd = useBelowMd();
 
   if (!belowMd) return null;
 
   return (
-    <>
-      {/* Compact floating New Task button (mobile only) */}
-      <button
-        type="button"
-        id="new-task-btn-mobile"
-        aria-label="New Task"
-        className="md:hidden fixed bottom-20 right-4 z-40 w-12 h-12 bg-primary text-black flex items-center justify-center rounded-full shadow-lg hover:shadow-md hover:brightness-110 active:scale-[0.98] transition-all duration-200"
-        onClick={openNewTaskModal}
-      >
-        <span className="material-symbols-outlined text-base">add</span>
-      </button>
-
-      {/* Bottom navigation (mobile only) */}
-      <nav
-        id="bottom-nav"
-        className="bottom-nav md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-sidebar-dark border-t border-slate-200 dark:border-border-dark z-30 safe-bottom shadow-lg"
-      >
-        <div className="flex items-center justify-around h-full max-w-xl mx-auto overflow-x-auto">
-          {NAV_ITEMS.map(({ view, icon, label }) => {
-            const isActive = currentView === view;
-
-            return (
-              <button
-                key={view}
-                type="button"
-                data-view={view}
-                onClick={() => setView(view)}
-                className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 relative ${
-                  isActive
-                    ? 'text-primary'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
+    <nav
+      id="bottom-nav"
+      className="bottom-nav safe-bottom fixed bottom-0 left-0 right-0 z-30 h-16 border-t border-border-light bg-card-light md:hidden dark:border-border-dark dark:bg-card-dark"
+    >
+      <div className="mx-auto flex h-full max-w-xl items-center justify-around overflow-x-auto">
+        {NAV_ITEMS.map(({ view, Icon, label }) => {
+          const isActive = currentView === view;
+          return (
+            <button
+              key={view}
+              type="button"
+              data-view={view}
+              onClick={() => setView(view)}
+              className={`relative flex h-full flex-1 flex-col items-center justify-center transition-colors ${
+                isActive
+                  ? 'text-neutral-900 dark:text-neutral-100'
+                  : 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
+              }`}
+            >
+              <Icon size={20} className={isActive ? 'scale-110 transition-transform' : ''} />
+              <span
+                className={`mt-0.5 text-[9px] font-medium ${isActive ? 'font-semibold' : ''}`}
               >
-                <span
-                  className={`material-symbols-outlined text-2xl transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}
-                >
-                  {icon}
-                </span>
-                <span
-                  className={`text-[9px] font-medium mt-0.5 transition-all duration-200 ${
-                    isActive ? 'font-semibold' : ''
-                  }`}
-                >
-                  {label}
-                </span>
-
-                {/* Active indicator */}
-                {isActive && <div className="absolute bottom-0 w-8 h-1 bg-primary rounded-t-full" />}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-    </>
+                {label}
+              </span>
+              {isActive && (
+                <div className="absolute bottom-0 h-1 w-8 rounded-t-full bg-neutral-900 dark:bg-neutral-100" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

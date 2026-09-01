@@ -3,7 +3,6 @@ jest.mock('../../src/main/services/config-store', () => ({
 }));
 
 jest.mock('../../src/main/services/acp-service', () => ({
-  buildSpawnArgs: jest.fn((command, args) => ({ command, args })),
   resolveAdapter: jest.fn(() => null),
 }));
 
@@ -33,6 +32,7 @@ jest.mock('child_process', () => ({
 }));
 
 const { spawn } = require('child_process');
+const { expectSpawnedCli } = require('./helpers/cli-spawn-assert');
 const configStore = require('../../src/main/services/config-store');
 const acpService = require('../../src/main/services/acp-service');
 const cursorService = require('../../src/main/services/cursor-service');
@@ -76,7 +76,8 @@ describe('model-registry', () => {
       'openai/gpt-5.2',
       'google/gemini-3-pro',
     ]);
-    expect(spawn).toHaveBeenCalledWith(
+    expectSpawnedCli(
+      spawn,
       'opencode',
       ['models'],
       expect.objectContaining({ shell: false, timeout: expect.any(Number) })
@@ -106,25 +107,11 @@ describe('model-registry', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
-  test('lists codex models via the OpenAI API when a key is configured', async () => {
-    configStore.hasApiKey.mockImplementation((id) => id === 'codex');
-    codexService.listModels.mockResolvedValue({
-      data: [{ id: 'gpt-5.2' }, { id: 'gpt-5.2-codex' }],
-    });
-
-    const result = await modelRegistry.getModelsForProvider('codex');
-
-    expect(result.success).toBe(true);
-    expect(result.source).toBe('api');
-    expect(result.models).toEqual(['gpt-5.2', 'gpt-5.2-codex']);
-  });
-
-  test('returns no codex models without an API key', async () => {
+  test('returns no live Codex model list (CLI-only harness)', async () => {
     const result = await modelRegistry.getModelsForProvider('codex');
 
     expect(result.models).toEqual([]);
     expect(result.source).toBe('none');
-    expect(codexService.listModels).not.toHaveBeenCalled();
   });
 
   test('normalizes cursor cloud model payloads when a key is configured', async () => {
@@ -150,7 +137,7 @@ describe('model-registry', () => {
     expect(result.success).toBe(true);
     expect(result.source).toBe('cli');
     expect(result.models).toEqual(['gpt-5', 'claude-opus-4-8']);
-    expect(spawn).toHaveBeenCalledWith('agent', ['models'], expect.anything());
+    expectSpawnedCli(spawn, 'agent', ['models']);
   });
 
   test('lists claude cloud models via the Anthropic API when a key is configured', async () => {

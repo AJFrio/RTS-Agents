@@ -25,6 +25,10 @@ jest.mock('../../src/main/services/config-store', () => ({
   getSetting: jest.fn(() => ({})),
   setOpenCodeSessions: jest.fn(),
   getOpenCodeSessions: jest.fn(() => []),
+  setClaudeCliSessions: jest.fn(),
+  getClaudeCliSessions: jest.fn(() => []),
+  setAntigravitySessions: jest.fn(),
+  getAntigravitySessions: jest.fn(() => []),
 }));
 
 // The command-injection tests verify the legacy detached-CLI spawn args, so
@@ -44,6 +48,8 @@ jest.mock('../../src/main/services/acp-service', () => ({
   pickPermissionOption: jest.fn(),
   buildSpawnArgs: jest.fn(),
 }));
+
+const { buildSpawnArgs } = require('../../src/main/utils/cli-spawn');
 
 // Require services AFTER mocking/spying
 let claudeService = require('../../src/main/services/claude-service');
@@ -69,18 +75,21 @@ describe('Security Verification - Command Injection', () => {
 
       await claudeService.startLocalSession({ prompt, projectPath });
 
+      const claudeBin = process.platform === 'win32' ? 'claude.cmd' : 'claude';
+      const spec = buildSpawnArgs(claudeBin, ['-p', prompt, '--allowedTools', 'Read,Edit,Bash']);
       expect(spawnSpy).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.arrayContaining(['-p', prompt]),
+        spec.command,
+        spec.args,
         expect.objectContaining({
           shell: false,
         })
       );
 
-      // Verify no manual quoting of the prompt argument
-      const call = spawnSpy.mock.calls.find((c) => c[1].includes('-p'));
-      if (call) {
-        const promptArg = call[1][call[1].indexOf('-p') + 1];
+      if (process.platform === 'win32') {
+        expect(spec.command).toBe('cmd.exe');
+        expect(spec.args[3]).toContain(prompt.replace(/"/g, '\\"'));
+      } else {
+        const promptArg = spec.args[spec.args.indexOf('-p') + 1];
         expect(promptArg).toBe(prompt);
         expect(promptArg).not.toMatch(/^".*"$/);
       }

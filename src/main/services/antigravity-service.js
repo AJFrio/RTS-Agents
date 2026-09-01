@@ -1,31 +1,20 @@
 const path = require('path');
 const os = require('os');
-const { spawn, spawnSync } = require('child_process');
 const configStore = require('./config-store');
 const projectService = require('./project-service');
 const { pathExists, pathExistsAny } = require('../utils/path-exists');
 const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
+const acpService = require('./acp-service');
+const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
+const { applySessionUpdate } = require('./opencode-session-parser');
 
-function isCommandRunnable(cmd) {
-  if (!cmd) return false;
-  try {
-    const r = spawnSync(String(cmd), ['--version'], {
-      shell: false,
-      stdio: 'ignore',
-      timeout: 3000,
-      windowsHide: true,
-    });
-    if (r.error) return false;
-    return r.status === 0;
-  } catch {
-    return false;
-  }
-}
+const ACP_PERSIST_DEBOUNCE_MS = 1000;
 
 class AntigravityService {
   constructor() {
     this.trackedSessions = [];
+    this._persistTimer = null;
   }
 
   setTrackedSessions(sessions) {
@@ -107,22 +96,121 @@ class AntigravityService {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
+    const sessionId = `antigravity-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const adapter =
+      command && String(command).trim()
+        ? null
+        : toAdapterSpec(acpService.resolveAdapter('antigravity'));
+
+    if (adapter) {
+      return this._startAcpSession(adapter, { prompt, projectPath, model }, sessionId);
+    }
+    return this._spawnLegacySession({ prompt, projectPath, command, model }, sessionId);
+  }
+
+  _startAcpSession(adapter, { prompt, projectPath, model }, sessionId) {
+    const entry = {
+      id: sessionId,
+      rawId: sessionId,
+      prompt,
+      projectPath,
+      status: 'running',
+      streamMessages: [],
+      error: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.trackedSessions = [entry, ...this.trackedSessions].slice(0, 100);
+    this._persistSessions();
+
+    const buildCard = (message) => ({
+      id: sessionId,
+      provider: 'antigravity',
+      name: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+      status: entry.status,
+      prompt,
+      repository: projectPath,
+      rawId: sessionId,
+      filePath: null,
+      message,
+      createdAt: new Date(),
+    });
+
+    return new Promise((resolveCard) => {
+      let cardResolved = false;
+      const resolveOnce = (card) => {
+        if (!cardResolved) {
+          cardResolved = true;
+          resolveCard(card);
+        }
+      };
+
+      acpService
+        .runPrompt({
+          command: adapter.command,
+          args: adapter.args,
+          cwd: projectPath,
+          prompt,
+          model,
+          permissionPolicy: 'allow-all',
+          onSessionId: () => {
+            resolveOnce(
+              buildCard(
+                'Antigravity task started over ACP. Live output streams into the task details.'
+              )
+            );
+          },
+          onUpdate: (update) => {
+            const next = applySessionUpdate(
+              entry.streamMessages,
+              update,
+              new Date().toISOString()
+            );
+            if (next === entry.streamMessages) return;
+            entry.streamMessages = next;
+            this._updateSession(sessionId, { streamMessages: entry.streamMessages }, true);
+          },
+        })
+        .then(({ stopReason }) => {
+          const failed = stopReason === 'error' || stopReason === 'cancelled';
+          this._updateSession(sessionId, {
+            status: failed ? 'failed' : 'completed',
+            error: failed ? `Antigravity ACP turn ended with stopReason ${stopReason}` : null,
+          });
+          resolveOnce(buildCard('Antigravity task finished.'));
+        })
+        .catch((err) => {
+          if (!cardResolved && err?.fallbackAllowed) {
+            this.trackedSessions = this.trackedSessions.filter((x) => x.id !== sessionId);
+            this._persistSessions();
+            this._spawnLegacySession({ prompt, projectPath, model }, sessionId).then(
+              (card) => resolveOnce(card),
+              () => resolveOnce(buildCard(err.message))
+            );
+            return;
+          }
+          this._updateSession(sessionId, {
+            status: 'failed',
+            error: err?.message || String(err),
+          });
+          resolveOnce(buildCard(err?.message || 'ACP dispatch failed.'));
+        });
+    });
+  }
+
+  _spawnLegacySession({ prompt, projectPath, command, model }, sessionId) {
     const antigravityCmd =
       command && String(command).trim() ? String(command).trim() : this.getExecutable();
     const args = ['--print', prompt, '--print-timeout', '30m'];
     if (model) {
       args.push('--model', String(model));
     }
-    const sessionId = `antigravity-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     return new Promise((resolve, reject) => {
-      const child = spawn(antigravityCmd, args, {
+      const child = spawnCli(antigravityCmd, args, {
         cwd: projectPath,
-        shell: false,
         detached: true,
         stdio: 'ignore',
-        env: { ...process.env },
-        windowsHide: true,
       });
 
       child.on('error', (err) => {
@@ -149,7 +237,7 @@ class AntigravityService {
         updatedAt: new Date().toISOString(),
       };
       this.trackedSessions = [entry, ...this.trackedSessions].slice(0, 100);
-      configStore.setAntigravitySessions(this.trackedSessions);
+      this._persistSessions();
 
       setTimeout(() => {
         resolve({
@@ -168,37 +256,81 @@ class AntigravityService {
     });
   }
 
+  _updateSession(sessionId, patch, debounced = false) {
+    const idx = this.trackedSessions.findIndex((x) => x.id === sessionId);
+    if (idx === -1) return;
+    this.trackedSessions[idx] = {
+      ...this.trackedSessions[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    if (debounced) {
+      this._persistSessionsDebounced();
+    } else {
+      this._persistSessions();
+    }
+  }
+
+  _persistSessions() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+      this._persistTimer = null;
+    }
+    try {
+      configStore.setAntigravitySessions(this.trackedSessions);
+    } catch (err) {
+      console.error('Failed to persist Antigravity sessions:', err?.message || err);
+    }
+  }
+
+  _persistSessionsDebounced() {
+    if (this._persistTimer) {
+      clearTimeout(this._persistTimer);
+    }
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      this._persistSessions();
+    }, ACP_PERSIST_DEBOUNCE_MS);
+  }
+
   getAllAgents() {
-    return this.trackedSessions.map((t) => ({
-      id: t.id,
-      provider: 'antigravity',
-      name:
-        (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) ||
-        'Antigravity',
-      status: t.status || 'running',
-      prompt: t.prompt,
-      repository: t.projectPath,
-      rawId: t.id,
-      filePath: t.filePath || null,
-      summary: t.prompt || '',
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-    }));
+    return this.trackedSessions.map((t) => {
+      const stream = Array.isArray(t.streamMessages) ? t.streamMessages : [];
+      const lastContent = stream.length ? String(stream[stream.length - 1].content || '') : '';
+      return {
+        id: t.id,
+        provider: 'antigravity',
+        name:
+          (t.prompt && t.prompt.substring(0, 50) + (t.prompt.length > 50 ? '...' : '')) ||
+          'Antigravity',
+        status: t.status || 'running',
+        prompt: t.prompt,
+        repository: t.projectPath,
+        rawId: t.id,
+        filePath: t.filePath || null,
+        summary: lastContent ? lastContent.substring(0, 200) : t.prompt || '',
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      };
+    });
   }
 
   getSessionDetails(rawId) {
     const t = this.trackedSessions.find((x) => x.id === rawId);
     if (!t) return null;
+    const stream = Array.isArray(t.streamMessages) ? t.streamMessages : [];
+    const fallbackAssistant = {
+      role: 'assistant',
+      content:
+        'Session started via Antigravity CLI. For full history, use Antigravity CLI or the Antigravity desktop app in that repository.',
+    };
     return {
       name: t.prompt ? t.prompt.substring(0, 80) : 'Antigravity',
       prompt: t.prompt,
+      status: t.status || 'running',
       messages: [
         { role: 'user', content: t.prompt, timestamp: t.createdAt },
-        {
-          role: 'assistant',
-          content:
-            'Session started via Antigravity CLI. For full history, use Antigravity CLI or the Antigravity desktop app in that repository.',
-        },
+        ...(stream.length > 0 ? stream : [fallbackAssistant]),
       ],
       filePath: null,
     };

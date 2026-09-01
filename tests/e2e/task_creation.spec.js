@@ -19,10 +19,10 @@ test.describe('Task Creation Shortcut', () => {
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
 
-    // Open New Task Modal
+    // Open New Task tab
     await window.click('#new-task-btn');
-    const modal = window.locator('#new-task-modal');
-    await expect(modal).toBeVisible();
+    const view = window.locator('#new-task-modal');
+    await expect(view).toBeVisible();
 
     // Type in prompt
     const promptInput = window.locator('#task-prompt');
@@ -33,19 +33,18 @@ test.describe('Task Creation Shortcut', () => {
 
     const toast = window.getByText('Choose an agent before creating the task.').last();
     await expect(toast).toBeVisible();
-    await window.locator('[aria-label="Close modal"]').click({ position: { x: 5, y: 5 } });
   });
 
-  test('New Task modal exposes branch/ref and disabled reason', async () => {
+  test('New Task page exposes branch/ref and disabled reason', async () => {
     const window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
 
     await window.click('#new-task-btn');
-    const modal = window.locator('#new-task-modal');
-    await expect(modal).toBeVisible();
+    const view = window.locator('#new-task-modal');
+    await expect(view).toBeVisible();
 
     await expect(window.locator('#task-branch')).toBeVisible();
-    await expect(modal).toContainText('Choose an agent before creating the task.');
+    await expect(view).toContainText('Choose an agent before creating the task.');
     await expect(window.locator('#create-task-btn')).toBeDisabled();
   });
 });

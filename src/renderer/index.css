@@ -172,8 +172,47 @@ textarea {
   animation: status-pulse 2s ease-in-out infinite;
 }
 
+/* Outset ring avoids Chromium dropping 1px CSS-border pixels at large radii,
+   and is not covered by the textarea the way an inset shadow is. */
+.composer-shell {
+  box-shadow: 0 0 0 1px theme('colors.border-light');
+  transition: box-shadow 150ms ease;
+}
+.composer-shell:focus-within {
+  box-shadow: 0 0 0 1px theme('colors.border-strong-light');
+}
+.dark .composer-shell {
+  box-shadow: 0 0 0 1px theme('colors.neutral.700');
+}
+.dark .composer-shell:focus-within {
+  box-shadow: 0 0 0 1px theme('colors.neutral.500');
+}
+
+/* Janus working mark: two opposing arcs, counter-rotate while busy */
+@keyframes janus-orbit {
+  to { transform: rotate(360deg); }
+}
+@keyframes janus-orbit-rev {
+  to { transform: rotate(-360deg); }
+}
+.janus-orbit,
+.janus-orbit-rev {
+  transform-box: view-box;
+  transform-origin: center;
+}
+.janus-orbit {
+  animation: janus-orbit 1.4s linear infinite;
+}
+.janus-orbit-rev {
+  animation: janus-orbit-rev 1.8s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .status-pulse {
+    animation: none;
+  }
+  .janus-orbit,
+  .janus-orbit-rev {
     animation: none;
   }
   * {

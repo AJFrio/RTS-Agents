@@ -34,15 +34,33 @@ renders every task's transcript as a chat log on the canvas.
 - Running tasks always render above the collapse, even when the section is
   collapsed, with a pulsing emerald status dot.
 
-## Agent tab (orchestrator)
+## Agent tab (Janus)
 
-- Cursor-style chat against `orchestrator:chat`. The empty state heading
-  ("What should we work on?") and the Composer sit above the recent-task
-  list. The orchestrator model picker is an inline text+chevron control
-  inside the Composer (`variant="inline"`), not a page header.
-- The orchestrator's tool calls render as expandable rows; every task it
-  starts or references surfaces as a clickable task card that opens the task
-  chat log on the canvas.
+- Cursor-style chat against `orchestrator:chat`. Assistant turns are labeled
+  **Janus**. The empty state heading ("What should we work on?") and the
+  Composer sit above the recent-task list. Placeholder: "Ask Janus to start,
+  find, or summarize work…". The model picker is an inline text+chevron
+  control inside the Composer (`variant="inline"`), not a page header.
+- Composer shell uses an outset 1px ring (not CSS `border`) so rounded
+  corners stay continuous on Chromium and are not covered by the textarea.
+- Consecutive Janus / transcript tool calls collapse into one **Tool
+  Calls** bar (count in the label). Expanding it reveals each call, which
+  can then be expanded on its own. A single call still renders as one row.
+- Janus surfaces clickable cards inline with the turn: **task** (opens the
+  transcript; shows harness, repo, branch, time, and a prompt/summary
+  line), **device** (opens Devices and focuses that machine), **repo**
+  (GitHub → Repositories, local → Devices), and **pull request** (opens
+  the PR modal). `list_*` tools surface up to 8 of those cards themselves.
+  Show tools (`show_task`, `show_device`, `show_repo`, `show_pull_request`)
+  are for a single named item or something Janus just created. Janus
+  answers "what's running?" from the dashboard agent cache (no provider
+  rescan) and runs independent read tools in parallel. Write tools (only
+  when the user asked):
+  `create_local_repo`, `create_github_repo`, `pull_repo`,
+  `merge_pull_request`, `close_pull_request`, `mark_pr_ready`.
+- While a turn is in flight, a dual-orbit Janus mark + "Working…" appears
+  under the transcript (neutral, busy-state only; static under
+  `prefers-reduced-motion`).
 - A **Recent tasks** list (`#agent-recent-tasks`) sits below the Composer on
   the empty landing: title, status, harness, repo, relative time. Rows use
   `.agent-recent-task`. Sorted by `updatedAt`/`createdAt`, capped at 20.
@@ -50,7 +68,7 @@ renders every task's transcript as a chat log on the canvas.
   text/pill/dot; completed rows use grey. Sending a message animates the
   list closed (200ms, `prefers-reduced-motion` instant) so the chat owns
   the canvas. **New chat** (top-left) restores the empty landing and the
-  list. Orchestrator messages persist in `orchestratorChat` across tab
+  list. Janus messages persist in `orchestratorChat` across tab
   switches.
 - There is no Tasks header toggle or `TaskBrowserPanel`.
 
@@ -95,8 +113,9 @@ renders every task's transcript as a chat log on the canvas.
       previous view or Agent
 - [ ] Sidebar resize clamps to [200px, 33% window] and persists across restarts
 - [ ] Running tasks stay visible when their repo/harness section is collapsed
-- [ ] Orchestrator tool calls and task cards render in the chat; clicking a
-      card or a `.agent-recent-task` row opens the task chat log
+- [ ] Janus tool calls group under a Tool Calls bar; task / device /
+      repo / PR cards render in the chat; clicking a task card or a
+      `.agent-recent-task` row opens the task chat log
 - [ ] Plugins has no header Add service; card Add service / Manage opens a
       focused `Connect` / `Manage` modal with no catalog sidebar
 - [ ] ACP-dispatched sessions stream tool calls and thinking into the task

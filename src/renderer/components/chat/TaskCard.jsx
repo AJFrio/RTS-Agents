@@ -2,31 +2,18 @@ import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { providerMeta } from '../ui/icons.jsx';
 import { StatusDot, canvasStatusMeta } from '../ui/status.jsx';
+import { relativeTime, shortRepo, truncate } from './card-meta.js';
 
-function relativeTime(timestamp) {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return '';
-  const diff = Date.now() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d`;
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
-
-function shortRepo(repository) {
-  if (!repository) return null;
-  const text = String(repository);
-  const base = text.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
-  return base || text;
+function MetaDot() {
+  return (
+    <span aria-hidden="true" className="text-neutral-300 dark:text-neutral-600">
+      ·
+    </span>
+  );
 }
 
 /**
- * Chat task card: the overview the orchestrator surfaces for a task
+ * Chat task card: the overview Janus surfaces for a task
  * (DESIGN.md §5). Clicking opens the task transcript on the canvas.
  */
 export default function TaskCard({ task, compact = false, onClick }) {
@@ -38,6 +25,7 @@ export default function TaskCard({ task, compact = false, onClick }) {
   const running = statusKey === 'running';
   const completed = statusKey === 'completed';
   const repo = shortRepo(task?.repository);
+  const preview = truncate(task?.summary || task?.prompt, 140);
   const titleClass = running
     ? 'text-emerald-800 dark:text-emerald-400'
     : completed
@@ -57,7 +45,7 @@ export default function TaskCard({ task, compact = false, onClick }) {
       <button
         type="button"
         onClick={handleClick}
-        className="flex w-full items-center gap-2 rounded-md border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark px-2.5 py-2 text-left transition-colors hover:border-border-strong-light dark:hover:border-border-strong-dark"
+        className="flex w-full items-center gap-2 rounded-md border border-border-light bg-card-light px-2.5 py-2 text-left transition-colors hover:border-border-strong-light dark:border-border-dark dark:bg-card-dark dark:hover:border-border-strong-dark"
       >
         <Icon size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
         <span className={`min-w-0 flex-1 truncate text-[13px] ${titleClass}`}>
@@ -72,10 +60,10 @@ export default function TaskCard({ task, compact = false, onClick }) {
     <button
       type="button"
       onClick={handleClick}
-      className="w-full rounded-lg border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-3 text-left transition-colors hover:border-border-strong-light dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40"
+      className="w-full rounded-lg border border-border-light bg-card-light p-3 text-left transition-colors hover:border-border-strong-light dark:border-border-dark dark:bg-card-dark dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40"
     >
       <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-inset-light dark:bg-inset-dark text-neutral-600 dark:text-neutral-300">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-inset-light text-neutral-600 dark:bg-inset-dark dark:text-neutral-300">
           <Icon size={13} />
         </span>
         <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${titleClass}`}>
@@ -88,25 +76,32 @@ export default function TaskCard({ task, compact = false, onClick }) {
           {status.label}
         </span>
       </div>
-      <div className="mt-1.5 flex items-center gap-2 pl-8 text-[11px] text-neutral-500 dark:text-neutral-400">
+      <div className="mt-1.5 flex flex-wrap items-center gap-2 pl-8 text-[11px] text-neutral-500 dark:text-neutral-400">
         <span className="shrink-0">{meta.label}</span>
         {repo && (
           <>
-            <span aria-hidden="true" className="text-neutral-300 dark:text-neutral-600">
-              ·
-            </span>
+            <MetaDot />
             <span className="min-w-0 truncate font-mono">{repo}</span>
           </>
         )}
-        {task?.updatedAt && (
+        {task?.branch && (
           <>
-            <span aria-hidden="true" className="text-neutral-300 dark:text-neutral-600">
-              ·
-            </span>
-            <span className="shrink-0">{relativeTime(task.updatedAt)}</span>
+            <MetaDot />
+            <span className="min-w-0 truncate font-mono">{task.branch}</span>
+          </>
+        )}
+        {(task?.updatedAt || task?.createdAt) && (
+          <>
+            <MetaDot />
+            <span className="shrink-0">{relativeTime(task.updatedAt || task.createdAt)}</span>
           </>
         )}
       </div>
+      {preview && (
+        <p className="mt-1.5 pl-8 text-[12px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+          {preview}
+        </p>
+      )}
     </button>
   );
 }

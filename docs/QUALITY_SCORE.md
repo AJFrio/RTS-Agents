@@ -7,7 +7,7 @@ Graded **B** = acceptable for daily use, **C** = works but known debt, **D** = r
 | Dashboard / task list | Renderer + IPC | B | Delta IPC; filter still runs on merge |
 | Agent discovery (CLI) | Main services | B | Mtime cache + watchers; cloud still polled on interval |
 | Cloud providers (Jules, Cursor, Codex, Claude API) | Main services | B | Error UX varies by provider |
-| Agent orchestrator | Main | B | Recursive tool loop; depth limits |
+| Agent orchestrator | Main | B | Iterative tool loop + native tools; dashboard-cache reads; web still chat-only |
 | GitHub PR utilities | Main + renderer | B | Token scope docs only in README |
 | Settings / onboarding | Renderer | B | Service catalog maintained manually |
 | Cloudflare multi-device | Main + KV | C | Requires manual KV setup |

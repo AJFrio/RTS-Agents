@@ -277,12 +277,16 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
  */
 export default function DevicesPage() {
   const { state, fetchComputers, loadRemoteQueueActivity } = useApp();
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(state.focusedDeviceId || null);
 
   useEffect(() => {
     fetchComputers?.();
     loadRemoteQueueActivity?.();
   }, [fetchComputers, loadRemoteQueueActivity]);
+
+  useEffect(() => {
+    if (state.focusedDeviceId) setSelectedId(state.focusedDeviceId);
+  }, [state.focusedDeviceId]);
 
   const computers = state.computers?.list ?? [];
   const queueByDevice = useMemo(() => {

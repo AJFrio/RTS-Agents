@@ -14,6 +14,10 @@ import {
   IconChevronDown,
   IconThinking,
   IconAgent,
+  IconDevices,
+  IconRepositories,
+  IconPullRequests,
+  IconGitBranch,
 } from './icons.jsx';
 
 const TOOL_ICONS = {
@@ -26,6 +30,19 @@ const TOOL_ICONS = {
   Agent: IconAgent,
   WebFetch: IconGlobe,
   WebSearch: IconGlobe,
+  list_computers: IconDevices,
+  show_device: IconDevices,
+  list_repos: IconRepositories,
+  show_repo: IconRepositories,
+  list_github_repos: IconRepositories,
+  create_local_repo: IconRepositories,
+  create_github_repo: IconRepositories,
+  pull_repo: IconGitBranch,
+  list_pull_requests: IconPullRequests,
+  show_pull_request: IconPullRequests,
+  merge_pull_request: IconPullRequests,
+  close_pull_request: IconPullRequests,
+  mark_pr_ready: IconPullRequests,
 };
 
 const MAX_RESULT_CHARS = 4000;
@@ -123,6 +140,87 @@ function ToolChip({ call }) {
   );
 }
 
+/**
+ * Consecutive tool calls collapse into one bar. Expanding reveals
+ * each call, which can then be opened on its own.
+ */
+function ToolCallsGroup({ calls }) {
+  const [open, setOpen] = useState(false);
+  if (!calls?.length) return null;
+  if (calls.length === 1) return <ToolChip call={calls[0]} />;
+
+  const label = `Tool Calls (${calls.length})`;
+
+  return (
+    <div className="rounded-md border border-border-light bg-inset-light/60 dark:border-border-dark dark:bg-inset-dark/60">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={label}
+        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800/70"
+      >
+        {open ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+        <span className="text-neutral-500 dark:text-neutral-400">
+          <IconBuild size={13} />
+        </span>
+        <span className="font-medium">Tool Calls</span>
+        <span className="text-[10px] text-neutral-400">{calls.length}</span>
+      </button>
+      {open && (
+        <div className="space-y-1 border-t border-border-light p-1.5 dark:border-border-dark">
+          {calls.map((call, index) => (
+            <ToolChip key={call.id ?? index} call={call} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessageBody({ items, isUser, renderContent, renderCards }) {
+  const nodes = [];
+  let toolBuffer = [];
+  let flushKey = 0;
+
+  const flushTools = () => {
+    if (!toolBuffer.length) return;
+    const calls = toolBuffer;
+    toolBuffer = [];
+    nodes.push(<ToolCallsGroup key={`tools-${flushKey}`} calls={calls} />);
+    flushKey += 1;
+  };
+
+  items.forEach((message, itemIndex) => {
+    if (message.thinking) {
+      flushTools();
+      nodes.push(<ThinkingBlock key={`${message.id ?? itemIndex}-think`} text={message.thinking} />);
+    }
+    if (message.content) {
+      flushTools();
+      nodes.push(
+        <div
+          key={`${message.id ?? itemIndex}-text`}
+          className={isUser ? 'text-[14px] text-neutral-900 dark:text-neutral-100' : ''}
+        >
+          {renderContent(message.content)}
+        </div>
+      );
+    }
+    if (message.toolCalls?.length) {
+      toolBuffer = toolBuffer.concat(message.toolCalls);
+    }
+    if (message.cards?.length && renderCards) {
+      flushTools();
+      nodes.push(
+        <div key={`${message.id ?? itemIndex}-cards`}>{renderCards(message.cards)}</div>
+      );
+    }
+  });
+  flushTools();
+  return nodes;
+}
+
 /** Extended reasoning, collapsed by default. */
 function ThinkingBlock({ text }) {
   const [open, setOpen] = useState(false);
@@ -152,7 +250,12 @@ function ThinkingBlock({ text }) {
  * Chat-style transcript: user turns right-aligned, assistant left,
  * consecutive turns grouped, tool calls and reasoning collapsed.
  */
-export default function ChatTranscript({ messages, renderContent, assistantLabel = 'Assistant' }) {
+export default function ChatTranscript({
+  messages,
+  renderContent,
+  renderCards,
+  assistantLabel = 'Assistant',
+}) {
   const groups = useMemo(() => groupMessages(messages), [messages]);
 
   if (!groups.length) return null;
@@ -196,27 +299,17 @@ export default function ChatTranscript({ messages, renderContent, assistantLabel
                   {isUser ? 'You' : assistantLabel}
                 </span>
 
-                <div className={`w-full space-y-2 ${isUser ? 'items-end' : 'items-start'}`}>
-                  {group.items.map((message, itemIndex) => (
-                    <div
-                      key={message.id ?? itemIndex}
-                      className={`space-y-2 ${isUser ? 'rounded-lg rounded-br-sm bg-inset-light px-3.5 py-2 dark:bg-inset-dark' : ''}`}
-                    >
-                      {message.thinking && <ThinkingBlock text={message.thinking} />}
-                      {message.content ? (
-                        <div className={isUser ? 'text-[14px] text-neutral-900 dark:text-neutral-100' : ''}>
-                          {renderContent(message.content)}
-                        </div>
-                      ) : null}
-                      {message.toolCalls?.length > 0 && (
-                        <div className="space-y-1">
-                          {message.toolCalls.map((call, callIndex) => (
-                            <ToolChip key={call.id ?? callIndex} call={call} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div
+                  className={`w-full space-y-2 ${
+                    isUser ? 'rounded-lg rounded-br-sm bg-inset-light px-3.5 py-2 dark:bg-inset-dark' : ''
+                  }`}
+                >
+                  <MessageBody
+                    items={group.items}
+                    isUser={isUser}
+                    renderContent={renderContent}
+                    renderCards={renderCards}
+                  />
                 </div>
 
                 {time && <span className="px-1 text-[10px] text-neutral-400">{time}</span>}

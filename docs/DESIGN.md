@@ -19,12 +19,12 @@
 ## 1. Product intent
 
 RTS Agents is one cockpit for every coding agent (Claude, Codex, Cursor, OpenCode, Antigravity,
-Jules, cloud harnesses) and GitHub. Users chat with an orchestrator, start tasks on any harness /
+Jules, cloud harnesses) and GitHub. Users chat with Janus, start tasks on any harness /
 device / repo, watch every running session, and read any task's transcript — without leaving the app.
 
 ## 2. UX principles
 
-1. **Chat-first** — The Agent tab is the orchestrator: a minimal composer that expands into
+1. **Chat-first** — The Agent tab is Janus: a minimal composer that expands into
    power controls (harness, model, repo, device) only when needed. Task creation and follow-ups
    reuse the same composer surface.
 2. **Living sidebar** — Repos/Agents sections show what is running *right now*, even when collapsed.
@@ -111,16 +111,17 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 ## 5. Primitives (all in `src/renderer/components/ui/` unless noted)
 
 - **Composer** (`Composer.jsx`, components/chat/) — Cursor chat box: borderless textarea in a
-  `bg-card` `rounded-2xl` shell, hairline border. Bottom row: circular `+` (attach) on the left,
+  `bg-card` `rounded-2xl` shell, hairline outset ring (not CSS `border`, so corners stay
+  continuous). Bottom row: circular `+` (attach) on the left,
   inline text+chevron controls (model / repo / device / branch), circular send on the right.
   Image attachments show as inline thumbnails. Reused by Agent, New Task, and task follow-ups.
 - **ChatMessage** (`components/chat/`) — user vs. agent distinction: user messages sit in a
   right-aligned `bg-inset` bubble; agent messages are full-width unboxed text. Renders markdown.
-- **ToolCallBlock** (`components/chat/`) — collapsed single-line row (mono label + icon + status
-  color); expands in place to `bg-inset` body showing input/output/artifacts. Used by Agent tab and
-  transcript views.
-- **TaskCard** (`components/chat/`) — custom card the orchestrator surfaces (and used in lists):
-  title, harness, repo, status pill, time. Click → opens task transcript on canvas.
+- **ToolCallBlock** (`components/chat/`) — consecutive calls collapse to a **Tool Calls**
+  bar; expanding reveals each chip, which expands in place to `bg-inset` input/output.
+- **Surface cards** (`TaskCard` / `SurfaceCard`, components/chat/) — Janus-surfaced
+  task, device, repo, and PR cards. Task: title, harness, repo, branch, status, time,
+  prompt/summary. Click opens the matching canvas view or PR modal.
 - **StatusDot / StatusPill** — pulsing emerald for running; static semantic colors otherwise.
 - **Collapsible / SectionHeader** — existing disclosure primitives, restyled to hairline neutrals.
 - **Modal** — existing sizes, restyled: `bg-card`, hairline border, single ambient shadow.
@@ -162,7 +163,9 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 - Collapse/expand: height animation via grid-template-rows (GPU-friendly), 200ms ease; instant
   under `prefers-reduced-motion`. The Agent recent-tasks list uses this when a message is sent.
   Sidebar drag-resize stays unanimated.
-- Running pulse: 2s opacity pulse on the status dot — the one ambient animation, tied to real state.
+- Running pulse: 2s opacity pulse on the status dot — ambient animation tied to real running state.
+- Janus busy mark: dual counter-rotating arcs while the Agent tab is waiting on a turn
+  (neutral, not emerald). Static under `prefers-reduced-motion`.
 - No decorative motion anywhere.
 
 ## 8. Accessibility constraints

@@ -11,7 +11,7 @@ export default function Composer({
   value,
   onChange,
   onSubmit,
-  placeholder = 'Ask the orchestrator…',
+  placeholder = 'Ask Janus…',
   disabled = false,
   busy = false,
   submitLabel = 'Send',
@@ -61,7 +61,7 @@ export default function Composer({
   return (
     <div className={className}>
       <div
-        className="rounded-2xl border border-border-light bg-card-light transition-colors duration-150 focus-within:border-border-strong-light dark:border-neutral-700 dark:bg-card-dark dark:focus-within:border-neutral-500"
+        className="composer-shell rounded-2xl bg-card-light dark:bg-card-dark"
         onPaste={onPaste}
       >
         {attachments.length > 0 && (

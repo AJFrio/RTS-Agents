@@ -185,7 +185,7 @@ export default function ModelSelector({ value, onChange, variant = 'default' }) 
           onKeyDown={handleKeyDown}
           aria-expanded={isOpen}
           aria-haspopup="listbox"
-          aria-label="Select orchestrator model"
+          aria-label="Select Janus model"
           className="inline-flex max-w-[200px] items-center gap-1 rounded-md px-1.5 py-1 text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
         >
           <span className="min-w-0 truncate">

@@ -33,6 +33,28 @@ export const IconAgent = (props) => (
   </Icon>
 );
 
+/** Dual-orbit mark shown while Janus is running a turn. */
+export const IconJanusWorking = ({ size = 14, className = '' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    className={className}
+    aria-hidden="true"
+  >
+    <g className="janus-orbit">
+      <path d="M18.4 7.2a8 8 0 0 1-4.9 13.1" />
+    </g>
+    <g className="janus-orbit-rev">
+      <path d="M5.6 16.8A8 8 0 0 1 10.5 3.7" />
+    </g>
+  </svg>
+);
+
 export const IconNewTask = (props) => (
   <Icon {...props}>
     <rect x="3" y="3" width="18" height="18" rx="4" />

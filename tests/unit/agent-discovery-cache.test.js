@@ -77,4 +77,24 @@ describe('agent-discovery-cache', () => {
     expect(second.delta.added).toHaveLength(1);
     expect(second.delta.updated).toHaveLength(1);
   });
+
+  test('peekAgents returns the in-memory snapshot without a rescan', async () => {
+    expect(agentDiscoveryCache.peekAgents()).toBeNull();
+
+    fetchAllAgents.mockResolvedValue({
+      agents: [{ id: '1', status: 'running' }],
+      counts: { total: 1 },
+      errors: []
+    });
+
+    await agentDiscoveryCache.getAgents(deps, { force: true });
+    const peeked = agentDiscoveryCache.peekAgents();
+
+    expect(peeked).toEqual([{ id: '1', status: 'running' }]);
+    expect(fetchAllAgents).toHaveBeenCalledTimes(1);
+
+    agentDiscoveryCache.invalidate();
+    expect(agentDiscoveryCache.peekAgents()).toEqual([{ id: '1', status: 'running' }]);
+    expect(fetchAllAgents).toHaveBeenCalledTimes(1);
+  });
 });

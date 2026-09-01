@@ -226,6 +226,7 @@ export const initialState = {
     recentTasksVisible: true,
   },
   selectedTask: null,
+  focusedDeviceId: null,
   sidebarWidth: getStoredSidebarWidth(),
   sidebarMode: getStoredSidebarMode(),
   newTaskModalOpen: false,
@@ -240,6 +241,8 @@ export function appReducer(state, action) {
   switch (action.type) {
     case 'SET_VIEW':
       return { ...state, currentView: action.payload };
+    case 'SET_FOCUSED_DEVICE':
+      return { ...state, focusedDeviceId: action.payload || null };
     case 'OPEN_TASK': {
       const fromView = state.currentView;
       const previousView =

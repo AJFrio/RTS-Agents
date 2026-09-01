@@ -2,12 +2,11 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import Composer from '../components/chat/Composer.jsx';
 import RecentTasksList from '../components/chat/RecentTasksList.jsx';
-import TaskCard from '../components/chat/TaskCard.jsx';
+import SurfaceCard from '../components/chat/SurfaceCard.jsx';
 import ModelSelector from '../components/settings/ModelSelector.jsx';
 import MarkdownText from '../components/ui/Markdown.jsx';
 import ChatTranscript from '../components/ui/ChatTranscript.jsx';
-import { StatusDot } from '../components/ui/status.jsx';
-import { IconPlus } from '../components/ui/icons.jsx';
+import { IconJanusWorking, IconPlus } from '../components/ui/icons.jsx';
 
 function nextMessageId() {
   return `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -24,6 +23,7 @@ const SUGGESTIONS = [
   'Start a task in the RTS-Agents repo using Jules',
   'Summarize recent work across my repos',
   'Show me my available devices and their repos',
+  'What pull requests are open?',
 ];
 
 /**
@@ -91,7 +91,7 @@ export default function AgentPage() {
               sender: 'assistant',
               text: result?.content || '',
               toolCalls: result?.toolCalls || [],
-              taskCards: result?.taskCards || [],
+              cards: result?.cards || (result?.taskCards || []).map((card) => ({ ...card, kind: 'task' })),
               isError: /error/i.test(result?.content || '') && !result?.toolCalls?.length,
             },
           ],
@@ -107,7 +107,7 @@ export default function AgentPage() {
             {
               id: nextMessageId(),
               sender: 'assistant',
-              text: err?.message || 'The orchestrator request failed.',
+              text: err?.message || 'The Janus request failed.',
               isError: true,
             },
           ],
@@ -134,12 +134,15 @@ export default function AgentPage() {
                 status: 'completed',
               }))
             : undefined,
+        cards:
+          msg.sender === 'assistant' && msg.cards?.length
+            ? msg.cards
+            : msg.sender === 'assistant' && msg.taskCards?.length
+              ? msg.taskCards.map((card) => ({ ...card, kind: 'task' }))
+              : undefined,
       })),
     [messages]
   );
-
-  const lastAssistant = [...messages].reverse().find((m) => m.sender === 'assistant');
-  const lastCards = lastAssistant?.taskCards || [];
 
   const isEmpty = messages.length === 0 && !busy;
   const showNewChat = messages.length > 0 || !recentTasksVisible;
@@ -171,8 +174,8 @@ export default function AgentPage() {
                     What should we work on?
                   </h2>
                   <p className="mt-1.5 text-[13px] text-neutral-500 dark:text-neutral-400">
-                    The orchestrator can start tasks on any harness, browse repos and
-                    devices, and pull up previous work.
+                    Janus can start tasks, browse devices and repos, and
+                    open pull requests.
                   </p>
                 </div>
                 <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
@@ -192,22 +195,21 @@ export default function AgentPage() {
               <>
                 <ChatTranscript
                   messages={transcriptMessages}
-                  assistantLabel="Orchestrator"
+                  assistantLabel="Janus"
                   renderContent={(content) => <MarkdownText text={content} />}
+                  renderCards={(cards) => (
+                    <div className="space-y-2">
+                      {cards.map((card) => (
+                        <SurfaceCard key={`${card.kind || 'task'}-${card.id}`} card={card} />
+                      ))}
+                    </div>
+                  )}
                 />
 
                 {busy && (
                   <div className="mt-4 flex items-center gap-2 pl-10 text-[13px] text-neutral-400">
-                    <StatusDot status="running" className="status-pulse" />
+                    <IconJanusWorking size={14} />
                     Working…
-                  </div>
-                )}
-
-                {lastCards.length > 0 && !busy && (
-                  <div className="mt-4 space-y-2 pl-10">
-                    {lastCards.map((card) => (
-                      <TaskCard key={card.id} task={card} />
-                    ))}
                   </div>
                 )}
               </>
@@ -225,7 +227,7 @@ export default function AgentPage() {
               onSubmit={() => send()}
               busy={busy}
               disabled={busy}
-              placeholder="Ask the orchestrator to start, find, or summarize work…"
+              placeholder="Ask Janus to start, find, or summarize work…"
               textareaId="agent-input"
               submitLabel="Send message"
               autoFocus

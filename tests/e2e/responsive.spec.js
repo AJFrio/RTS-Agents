@@ -122,14 +122,22 @@ test.describe('Responsive Tests', () => {
     await expect(sidebar).toBeHidden();
 
     await expect(bottomNav.locator('button[data-view="dashboard"]')).toBeVisible();
-    await expect(bottomNav.locator('button[data-view="settings"]')).toBeVisible();
+    await expect(bottomNav.locator('button[data-view="agent"]')).toBeVisible();
+    await expect(bottomNav.locator('button[data-more-toggle]')).toBeVisible();
+    await expect(bottomNav.locator('#bottom-nav-more')).toHaveCount(0);
   });
 
-  test('BottomNav click switches views', async () => {
-    await page.locator('#bottom-nav button[data-view="settings"]').click();
-    await expect(page.locator('#view-title')).toHaveText('Settings');
+  test('BottomNav More sheet opens overflow destinations', async () => {
+    const bottomNav = page.locator('#bottom-nav');
+    await bottomNav.locator('button[data-more-toggle]').click();
+    await expect(page.locator('#bottom-nav-more')).toBeVisible();
 
-    await page.locator('#bottom-nav button[data-view="devices"]').click();
+    await bottomNav.locator('button[data-view="settings"]').click();
+    await expect(page.locator('#view-title')).toHaveText('Settings');
+    await expect(page.locator('#bottom-nav-more')).toHaveCount(0);
+
+    await bottomNav.locator('button[data-more-toggle]').click();
+    await bottomNav.locator('button[data-view="devices"]').click();
     await expect(page.locator('#view-title')).toHaveText('Devices');
   });
 
@@ -140,5 +148,18 @@ test.describe('Responsive Tests', () => {
 
     const view = page.locator('#new-task-modal');
     await expect(view).toBeVisible();
+  });
+
+  test('Agent composer stays above the bottom nav on mobile', async () => {
+    const composer = page.locator('#view-agent .composer-shell');
+    const bottomNav = page.locator('#bottom-nav');
+    await expect(composer).toBeVisible();
+    await expect(bottomNav).toBeVisible();
+
+    const composerBox = await composer.boundingBox();
+    const navBox = await bottomNav.boundingBox();
+    expect(composerBox).toBeTruthy();
+    expect(navBox).toBeTruthy();
+    expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(navBox.y + 1);
   });
 });

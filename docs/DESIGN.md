@@ -91,7 +91,8 @@ Hover = background tone shift + `border-strong` edge, never shadow growth.
 - Radius: 6px controls/inputs, 8px cards/modals, 9999px only for tiny status pills.
 - Spacing base 4px. Dense: sidebar rows py-1.5 px-2; cards p-4; canvas padding p-6 with
   `max-w` content limiters on wide pages.
-- Touch targets ≥ 28px in sidebar, ≥ 32px in canvas.
+- Touch targets ≥ 28px in sidebar, ≥ 32px in canvas, ≥ 44px in the mobile
+  bottom nav and More sheet.
 
 ## 4. Layout & scroll ownership
 
@@ -102,7 +103,10 @@ Hover = background tone shift + `border-strong` edge, never shadow growth.
 - **Canvas** (`main`, fluid): owns its scroll per view. Chat views (Agent, task transcript) are
   `scroll-body-shell` — scrolling message region with a Composer above the Agent recent-task
   list (or pinned at the bottom of a task transcript).
-- Mobile (<768px): sidebar hidden, bottom nav (existing pattern); canvas full-bleed.
+- Mobile (<768px): sidebar hidden; canvas is full-bleed and clears
+  `--bottom-nav-offset` (4rem bar + safe-area inset) so composers and
+  list/detail panes sit above the tab bar. Bottom nav shows Agent, New Task,
+  Tasks, Repos, and **More** (Plugins, Pull Requests, Devices, Settings).
 
 Stress contract: empty lists render an inline empty state in the canvas; long repo/task names
 truncate with ellipsis; unbroken strings (paths, tokens) `overflow-wrap: anywhere`; sidebar
@@ -180,10 +184,9 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 
 ## 9. Accepted debt
 
-- Material Symbols font remains for icons not yet ported to the inline SVG set during transition;
-  new components use inline SVG only.
-- The web/Cloudflare build inherits the new theme wholesale; mobile bottom-nav keeps legacy
-  structure until a follow-up pass.
+- Material Symbols font remains for icons not yet ported to the inline SVG
+  set (filter chip and a few status glyphs); new components use inline SVG
+  only.
 
 ## 10. Non-goals (current)
 

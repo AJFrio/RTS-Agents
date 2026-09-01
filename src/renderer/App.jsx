@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Toaster } from 'sonner';
 import { useApp } from './context/AppContext.jsx';
+import { useBelowMd } from './hooks/use-media-query.js';
 import Layout from './components/layout/Layout.jsx';
 import AgentPage from './pages/AgentPage.jsx';
 import NewTaskPage from './pages/NewTaskPage.jsx';
@@ -83,8 +84,20 @@ function App() {
       <JiraIssueModal issue={state.jiraIssueModal} onClose={closeJiraIssueModal} api={api} />
       <ConfirmModal config={state.confirmModal} onClose={closeConfirmModal} />
       <PastedImageModal imageUrl={state.pastedImageModal} onClose={closePastedImageModal} />
-      <Toaster position="bottom-right" richColors theme={toastTheme} />
+      <AppToaster theme={toastTheme} />
     </>
+  );
+}
+
+function AppToaster({ theme }) {
+  const belowMd = useBelowMd();
+  return (
+    <Toaster
+      position={belowMd ? 'top-center' : 'bottom-right'}
+      richColors
+      theme={theme}
+      offset={belowMd ? 12 : 16}
+    />
   );
 }
 

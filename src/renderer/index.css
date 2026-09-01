@@ -115,6 +115,9 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+  /* Bottom nav bar (icons + labels). Offset includes the home-indicator inset. */
+  --bottom-nav-bar: 4rem;
+  --bottom-nav-offset: calc(var(--bottom-nav-bar) + var(--safe-bottom));
 }
 
 html {
@@ -132,9 +135,11 @@ body {
   user-select: none;
 }
 
-/* Allow text selection in inputs and textareas */
+/* Allow text selection in inputs, chat, and long-form content */
 input,
-textarea {
+textarea,
+.markdown-content,
+[data-selectable='true'] {
   -webkit-user-select: text;
   user-select: text;
 }

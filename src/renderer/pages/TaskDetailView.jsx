@@ -11,7 +11,7 @@ import TaskContextSection, { hasTaskContext } from '../components/task/TaskConte
 import { providerMeta, IconExternal, IconTerminal, IconClose } from '../components/ui/icons.jsx';
 import { StatusDot, statusMeta } from '../components/ui/status.jsx';
 
-const FOLLOWUP_PROVIDERS = new Set(['jules', 'cursor', 'claude-cloud', 'codex']);
+const FOLLOWUP_PROVIDERS = new Set(['jules', 'cursor', 'claude-cloud']);
 const RUNNING_POLL_MS = 15000;
 
 function transcriptMessages(details) {
@@ -232,7 +232,7 @@ export default function TaskDetailView() {
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-border-light bg-background-light px-4 py-3 dark:border-border-dark dark:bg-background-dark">
+      <div className="shrink-0 px-4 pb-3 pt-1">
         <div className="mx-auto w-full max-w-3xl">
           {supportsFollowUp ? (
             <Composer

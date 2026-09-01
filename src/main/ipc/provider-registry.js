@@ -88,7 +88,7 @@ async function fetchAllAgents(deps) {
       opencodeService.isOpenCodeInstalled(),
       Promise.resolve(cursorService.getCursorCliSessions()),
     ]);
-  const codexAvailable = configStore.hasApiKey('codex') || (await codexService.isCodexInstalled());
+  const codexAvailable = await codexService.isCodexInstalled();
   const claudeCloudAvailable = configStore.hasApiKey('claude');
   const cursorAvailable =
     configStore.hasApiKey('cursor') ||
@@ -208,14 +208,10 @@ async function fetchRepositories(deps, provider) {
       return { success: true, repositories };
     }
     case 'codex': {
-      if (
-        !configStore.hasApiKey('codex') &&
-        configStore.getCodexPaths().length === 0 &&
-        !(await codexService.isCodexInstalled())
-      ) {
+      if (configStore.getCodexPaths().length === 0 && !(await codexService.isCodexInstalled())) {
         return {
           success: false,
-          error: 'OpenAI API key not configured, Codex CLI not installed, and no local paths set',
+          error: 'Codex CLI not installed and no local paths set',
           repositories: [],
         };
       }
@@ -272,9 +268,7 @@ async function fetchAllRepositories(deps) {
     opencodeService.isOpenCodeInstalled(),
   ]);
   const codexAvailable =
-    configStore.hasApiKey('codex') ||
-    configStore.getCodexPaths().length > 0 ||
-    (await codexService.isCodexInstalled());
+    configStore.getCodexPaths().length > 0 || (await codexService.isCodexInstalled());
   const cursorPaths = configStore.getCursorPaths();
 
   const settled = await Promise.allSettled([
@@ -370,8 +364,8 @@ async function createLocalTask(deps, provider, options) {
       return { success: true, task };
     }
     case 'codex': {
-      if (!configStore.hasApiKey('codex') && !(await codexService.isCodexInstalled())) {
-        throw new Error('OpenAI API key not configured and Codex CLI not installed');
+      if (!(await codexService.isCodexInstalled())) {
+        throw new Error('Codex CLI not installed');
       }
       const task = await codexService.createTask(options);
       configStore.setCodexThreads(codexService.getTrackedThreads());
@@ -487,13 +481,6 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
         throw new Error('Claude API key not configured');
       }
       await claudeService.sendFollowUp(rawId, message);
-      return { success: true };
-    }
-    case 'codex': {
-      if (!configStore.hasApiKey('codex')) {
-        throw new Error('OpenAI API key not configured');
-      }
-      await codexService.sendFollowUp(rawId, message);
       return { success: true };
     }
     default:

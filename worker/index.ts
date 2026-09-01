@@ -23,13 +23,6 @@ const PROXY_CONFIGS: Record<string, ProxyConfig> = {
     baseUrl: 'https://api.cursor.com/v1',
     authHeader: (apiKey) => ({ 'Authorization': `Basic ${btoa(`${apiKey}:`)}` }),
   },
-  codex: {
-    baseUrl: 'https://api.openai.com/v1',
-    authHeader: (apiKey) => ({
-      'Authorization': `Bearer ${apiKey}`,
-      'OpenAI-Beta': 'assistants=v2',
-    }),
-  },
   claude: {
     baseUrl: 'https://api.anthropic.com/v1',
     authHeader: (apiKey) => ({

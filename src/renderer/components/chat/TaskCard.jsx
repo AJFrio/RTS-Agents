@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { providerMeta } from '../ui/icons.jsx';
-import { StatusDot, statusMeta } from '../ui/status.jsx';
+import { StatusDot, canvasStatusMeta } from '../ui/status.jsx';
 
 function relativeTime(timestamp) {
   if (!timestamp) return '';
@@ -33,8 +33,16 @@ export default function TaskCard({ task, compact = false, onClick }) {
   const { openTask } = useApp();
   const meta = providerMeta(task?.provider);
   const Icon = meta.Icon;
-  const status = statusMeta(task?.status);
+  const status = canvasStatusMeta(task?.status);
+  const statusKey = String(task?.status || '').toLowerCase();
+  const running = statusKey === 'running';
+  const completed = statusKey === 'completed';
   const repo = shortRepo(task?.repository);
+  const titleClass = running
+    ? 'text-emerald-800 dark:text-emerald-400'
+    : completed
+      ? 'text-neutral-500 dark:text-neutral-400'
+      : 'text-neutral-900 dark:text-neutral-100';
 
   const handleClick = () => {
     if (onClick) {
@@ -52,10 +60,10 @@ export default function TaskCard({ task, compact = false, onClick }) {
         className="flex w-full items-center gap-2 rounded-md border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark px-2.5 py-2 text-left transition-colors hover:border-border-strong-light dark:hover:border-border-strong-dark"
       >
         <Icon size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
-        <span className="min-w-0 flex-1 truncate text-[13px] text-neutral-800 dark:text-neutral-200">
+        <span className={`min-w-0 flex-1 truncate text-[13px] ${titleClass}`}>
           {task?.name || 'Task'}
         </span>
-        <StatusDot status={task?.status} />
+        <StatusDot status={task?.status} variant="canvas" />
       </button>
     );
   }
@@ -70,13 +78,13 @@ export default function TaskCard({ task, compact = false, onClick }) {
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-inset-light dark:bg-inset-dark text-neutral-600 dark:text-neutral-300">
           <Icon size={13} />
         </span>
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
+        <span className={`min-w-0 flex-1 truncate text-[13px] font-medium ${titleClass}`}>
           {task?.name || 'Task'}
         </span>
         <span
           className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${status.bg} ${status.text}`}
         >
-          <StatusDot status={task?.status} />
+          <StatusDot status={task?.status} variant="canvas" />
           {status.label}
         </span>
       </div>

@@ -1,7 +1,7 @@
+const fs = require('fs');
 const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { spawnSync } = require('child_process');
 const { upsertItem } = require('../utils/collection-utils');
 const httpService = require('./http-service');
 const { pathExists } = require('../utils/path-exists');
@@ -9,7 +9,9 @@ const installStatus = require('../utils/install-status');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
-const { appendStreamMessage, applySessionUpdate } = require('./opencode-session-parser');
+const projectService = require('./project-service');
+const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
+const { applySessionUpdate } = require('./opencode-session-parser');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -21,24 +23,6 @@ const CLAUDE_DEFAULT_TOOLS = 'Read,Edit,Bash';
 const CLAUDE_BIN = process.platform === 'win32' ? 'claude.cmd' : 'claude';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 const TRACKED_LOCAL_SESSION_LIMIT = 100;
-const CLI_PROBE_TIMEOUT_MS = 3000;
-
-function isCommandRunnable(cmd) {
-  if (!cmd) return false;
-  try {
-    const probe = spawnSync(String(cmd), ['--version'], {
-      shell: false,
-      stdio: 'ignore',
-      timeout: CLI_PROBE_TIMEOUT_MS,
-      windowsHide: true,
-      env: { ...process.env },
-    });
-    if (probe.error) return false;
-    return probe.status === 0;
-  } catch {
-    return false;
-  }
-}
 
 // Store for tracking cloud conversations (since Anthropic doesn't have a list conversations endpoint)
 let trackedConversations = [];
@@ -69,6 +53,38 @@ class ClaudeService {
     return CLAUDE_HOME;
   }
 
+  getExecutable() {
+    const cli = configStore.getSetting('cliCommands') || {};
+    const custom = typeof cli?.claude === 'string' ? cli.claude.trim() : '';
+    if (custom) return custom;
+    if (isCommandRunnable(CLAUDE_BIN)) return CLAUDE_BIN;
+    const bundled = this._discoverBundledClaude();
+    return bundled || CLAUDE_BIN;
+  }
+
+  _discoverBundledClaude() {
+    const root = path.join(
+      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+      'Claude',
+      'claude-code'
+    );
+    try {
+      if (!fs.existsSync(root)) return null;
+      const versions = fs
+        .readdirSync(root, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+      for (const version of versions) {
+        const exe = path.join(root, version, 'claude.exe');
+        if (fs.existsSync(exe)) return exe;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
   /**
    * Check if Claude Code CLI is installed (async; warms install cache).
    */
@@ -91,7 +107,7 @@ class ClaudeService {
     // writers), so treat Claude Code as installed only with real session
     // data or a runnable CLI.
     const hasProjectsDir = await pathExists(CLAUDE_PROJECTS_DIR);
-    const installed = hasProjectsDir || isCommandRunnable(CLAUDE_BIN);
+    const installed = hasProjectsDir || isCommandRunnable(this.getExecutable());
     installStatus.setCached('claude', installed);
     return installed;
   }
@@ -769,12 +785,22 @@ class ClaudeService {
     }
 
     const sessionId = `claude-cli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const adapter = acpService.resolveAdapter('claude');
+    const adapter = command && String(command).trim()
+      ? null
+      : toAdapterSpec(acpService.resolveAdapter('claude'));
+    const claudeCmd =
+      command && String(command).trim() ? String(command).trim() : this.getExecutable();
+
+    if (!adapter && !isCommandRunnable(claudeCmd)) {
+      throw new Error(
+        'Claude Code CLI is not on PATH. Install with `npm i -g @anthropic-ai/claude-code` or set a custom executable in Settings.'
+      );
+    }
 
     if (adapter) {
       return this._startAcpSession(adapter, { prompt, projectPath, model }, sessionId);
     }
-    return this._spawnLegacySession({ prompt, projectPath, allowedTools, command, model }, sessionId);
+    return this._spawnLegacySession({ prompt, projectPath, allowedTools, command: claudeCmd, model }, sessionId);
   }
 
   _startAcpSession(adapter, { prompt, projectPath, model }, sessionId) {
@@ -818,7 +844,8 @@ class ClaudeService {
 
       acpService
         .runPrompt({
-          command: adapter,
+          command: adapter.command,
+          args: adapter.args,
           cwd: projectPath,
           prompt,
           model,
@@ -862,10 +889,16 @@ class ClaudeService {
               (s) => s.id !== sessionId
             );
             this._persistTrackedLocalSessions();
-            this._spawnLegacySession({ prompt, projectPath, model }, sessionId).then(
-              (card) => resolveOnce(card),
-              () => resolveOnce(buildCard('failed', err.message))
-            );
+            try {
+              Promise.resolve(
+                this._spawnLegacySession({ prompt, projectPath, model }, sessionId)
+              ).then(
+                (card) => resolveOnce(card),
+                (legacyErr) => resolveOnce(buildCard('failed', legacyErr?.message || err.message))
+              );
+            } catch (legacyErr) {
+              resolveOnce(buildCard('failed', legacyErr?.message || err.message));
+            }
             return;
           }
           this._updateTrackedLocalSession(sessionId, {
@@ -878,8 +911,6 @@ class ClaudeService {
   }
 
   _spawnLegacySession({ prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command, model }, sessionId) {
-    const { spawn } = require('child_process');
-
     // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
     // -p: prompt/headless mode
     // --allowedTools: auto-approve these tools
@@ -890,18 +921,12 @@ class ClaudeService {
 
     return new Promise((resolve, reject) => {
       const claudeCmd =
-        command && String(command).trim()
-          ? String(command).trim()
-          : process.platform === 'win32'
-            ? 'claude.cmd'
-            : 'claude';
+        command && String(command).trim() ? String(command).trim() : this.getExecutable();
 
-      const child = spawn(claudeCmd, args, {
+      const child = spawnCli(claudeCmd, args, {
         cwd: projectPath,
-        shell: false,
         detached: true,
         stdio: 'ignore',
-        windowsHide: true,
       });
 
       child.on('error', (err) => {
@@ -1034,66 +1059,10 @@ class ClaudeService {
    * @param {string[]} additionalPaths - Additional paths to scan
    */
   async getAvailableProjects(additionalPaths = []) {
-    const projects = [];
-    const scannedPaths = new Set();
-
-    // Only scan the provided paths for git repositories
-    // Do NOT include Claude session folders from .claude/projects
-    const pathPromises = additionalPaths.map(async (basePath) => {
-      // Skip the Claude directories - these are session data, not project repos
-      if (basePath.includes('.claude')) return [];
-
-      try {
-        await fsPromises.access(basePath);
-      } catch {
-        return [];
-      }
-
-      try {
-        const entries = await fsPromises.readdir(basePath, { withFileTypes: true });
-
-        const entryPromises = entries.map(async (entry) => {
-          if (!entry.isDirectory()) return null;
-
-          // Skip hidden directories and common non-project folders
-          if (entry.name.startsWith('.') || entry.name === 'node_modules') {
-            return null;
-          }
-
-          const dirPath = path.join(basePath, entry.name);
-          const gitPath = path.join(dirPath, '.git');
-
-          try {
-            await fsPromises.access(gitPath);
-            if (!scannedPaths.has(dirPath)) {
-              scannedPaths.add(dirPath);
-              return {
-                id: entry.name,
-                name: entry.name,
-                path: dirPath,
-                claudePath: null,
-                displayName: entry.name,
-                hasExistingSessions: false,
-              };
-            }
-          } catch {
-            // Not a git repo or access error
-          }
-          return null;
-        });
-
-        const results = await Promise.all(entryPromises);
-        return results.filter((r) => r !== null);
-      } catch (err) {
-        // Ignore error
-        return [];
-      }
-    });
-
-    const allResults = await Promise.all(pathPromises);
-    allResults.forEach((res) => projects.push(...res));
-
-    return projects;
+    const scanRoots = (additionalPaths || []).filter(
+      (basePath) => !String(basePath).includes('.claude')
+    );
+    return projectService.getLocalRepos(scanRoots);
   }
 
   // ============================================

@@ -47,6 +47,10 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
+process.on('SIGINT', () => {
+  process.exit(0);
+});
+
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + SEP);
 }
@@ -197,8 +201,7 @@ rl.on('line', (line) => {
 });
 
 rl.on('close', () => {
-  // Client closed stdin; if no prompt was in flight just exit quietly.
-  if (promptId === null) {
-    process.exit(0);
-  }
+  // Client closed stdin — treat that as a graceful shutdown so Windows
+  // (where taskkill /F skips Node exit handlers) still writes FAKE_ACP_EXIT_FILE.
+  process.exit(0);
 });

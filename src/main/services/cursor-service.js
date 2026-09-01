@@ -4,8 +4,10 @@ const httpService = require('./http-service');
 const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const configStore = require('./config-store');
+const { toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
 
+// Cloud Agents API v1 (replaced v0). There is no Cloud v2 as of 2026-09.
 const BASE_URL = 'https://api.cursor.com/v1';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 const TRACKED_CURSOR_SESSION_LIMIT = 100;
@@ -30,7 +32,7 @@ class CursorService {
   }
 
   isCursorCliAvailable() {
-    return !!acpService.resolveAdapter('cursor');
+    return !!toAdapterSpec(acpService.resolveAdapter('cursor'), ['acp']);
   }
 
   async request(endpoint, method = 'GET', body = null) {
@@ -476,7 +478,7 @@ class CursorService {
    * @param {string} [options.projectPath] - Path to the project directory
    */
   async startCliSession(options) {
-    const { prompt, command } = options;
+    const { prompt } = options;
     const projectPath = options.projectPath || options.repository;
 
     if (!prompt) {
@@ -492,7 +494,7 @@ class CursorService {
       throw new Error(`Project path does not exist: ${projectPath}`);
     }
 
-    const adapter = acpService.resolveAdapter('cursor');
+    const adapter = toAdapterSpec(acpService.resolveAdapter('cursor'), ['acp']);
     if (!adapter) {
       throw new Error(
         'Cursor CLI not found. Install it from https://cursor.com/cli and run "agent login" once.'
@@ -544,8 +546,8 @@ class CursorService {
 
       acpService
         .runPrompt({
-          command: adapter,
-          args: ['acp'],
+          command: adapter.command,
+          args: adapter.args,
           cwd: projectPath,
           prompt,
           model,

@@ -71,8 +71,23 @@ export function statusMeta(status) {
   return STATUS_META[key] || STATUS_META.idle;
 }
 
-export function StatusDot({ status, size = 6, className = '' }) {
-  const meta = statusMeta(status);
+/** Agent canvas: completed work is grey; running stays emerald. */
+export function canvasStatusMeta(status) {
+  const key = String(status || '').toLowerCase();
+  const base = statusMeta(status);
+  if (key === 'completed') {
+    return {
+      ...base,
+      text: 'text-neutral-500 dark:text-neutral-400',
+      bg: 'bg-neutral-400/10',
+      dot: 'bg-neutral-400',
+    };
+  }
+  return base;
+}
+
+export function StatusDot({ status, size = 6, className = '', variant }) {
+  const meta = variant === 'canvas' ? canvasStatusMeta(status) : statusMeta(status);
   return (
     <span
       aria-hidden="true"

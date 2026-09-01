@@ -101,6 +101,23 @@ describe('ProjectService Unit Tests', () => {
       const result = await projectService.getLocalRepos([]);
       expect(result).toEqual([]);
     });
+
+    test('includes a configured path that is itself a git repo', async () => {
+      const repoPath = '/Users/me/code/RTS-Agents';
+      mockReaddir.mockResolvedValue([]);
+      mockAccess.mockImplementation(async (p) => {
+        if (p === path.join(repoPath, '.git')) return undefined;
+        throw new Error('ENOENT');
+      });
+
+      const result = await projectService.getLocalRepos([repoPath]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        path: repoPath,
+        name: 'RTS-Agents',
+        displayName: 'RTS-Agents',
+      });
+    });
   });
 
   describe('resolveLocalProjectPath', () => {

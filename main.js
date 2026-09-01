@@ -128,7 +128,6 @@ function createWindow() {
 function initializeServices() {
   const julesKey = configStore.getApiKey('jules');
   const cursorKey = configStore.getApiKey('cursor');
-  const codexKey = configStore.getApiKey('codex');
   const claudeKey = configStore.getApiKey('claude');
   const openRouterKey = configStore.getApiKey('openrouter');
 
@@ -137,12 +136,6 @@ function initializeServices() {
   }
   if (cursorKey) {
     cursorService.setApiKey(cursorKey);
-  }
-  if (codexKey) {
-    codexService.setApiKey(codexKey);
-    // Restore tracked threads from config
-    const trackedThreads = configStore.getCodexThreads();
-    codexService.setTrackedThreads(trackedThreads);
   }
   if (claudeKey) {
     claudeService.setApiKey(claudeKey);
@@ -154,6 +147,7 @@ function initializeServices() {
     openRouterService.setApiKey(openRouterKey);
   }
 
+  codexService.setTrackedThreads(configStore.getCodexThreads());
   const opencodeSessions = configStore.getOpenCodeSessions();
   opencodeService.setTrackedSessions(opencodeSessions);
   const antigravitySessions = configStore.getAntigravitySessions();

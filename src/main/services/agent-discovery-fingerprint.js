@@ -65,7 +65,6 @@ function getConfigSignature(configStore) {
     keys: {
       jules: configStore.hasApiKey('jules'),
       cursor: configStore.hasApiKey('cursor'),
-      codex: configStore.hasApiKey('codex'),
       claude: configStore.hasApiKey('claude'),
     },
     codexThreads: (configStore.getCodexThreads?.() || []).length,

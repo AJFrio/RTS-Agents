@@ -219,6 +219,12 @@ export const initialState = {
     error: null,
   },
   localDeviceId: null,
+  orchestratorChat: {
+    messages: [],
+    input: '',
+    busy: false,
+    recentTasksVisible: true,
+  },
   selectedTask: null,
   sidebarWidth: getStoredSidebarWidth(),
   sidebarMode: getStoredSidebarMode(),
@@ -436,6 +442,21 @@ export function appReducer(state, action) {
       return { ...state, pastedImageModal: action.payload };
     case 'CLOSE_PASTED_IMAGE_MODAL':
       return { ...state, pastedImageModal: null };
+    case 'SET_ORCHESTRATOR_CHAT':
+      return {
+        ...state,
+        orchestratorChat: { ...state.orchestratorChat, ...action.payload },
+      };
+    case 'RESET_ORCHESTRATOR_CHAT':
+      return {
+        ...state,
+        orchestratorChat: {
+          messages: [],
+          input: '',
+          busy: false,
+          recentTasksVisible: true,
+        },
+      };
     default:
       return state;
   }

@@ -12,8 +12,10 @@ Users create new work from the New Task canvas tab (formerly a modal) with provi
   Location is a 3-segment Cloud / Local / Remote control; agent chips wrap
   in a row. Selecting an agent does not insert a Device or Repo block
   between the chips and the prompt.
-- Device and Repository / project path live in the Composer footer as pills
-  (same pattern as Branch / Auto-PR / Model; DESIGN.md §5).
+- Device and Repository / project path live in the Composer footer as
+  text+chevron controls next to Branch / Auto-PR / Model (DESIGN.md §5).
+  The Composer itself is the shared Cursor chat box (rounded-2xl, circular
+  + and send).
 - Stable ids for e2e: `#new-task-modal`, `#environment-*`, `#service-*`,
   `#task-repo-search`, `#repo-dropdown`, `#task-device`, `#create-task-btn`.
 - Validation copy stays inline. Do not reserve a large empty error panel.
@@ -40,7 +42,7 @@ When a harness reports the models it supports, the composer shows a
 | OpenCode | `opencode models` (live) | `--model` CLI arg / ACP `session/set_mode` |
 | Antigravity | `agy models` (live) | `--model` CLI arg |
 | Cursor | `agent models` (CLI) or Cursor cloud API | ACP `session/set_mode` / cloud `body.model` |
-| Codex | OpenAI `/v1/models` (API key) | `--model` CLI arg |
+| Codex | None (harness default) | `--model` CLI arg when a model is typed |
 | Claude CLI | Static documented aliases | `--model` CLI arg / ACP `session/set_mode` |
 | Claude cloud | Anthropic `/v1/models` (API key) | Messages API `model` field |
 | Jules | Not supported (API has no model field) | — |

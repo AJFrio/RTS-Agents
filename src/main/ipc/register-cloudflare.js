@@ -5,7 +5,6 @@ const { discoverCloudflareAccounts } = require('../services/cloudflare-account-d
 const SYNCED_API_KEY_PROVIDERS = new Set([
   'jules',
   'cursor',
-  'codex',
   'openrouter',
   'claude',
   'github',

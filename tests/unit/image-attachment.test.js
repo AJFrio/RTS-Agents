@@ -77,7 +77,6 @@ describe('Image Attachments Support', () => {
     codexService = require('../../src/main/services/codex-service');
 
     claudeService.setApiKey('test-claude-key');
-    codexService.setApiKey('test-codex-key');
   });
 
   describe('ClaudeService', () => {
@@ -134,35 +133,17 @@ describe('Image Attachments Support', () => {
   });
 
   describe('CodexService', () => {
-    test('createTask includes image data URLs in Responses input context', async () => {
-      await codexService.createTask({
-        prompt: mockPrompt,
-        attachments: mockAttachments,
-      });
+    test('createTask does not call the OpenAI Responses API', async () => {
+      await expect(
+        codexService.createTask({
+          prompt: mockPrompt,
+          attachments: mockAttachments,
+        })
+      ).rejects.toThrow(/Codex CLI not installed|Project path is required/);
 
-      const req = requests.find(
-        (r) => r.options.path === '/v1/responses' && r.options.method === 'POST'
-      );
-      expect(req).toBeDefined();
-
-      const body = JSON.parse(req.body);
-
-      expect(body.model).toBe('gpt-5-codex');
-      expect(body.input).toContain(mockPrompt);
-      expect(body.input).toContain(mockAttachments[0].dataUrl);
-    });
-
-    test('createTask handles prompt-only correctly', async () => {
-      await codexService.createTask({
-        prompt: mockPrompt,
-      });
-
-      const req = requests.find(
-        (r) => r.options.path === '/v1/responses' && r.options.method === 'POST'
-      );
-      const body = JSON.parse(req.body);
-
-      expect(body.input).toBe(mockPrompt);
+      expect(
+        requests.some((r) => r.options.path === '/v1/responses' && r.options.method === 'POST')
+      ).toBe(false);
     });
   });
 });

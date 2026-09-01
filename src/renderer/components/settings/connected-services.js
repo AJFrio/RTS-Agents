@@ -23,8 +23,6 @@ export function useConnectedServices() {
           await api.removeApiKey('jules');
         } else if (serviceId === 'cursor-cloud') {
           await api.removeApiKey('cursor');
-        } else if (serviceId === 'codex-cloud') {
-          await api.removeApiKey('codex');
         } else if (serviceId === 'claude-cloud') {
           await api.removeApiKey('claude');
         } else if (serviceId === 'openrouter-cloud') {
@@ -99,7 +97,6 @@ export function buildConnectedServices(state) {
   if (apiKeys.cursor) services.push('cursor-cloud');
   if ((state.settings?.cursorPaths || []).length > 0 || state.connectionStatus?.['cursor-cli']?.success)
     services.push('cursor-local');
-  if (apiKeys.codex) services.push('codex-cloud');
   if ((state.settings?.codexPaths || []).length > 0) services.push('codex-local');
   if (apiKeys.claude) services.push('claude-cloud');
   if (state.serviceInfo?.installations?.claude || (state.settings?.claudePaths || []).length > 0)

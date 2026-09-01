@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { IconAttach, IconSend, IconClose } from '../ui/icons.jsx';
+import { IconSend, IconClose, IconPlus } from '../ui/icons.jsx';
 
 /**
- * Cursor-style chat composer (DESIGN.md §5): a borderless textarea inside a
- * hairline card shell, with a bottom control row for inline pickers
- * (harness / model / repo / device / branch) and attach + submit actions.
- * Image attachments render as inline thumbnails.
+ * Cursor-style chat composer (DESIGN.md §5): a rounded-2xl card with a
+ * borderless textarea, a circular + (attach) on the left, inline controls
+ * as text+chevron, and a circular send on the right.
+ * Reused by Agent, New Task, and task follow-ups.
  */
 export default function Composer({
   value,
@@ -59,95 +59,106 @@ export default function Composer({
   };
 
   return (
-    <div
-      className={`rounded-lg border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark focus-within:border-border-strong-light dark:focus-within:border-border-strong-dark transition-colors duration-150 ${className}`}
-      onPaste={onPaste}
-    >
-      {attachments.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-3 pt-3">
-          {attachments.map((att) => (
-            <div
-              key={att.id}
-              className="group relative h-12 w-12 overflow-hidden rounded-sm border border-border-light dark:border-border-dark"
-            >
-              <img
-                src={att.dataUrl}
-                alt={att.name || 'Attachment'}
-                className="h-full w-full object-cover"
-              />
-              {onRemoveAttachment && (
+    <div className={className}>
+      <div
+        className="rounded-2xl border border-border-light bg-card-light transition-colors duration-150 focus-within:border-border-strong-light dark:border-neutral-700 dark:bg-card-dark dark:focus-within:border-neutral-500"
+        onPaste={onPaste}
+      >
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-3 pt-3">
+            {attachments.map((att) => (
+              <div
+                key={att.id}
+                className="group relative h-12 w-12 overflow-hidden rounded-md border border-border-light dark:border-border-dark"
+              >
+                <img
+                  src={att.dataUrl}
+                  alt={att.name || 'Attachment'}
+                  className="h-full w-full object-cover"
+                />
+                {onRemoveAttachment && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveAttachment(att.id)}
+                    aria-label="Remove attachment"
+                    className="absolute inset-0 hidden items-center justify-center bg-black/60 group-hover:flex"
+                  >
+                    <IconClose size={12} className="text-white" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <textarea
+          id={textareaId}
+          ref={ref}
+          value={value}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          onChange={(e) => onChange?.(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          rows={minRows}
+          className="block w-full resize-none border-0 bg-transparent px-4 pt-3.5 font-sans text-[14px] leading-[22px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-0 dark:text-neutral-100 dark:placeholder-neutral-500"
+        />
+
+        <div className="flex items-center justify-between gap-2 px-2.5 pb-2.5 pt-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-0.5">
+            {onFiles && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    onFiles(Array.from(e.target.files || []));
+                    e.target.value = '';
+                  }}
+                />
                 <button
                   type="button"
-                  onClick={() => onRemoveAttachment(att.id)}
-                  aria-label="Remove attachment"
-                  className="absolute inset-0 hidden items-center justify-center bg-black/60 group-hover:flex"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach images"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
                 >
-                  <IconClose size={12} className="text-white" />
+                  <IconPlus size={14} />
                 </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <textarea
-        id={textareaId}
-        ref={ref}
-        value={value}
-        disabled={disabled}
-        autoFocus={autoFocus}
-        onChange={(e) => onChange?.(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        rows={minRows}
-        className="block w-full resize-none border-0 bg-transparent px-4 pt-3 font-sans text-sm leading-[22px] text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-0 dark:text-neutral-100 dark:placeholder-neutral-500"
-      />
-
-      <div className="flex items-end justify-between gap-2 px-2 pb-2 pt-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-1">{children}</div>
-        <div className="flex shrink-0 items-center gap-1">
-          {onFiles && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  onFiles(Array.from(e.target.files || []));
-                  e.target.value = '';
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach images"
-                className="rounded-sm p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
-              >
-                <IconAttach size={15} />
-              </button>
-            </>
-          )}
+              </>
+            )}
+            {!onFiles && (
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-400 dark:border-neutral-600 dark:text-neutral-500" aria-hidden="true">
+                <IconPlus size={14} />
+              </span>
+            )}
+            <div className="flex min-w-0 flex-wrap items-center gap-0.5">{children}</div>
+          </div>
           <button
             type="button"
             id={submitId}
             onClick={() => canSubmit && onSubmit?.()}
             disabled={!canSubmit}
             aria-label={submitLabel}
-            className="rounded-sm p-1.5 transition-all disabled:text-neutral-300 dark:disabled:text-neutral-600 enabled:bg-neutral-900 enabled:text-white enabled:hover:opacity-90 enabled:active:scale-95 dark:enabled:bg-neutral-100 dark:enabled:text-neutral-900"
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-opacity ${
+              canSubmit
+                ? 'bg-neutral-900 text-white hover:opacity-90 active:scale-95 dark:bg-white dark:text-neutral-900'
+                : 'bg-neutral-200 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
+            }`}
           >
             {busy ? (
-              <IconSend size={15} className="animate-pulse" />
+              <IconSend size={14} className="animate-pulse" />
             ) : (
-              <IconSend size={15} />
+              <IconSend size={14} />
             )}
           </button>
         </div>
       </div>
 
       {footerNote && (
-        <div className="border-t border-border-light px-4 py-1.5 text-[11px] text-neutral-400 dark:border-border-dark dark:text-neutral-500">
+        <div className="px-1 pt-1.5 text-[11px] text-neutral-400 dark:text-neutral-500">
           {footerNote}
         </div>
       )}

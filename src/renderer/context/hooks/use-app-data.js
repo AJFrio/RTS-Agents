@@ -32,9 +32,12 @@ export function useAppData(api, state, dispatch) {
         payload: {
           antigravity: result.antigravityInstalled || result.antigravityPaths?.length > 0 || false,
           jules: !!result.apiKeys?.jules,
-          cursor: !!result.apiKeys?.cursor || result.cursorPaths?.length > 0 || false,
+          cursor:
+            !!result.apiKeys?.cursor ||
+            result.cursorPaths?.length > 0 ||
+            !!result.cursorCliInstalled ||
+            false,
           codex:
-            !!result.apiKeys?.codex ||
             result.codexInstalled ||
             result.codexPaths?.length > 0 ||
             false,
@@ -54,9 +57,12 @@ export function useAppData(api, state, dispatch) {
             local: !!(result.antigravityInstalled || result.antigravityPaths?.length),
           },
           jules: { cloud: !!result.apiKeys?.jules, local: false },
-          cursor: { cloud: !!result.apiKeys?.cursor, local: !!result.cursorPaths?.length },
+          cursor: {
+            cloud: !!result.apiKeys?.cursor,
+            local: !!(result.cursorPaths?.length || result.cursorCliInstalled),
+          },
           codex: {
-            cloud: !!result.apiKeys?.codex,
+            cloud: false,
             local: !!(result.codexInstalled || result.codexPaths?.length),
           },
           claude: {

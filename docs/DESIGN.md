@@ -64,7 +64,8 @@ Status semantics (the only chromatic colors):
 | State | Base | Tint | Signal |
 |---|---|---|---|
 | running | emerald-600 / emerald-400 | `bg-emerald-500/10` | pulsing dot + subtle shimmer on rows |
-| completed (good) | emerald-700 / emerald-400 | check icon, `bg-emerald-500/10` badge | done |
+| completed (good) | emerald-700 / emerald-400 | check icon, `bg-emerald-500/10` badge | done (dashboard / sidebar) |
+| completed (Agent recent list) | neutral-500 / neutral-400 | grey pill + dot | finished work on the Agent canvas |
 | queued/pending | amber-600 / amber-400 | `bg-amber-500/10` | waiting |
 | failed/stopped (bad) | red-600 / red-400 | `bg-red-500/10` | error |
 | idle/not-configured | neutral-400 | `bg-neutral-400/10` | neutral |
@@ -99,7 +100,8 @@ Hover = background tone shift + `border-strong` edge, never shadow growth.
 - **Sidebar** (`aside`, fixed region): width state 240px default, drag-resizable 200px → 33vw max.
   Internal `nav` owns its scroll. Resize via 4px drag handle on the right edge (cursor col-resize).
 - **Canvas** (`main`, fluid): owns its scroll per view. Chat views (Agent, task transcript) are
-  `scroll-body-shell` — sticky/fixed header bar, scrolling message region, fixed composer footer.
+  `scroll-body-shell` — scrolling message region with a Composer above the Agent recent-task
+  list (or pinned at the bottom of a task transcript).
 - Mobile (<768px): sidebar hidden, bottom nav (existing pattern); canvas full-bleed.
 
 Stress contract: empty lists render an inline empty state in the canvas; long repo/task names
@@ -108,11 +110,10 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 
 ## 5. Primitives (all in `src/renderer/components/ui/` unless noted)
 
-- **Composer** (`Composer.jsx`, components/chat/) — the Cursor-style chat input: borderless
-  textarea in a `bg-card` rounded-8 shell, `border` hairline, focus = `border-strong`. Bottom row:
-  left = expandable controls (harness / model / repo / device / branch pickers, image attach),
-  right = submit. Controls surface as compact pills; selecting opens a dropdown. Image attachments
-  show inline thumbnails. Reused by: Agent tab, New Task tab, task transcript follow-ups.
+- **Composer** (`Composer.jsx`, components/chat/) — Cursor chat box: borderless textarea in a
+  `bg-card` `rounded-2xl` shell, hairline border. Bottom row: circular `+` (attach) on the left,
+  inline text+chevron controls (model / repo / device / branch), circular send on the right.
+  Image attachments show as inline thumbnails. Reused by Agent, New Task, and task follow-ups.
 - **ChatMessage** (`components/chat/`) — user vs. agent distinction: user messages sit in a
   right-aligned `bg-inset` bubble; agent messages are full-width unboxed text. Renders markdown.
 - **ToolCallBlock** (`components/chat/`) — collapsed single-line row (mono label + icon + status
@@ -159,7 +160,8 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 - Color/border transitions: 150ms ease. Background shifts on hover: 150ms.
 - Active press: `scale(0.98)`. Sidebar resize: live width, no animation.
 - Collapse/expand: height animation via grid-template-rows (GPU-friendly), 200ms ease; instant
-  under `prefers-reduced-motion`.
+  under `prefers-reduced-motion`. The Agent recent-tasks list uses this when a message is sent.
+  Sidebar drag-resize stays unanimated.
 - Running pulse: 2s opacity pulse on the status dot — the one ambient animation, tied to real state.
 - No decorative motion anywhere.
 

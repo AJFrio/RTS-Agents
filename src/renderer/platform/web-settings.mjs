@@ -14,7 +14,7 @@ export function createSettingsSurface(storage) {
     const apiKeys = {
       jules: storage.hasApiKey('jules'),
       cursor: storage.hasApiKey('cursor'),
-      codex: storage.hasApiKey('codex'),
+      codex: false,
       openrouter: storage.hasApiKey('openrouter'),
       claude: storage.hasApiKey('claude'),
       github: storage.hasApiKey('github'),
@@ -48,6 +48,7 @@ export function createSettingsSurface(storage) {
       antigravityDefaultPath: '',
       antigravityPaths: emptyPaths,
       claudeCliInstalled: false,
+      cursorCliInstalled: false,
       codexInstalled: false,
       opencodeInstalled: false,
       opencodeDefaultPath: '',

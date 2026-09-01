@@ -1,4 +1,3 @@
-const { spawnSync } = require('child_process');
 const configStore = require('./config-store');
 const cloudflareKvService = require('./cloudflare-kv-service');
 const antigravityService = require('./antigravity-service');
@@ -6,6 +5,7 @@ const claudeService = require('./claude-service');
 const codexService = require('./codex-service');
 const opencodeService = require('./opencode-service');
 const projectService = require('./project-service');
+const { isCommandRunnable } = require('../utils/cli-spawn');
 
 class QueueProcessorService {
   constructor() {
@@ -13,19 +13,7 @@ class QueueProcessorService {
   }
 
   isCommandRunnable(cmd) {
-    if (!cmd) return false;
-    try {
-      const res = spawnSync(String(cmd), ['--version'], {
-        shell: false,
-        stdio: 'ignore',
-        timeout: 2000,
-        windowsHide: true,
-      });
-      if (res.error) return false;
-      return res.status === 0;
-    } catch {
-      return false;
-    }
+    return isCommandRunnable(cmd, ['--version'], { timeout: 2000 });
   }
 
   async processQueue(namespaceId) {

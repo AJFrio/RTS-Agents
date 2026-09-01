@@ -8,7 +8,7 @@ It supports:
 
 - **Local CLI-backed agents**: Antigravity CLI, OpenCode CLI, Claude Code CLI, Codex CLI, and Cursor CLI (tracks locally-launched sessions and can start new sessions; OpenCode runs via `opencode run` or legacy `opencode -p` when detected).
 - **ACP streaming dispatch**: Claude CLI, Codex CLI, OpenCode, and Cursor CLI tasks run over the [Agent Client Protocol](https://agentclientprotocol.com) when an adapter is available, streaming live output into task details (with automatic fallback to the detached-CLI path where one exists).
-- **Cloud agents**: Jules, Cursor Cloud Agents, OpenAI Responses, and Claude (Anthropic Messages API).
+- **Cloud agents**: Jules, Cursor Cloud Agents, and Claude (Anthropic Messages API).
 - **AI Powered Github Utilities**: browse your repositories, view open PRs, open PR details, use agents to resolve merge conflicts, and merge PRs without having to jump between sites
 
 ---
@@ -29,7 +29,7 @@ It supports:
   - Cursor: conversation transcript
   - Jules: activity timeline + PR output (when available)
   - Antigravity CLI: tracked launch metadata with full conversation history available in Antigravity
-  - Codex: tracked local CLI launches or OpenAI Responses output
+  - Codex: tracked local CLI launches
   - Claude CLI / Cloud: message history (local sessions or tracked cloud conversations)
 
 ### Create new tasks (“New Task” modal)
@@ -40,10 +40,9 @@ Create tasks from the UI, with provider-specific options:
 - **Cursor Cloud**: choose repository + ref/branch, optionally auto-create PR
 - **Antigravity CLI**: choose a local Git repo path, start a detached `agy --print` CLI session
 - **Codex CLI**: choose a local Git repo path, start a detached `codex exec` session
-- **OpenAI Responses**: create a prompt-only response task with a Codex-capable model
 - **Claude CLI**: start a detached `claude` CLI session in a local repo
 - **Claude Cloud**: prompt-only (no repository required)
-- **Model selection** (optional): pick from the models each harness reports — live lists for OpenCode (`opencode models`), Antigravity (`agy models`), and Cursor, API lists for Codex/Claude cloud, documented aliases for Claude CLI. Leave on "Harness default" to skip. Jules is not supported (its API has no model field).
+- **Model selection** (optional): pick from the models each harness reports — live lists for OpenCode (`opencode models`), Antigravity (`agy models`), and Cursor, API lists for Claude cloud, documented aliases for Claude CLI. Leave on "Harness default" to skip. Jules is not supported (its API has no model field).
 
 ### GitHub “Branches” view
 
@@ -67,7 +66,7 @@ The same React app that powers the desktop build also runs as a web app, served 
 
 - **Remote Control**: View connected desktop instances and dispatch tasks to them via Cloudflare KV.
 - **Unified Dashboard**: View and filter tasks across all providers, responsive for phones and desktops.
-- **Cloud Agents**: Create and monitor tasks for cloud providers (Jules, Cursor, Codex, Claude Cloud) directly from your phone.
+- **Cloud Agents**: Create and monitor tasks for cloud providers (Jules, Cursor, Claude Cloud) directly from your phone.
 - **GitHub**: Browse repositories, PRs, and PR actions.
 
 ### Limitations
@@ -148,13 +147,6 @@ This app stores provider credentials in a local Electron settings store. You can
 - **Auth**: HTTP Basic Auth with the API key as the username (empty password)
 - **How to get it**: from Cursor settings (the app UI hints “cursor.com/settings”)
 
-### OpenAI API key (optional for OpenAI Responses)
-
-- **Used for**: validating OpenAI access and creating stored Responses API tasks with Codex-capable models
-- **Where it’s sent**: `https://api.openai.com/v1/...`
-- **Header**: `Authorization: Bearer <key>`
-- **How to get it**: from OpenAI API keys (the app UI hints “platform.openai.com/api-keys”)
-
 ### Anthropic API key (required for Claude Cloud)
 
 - **Used for**: validating available models and sending prompts via the Anthropic Messages API
@@ -185,20 +177,23 @@ These providers are **not configured via API key inside this app**. They rely on
 
 ### ACP streaming dispatch (Claude CLI, Codex CLI, OpenCode, Cursor CLI)
 
-When creating local tasks, the app dispatches over the **Agent Client Protocol** if an adapter is available, so live agent output streams into the task details view:
+When creating local tasks, the app dispatches over the **Agent Client Protocol (v1)** if an adapter is available, so live agent output streams into the task details view. ACP v2 is still draft; adapters that only speak v2 fall back to the detached CLI.
 
-- **Claude Code**: install the ACP adapter globally — `npm install -g @agentclientprotocol/claude-agent-acp`
-- **Codex**: install the ACP adapter globally — `npm install -g @agentclientprotocol/codex-acp`
+This is not the Cursor Cloud Agents API. Cloud Cursor uses `https://api.cursor.com/v1` (v1 replaced v0; there is no Cloud v2).
+
+- **Claude Code**: prefer `npm install -g @agentclientprotocol/claude-agent-acp`. RTS also probes native `claude acp` / `claude --acp`. Having `claude` on PATH is enough to start a task (detached fallback) even without an adapter.
+- **Codex**: prefer `npm install -g @agentclientprotocol/codex-acp`. RTS also probes `codex acp`.
 - **OpenCode**: no extra install — the `opencode acp` subcommand is used directly
 - **Cursor CLI**: install the CLI (not just the editor) — `curl -fsSL https://cursor.com/install | bash`, then run `agent login` once; the `agent acp` subcommand is used directly
+- **Antigravity**: uses official `agy acp` / `agy --acp` when present; otherwise detached `agy --print`
 
-Without an adapter, tasks fall back to the detached-CLI behavior described below (no live output). ACP sessions are auto-approved per provider: Claude allows only read/edit/execute tool kinds; Codex, OpenCode, and Cursor allow all permission requests.
+Without an adapter, tasks fall back to the detached-CLI behavior described below (no live output). On Windows, npm `.cmd` shims are launched through `cmd.exe` so start does not fail with EINVAL. ACP sessions are auto-approved per provider: Claude allows only read/edit/execute tool kinds; Codex, OpenCode, Cursor, and Antigravity allow all permission requests.
 
 ### Antigravity CLI
 
 - **Detected by**: `agy --version` or an Antigravity data directory under your home directory:
   - Windows example: `%LOCALAPPDATA%\Antigravity`
-- **Starts tasks by running** (detached): `agy -p "<prompt>" --print-timeout 30m`
+- **Starts tasks**: official `agy acp` / `agy --acp` when available; otherwise detached `agy --print "<prompt>" --print-timeout 30m`
   - `-p` / `--print` runs a single non-interactive prompt
 - **Project selection**:
   - In Settings, add **GitHub Repository Paths** (folders that contain your Git repos)
@@ -229,7 +224,7 @@ If Claude CLI shows as “not installed”:
 1. **Install dependencies** (`npm ci`)
 2. **Start the app** (`npm run dev` or `npm run start`)
 3. Open **Settings** and configure what you need:
-   - Add API keys for any cloud providers you want to use (Jules, Cursor, OpenAI Responses, Claude Cloud, GitHub)
+   - Add API keys for any cloud providers you want to use (Jules, Cursor, Claude Cloud, GitHub)
    - Add repository root paths so the app can find local repos for Antigravity CLI / Claude CLI / Codex CLI / OpenCode tasks
    - Optional: add **Antigravity CLI Paths** if you keep local repo roots in additional locations
 4. Go back to **Dashboard** and click **SYNC** to refresh.
@@ -280,7 +275,7 @@ npx playwright test
   - `claude-service.js` (local session discovery + Anthropic API + start CLI session)
   - `jules-service.js` (Jules API)
   - `cursor-service.js` (Cursor Cloud API)
-  - `codex-service.js` (Codex CLI launch support plus OpenAI Responses tasks)
+  - `codex-service.js` (Codex CLI launch support)
   - `github-service.js` (GitHub REST + GraphQL for “ready for review”)
 - **Persistence**: `electron-store` via `src/main/services/config-store.js`
   - Stores API keys, polling settings, repo paths, filters, and tracked Codex/Claude cloud IDs locally.

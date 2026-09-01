@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { providerMeta } from '../ui/icons.jsx';
-import { StatusDot, statusMeta } from '../ui/status.jsx';
+import { StatusDot, canvasStatusMeta } from '../ui/status.jsx';
 import { getProviderDisplayName } from '../../utils/format.js';
 
 const RECENT_TASK_LIMIT = 20;
@@ -30,11 +30,13 @@ function relativeTime(timestamp) {
 
 function RecentTaskRow({ task, onOpen }) {
   const meta = providerMeta(task?.provider);
-  const status = statusMeta(task?.status);
+  const status = canvasStatusMeta(task?.status);
   const repo = shortRepo(task?.repository);
   const harness = getProviderDisplayName(task?.provider) || meta.label;
   const when = relativeTime(task?.updatedAt || task?.createdAt);
-  const running = String(task?.status || '').toLowerCase() === 'running';
+  const statusKey = String(task?.status || '').toLowerCase();
+  const running = statusKey === 'running';
+  const completed = statusKey === 'completed';
 
   return (
     <button
@@ -45,10 +47,18 @@ function RecentTaskRow({ task, onOpen }) {
       data-task-id={task?.id || task?.rawId || undefined}
       onClick={() => onOpen(task)}
     >
-      <StatusDot status={task?.status} className="mt-1.5" />
+      <StatusDot status={task?.status} variant="canvas" className="mt-1.5" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
+          <span
+            className={`min-w-0 flex-1 truncate text-[13px] font-medium ${
+              running
+                ? 'text-emerald-800 dark:text-emerald-400'
+                : completed
+                  ? 'text-neutral-500 dark:text-neutral-400'
+                  : 'text-neutral-900 dark:text-neutral-100'
+            }`}
+          >
             {task?.name || 'Task'}
           </span>
           <span
@@ -79,8 +89,9 @@ function RecentTaskRow({ task, onOpen }) {
 }
 
 /**
- * Always-visible recent-task list for the Agent canvas. Sorts by
- * updatedAt/createdAt, caps at 20, and opens task-detail via openTask.
+ * Recent-task list for the Agent landing. Sorts by updatedAt/createdAt,
+ * caps at 20, and opens task-detail via openTask. The Agent page animates
+ * this closed when a message is sent.
  */
 export default function RecentTasksList() {
   const { state, openTask } = useApp();
@@ -98,7 +109,7 @@ export default function RecentTasksList() {
   return (
     <section
       id="agent-recent-tasks"
-      className="flex min-h-[8rem] max-h-[50%] shrink-0 basis-[38%] flex-col overflow-hidden border-t border-border-light dark:border-border-dark"
+      className="flex h-full flex-col overflow-hidden border-t border-border-light dark:border-border-dark"
       aria-labelledby="agent-recent-tasks-title"
     >
       <div className="mx-auto flex w-full max-w-3xl shrink-0 items-center px-4 py-2">

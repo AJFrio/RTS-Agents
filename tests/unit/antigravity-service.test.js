@@ -4,6 +4,12 @@ jest.mock('../../src/main/services/config-store', () => ({
   setAntigravitySessions: jest.fn(),
 }));
 
+jest.mock('../../src/main/services/acp-service', () => ({
+  resolveAdapter: jest.fn(() => null),
+  runPrompt: jest.fn(),
+  buildSpawnArgs: jest.fn((command, args) => ({ command, args })),
+}));
+
 jest.mock('../../src/main/services/project-service', () => ({}));
 
 jest.mock('../../src/main/utils/path-exists', () => ({

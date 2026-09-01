@@ -160,6 +160,7 @@ test('web-api getSettings returns the flat desktop shape', async () => {
   assert.deepEqual(result.githubPaths, []);
   assert.equal(result.antigravityInstalled, false);
   assert.equal(result.claudeCliInstalled, false);
+  assert.equal(result.cursorCliInstalled, false);
   assert.equal(result.codexInstalled, false);
   assert.equal(result.opencodeInstalled, false);
   assert.equal(result.claudeCloudConfigured, false);
@@ -500,53 +501,19 @@ test('web-api cursor fetcher maps agents + latest run to the desktop Agent shape
   assert.equal(agent.webUrl, 'https://cursor.com/agents/ag1');
 });
 
-test('web-api codex fetcher maps tracked threads to the desktop Agent shape', async () => {
+test('web-api does not fetch Codex cloud threads', async () => {
   const { createStorage } = await import('../../src/renderer/platform/web-storage.mjs');
   const { createWebApi } = await import('../../src/renderer/platform/web-api.mjs');
   const storage = createStorage(makeStorage());
   storage.setApiKey('codex', 'openai-key');
-  const kv = makeStorage();
-  kv.setItem(
-    'codex_tracked_threads',
-    JSON.stringify([
-      {
-        id: 't1',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        prompt: 'do thing',
-        repository: 'https://github.com/acme/web',
-        branch: 'feat',
-        title: 'My thread',
-      },
-    ])
-  );
-  const fetchStub = makeFetch([
-    {
-      match: (url) => url === '/api/codex/threads/t1',
-      respond: () => jsonResponse({ id: 't1', created_at: 1767225600 }),
-    },
-    {
-      match: urlHas('/api/codex/threads/t1/runs?limit=1'),
-      respond: () => jsonResponse({ data: [{ id: 'r1', status: 'completed', created_at: 1767312000 }] }),
-    },
-  ]);
-  const api = createWebApi({ storage, fetchImpl: fetchStub, kv });
+  const fetchStub = makeFetch([]);
+  const api = createWebApi({ storage, fetchImpl: fetchStub });
 
   const result = await api.getAgents({ sinceRevision: 0, force: true });
 
-  assert.equal(result.counts.codex, 1);
-  assert.equal(result.counts.total, 1);
+  assert.equal(result.counts.codex, 0);
   assert.deepEqual(result.errors, []);
-
-  const agent = result.agents[0];
-  assert.equal(agent.id, 'codex-t1');
-  assert.equal(agent.provider, 'codex');
-  assert.equal(agent.name, 'My thread');
-  assert.equal(agent.status, 'completed');
-  assert.equal(agent.prompt, 'do thing');
-  assert.equal(agent.repository, 'https://github.com/acme/web');
-  assert.equal(agent.branch, 'feat');
-  assert.equal(agent.rawId, 't1');
-  assert.equal(agent.webUrl, 'https://platform.openai.com/playground/assistants?thread=t1');
+  assert.equal(fetchStub.calls.length, 0);
 });
 
 test('web-api claude fetcher maps tracked conversations without network calls', async () => {
@@ -1001,7 +968,6 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   const storage = createStorage(makeStorage());
   storage.setApiKey('jules', 'j-key');
   storage.setApiKey('cursor', 'c-key');
-  storage.setApiKey('codex', 'o-key');
   storage.setApiKey('claude', 'a-key');
   storage.setApiKey('github', 'g-key');
   storage.setApiKey('jira', 'j-token');
@@ -1010,7 +976,6 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   const fetchStub = makeFetch([
     { match: urlHas('/api/jules/sources?pageSize=1'), respond: () => jsonResponse({ sources: [] }) },
     { match: urlHas('/api/cursor/me'), respond: () => jsonResponse({}) },
-    { match: urlHas('/api/codex/models'), respond: () => jsonResponse({ data: [] }) },
     {
       match: (url, opts) => urlHas('/api/claude/messages')(url) && opts.method === 'POST',
       respond: () => jsonResponse({ id: 'm1', content: [{ type: 'text', text: 'ok' }] }),
@@ -1023,7 +988,7 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
 
   assert.equal((await api.testApiKey('jules')).success, true);
   assert.equal((await api.testApiKey('cursor')).success, true);
-  assert.equal((await api.testApiKey('codex')).success, true);
+  assert.equal((await api.testApiKey('codex')).success, false);
   assert.equal((await api.testApiKey('claude')).success, true);
   assert.equal((await api.testApiKey('github')).success, true);
   assert.equal((await api.testApiKey('jira')).success, true);
@@ -1031,7 +996,6 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
 
   assert.ok(fetchStub.calls.some((c) => c.url.includes('/api/jules/sources?pageSize=1')));
   assert.ok(fetchStub.calls.some((c) => c.url.includes('/api/cursor/me')));
-  assert.ok(fetchStub.calls.some((c) => c.url.includes('/api/codex/models')));
   assert.ok(fetchStub.calls.some((c) => c.url.includes('/api/claude/messages')));
   assert.ok(fetchStub.calls.some((c) => c.url.includes('/api/github/user')));
   const jiraCall = fetchStub.calls.find((c) => c.url.includes('/api/jira/rest/api/3/myself'));

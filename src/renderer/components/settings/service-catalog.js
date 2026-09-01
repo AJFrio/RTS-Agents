@@ -45,19 +45,6 @@ export const SERVICE_CATALOG = [
     ],
   },
   {
-    id: 'codex-cloud',
-    title: 'OpenAI Responses',
-    subtitle: 'Codex-capable models',
-    category: 'Coding Assistants',
-    kind: 'cloud-api-key',
-    provider: 'codex',
-    icon: 'cloud',
-    description: 'Connect OpenAI for Responses API tasks using Codex-capable models.',
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter OpenAI API key' },
-    ],
-  },
-  {
     id: 'codex-local',
     title: 'Codex CLI',
     subtitle: 'Local CLI',

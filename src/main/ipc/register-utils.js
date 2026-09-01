@@ -1,5 +1,6 @@
 const { ipcMain } = require('electron');
 const providerHealth = require('../services/provider-health');
+const acpService = require('../services/acp-service');
 
 function registerUtilsHandlers(deps) {
   const {
@@ -101,7 +102,6 @@ function registerUtilsHandlers(deps) {
     const [
       julesStatus,
       cursorStatus,
-      codexStatus,
       claudeCloudStatus,
       githubStatus,
       jiraStatus,
@@ -112,9 +112,6 @@ function registerUtilsHandlers(deps) {
         : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('cursor')
         ? cursorService.testConnection()
-        : Promise.resolve({ success: false, error: 'Not configured' }),
-      configStore.hasApiKey('codex')
-        ? codexService.testConnection()
         : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('claude')
         ? claudeService.testConnection()
@@ -144,6 +141,9 @@ function registerUtilsHandlers(deps) {
       opencodeService.isOpenCodeInstalled(),
       cursorService.isCursorCliAvailable(),
     ]);
+    const claudeAcp = !!acpService.resolveAdapter('claude');
+    const codexAcp = !!acpService.resolveAdapter('codex');
+    const antigravityAcp = !!acpService.resolveAdapter('antigravity');
     return {
       antigravity: {
         success: antigravityInstalled,
@@ -164,28 +164,45 @@ function registerUtilsHandlers(deps) {
         cursorStatus.status === 'fulfilled'
           ? cursorStatus.value
           : { success: false, error: cursorStatus.reason?.message },
-      codex: configStore.hasApiKey('codex')
-        ? codexStatus.status === 'fulfilled'
-          ? codexStatus.value
-          : providerHealth.fail('codex', codexStatus.reason, { configured: true })
-        : codexInstalled
-          ? providerHealth.ok('codex', {
-              configured: true,
-              installed: true,
-              docsUrl: 'https://developers.openai.com/codex/noninteractive',
-              endpointLabel: 'codex --version',
-              message: 'Codex CLI is available on this machine.',
-            })
-          : providerHealth.notConfigured('codex', {
-              installed: false,
-              docsUrl: 'https://developers.openai.com/codex/noninteractive',
-              endpointLabel: 'codex --version',
-              message: 'OpenAI API key not configured and Codex CLI not found',
-            }),
+      codex: codexInstalled
+        ? providerHealth.ok('codex', {
+            configured: true,
+            installed: true,
+            docsUrl: 'https://developers.openai.com/codex/noninteractive',
+            endpointLabel: 'codex --version',
+            message: 'Codex CLI is available on this machine.',
+          })
+        : providerHealth.notConfigured('codex', {
+            installed: false,
+            docsUrl: 'https://developers.openai.com/codex/noninteractive',
+            endpointLabel: 'codex --version',
+            message: 'Codex CLI not found',
+          }),
       'claude-cli': {
         success: claudeCliInstalled,
         connected: claudeCliInstalled,
         error: claudeCliInstalled ? null : 'Claude CLI not installed',
+      },
+      'claude-acp': {
+        success: claudeAcp,
+        connected: claudeAcp,
+        error: claudeAcp
+          ? null
+          : 'Claude ACP adapter not found. Install claude-agent-acp or a Claude CLI with an acp command.',
+      },
+      'codex-acp': {
+        success: codexAcp,
+        connected: codexAcp,
+        error: codexAcp
+          ? null
+          : 'Codex ACP adapter not found. Install codex-acp or a Codex CLI with an acp command.',
+      },
+      'antigravity-acp': {
+        success: antigravityAcp,
+        connected: antigravityAcp,
+        error: antigravityAcp
+          ? null
+          : 'Antigravity has no official ACP mode; tasks use detached agy --print.',
       },
       'cursor-cli': {
         success: cursorCliInstalled,

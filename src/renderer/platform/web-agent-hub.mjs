@@ -73,9 +73,6 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
     if (storage.hasApiKey('cursor')) {
       fetchers.push(['cursor', () => providers.cursor.getAllAgents()]);
     }
-    if (storage.hasApiKey('codex')) {
-      fetchers.push(['codex', () => providers.codex.getAllAgents()]);
-    }
     if (storage.hasApiKey('claude')) {
       fetchers.push(['claude-cloud', () => providers.claude.getAllAgents()]);
     }
@@ -167,9 +164,6 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
       case 'cursor':
         details = await providers.cursor.getAgentDetails(rawId);
         break;
-      case 'codex':
-        details = await providers.codex.getAgentDetails(rawId);
-        break;
       case 'claude-cloud':
         details = await providers.claude.getAgentDetails(rawId);
         break;
@@ -225,11 +219,6 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
         const task = await providers.cursor.createAgent(options);
         return { success: true, task };
       }
-      case 'codex': {
-        if (!storage.hasApiKey('codex')) throw new Error('OpenAI API key not configured');
-        const task = await providers.codex.createTask(options);
-        return { success: true, task };
-      }
       case 'claude-cloud': {
         if (!storage.hasApiKey('claude')) throw new Error('Claude API key not configured');
         const task = await providers.claude.createTask(options);
@@ -237,6 +226,7 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
       }
       case 'antigravity':
       case 'claude-cli':
+      case 'codex':
       case 'opencode':
         throw new Error(`${provider} tasks are desktop-only on web`);
       default:
@@ -267,10 +257,6 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
           if (!storage.hasApiKey('cursor')) throw new Error('Cursor API key not configured');
           await providers.cursor.sendFollowup(rawId, message);
           break;
-        case 'codex':
-          if (!storage.hasApiKey('codex')) throw new Error('OpenAI API key not configured');
-          await providers.codex.sendFollowup(rawId, message);
-          break;
         case 'claude-cloud':
           if (!storage.hasApiKey('claude')) throw new Error('Claude API key not configured');
           await providers.claude.sendFollowup(rawId, message);
@@ -293,14 +279,6 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
           return {
             success: true,
             models: normalizeModelIds(await providers.cursor.listModels()),
-            source: 'api',
-          };
-        }
-        case 'codex': {
-          if (!storage.hasApiKey('codex')) return { success: true, models: [], source: 'none' };
-          return {
-            success: true,
-            models: normalizeModelIds(await providers.codex.listModels()),
             source: 'api',
           };
         }

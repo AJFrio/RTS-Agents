@@ -4,12 +4,12 @@ import { useApp } from '../context/AppContext.jsx';
 import Composer from '../components/chat/Composer.jsx';
 import { getProviderDisplayName } from '../utils/format.js';
 import { getLastSelectedModel, setLastSelectedModel } from '../utils/last-selected-model.js';
-import { providerMeta } from '../components/ui/icons.jsx';
+import { providerMeta, IconChevronDown } from '../components/ui/icons.jsx';
 
 const CACHE_KEY_PREFIX = 'rts_repo_cache_';
 const MODELS_CACHE_KEY_PREFIX = 'rts_model_cache_';
 
-const CLOUD_PROVIDERS = ['jules', 'cursor', 'codex', 'claude-cloud'];
+const CLOUD_PROVIDERS = ['jules', 'cursor', 'claude-cloud'];
 const LOCAL_PROVIDERS = ['antigravity', 'cursor', 'codex', 'claude-cli', 'opencode'];
 const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode'];
 
@@ -87,20 +87,24 @@ function shortRepo(repository) {
   return text.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || text;
 }
 
-function ControlPill({ label, value, onClick, active, id }) {
+function looksLikeLocalPath(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+  if (/^[A-Za-z]:[\\/]/.test(text)) return true;
+  if (text.startsWith('/') || text.startsWith('\\\\')) return true;
+  return false;
+}
+
+function ControlPill({ label, value, onClick, id }) {
   return (
     <button
       type="button"
       id={id}
       onClick={onClick}
-      className={`inline-flex max-w-[180px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-        active
-          ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
-          : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
-      }`}
+      className="inline-flex max-w-[180px] items-center gap-1 rounded-md px-1.5 py-1 text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
     >
-      <span className="shrink-0 opacity-70">{label}</span>
-      <span className="min-w-0 truncate">{value}</span>
+      <span className="min-w-0 truncate">{value || label}</span>
+      <IconChevronDown size={12} className="shrink-0 opacity-70" />
     </button>
   );
 }
@@ -301,26 +305,49 @@ export default function NewTaskPage() {
     if (selectedProvider) setLastSelectedModel(selectedProvider, model);
   };
 
+  const commitTypedRepoPath = (raw) => {
+    const text = String(raw || '').trim();
+    if (!looksLikeLocalPath(text)) return false;
+    setSelectedRepo(text);
+    setSelectedRepoSearch('');
+    setRepoDropdownOpen(false);
+    setFieldErrors((prev) => ({ ...prev, repo: null }));
+    return true;
+  };
+
   const handleRepoKeyDown = (e) => {
     if (!repoDropdownOpen) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') setRepoDropdownOpen(true);
+      if (e.key === 'Enter' && commitTypedRepoPath(repoSearch || selectedRepo)) {
+        e.preventDefault();
+      }
       return;
     }
-    if (filteredRepos.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev + 1) % filteredRepos.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setHighlightedIndex((prev) => (prev <= 0 ? filteredRepos.length - 1 : prev - 1));
-    } else if (e.key === 'Enter') {
+    if (e.key === 'Enter') {
       e.preventDefault();
       if (highlightedIndex >= 0 && highlightedIndex < filteredRepos.length) {
         const repo = filteredRepos[highlightedIndex];
         setSelectedRepo(getRepoValue(repo));
         setSelectedRepoSearch('');
         setRepoDropdownOpen(false);
+        return;
       }
+      if (commitTypedRepoPath(repoSearch)) return;
+      return;
+    }
+    if (filteredRepos.length === 0) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setRepoDropdownOpen(false);
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev + 1) % filteredRepos.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev <= 0 ? filteredRepos.length - 1 : prev - 1));
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setRepoDropdownOpen(false);
@@ -385,12 +412,14 @@ export default function NewTaskPage() {
     }
   };
 
+  const resolvedRepoPath = selectedRepo || (looksLikeLocalPath(repoSearch) ? repoSearch.trim() : '');
+
   const validate = () => {
     const errors = {};
     if (!selectedProvider) errors.agent = 'Choose an agent before creating the task.';
     if (!prompt.trim()) errors.prompt = 'Describe what the agent should do.';
     if (environment === 'remote' && !targetDeviceId) errors.device = 'Choose the device that should run this queued task.';
-    if (repoRequired && !selectedRepo) errors.repo = 'Choose the repository or local project path for this task.';
+    if (repoRequired && !resolvedRepoPath) errors.repo = 'Choose the repository or local project path for this task.';
     return errors;
   };
 
@@ -413,9 +442,9 @@ export default function NewTaskPage() {
       autoCreatePr: autoPr,
       attachments: attachments.map((a) => ({ dataUrl: a.dataUrl })),
     };
-    if (selectedRepo) {
-      options.repository = selectedRepo;
-      options.projectPath = selectedRepo;
+    if (resolvedRepoPath) {
+      options.repository = resolvedRepoPath;
+      options.projectPath = resolvedRepoPath;
     }
     if (isRemote) options.targetDeviceId = targetDeviceId;
     if (selectedModel) options.model = selectedModel;
@@ -571,21 +600,18 @@ export default function NewTaskPage() {
           onPaste={handlePaste}
           footerNote={`${
             getProviderDisplayName(selectedProvider) || 'No agent selected'
-          } · ${shortRepo(selectedRepo) || (repoRequired ? 'repo required' : 'no repo')}${
+          } · ${shortRepo(resolvedRepoPath) || (repoRequired ? 'repo required' : 'no repo')}${
             autoPr ? ' · auto-PR on' : ''
           }`}
         >
           {environment === 'remote' && (
             <label
-              className={`inline-flex max-w-[200px] items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              className={`inline-flex max-w-[200px] items-center gap-1 rounded-md px-1.5 py-1 text-[13px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
                 currentErrors.device
-                  ? 'border-red-400 text-neutral-600 dark:border-red-400 dark:text-neutral-400'
-                  : targetDeviceId
-                    ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
-                    : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-neutral-500 dark:text-neutral-400'
               }`}
             >
-              <span className="shrink-0 opacity-70">Device</span>
               <select
                 id="task-device"
                 value={targetDeviceId}
@@ -594,35 +620,28 @@ export default function NewTaskPage() {
                   setFieldErrors((prev) => ({ ...prev, device: null }));
                 }}
                 aria-label="Select remote device"
-                className="min-w-[4.5rem] max-w-[140px] cursor-pointer appearance-none border-0 bg-transparent p-0 text-[11px] text-inherit focus:border-transparent focus:outline-none focus:ring-0"
+                className="min-w-[4.5rem] max-w-[140px] cursor-pointer appearance-none border-0 bg-transparent p-0 text-[13px] text-inherit focus:border-transparent focus:outline-none focus:ring-0"
               >
-                <option value="">Select…</option>
+                <option value="">Device</option>
                 {computersList.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.id === state.localDeviceId ? `${c.name || c.id} (this device)` : c.name || c.id}
                   </option>
                 ))}
               </select>
-              <svg className="pointer-events-none shrink-0 opacity-70" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
+              <IconChevronDown size={12} className="pointer-events-none shrink-0 opacity-70" />
             </label>
           )}
 
           {showRepoSection && (
             <div className="relative" ref={repoInputContainerRef}>
               <label
-                className={`inline-flex max-w-[200px] items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                className={`inline-flex max-w-[200px] items-center gap-1 rounded-md px-1.5 py-1 text-[13px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
                   currentErrors.repo
-                    ? 'border-red-400 text-neutral-600 dark:border-red-400 dark:text-neutral-400'
-                    : selectedRepo
-                      ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
-                      : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-neutral-500 dark:text-neutral-400'
                 }`}
               >
-                <span className="shrink-0 opacity-70">
-                  {environment === 'local' ? 'Path' : 'Repo'}
-                </span>
                 <input
                   id="task-repo-search"
                   type="text"
@@ -633,8 +652,14 @@ export default function NewTaskPage() {
                   }}
                   onFocus={() => setRepoDropdownOpen(true)}
                   onKeyDown={handleRepoKeyDown}
-                  placeholder={loadingRepos && repos.length === 0 ? 'Loading…' : 'Select…'}
-                  className="min-w-0 w-28 truncate border-0 bg-transparent p-0 font-mono text-[11px] text-inherit placeholder:text-neutral-400 focus:border-transparent focus:outline-none focus:ring-0 dark:placeholder:text-neutral-500"
+                  placeholder={
+                    loadingRepos && repos.length === 0
+                      ? 'Loading…'
+                      : environment === 'local'
+                        ? 'Path'
+                        : 'Repo'
+                  }
+                  className="min-w-0 w-28 truncate border-0 bg-transparent p-0 font-mono text-[13px] text-inherit placeholder:text-neutral-400 focus:border-transparent focus:outline-none focus:ring-0 dark:placeholder:text-neutral-500"
                   aria-label="Search or select repository"
                   aria-expanded={repoDropdownOpen}
                   aria-haspopup="listbox"
@@ -645,9 +670,7 @@ export default function NewTaskPage() {
                   aria-label="Toggle repository list"
                   className="shrink-0 text-current opacity-70 hover:opacity-100"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
+                  <IconChevronDown size={12} />
                 </button>
               </label>
               {repoDropdownOpen && (
@@ -709,7 +732,6 @@ export default function NewTaskPage() {
                 id="task-model"
                 label="Model"
                 value={selectedModel || 'default'}
-                active={!!selectedModel}
                 onClick={() => setModelDropdownOpen((v) => !v)}
               />
               {modelDropdownOpen && (
@@ -776,16 +798,15 @@ export default function NewTaskPage() {
 
           <label
             htmlFor="task-branch"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border-light px-2.5 py-1 text-[11px] font-medium text-neutral-600 dark:border-border-dark dark:text-neutral-400"
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[13px] text-neutral-500 dark:text-neutral-400"
           >
-            Branch
             <input
               id="task-branch"
               type="text"
               value={branch}
               onChange={(e) => setBranch(e.target.value)}
               aria-label="Branch or ref"
-              className="w-20 border-0 bg-transparent px-0 py-0 font-mono text-[11px] focus:ring-0"
+              className="w-20 border-0 bg-transparent px-0 py-0 font-mono text-[13px] focus:ring-0"
             />
           </label>
 
@@ -793,11 +814,7 @@ export default function NewTaskPage() {
             type="button"
             onClick={() => setAutoPr((v) => !v)}
             aria-pressed={autoPr}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-              autoPr
-                ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
-                : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
-            }`}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[13px] text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
           >
             Auto-PR {autoPr ? 'on' : 'off'}
           </button>

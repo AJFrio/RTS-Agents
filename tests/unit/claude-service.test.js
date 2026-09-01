@@ -1,5 +1,6 @@
 const path = require('path');
 const realFs = jest.requireActual('fs');
+const { expectSpawnedCli, platformCli } = require('./helpers/cli-spawn-assert');
 
 // Mock external modules
 jest.mock('fs', () => ({
@@ -26,6 +27,7 @@ jest.mock('os', () => ({
 }));
 
 jest.mock('../../src/main/services/config-store', () => ({
+  getSetting: jest.fn(() => ({})),
   setClaudeCliSessions: jest.fn(),
   getClaudeCliSessions: jest.fn(() => []),
 }));
@@ -60,6 +62,7 @@ describe('ClaudeService', () => {
     https = require('https');
     os = require('os');
     ({ spawn, spawnSync } = require('child_process'));
+    spawnSync.mockReturnValue({ status: 0 });
     acpService = require('../../src/main/services/acp-service');
     configStore = require('../../src/main/services/config-store');
 
@@ -469,7 +472,7 @@ describe('ClaudeService', () => {
 
     test('projects dir with session data counts as installed', async () => {
       fs.promises.access.mockImplementation(async (target) => {
-        if (String(target).endsWith('.claude/projects')) return undefined;
+        if (String(target).replace(/\\/g, '/').endsWith('.claude/projects')) return undefined;
         throw new Error('ENOENT');
       });
 
@@ -633,10 +636,11 @@ describe('ClaudeService', () => {
         projectPath: '/repo',
       });
 
-      expect(spawn).toHaveBeenCalledWith(
-        'claude',
+      expectSpawnedCli(
+        spawn,
+        platformCli('claude'),
         ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash'],
-        expect.objectContaining({ cwd: '/repo', detached: true })
+        expect.objectContaining({ cwd: '/repo', detached: true, shell: false })
       );
       expect(result.message).toContain('Claude Code CLI session started');
       expect(claudeService.getTrackedLocalSessions()).toHaveLength(0);
@@ -650,10 +654,11 @@ describe('ClaudeService', () => {
       await claudeService.startLocalSession({ prompt: 'Fix it', projectPath: '/repo' });
 
       expect(acpService.runPrompt).not.toHaveBeenCalled();
-      expect(spawn).toHaveBeenCalledWith(
-        'claude',
+      expectSpawnedCli(
+        spawn,
+        platformCli('claude'),
         ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash'],
-        expect.objectContaining({ detached: true })
+        expect.objectContaining({ detached: true, shell: false })
       );
     });
 
@@ -722,10 +727,11 @@ describe('ClaudeService', () => {
         model: 'claude-sonnet-4-6',
       });
 
-      expect(spawn).toHaveBeenCalledWith(
-        'claude',
+      expectSpawnedCli(
+        spawn,
+        platformCli('claude'),
         ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash', '--model', 'claude-sonnet-4-6'],
-        expect.objectContaining({ detached: true })
+        expect.objectContaining({ detached: true, shell: false })
       );
     });
 
@@ -736,10 +742,10 @@ describe('ClaudeService', () => {
 
       await claudeService.startLocalSession({ prompt: 'Fix it', projectPath: '/repo' });
 
-      expect(spawn).toHaveBeenCalledWith(
-        'claude',
-        ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash'],
-        expect.anything()
+      expectSpawnedCli(
+        spawn,
+        platformCli('claude'),
+        ['-p', 'Fix it', '--allowedTools', 'Read,Edit,Bash']
       );
     });
 

@@ -106,25 +106,11 @@ describe('model-registry', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
-  test('lists codex models via the OpenAI API when a key is configured', async () => {
-    configStore.hasApiKey.mockImplementation((id) => id === 'codex');
-    codexService.listModels.mockResolvedValue({
-      data: [{ id: 'gpt-5.2' }, { id: 'gpt-5.2-codex' }],
-    });
-
-    const result = await modelRegistry.getModelsForProvider('codex');
-
-    expect(result.success).toBe(true);
-    expect(result.source).toBe('api');
-    expect(result.models).toEqual(['gpt-5.2', 'gpt-5.2-codex']);
-  });
-
-  test('returns no codex models without an API key', async () => {
+  test('returns no live Codex model list (CLI-only harness)', async () => {
     const result = await modelRegistry.getModelsForProvider('codex');
 
     expect(result.models).toEqual([]);
     expect(result.source).toBe('none');
-    expect(codexService.listModels).not.toHaveBeenCalled();
   });
 
   test('normalizes cursor cloud model payloads when a key is configured', async () => {

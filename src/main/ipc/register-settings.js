@@ -4,7 +4,6 @@ const { registerSettingsPathHandlers } = require('./register-settings-paths');
 const API_KEY_PROVIDERS = new Set([
   'jules',
   'cursor',
-  'codex',
   'claude',
   'github',
   'jira',
@@ -29,19 +28,19 @@ function registerSettingsHandlers(deps) {
   const { getMainWindow } = deps;
 
   ipcMain.handle('settings:get', async () => {
-    const [antigravityInstalled, claudeCliInstalled, codexInstalled, opencodeInstalled] =
+    const [antigravityInstalled, claudeCliInstalled, codexInstalled, opencodeInstalled, cursorCliInstalled] =
       await Promise.all([
         antigravityService.isAntigravityInstalled(),
         claudeService.isClaudeInstalled(),
         codexService.isCodexInstalled(),
         opencodeService.isOpenCodeInstalled(),
+        Promise.resolve(cursorService.isCursorCliAvailable()),
       ]);
     return {
       settings: configStore.getAllSettings(),
       apiKeys: {
         jules: configStore.hasApiKey('jules'),
         cursor: configStore.hasApiKey('cursor'),
-        codex: configStore.hasApiKey('codex'),
         openrouter: configStore.hasApiKey('openrouter'),
         claude: configStore.hasApiKey('claude'),
         github: configStore.hasApiKey('github'),
@@ -67,6 +66,7 @@ function registerSettingsHandlers(deps) {
       claudeCloudConfigured: configStore.hasApiKey('claude'),
       claudeDefaultPath: claudeService.getDefaultPath(),
       claudePaths: configStore.getClaudePaths(),
+      cursorCliInstalled,
       cursorPaths: configStore.getCursorPaths(),
       codexPaths: configStore.getCodexPaths(),
       opencodePaths: configStore.getOpenCodePaths(),
@@ -93,11 +93,6 @@ function registerSettingsHandlers(deps) {
       julesService.setApiKey(key);
     } else if (provider === 'cursor') {
       cursorService.setApiKey(key);
-    } else if (provider === 'codex') {
-      codexService.setApiKey(key);
-      // Restore tracked threads from config
-      const trackedThreads = configStore.getCodexThreads();
-      codexService.setTrackedThreads(trackedThreads);
     } else if (provider === 'claude') {
       claudeService.setApiKey(key);
       // Restore tracked conversations from config
@@ -126,8 +121,6 @@ function registerSettingsHandlers(deps) {
         return await julesService.testConnection();
       } else if (provider === 'cursor') {
         return await cursorService.testConnection();
-      } else if (provider === 'codex') {
-        return await codexService.testConnection();
       } else if (provider === 'claude') {
         return await claudeService.testConnection();
       } else if (provider === 'github') {
@@ -159,11 +152,6 @@ function registerSettingsHandlers(deps) {
       julesService.setApiKey(null);
     } else if (provider === 'cursor') {
       cursorService.setApiKey(null);
-    } else if (provider === 'codex') {
-      codexService.setApiKey(null);
-      // Clear tracked threads
-      configStore.setCodexThreads([]);
-      codexService.setTrackedThreads([]);
     } else if (provider === 'claude') {
       claudeService.setApiKey(null);
       // Clear tracked conversations

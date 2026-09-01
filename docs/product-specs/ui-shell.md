@@ -36,15 +36,22 @@ renders every task's transcript as a chat log on the canvas.
 
 ## Agent tab (orchestrator)
 
-- Cursor-style chat against `orchestrator:chat`; the model is chosen with the
-  orchestrator model picker.
+- Cursor-style chat against `orchestrator:chat`. The empty state heading
+  ("What should we work on?") and the Composer sit above the recent-task
+  list. The orchestrator model picker is an inline text+chevron control
+  inside the Composer (`variant="inline"`), not a page header.
 - The orchestrator's tool calls render as expandable rows; every task it
   starts or references surfaces as a clickable task card that opens the task
   chat log on the canvas.
-- An always-visible **Recent tasks** list (`#agent-recent-tasks`) sits below
-  the chat: title, status, harness, repo, relative time. Rows use
+- A **Recent tasks** list (`#agent-recent-tasks`) sits below the Composer on
+  the empty landing: title, status, harness, repo, relative time. Rows use
   `.agent-recent-task`. Sorted by `updatedAt`/`createdAt`, capped at 20.
-  Clicking a row calls `openTask` → task-detail.
+  Clicking a row calls `openTask` → task-detail. Running rows use emerald
+  text/pill/dot; completed rows use grey. Sending a message animates the
+  list closed (200ms, `prefers-reduced-motion` instant) so the chat owns
+  the canvas. **New chat** (top-left) restores the empty landing and the
+  list. Orchestrator messages persist in `orchestratorChat` across tab
+  switches.
 - There is no Tasks header toggle or `TaskBrowserPanel`.
 
 ## Task chat log (canvas task detail)
@@ -59,7 +66,7 @@ renders every task's transcript as a chat log on the canvas.
 - Providers without structured messages fall back to the unified activity
   feed (Jules) or raw markdown content.
 - Follow-up composer at the bottom sends `tasks:send-message`; supported on
-  desktop for jules, cursor (cloud), claude-cloud, and codex cloud responses.
+  desktop for jules, cursor (cloud), and claude-cloud.
   Other harnesses show a disabled note instead.
 
 ## Service hub
@@ -82,7 +89,8 @@ renders every task's transcript as a chat log on the canvas.
 
 ## Acceptance criteria
 
-- [ ] First load shows `#view-agent` with `#agent-recent-tasks` visible
+- [ ] First load shows `#view-agent` with `#agent-recent-tasks` visible;
+      sending a message animates the list closed; New chat reverses it
 - [ ] Sidebar wordmark opens `#view-dashboard`; CLOSE_TASK returns to the
       previous view or Agent
 - [ ] Sidebar resize clamps to [200px, 33% window] and persists across restarts
@@ -93,8 +101,9 @@ renders every task's transcript as a chat log on the canvas.
       focused `Connect` / `Manage` modal with no catalog sidebar
 - [ ] ACP-dispatched sessions stream tool calls and thinking into the task
       chat log, collapsed and expandable
-- [ ] Follow-ups work for jules, cursor, claude-cloud, and codex cloud tasks
-- [ ] No blue remains in the UI; only status colors (emerald/amber/red) appear
+- [ ] Follow-ups work for jules, cursor, and claude-cloud tasks
+- [ ] No blue remains in the UI; only status colors (emerald/amber/red/grey)
+      appear. Agent recent tasks: running emerald, completed grey.
 
 ## Implementation pointers
 

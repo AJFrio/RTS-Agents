@@ -3,7 +3,7 @@ import { getServiceDefinition } from './service-catalog.js';
 export const SERVICE_GROUPS = [
   { id: 'jules', title: 'Jules', members: ['jules-cloud'] },
   { id: 'cursor', title: 'Cursor', members: ['cursor-cloud', 'cursor-local'] },
-  { id: 'codex', title: 'Codex', members: ['codex-cloud', 'codex-local'] },
+  { id: 'codex', title: 'Codex CLI', members: ['codex-local'] },
   { id: 'claude', title: 'Claude', members: ['claude-cloud', 'claude-local'] },
   { id: 'antigravity', title: 'Antigravity CLI', members: ['antigravity-local'] },
   { id: 'opencode', title: 'OpenCode', members: ['opencode-local'] },
@@ -47,8 +47,6 @@ export function getServiceStatus(serviceId, state) {
       return state.connectionStatus?.['cursor-cli']?.success
         ? { success: true, connected: true }
         : { success: false, error: 'Cursor CLI not detected' };
-    case 'codex-cloud':
-      return state.connectionStatus?.codex;
     case 'claude-cloud':
       return state.connectionStatus?.['claude-cloud'];
     case 'claude-local':
@@ -93,20 +91,28 @@ export function getServiceSummary(serviceId, state, status) {
       return state.settings?.cursorPaths?.length > 0
         ? `${state.settings.cursorPaths.length} repository roots linked`
         : 'Cursor CLI detected — add repository roots to enable local tasks';
-    case 'codex-local':
-      return `${state.settings?.codexPaths?.length || 0} repository roots connected`;
     case 'claude-local':
-      return state.serviceInfo?.installations?.claude
-        ? `${state.settings?.claudePaths?.length || 0} repository roots linked`
-        : 'Repository roots saved, but Claude Code is not detected locally';
+      if (!state.serviceInfo?.installations?.claude) {
+        return 'Repository roots saved, but Claude Code is not detected locally';
+      }
+      return state.connectionStatus?.['claude-acp']?.success
+        ? `${state.settings?.claudePaths?.length || 0} repository roots linked · ACP streaming`
+        : `${state.settings?.claudePaths?.length || 0} repository roots linked · ACP adapter missing (detached CLI fallback)`;
     case 'antigravity-local':
-      return state.serviceInfo?.installations?.antigravity
-        ? `${state.settings?.antigravityPaths?.length || 0} repository roots linked`
-        : 'Repository roots saved, but Antigravity CLI is not detected locally';
+      if (!state.serviceInfo?.installations?.antigravity) {
+        return 'Repository roots saved, but Antigravity CLI is not detected locally';
+      }
+      return state.connectionStatus?.['antigravity-acp']?.success
+        ? `${state.settings?.antigravityPaths?.length || 0} repository roots linked · ACP streaming`
+        : `${state.settings?.antigravityPaths?.length || 0} repository roots linked`;
     case 'opencode-local':
       return state.serviceInfo?.installations?.opencode
-        ? `${state.settings?.opencodePaths?.length || 0} repository roots linked`
+        ? `${state.settings?.opencodePaths?.length || 0} repository roots linked · ACP via opencode acp`
         : 'Repository roots saved, but OpenCode CLI is not detected locally';
+    case 'codex-local':
+      return state.connectionStatus?.['codex-acp']?.success
+        ? `${state.settings?.codexPaths?.length || 0} repository roots connected · ACP streaming`
+        : `${state.settings?.codexPaths?.length || 0} repository roots connected`;
     case 'github-local':
       return `${state.settings?.githubPaths?.length || 0} repository roots connected`;
     case 'jira-cloud':
@@ -125,7 +131,6 @@ export function isDisconnectable(serviceId, state) {
     [
       'jules-cloud',
       'cursor-cloud',
-      'codex-cloud',
       'claude-cloud',
       'openrouter-cloud',
       'github-cloud',

@@ -111,8 +111,9 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 ## 5. Primitives (all in `src/renderer/components/ui/` unless noted)
 
 - **Composer** (`Composer.jsx`, components/chat/) — Cursor chat box: borderless textarea in a
-  `bg-card` `rounded-2xl` shell, hairline outset ring (not CSS `border`, so corners stay
-  continuous). Bottom row: circular `+` (attach) on the left,
+  `bg-card` `rounded-2xl` shell, hairline ring via a masked 1px overlay (not CSS
+  `border` / box-shadow, so corners stay continuous on Chromium). Bottom row:
+  circular `+` (attach) on the left,
   inline text+chevron controls (model / repo / device / branch), circular send on the right.
   Image attachments show as inline thumbnails. Reused by Agent, New Task, and task follow-ups.
 - **ChatMessage** (`components/chat/`) — user vs. agent distinction: user messages sit in a

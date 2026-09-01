@@ -221,10 +221,11 @@ export const IconClock = (props) => (
   </Icon>
 );
 
+/** Function-call braces — readable at 14px, used for tool-call chips. */
 export const IconWrench = (props) => (
   <Icon {...props}>
-    <path d="M14.5 6.5a4 4 0 1 0 3 3L21 13l-8 8-2-2 8-8-4.5-4.5Z" />
-    <path d="m5 19 2-2" />
+    <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1" />
+    <path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" />
   </Icon>
 );
 
@@ -326,11 +327,7 @@ export const IconExtension = (props) => (
   </Icon>
 );
 
-export const IconBuild = (props) => (
-  <Icon {...props}>
-    <path d="m14.5 6.5a4.5 4.5 0 1 0-6.4 4.1L3 16v5h5l5.4-5.1a4.5 4.5 0 0 0 1.1-9.4Z" />
-  </Icon>
-);
+export const IconBuild = (props) => <IconWrench {...props} />;
 
 export const IconSend2 = (props) => (
   <Icon {...props}>

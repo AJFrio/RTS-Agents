@@ -9,7 +9,7 @@ import {
   IconGlob,
   IconGlobe,
   IconExtension,
-  IconBuild,
+  IconWrench,
   IconChevronRight,
   IconChevronDown,
   IconThinking,
@@ -18,6 +18,7 @@ import {
   IconRepositories,
   IconPullRequests,
   IconGitBranch,
+  IconTasks,
 } from './icons.jsx';
 
 const TOOL_ICONS = {
@@ -43,12 +44,15 @@ const TOOL_ICONS = {
   merge_pull_request: IconPullRequests,
   close_pull_request: IconPullRequests,
   mark_pr_ready: IconPullRequests,
+  list_tasks: IconTasks,
+  show_task: IconTasks,
+  start_task: IconTasks,
 };
 
 const MAX_RESULT_CHARS = 4000;
 
 function ToolIconFor({ name }) {
-  const Icon = TOOL_ICONS[name] || (name?.startsWith?.('mcp__') ? IconExtension : null) || IconBuild;
+  const Icon = TOOL_ICONS[name] || (name?.startsWith?.('mcp__') ? IconExtension : null) || IconWrench;
   return <Icon size={13} />;
 }
 
@@ -162,7 +166,7 @@ function ToolCallsGroup({ calls }) {
       >
         {open ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
         <span className="text-neutral-500 dark:text-neutral-400">
-          <IconBuild size={13} />
+          <IconWrench size={14} />
         </span>
         <span className="font-medium">Tool Calls</span>
         <span className="text-[10px] text-neutral-400">{calls.length}</span>

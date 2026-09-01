@@ -41,8 +41,8 @@ renders every task's transcript as a chat log on the canvas.
   Composer sit above the recent-task list. Placeholder: "Ask Janus to start,
   find, or summarize work…". The model picker is an inline text+chevron
   control inside the Composer (`variant="inline"`), not a page header.
-- Composer shell uses an outset 1px ring (not CSS `border`) so rounded
-  corners stay continuous on Chromium and are not covered by the textarea.
+- Composer shell uses a masked 1px overlay ring (not CSS `border` or
+  box-shadow) so rounded corners stay continuous on Chromium.
 - Consecutive Janus / transcript tool calls collapse into one **Tool
   Calls** bar (count in the label). Expanding it reveals each call, which
   can then be expanded on its own. A single call still renders as one row.

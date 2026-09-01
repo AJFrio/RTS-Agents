@@ -172,20 +172,35 @@ textarea {
   animation: status-pulse 2s ease-in-out infinite;
 }
 
-/* Outset ring avoids Chromium dropping 1px CSS-border pixels at large radii,
-   and is not covered by the textarea the way an inset shadow is. */
+/* 1px annulus painted above the fill. 1px border/box-shadow drops at large
+   radii; a nested padding ring gets covered by the inner fill's AA at the curve. */
 .composer-shell {
-  box-shadow: 0 0 0 1px theme('colors.border-light');
-  transition: box-shadow 150ms ease;
+  position: relative;
 }
-.composer-shell:focus-within {
-  box-shadow: 0 0 0 1px theme('colors.border-strong-light');
+.composer-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: theme('colors.border-light');
+  pointer-events: none;
+  z-index: 2;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  transition: background-color 150ms ease;
 }
-.dark .composer-shell {
-  box-shadow: 0 0 0 1px theme('colors.neutral.700');
+.composer-shell:focus-within::after {
+  background: theme('colors.border-strong-light');
 }
-.dark .composer-shell:focus-within {
-  box-shadow: 0 0 0 1px theme('colors.neutral.500');
+.dark .composer-shell::after {
+  background: theme('colors.neutral.700');
+}
+.dark .composer-shell:focus-within::after {
+  background: theme('colors.neutral.500');
 }
 
 /* Janus working mark: two opposing arcs, counter-rotate while busy */

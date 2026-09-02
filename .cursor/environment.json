@@ -1,0 +1,17 @@
+{
+  "name": "RTS Agents",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "web-dev",
+      "command": "npx vite --host 0.0.0.0",
+      "description": "Vite dev server for the shared React renderer (web build), served at http://localhost:5173 with hot reload."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web server",
+      "port": 5173
+    }
+  ]
+}

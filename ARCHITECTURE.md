@@ -8,7 +8,7 @@ RTS Agents is an **agent orchestration dashboard**: one place to monitor, create
 |---------|---------|-------|------|
 | Desktop app | Electron 44 | `main.js` | Primary product: IPC, polling, provider services |
 | Renderer UI | React 18 + Vite | `src/renderer/` | Dashboard, settings, modals, GitHub/Jira views |
-| Web app | Cloudflare Worker + Workers Assets | `worker/index.ts`, `wrangler.jsonc` | Same renderer served from `dist/renderer`; `/api/*` proxy; dispatches to desktop via KV |
+| Web app | Cloudflare Worker + Workers Assets | `worker/index.ts`, `wrangler.jsonc` | Same renderer served from `dist/renderer` at `https://agents.ajfrio.com`; `/api/*` proxy; dispatches to desktop via KV |
 | Headless node | Node (no UI) | `headless.js` | Registers device, pulls keys, runs queued remote tasks |
 
 The renderer is runtime-agnostic: `useElectronAPI()` returns the Electron preload bridge, or the web adapter in `src/renderer/platform/` (localStorage settings, worker-proxy providers) when `window.electronAPI` is absent. Local-only capabilities (CLI discovery, filesystem, dialogs) degrade gracefully on web.

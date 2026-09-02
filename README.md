@@ -60,7 +60,7 @@ When configured with a GitHub token, you can:
 
 ## Web App (Cloudflare Worker)
 
-The same React app that powers the desktop build also runs as a web app, served by a Cloudflare Worker (`worker/index.ts` + `wrangler.jsonc`). It deploys automatically from `main` via GitHub Actions.
+The same React app that powers the desktop build also runs as a web app, served by a Cloudflare Worker (`worker/index.ts` + `wrangler.jsonc`) at **https://agents.ajfrio.com**. It deploys automatically from `main` via GitHub Actions.
 
 ### Capabilities
 

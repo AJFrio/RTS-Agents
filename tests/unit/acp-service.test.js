@@ -47,6 +47,10 @@ async function waitForFile(filePath, timeoutMs = 5000) {
   return false;
 }
 
+afterEach(() => {
+  acpService.closeAll();
+});
+
 describe('acp-service runPrompt (real fake-adapter child processes)', () => {
   test('happy path: initialize, session/new, prompt, updates, permission, stop reason', async () => {
     const updates = [];
@@ -385,4 +389,74 @@ describe('acp-service model selection (session modes)', () => {
     expect(result.stopReason).toBe('end_turn');
     expect(updates).toContain('mode:none');
   });
+});
+
+describe('acp-service connect (multi-turn)', () => {
+  test('keeps the adapter alive for a second prompt', async () => {
+    const updates = [];
+    const session = await acpService.connect(
+      fixtureOptions('happy', {
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+    const first = await session.prompt('first');
+    const second = await session.prompt('second');
+    expect(first.stopReason).toBe('end_turn');
+    expect(second.stopReason).toBe('end_turn');
+    expect(updates.filter((t) => t === 'chunk-1')).toHaveLength(2);
+    expect(session.closed).toBe(false);
+    session.close();
+  }, 15000);
+
+  test('runPrompt still kills the adapter after the prompt response', async () => {
+    const exitFile = path.join(
+      os.tmpdir(),
+      `acp-kill-oneshot-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
+    await acpService.runPrompt(fixtureOptions('happy', { env: { FAKE_ACP_EXIT_FILE: exitFile } }));
+    expect(await waitForFile(exitFile, 5000)).toBe(true);
+    fs.unlinkSync(exitFile);
+  }, 10000);
+
+  test('resumes via session/load when loadSessionId is set', async () => {
+    const session = await acpService.connect({
+      ...fixtureOptions('load-session'),
+      loadSessionId: 'ses-saved-99',
+    });
+    expect(session.sessionId).toBe('ses-saved-99');
+    expect(session.loadSession).toBe(true);
+    const result = await session.prompt('continue');
+    expect(result.stopReason).toBe('end_turn');
+    session.close();
+  }, 10000);
+
+  test('queues a second prompt while the first turn is in flight', async () => {
+    const accepted = [];
+    const session = await acpService.connect(
+      fixtureOptions('slow-prompt', { env: { FAKE_ACP_PROMPT_DELAY_MS: '250' } })
+    );
+    const first = session.prompt('one');
+    const second = session.prompt('two', { onAccepted: () => accepted.push('two') });
+    const [a, b] = await Promise.all([first, second]);
+    expect(a.stopReason).toBe('end_turn');
+    expect(b.stopReason).toBe('end_turn');
+    expect(accepted).toEqual(['two']);
+    session.close();
+  }, 10000);
+
+  test('registerSession + canFollowUp + promptFollowUp reuse a live session', async () => {
+    const session = await acpService.connect(fixtureOptions('happy'));
+    acpService.registerSession('task-1', session);
+    expect(acpService.canFollowUp('task-1', {})).toBe(true);
+    expect(acpService.canFollowUp('missing', {})).toBe(false);
+    expect(acpService.canFollowUp('missing', { acpSessionId: 'ses-x', loadSession: true })).toBe(
+      true
+    );
+    const result = await acpService.promptFollowUp('task-1', 'follow up', {
+      onAccepted: () => {},
+    });
+    expect(result.stopReason).toBe('end_turn');
+    acpService.closeAll();
+    expect(acpService.hasLiveSession('task-1')).toBe(false);
+  }, 15000);
 });

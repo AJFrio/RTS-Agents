@@ -3,13 +3,9 @@ jest.mock('../../src/main/services/config-store', () => ({
   setCodexThreads: jest.fn(),
 }));
 
-jest.mock('../../src/main/services/acp-service', () => ({
-  resolveAdapter: jest.fn(),
-  runPrompt: jest.fn(),
-  clearAdapterCache: jest.fn(),
-  pickPermissionOption: jest.fn(),
-  buildSpawnArgs: jest.fn(),
-}));
+jest.mock('../../src/main/services/acp-service', () =>
+  require('./helpers/mock-acp-connect').acpConnectMockExports()
+);
 
 const pathExistsAny = jest.fn();
 jest.mock('../../src/main/utils/path-exists', () => ({
@@ -39,6 +35,7 @@ const os = require('os');
 const { EventEmitter } = require('events');
 const { spawn, spawnSync } = require('child_process');
 const { expectSpawnedCli, platformCli } = require('./helpers/cli-spawn-assert');
+const { mockAcpConnect, flushPromises } = require('./helpers/mock-acp-connect');
 const codexService = require('../../src/main/services/codex-service');
 const acpService = require('../../src/main/services/acp-service');
 const configStore = require('../../src/main/services/config-store');
@@ -154,10 +151,12 @@ describe('Codex Service', () => {
 
   describe('ACP dispatch', () => {
     function mockAcp(overrides = {}) {
-      acpService.resolveAdapter.mockReturnValue('codex-acp');
-      acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
-        if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
-        return overrides.promise || Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      mockAcpConnect(acpService, {
+        resolveAdapter: 'codex-acp',
+        onPrompt: overrides.onPrompt || overrides.onRun,
+        promptPromise: overrides.promise,
+        connectReject: overrides.connectReject,
+        fireSessionId: overrides.fireSessionId,
       });
     }
 
@@ -192,8 +191,7 @@ describe('Codex Service', () => {
       fs.promises.access.mockResolvedValue(undefined);
       pathExists.mockResolvedValue(true);
       mockAcp({
-        onRun: ({ onSessionId, onUpdate }) => {
-          onSessionId('acp-1');
+        onPrompt: ({ onUpdate }) => {
           onUpdate(
             { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hello ' } },
             'acp-1'
@@ -209,14 +207,12 @@ describe('Codex Service', () => {
         prompt: 'Fix tests',
         projectPath: '/path/to/repo',
       });
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           command: 'codex-acp',
           cwd: '/path/to/repo',
-          prompt: 'Fix tests',
           permissionPolicy: 'allow-all',
         })
       );
@@ -237,12 +233,10 @@ describe('Codex Service', () => {
       fs.promises.access.mockResolvedValue(undefined);
       pathExists.mockResolvedValue(true);
       mockAcp({
-        promise: Promise.reject(
-          Object.assign(new Error('Failed to start ACP adapter'), {
-            phase: 'spawn',
-            fallbackAllowed: true,
-          })
-        ),
+        connectReject: Object.assign(new Error('Failed to start ACP adapter'), {
+          phase: 'spawn',
+          fallbackAllowed: true,
+        }),
       });
       spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn() });
 
@@ -265,7 +259,6 @@ describe('Codex Service', () => {
       fs.promises.access.mockResolvedValue(undefined);
       pathExists.mockResolvedValue(true);
       mockAcp({
-        onRun: ({ onSessionId }) => onSessionId('acp-1'),
         promise: Promise.reject(
           Object.assign(new Error('ACP adapter exited (code 1)'), {
             phase: 'exit',
@@ -275,6 +268,7 @@ describe('Codex Service', () => {
       });
 
       await codexService.startSession({ prompt: 'Fix tests', projectPath: '/path/to/repo' });
+      await flushPromises();
 
       const threads = codexService.getTrackedThreads();
       expect(threads[0]).toMatchObject({
@@ -296,7 +290,7 @@ describe('Codex Service', () => {
         command: 'custom-codex',
       });
 
-      expect(acpService.runPrompt).not.toHaveBeenCalled();
+      expect(acpService.connect).not.toHaveBeenCalled();
       expectSpawnedCli(
         spawn,
         'custom-codex',
@@ -343,10 +337,9 @@ describe('Codex Service', () => {
       );
     });
 
-    test('ACP dispatch forwards the requested model to runPrompt', async () => {
+    test('ACP dispatch forwards the requested model to connect', async () => {
       pathExists.mockResolvedValue(true);
-      acpService.resolveAdapter.mockReturnValue('codex-acp');
-      acpService.runPrompt.mockResolvedValue({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      mockAcpConnect(acpService, { resolveAdapter: 'codex-acp' });
 
       await codexService.startSession({
         prompt: 'Fix tests',
@@ -354,9 +347,28 @@ describe('Codex Service', () => {
         model: 'gpt-5.2-codex',
       });
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.connect).toHaveBeenCalledWith(
         expect.objectContaining({ model: 'gpt-5.2-codex' })
       );
+    });
+
+    test('sendFollowUp accepts a follow-up on a live ACP thread', async () => {
+      pathExists.mockResolvedValue(true);
+      mockAcpConnect(acpService, { resolveAdapter: 'codex-acp' });
+      acpService.hasLiveSession.mockReturnValue(true);
+      acpService.canFollowUp.mockReturnValue(true);
+      acpService.promptFollowUp.mockImplementation(async (_id, _text, { onAccepted }) => {
+        onAccepted?.();
+        return { sessionId: 'acp-1', stopReason: 'end_turn' };
+      });
+
+      await codexService.startSession({ prompt: 'Fix tests', projectPath: '/path/to/repo' });
+      await Promise.resolve();
+      await Promise.resolve();
+      const id = codexService.getTrackedThreads()[0].id;
+      const result = await codexService.sendFollowUp(id, 'Also add tests');
+      expect(result.success).toBe(true);
+      expect(acpService.promptFollowUp).toHaveBeenCalled();
     });
   });
 });

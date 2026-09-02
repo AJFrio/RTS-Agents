@@ -39,6 +39,26 @@ function parseJsonlEvent(line) {
   return { sessionId, message };
 }
 
+/**
+ * Append a user follow-up turn so later assistant chunks start a new message.
+ */
+function appendUserMessage(messages, text, timestamp = null) {
+  if (!text || !String(text).trim()) return messages;
+  const next = [
+    ...messages,
+    {
+      role: 'user',
+      content: String(text),
+      timestamp,
+      id: `stream-${messages.length}`,
+    },
+  ];
+  if (next.length > MAX_STREAM_MESSAGES) {
+    return next.slice(-MAX_STREAM_MESSAGES);
+  }
+  return next;
+}
+
 function appendStreamMessage(messages, message) {
   if (!message?.content?.trim()) return messages;
   const next = [...messages, { ...message, id: `stream-${messages.length}` }];
@@ -294,6 +314,7 @@ module.exports = {
   MAX_DETAIL_MESSAGES,
   isValidOpenCodeSessionId,
   parseJsonlEvent,
+  appendUserMessage,
   appendStreamMessage,
   appendAgentChunk,
   appendThoughtChunk,

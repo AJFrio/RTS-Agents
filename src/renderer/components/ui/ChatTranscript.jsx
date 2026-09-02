@@ -47,6 +47,7 @@ const TOOL_ICONS = {
   list_tasks: IconTasks,
   show_task: IconTasks,
   start_task: IconTasks,
+  Run: IconGitBranch,
 };
 
 const MAX_RESULT_CHARS = 4000;

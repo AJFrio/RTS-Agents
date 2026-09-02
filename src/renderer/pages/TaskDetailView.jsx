@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { useApp } from '../context/AppContext.jsx';
 import { fetchAgentDetails } from '../context/helpers/agent-details-cache.js';
-import { buildUnifiedFeed } from '../utils/agent-feed.js';
+import { detailsToTranscript, hasTranscriptContent } from '../utils/task-transcript.js';
 import ChatTranscript from '../components/ui/ChatTranscript.jsx';
 import MarkdownText from '../components/ui/Markdown.jsx';
 import Composer from '../components/chat/Composer.jsx';
-import UnifiedActivityFeed from '../components/task/UnifiedActivityFeed.jsx';
+import JulesActivityMedia from '../components/task/JulesActivityMedia.jsx';
 import TaskContextSection, { hasTaskContext } from '../components/task/TaskContextSection.jsx';
-import { providerMeta, IconExternal, IconTerminal, IconClose } from '../components/ui/icons.jsx';
+import { providerMeta, IconExternal, IconTerminal, IconClose, IconSync } from '../components/ui/icons.jsx';
 import { StatusDot, statusMeta } from '../components/ui/status.jsx';
 
 const FOLLOWUP_PROVIDERS = new Set([
@@ -21,25 +21,13 @@ const FOLLOWUP_PROVIDERS = new Set([
   'opencode',
   'antigravity',
 ]);
-const RUNNING_POLL_MS = 15000;
-
-function transcriptMessages(details) {
-  const messages = Array.isArray(details?.messages) ? details.messages : [];
-  return messages.map((msg, idx) => ({
-    id: msg.id ?? `msg-${idx}`,
-    role: msg.role === 'user' ? 'user' : 'assistant',
-    content: msg.content ?? '',
-    thinking: msg.thinking || undefined,
-    toolCalls: Array.isArray(msg.toolCalls) ? msg.toolCalls : undefined,
-    timestamp: msg.timestamp ?? msg.createdAt ?? null,
-  }));
-}
+const RUNNING_POLL_MS = 2000;
 
 /**
- * Task chat log on the canvas (DESIGN.md §2.3): user vs. agent messages are
- * clearly distinct; tool calls, thinking, and activity stream in collapsed
- * and expand in place. A follow-up composer sits at the bottom for harnesses
- * that support it.
+ * Task chat log on the canvas (DESIGN.md §2.3): same ChatTranscript as the
+ * Agent tab. User turns are right-aligned; harness thinking and tool calls
+ * collapse and expand in place. A follow-up composer sits at the bottom for
+ * harnesses that support it.
  */
 export default function TaskDetailView() {
   const { state, api, closeTask, agentDetailsCache } = useApp();
@@ -54,6 +42,8 @@ export default function TaskDetailView() {
   const status = statusMeta(task?.status);
 
   const rawId = task?.rawId || task?.id;
+  const julesSessionId =
+    task?.provider === 'jules' ? String(rawId || '').replace(/^jules-/, '') : '';
 
   const loadDetails = useCallback(
     async (opts = {}) => {
@@ -72,11 +62,15 @@ export default function TaskDetailView() {
   );
 
   useEffect(() => {
+    setPendingFollowUps([]);
+    setFollowUp('');
     if (task && agentDetailsCache) {
       const cached = agentDetailsCache.get(task.provider, task.rawId || task.id);
       if (cached) {
         setDetails(cached);
         setLoading(false);
+      } else {
+        setDetails(null);
       }
     }
     loadDetails();
@@ -93,23 +87,11 @@ export default function TaskDetailView() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [details, pendingFollowUps]);
 
-  const feed = useMemo(() => (details ? buildUnifiedFeed(details) : []), [details]);
-  const messages = useMemo(() => transcriptMessages(details), [details]);
-  const hasTranscript = messages.some(
-    (m) => (m.content || '').trim() || m.thinking || (m.toolCalls?.length ?? 0) > 0
-  );
-  const promptOnlyMessages = useMemo(
-    () =>
-      details?.prompt && !hasTranscript && feed.length === 0 && !details?.content
-        ? [{ id: 'prompt', role: 'user', content: details.prompt, timestamp: null }]
-        : [],
-    [details, hasTranscript, feed.length]
-  );
-
+  const messages = useMemo(() => detailsToTranscript(details, task), [details, task]);
+  const hasTranscript = hasTranscriptContent(messages);
   const supportsFollowUp =
     FOLLOWUP_PROVIDERS.has(task?.provider) && details?.canFollowUp !== false;
-
-  const visibleMessages = hasTranscript ? messages : promptOnlyMessages;
+  const isWorking = task?.status === 'running' || sending;
 
   const handleFollowUp = async () => {
     const text = followUp.trim();
@@ -132,11 +114,30 @@ export default function TaskDetailView() {
     }
   };
 
+  const renderCards = useCallback(
+    (cards) => (
+      <div className="space-y-2">
+        {cards.map((card) =>
+          card.kind === 'jules-media' ? (
+            <JulesActivityMedia
+              key={card.id}
+              sessionId={julesSessionId}
+              activity={{ id: card.activityId || card.id, hasMedia: true }}
+              api={api}
+              scrollRootRef={scrollRef}
+            />
+          ) : null
+        )}
+      </div>
+    ),
+    [api, julesSessionId]
+  );
+
   if (!task) return null;
 
   const canOpenTerminal = task.provider === 'opencode' && api?.openOpenCodeSession;
   const transcriptPlusPending = [
-    ...visibleMessages,
+    ...messages,
     ...pendingFollowUps.map((m) => ({
       id: m.id,
       role: 'user',
@@ -203,44 +204,42 @@ export default function TaskDetailView() {
       </header>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-5">
+        <div className="mx-auto flex w-full max-w-3xl flex-col px-4 pb-4 pt-5">
           {hasTaskContext(details) && (
-            <TaskContextSection
-              details={details}
-              onOpenExternal={(url) => api?.openExternal?.(url)}
-              onOpenOpenCodeSession={(sessionId, projectPath) =>
-                api?.openOpenCodeSession?.(sessionId, projectPath)
-              }
-            />
+            <div className="mb-4">
+              <TaskContextSection
+                details={details}
+                onOpenExternal={(url) => api?.openExternal?.(url)}
+                onOpenOpenCodeSession={(sessionId, projectPath) =>
+                  api?.openOpenCodeSession?.(sessionId, projectPath)
+                }
+              />
+            </div>
           )}
 
-          {loading && !details && (
+          {loading && !details && !hasTranscript && (
             <p className="py-10 text-center text-[13px] text-neutral-400">Loading task…</p>
           )}
 
-          {hasTranscript ? (
+          {hasTranscript || pendingFollowUps.length > 0 ? (
             <ChatTranscript
               messages={transcriptPlusPending}
               assistantLabel={meta.label}
               renderContent={(content) => <MarkdownText text={content} />}
+              renderCards={renderCards}
             />
-          ) : details?.content ? (
-            <MarkdownText text={details.content} />
-          ) : feed.length > 0 ? (
-            <UnifiedActivityFeed
-              feed={feed}
-              assistantLabel={meta.label}
-              renderMessage={(content) => <MarkdownText text={content} />}
-              showMedia={task.provider === 'jules'}
-              mediaApi={api}
-              mediaSessionId={String(rawId || '').replace(/^jules-/, '')}
-              scrollRootRef={scrollRef}
-            />
-          ) : details ? (
+          ) : details && !isWorking ? (
             <p className="py-10 text-center text-[13px] text-neutral-400">
               No transcript available for this task yet.
             </p>
           ) : null}
+
+          {isWorking && (
+            <div className="mt-4 flex items-center gap-2 pl-10 text-[13px] text-neutral-400">
+              <IconSync size={14} className="animate-spin" />
+              Working…
+            </div>
+          )}
         </div>
       </div>
 

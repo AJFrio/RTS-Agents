@@ -261,7 +261,7 @@ function MessageRow({ item, renderMessage, assistantLabel }) {
           <span className="material-symbols-outlined text-[16px]">smart_toy</span>
         </div>
       )}
-      <div className={`flex max-w-[78%] flex-col gap-1 ${item.isUser ? 'items-end' : 'items-start'}`}>
+      <div className={`flex max-w-[90%] flex-col gap-1 sm:max-w-[78%] ${item.isUser ? 'items-end' : 'items-start'}`}>
         <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           {item.isUser ? 'You' : assistantLabel}
         </span>

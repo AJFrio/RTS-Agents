@@ -134,8 +134,8 @@ export default function SettingsPage() {
       </SettingSection>
 
       <SettingSection icon={<SystemIcon />} title="System">
-        <div className="flex items-center justify-between gap-4">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <h4 className="text-[13px] font-semibold text-neutral-800 dark:text-neutral-200">
               Update application
             </h4>
@@ -147,7 +147,7 @@ export default function SettingsPage() {
             type="button"
             id="update-app-btn"
             onClick={updateApp}
-            className="shrink-0 rounded-md bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 dark:bg-neutral-100 dark:text-neutral-900"
+            className="min-h-9 w-full rounded-md bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 sm:w-auto dark:bg-neutral-100 dark:text-neutral-900"
           >
             Update & restart
           </button>
@@ -159,7 +159,7 @@ export default function SettingsPage() {
 
 function SettingSection({ icon, title, children }) {
   return (
-    <section className="rounded-lg border border-border-light bg-card-light p-6 dark:border-border-dark dark:bg-card-dark">
+    <section className="rounded-lg border border-border-light bg-card-light p-4 dark:border-border-dark dark:bg-card-dark sm:p-6">
       <div className="mb-5 flex items-center gap-2.5">
         <span className="text-neutral-400 dark:text-neutral-500">{icon}</span>
         <h3 className="text-[12px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">

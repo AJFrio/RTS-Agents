@@ -122,7 +122,7 @@ export default function RecentTasksList() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {recent.length === 0 ? (
-          <p className="px-2 py-6 text-center text-[12px] text-neutral-400 dark:text-neutral-500">
+          <p className="px-2 py-3 text-center text-[12px] text-neutral-400 sm:py-6 dark:text-neutral-500">
             No recent tasks yet.
           </p>
         ) : (

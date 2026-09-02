@@ -236,7 +236,7 @@ export default function ModelSelector({ value, onChange, variant = 'default' }) 
         <div
           className={`absolute z-50 overflow-y-auto bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-md ${
             isInline
-              ? 'bottom-full left-0 mb-1 max-h-60 w-72'
+              ? 'bottom-full left-0 mb-1 max-h-60 w-72 max-w-[calc(100vw-2rem)]'
               : 'left-0 right-0 mt-1 max-h-60'
           }`}
           ref={listRef}

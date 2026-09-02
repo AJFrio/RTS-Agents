@@ -137,7 +137,7 @@ export default function TaskDetailView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border-light px-4 py-2.5 dark:border-border-dark">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border-light px-3 py-2.5 sm:gap-3 sm:px-4 dark:border-border-dark">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-border-light bg-card-light text-neutral-600 dark:border-border-dark dark:bg-card-dark dark:text-neutral-300">
           <meta.Icon size={14} />
         </span>
@@ -161,10 +161,11 @@ export default function TaskDetailView() {
             <button
               type="button"
               onClick={() => api?.openExternal?.(details?.webUrl || details?.prUrl || task.prUrl || task.webUrl)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
+              aria-label="Go to task"
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
             >
               <IconExternal size={12} />
-              Go to task
+              <span className="hidden sm:inline">Go to task</span>
             </button>
           ) : null}
           {canOpenTerminal && details?.opencodeSessionId && (
@@ -173,10 +174,11 @@ export default function TaskDetailView() {
               onClick={() =>
                 api.openOpenCodeSession(details.opencodeSessionId, details.projectPath || task.repository)
               }
-              className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
+              aria-label="Open terminal"
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
             >
               <IconTerminal size={12} />
-              Terminal
+              <span className="hidden sm:inline">Terminal</span>
             </button>
           )}
           <button
@@ -232,7 +234,7 @@ export default function TaskDetailView() {
         </div>
       </div>
 
-      <div className="shrink-0 px-4 pb-3 pt-1">
+      <div className="shrink-0 px-3 pb-3 pt-1 sm:px-4">
         <div className="mx-auto w-full max-w-3xl">
           {supportsFollowUp ? (
             <Composer

@@ -115,6 +115,12 @@ export const IconChevronRight = (props) => (
   </Icon>
 );
 
+export const IconChevronLeft = (props) => (
+  <Icon {...props}>
+    <path d="m15 6-6 6 6 6" />
+  </Icon>
+);
+
 /* --- Actions --- */
 
 export const IconClose = (props) => (
@@ -153,9 +159,9 @@ export const IconAttach = (props) => (
 
 export const IconMore = (props) => (
   <Icon {...props}>
-    <circle cx="5" cy="12" r="0.5" />
-    <circle cx="12" cy="12" r="0.5" />
-    <circle cx="19" cy="12" r="0.5" />
+    <circle cx="5" cy="12" r="1.75" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.75" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.75" fill="currentColor" stroke="none" />
   </Icon>
 );
 

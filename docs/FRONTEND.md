@@ -42,3 +42,9 @@ src/renderer/
 ## Mobile parity
 
 The web runtime (Cloudflare Worker) uses the same components. `src/renderer/platform/web-api.mjs` mirrors the `window.electronAPI` surface for browsers — keep it in sync when adding IPC methods, and check [ARCHITECTURE.md](../ARCHITECTURE.md) for capability differences.
+
+Mobile layout (<768px) is documented in [DESIGN.md](DESIGN.md) §4 and
+[product-specs/ui-shell.md](product-specs/ui-shell.md): hide the sidebar,
+use `#bottom-nav`, and keep canvas content above `--bottom-nav-offset`.
+List/detail pages (Repositories, Devices) drill in below the `lg`
+breakpoint. Verify light and dark at 390×844 and 320×568 after UI changes.

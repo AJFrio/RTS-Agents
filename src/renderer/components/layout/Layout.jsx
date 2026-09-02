@@ -53,7 +53,7 @@ export default function Layout({ children, fixedHeight }) {
   const overflowClass = fixedHeight ? 'overflow-hidden' : 'overflow-y-auto';
 
   return (
-    <div id="app" className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
+    <div id="app" className="safe-left safe-right flex h-dvh overflow-hidden bg-background-light dark:bg-background-dark">
       <div
         className="hidden h-full shrink-0 md:flex"
         style={{ width: state.sidebarWidth }}
@@ -78,7 +78,9 @@ export default function Layout({ children, fixedHeight }) {
         <Header />
         <div
           className={`min-h-0 flex-1 ${overflowClass} ${
-            fixedHeight ? '' : 'p-4 pb-24 md:p-6 md:pb-6'
+            fixedHeight
+              ? 'pb-[var(--bottom-nav-offset)] md:pb-0'
+              : 'p-4 pb-[calc(var(--bottom-nav-offset)+1rem)] md:p-6 md:pb-6'
           }`}
         >
           {children}

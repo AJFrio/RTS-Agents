@@ -267,7 +267,7 @@ export default function ChatTranscript({
   let lastDay = '';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-selectable="true">
       {groups.map((group, groupIndex) => {
         const isUser = group.role === 'user';
         const last = group.items[group.items.length - 1];
@@ -298,7 +298,7 @@ export default function ChatTranscript({
                 </div>
               )}
 
-              <div className={`flex max-w-[78%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
+              <div className={`flex max-w-[90%] flex-col gap-1 sm:max-w-[78%] ${isUser ? 'items-end' : 'items-start'}`}>
                 <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
                   {isUser ? 'You' : assistantLabel}
                 </span>

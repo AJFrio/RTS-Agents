@@ -11,13 +11,9 @@ jest.mock('child_process', () => ({
   spawnSync: jest.fn(),
 }));
 
-jest.mock('../../src/main/services/acp-service', () => ({
-  resolveAdapter: jest.fn(),
-  runPrompt: jest.fn(),
-  clearAdapterCache: jest.fn(),
-  pickPermissionOption: jest.fn(),
-  buildSpawnArgs: jest.fn(),
-}));
+jest.mock('../../src/main/services/acp-service', () =>
+  require('./helpers/mock-acp-connect').acpConnectMockExports()
+);
 
 const pathExists = jest.fn();
 jest.mock('../../src/main/utils/path-exists', () => ({
@@ -35,6 +31,7 @@ const acpService = require('../../src/main/services/acp-service');
 const configStore = require('../../src/main/services/config-store');
 const opencodeService = require('../../src/main/services/opencode-service');
 const { expectSpawnedCli, platformCli } = require('./helpers/cli-spawn-assert');
+const { mockAcpConnect, flushPromises } = require('./helpers/mock-acp-connect');
 
 describe('OpenCodeService', () => {
   beforeEach(() => {
@@ -61,17 +58,20 @@ describe('OpenCodeService', () => {
 
   describe('ACP dispatch', () => {
     function mockAcp(overrides = {}) {
-      acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
-        if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
-        return overrides.promise || Promise.resolve({ sessionId: 'ses_acp1', stopReason: 'end_turn' });
+      mockAcpConnect(acpService, {
+        sessionId: 'ses_acp1',
+        acpSessionId: 'ses_acp1',
+        onPrompt: overrides.onPrompt || overrides.onRun,
+        promptPromise: overrides.promise,
+        connectReject: overrides.connectReject,
+        fireSessionId: overrides.fireSessionId,
       });
     }
 
     test('startSession dispatches via ACP and streams agent chunks', async () => {
       pathExists.mockResolvedValue(true);
       mockAcp({
-        onRun: ({ onSessionId, onUpdate }) => {
-          onSessionId('ses_acp1');
+        onPrompt: ({ onUpdate }) => {
           onUpdate(
             { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Live output' } },
             'ses_acp1'
@@ -83,13 +83,13 @@ describe('OpenCodeService', () => {
         prompt: 'Fix the bug',
         projectPath: '/repo',
       });
+      await flushPromises();
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           command: platformCli('opencode'),
           args: ['acp'],
           cwd: '/repo',
-          prompt: 'Fix the bug',
           permissionPolicy: 'allow-all',
         })
       );
@@ -111,15 +111,12 @@ describe('OpenCodeService', () => {
 
     test('falls back to legacy run when ACP fails before any agent work', async () => {
       pathExists.mockResolvedValue(true);
-      acpService.runPrompt.mockImplementation(
-        () =>
-          Promise.reject(
-            Object.assign(new Error('ACP adapter exited (code 1)'), {
-              phase: 'exit',
-              fallbackAllowed: true,
-            })
-          )
-      );
+      mockAcp({
+        connectReject: Object.assign(new Error('ACP adapter exited (code 1)'), {
+          phase: 'exit',
+          fallbackAllowed: true,
+        }),
+      });
       spawnSync.mockReturnValue({ status: 0 });
       spawn.mockReturnValue({ on: jest.fn(), unref: jest.fn(), stdout: null, stderr: null });
 
@@ -149,7 +146,6 @@ describe('OpenCodeService', () => {
     test('marks the session failed when ACP fails after start', async () => {
       pathExists.mockResolvedValue(true);
       mockAcp({
-        onRun: ({ onSessionId }) => onSessionId('ses_acp1'),
         promise: Promise.reject(
           Object.assign(new Error('ACP adapter exited (code 1)'), {
             phase: 'exit',
@@ -159,6 +155,7 @@ describe('OpenCodeService', () => {
       });
 
       await opencodeService.startSession({ prompt: 'Fix the bug', projectPath: '/repo' });
+      await flushPromises();
 
       const tracked = opencodeService.getTrackedSessions();
       expect(tracked[0]).toMatchObject({
@@ -173,12 +170,8 @@ describe('OpenCodeService', () => {
       jest.useFakeTimers();
       try {
         pathExists.mockResolvedValue(true);
-        let captured;
         mockAcp({
           promise: new Promise(() => {}),
-          onRun: (handlers) => {
-            captured = handlers;
-          },
         });
 
         const startPromise = opencodeService.startSession({
@@ -187,7 +180,7 @@ describe('OpenCodeService', () => {
         });
         await Promise.resolve();
         await Promise.resolve();
-        captured.onSessionId('ses_acp1');
+        const captured = acpService._lastConnectOpts;
         captured.onUpdate(
           { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'live' } },
           'ses_acp1'
@@ -217,7 +210,7 @@ describe('OpenCodeService', () => {
         command: 'custom-opencode',
       });
 
-      expect(acpService.runPrompt).not.toHaveBeenCalled();
+      expect(acpService.connect).not.toHaveBeenCalled();
       expectSpawnedCli(
         spawn,
         'custom-opencode',
@@ -232,6 +225,25 @@ describe('OpenCodeService', () => {
         ],
         expect.objectContaining({ detached: true, shell: false })
       );
+    });
+
+    test('sendFollowUp accepts a follow-up on a live ACP session', async () => {
+      pathExists.mockResolvedValue(true);
+      mockAcp();
+      acpService.hasLiveSession.mockReturnValue(true);
+      acpService.canFollowUp.mockReturnValue(true);
+      acpService.promptFollowUp.mockImplementation(async (_id, _text, { onAccepted }) => {
+        onAccepted?.();
+        return { sessionId: 'ses_acp1', stopReason: 'end_turn' };
+      });
+
+      await opencodeService.startSession({ prompt: 'Fix the bug', projectPath: '/repo' });
+      await Promise.resolve();
+      await Promise.resolve();
+      const id = opencodeService.getTrackedSessions()[0].id;
+      const result = await opencodeService.sendFollowUp(id, 'Also run tests');
+      expect(result.success).toBe(true);
+      expect(acpService.promptFollowUp).toHaveBeenCalled();
     });
   });
 });

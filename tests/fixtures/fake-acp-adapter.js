@@ -16,9 +16,13 @@
  *  init-timeout     - never responds to initialize.
  *  error-response   - initialize responds with a JSON-RPC error.
  *  exit-mid         - exits with code 7 right after session/new.
-  model-modes      - session/new advertises modes default/sonnet; records any
-                     session/set_mode selection and reports it as the first
-                     "mode:<id|none>" chunk of the turn.
+ *  model-modes      - session/new advertises modes default/sonnet; records any
+ *                     session/set_mode selection and reports it as the first
+ *                     "mode:<id|none>" chunk of the turn.
+ *  load-session     - initialize advertises loadSession; session/load restores
+ *                     the supplied sessionId.
+ *  slow-prompt      - replies to session/prompt after FAKE_ACP_PROMPT_DELAY_MS
+ *                     (default 200) so the client can queue a second turn.
  */
 const fs = require('fs');
 const readline = require('readline');
@@ -30,6 +34,14 @@ const SEP = scenario === 'crlf' ? '\r\n' : '\n';
 let currentSessionId = null;
 let promptId = null;
 let selectedMode = null;
+let nextAgentReqId = 1000;
+let pendingPermissionId = null;
+let pendingUnknownId = null;
+
+function nextAgentId() {
+  nextAgentReqId += 1;
+  return nextAgentReqId;
+}
 
 process.on('exit', () => {
   if (exitFile) {
@@ -92,9 +104,10 @@ function runTurn() {
     scenario === 'permission-no-allow'
       ? [{ optionId: 'reject', name: 'Reject', kind: 'reject_once' }]
       : [{ optionId: 'allow', name: 'Allow', kind: 'allow_once' }];
+  pendingPermissionId = nextAgentId();
   send({
     jsonrpc: '2.0',
-    id: 1001,
+    id: pendingPermissionId,
     method: 'session/request_permission',
     params: {
       sessionId: currentSessionId,
@@ -111,9 +124,10 @@ function onPermissionResponse(msg) {
   notify(`permission:${label}`);
 
   // Step 2: unknown agent->client request; the client must answer -32601.
+  pendingUnknownId = nextAgentId();
   send({
     jsonrpc: '2.0',
-    id: 1002,
+    id: pendingUnknownId,
     method: 'fs/read_text_file',
     params: { sessionId: currentSessionId, path: '/etc/hostname' },
   });
@@ -151,8 +165,8 @@ rl.on('line', (line) => {
     (msg.result !== undefined || msg.error !== undefined);
 
   if (isResponse) {
-    if (msg.id === 1001) onPermissionResponse(msg);
-    else if (msg.id === 1002) onUnknownResponse(msg);
+    if (msg.id === pendingPermissionId) onPermissionResponse(msg);
+    else if (msg.id === pendingUnknownId) onUnknownResponse(msg);
     return;
   }
 
@@ -164,7 +178,17 @@ rl.on('line', (line) => {
       return;
     }
     const version = scenario === 'version-mismatch' ? 99 : 1;
-    reply(msg.id, { protocolVersion: version, agentCapabilities: {} });
+    const agentCapabilities =
+      scenario === 'load-session' || scenario === 'happy' || scenario === 'slow-prompt'
+        ? { loadSession: true }
+        : {};
+    reply(msg.id, { protocolVersion: version, agentCapabilities });
+    return;
+  }
+
+  if (msg.method === 'session/load') {
+    currentSessionId = msg.params?.sessionId || `ses-fake-${process.pid}-loaded`;
+    reply(msg.id, { sessionId: currentSessionId });
     return;
   }
 
@@ -196,6 +220,19 @@ rl.on('line', (line) => {
 
   if (msg.method === 'session/prompt') {
     promptId = msg.id;
+    const text =
+      Array.isArray(msg.params?.prompt) && msg.params.prompt[0]?.text
+        ? String(msg.params.prompt[0].text)
+        : '';
+    if (scenario === 'slow-prompt') {
+      notify(`prompt:${text}`);
+      const delay = Number(process.env.FAKE_ACP_PROMPT_DELAY_MS || 200);
+      setTimeout(() => {
+        notify(`done:${text}`);
+        reply(msg.id, { stopReason: 'end_turn' });
+      }, delay);
+      return;
+    }
     runTurn();
   }
 });

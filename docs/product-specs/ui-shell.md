@@ -85,8 +85,10 @@ renders every task's transcript as a chat log on the canvas.
 - Providers without structured messages fall back to the unified activity
   feed (Jules) or raw markdown content.
 - Follow-up composer at the bottom sends `tasks:send-message`; supported on
-  desktop for jules, cursor (cloud), and claude-cloud.
-  Other harnesses show a disabled note instead.
+  desktop for jules, cursor (cloud + local ACP `cursor-cli-*`), claude-cloud,
+  and local ACP sessions (`claude-cli`, `codex`, `opencode`, `antigravity`)
+  when details report `canFollowUp !== false`. Scanned/legacy CLI sessions
+  set `canFollowUp: false` and keep the disabled note. Web/PWA stays cloud-only.
 
 ## Mobile shell (<768px)
 
@@ -138,7 +140,7 @@ renders every task's transcript as a chat log on the canvas.
       focused `Connect` / `Manage` modal with no catalog sidebar
 - [ ] ACP-dispatched sessions stream tool calls and thinking into the task
       chat log, collapsed and expandable
-- [ ] Follow-ups work for jules, cursor, and claude-cloud tasks
+- [ ] Follow-ups work for jules, cursor (cloud and local ACP), claude-cloud, and local ACP tasks that report `canFollowUp`
 - [ ] No blue remains in the UI; only status colors (emerald/amber/red/grey)
       appear. Agent recent tasks: running emerald, completed grey
 - [ ] Below 768px, `#sidebar` is hidden, `#bottom-nav` shows Agent / New Task /

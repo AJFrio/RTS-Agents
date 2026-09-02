@@ -459,7 +459,15 @@ async function createTask(deps, { provider, options }) {
 }
 
 async function sendTaskMessage(deps, { provider, rawId, message }) {
-  const { configStore, julesService, cursorService, claudeService, codexService } = deps;
+  const {
+    configStore,
+    julesService,
+    cursorService,
+    claudeService,
+    codexService,
+    opencodeService,
+    antigravityService,
+  } = deps;
 
   switch (provider) {
     case 'jules': {
@@ -470,10 +478,19 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
       return { success: true };
     }
     case 'cursor': {
+      if (String(rawId).startsWith('cursor-cli-')) {
+        await cursorService.sendCliFollowUp(rawId, message);
+        return { success: true };
+      }
       if (!configStore.hasApiKey('cursor')) {
         throw new Error('Cursor API key not configured');
       }
       await cursorService.addFollowUp(rawId, message);
+      return { success: true };
+    }
+    case 'claude':
+    case 'claude-cli': {
+      await claudeService.sendLocalFollowUp(rawId, message);
       return { success: true };
     }
     case 'claude-cloud': {
@@ -481,6 +498,18 @@ async function sendTaskMessage(deps, { provider, rawId, message }) {
         throw new Error('Claude API key not configured');
       }
       await claudeService.sendFollowUp(rawId, message);
+      return { success: true };
+    }
+    case 'codex': {
+      await codexService.sendFollowUp(rawId, message);
+      return { success: true };
+    }
+    case 'opencode': {
+      await opencodeService.sendFollowUp(rawId, message);
+      return { success: true };
+    }
+    case 'antigravity': {
+      await antigravityService.sendFollowUp(rawId, message);
       return { success: true };
     }
     default:

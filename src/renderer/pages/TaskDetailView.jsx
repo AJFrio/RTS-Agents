@@ -11,7 +11,16 @@ import TaskContextSection, { hasTaskContext } from '../components/task/TaskConte
 import { providerMeta, IconExternal, IconTerminal, IconClose } from '../components/ui/icons.jsx';
 import { StatusDot, statusMeta } from '../components/ui/status.jsx';
 
-const FOLLOWUP_PROVIDERS = new Set(['jules', 'cursor', 'claude-cloud']);
+const FOLLOWUP_PROVIDERS = new Set([
+  'jules',
+  'cursor',
+  'claude-cloud',
+  'claude-cli',
+  'claude',
+  'codex',
+  'opencode',
+  'antigravity',
+]);
 const RUNNING_POLL_MS = 15000;
 
 function transcriptMessages(details) {
@@ -97,7 +106,8 @@ export default function TaskDetailView() {
     [details, hasTranscript, feed.length]
   );
 
-  const supportsFollowUp = FOLLOWUP_PROVIDERS.has(task?.provider);
+  const supportsFollowUp =
+    FOLLOWUP_PROVIDERS.has(task?.provider) && details?.canFollowUp !== false;
 
   const visibleMessages = hasTranscript ? messages : promptOnlyMessages;
 

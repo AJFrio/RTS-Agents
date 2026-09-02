@@ -19,6 +19,7 @@ const opencodeService = require('./src/main/services/opencode-service');
 const antigravityService = require('./src/main/services/antigravity-service');
 const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
 const { clearInstallStatusCache } = require('./src/main/utils/install-status');
+const acpService = require('./src/main/services/acp-service');
 
 const { registerAllIpcHandlers } = require('./src/main/ipc');
 
@@ -440,6 +441,7 @@ app.on('before-quit', (event) => {
   stopDiscoveryWatchers();
   stopCloudflareHeartbeat();
   stopAutoUpdateTimer();
+  acpService.closeAll();
 
   if (isQuitting) return;
   isQuitting = true;

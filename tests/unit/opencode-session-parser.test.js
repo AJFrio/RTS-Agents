@@ -3,6 +3,7 @@ const {
   parseJsonlEvent,
   appendStreamMessage,
   appendAgentChunk,
+  appendUserMessage,
   parseExportToMessages,
 } = require('../../src/main/services/opencode-session-parser');
 
@@ -56,6 +57,15 @@ describe('opencode-session-parser', () => {
     expect(messages[0].role).toBe('assistant');
     expect(messages[0].content).toBe('Hello world!');
     expect(messages[0].id).toBe('stream-0');
+  });
+
+  test('appendUserMessage then assistant chunk starts a new turn', () => {
+    let messages = appendAgentChunk([], 'First reply');
+    messages = appendUserMessage(messages, 'Please also lint');
+    messages = appendAgentChunk(messages, 'Linting now');
+    expect(messages).toHaveLength(3);
+    expect(messages[1]).toMatchObject({ role: 'user', content: 'Please also lint' });
+    expect(messages[2]).toMatchObject({ role: 'assistant', content: 'Linting now' });
   });
 
   test('appendAgentChunk starts a new message after a user message', () => {

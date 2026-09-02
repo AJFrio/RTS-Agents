@@ -44,6 +44,20 @@ jest.mock('../../src/main/services/acp-service', () => ({
       })
     )
   ),
+  connect: jest.fn(() =>
+    Promise.reject(
+      Object.assign(new Error('ACP disabled in security tests'), {
+        phase: 'spawn',
+        fallbackAllowed: true,
+      })
+    )
+  ),
+  registerSession: jest.fn(),
+  closeSession: jest.fn(),
+  hasLiveSession: jest.fn(() => false),
+  canFollowUp: jest.fn(() => false),
+  promptFollowUp: jest.fn(),
+  closeAll: jest.fn(),
   clearAdapterCache: jest.fn(),
   pickPermissionOption: jest.fn(),
   buildSpawnArgs: jest.fn(),

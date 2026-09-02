@@ -15,6 +15,7 @@ const {
   applySessionUpdate,
   parseExportToMessages,
 } = require('./opencode-session-parser');
+const { sendAcpFollowUp } = require('./acp-follow-up');
 
 const STDERR_CAP = 2000;
 const EXPORT_TIMEOUT_MS = 60000;
@@ -237,6 +238,7 @@ class OpenCodeService {
       status: 'running',
       exitCode: null,
       error: null,
+      model: model || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -258,11 +260,10 @@ class OpenCodeService {
       };
 
       acpService
-        .runPrompt({
+        .connect({
           command: opencodeCmd,
           args: ['acp'],
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'allow-all',
           onSessionId: (acpSessionId) => {
@@ -274,43 +275,43 @@ class OpenCodeService {
               )
             );
           },
-          onUpdate: (update) => {
-            const next = applySessionUpdate(
-              streamState.streamMessages,
-              update,
-              new Date().toISOString()
-            );
-            if (next === streamState.streamMessages) return;
-            streamState.streamMessages = next;
-            this._updateSessionDebounced(sessionId, () => ({
-              streamMessages: streamState.streamMessages,
-            }));
-          },
+          onUpdate: (update) => this._applyAcpUpdate(sessionId, update),
         })
-        .then(({ stopReason }) => {
-          const failed = stopReason === 'error' || stopReason === 'cancelled';
-          this._updateSession(
-            sessionId,
-            failed
-              ? {
-                  status: 'failed',
-                  exitCode: 1,
-                  error: `OpenCode ACP turn ended with stopReason ${stopReason}`,
-                  streamMessages: streamState.streamMessages,
-                }
-              : {
-                  status: 'completed',
-                  exitCode: 0,
-                  error: null,
-                  streamMessages: streamState.streamMessages,
-                }
-          );
-          resolveOnce(buildCard('OpenCode task finished.'));
+        .then((session) => {
+          acpService.registerSession(sessionId, session);
+          this._updateSession(sessionId, {
+            acpSessionId: session.sessionId,
+            opencodeSessionId: session.sessionId || streamState.opencodeSessionId,
+            loadSession: session.loadSession,
+            model: model || null,
+          });
+          return session.prompt(prompt).then(({ stopReason }) => {
+            const current = this._trackedEntry(sessionId);
+            const failed = stopReason === 'error' || stopReason === 'cancelled';
+            this._updateSession(
+              sessionId,
+              failed
+                ? {
+                    status: 'failed',
+                    exitCode: 1,
+                    error: `OpenCode ACP turn ended with stopReason ${stopReason}`,
+                    streamMessages: current?.streamMessages || streamState.streamMessages,
+                  }
+                : {
+                    status: 'completed',
+                    exitCode: 0,
+                    error: null,
+                    streamMessages: current?.streamMessages || streamState.streamMessages,
+                  }
+            );
+            resolveOnce(buildCard('OpenCode task finished.'));
+          });
         })
         .catch((err) => {
           // Fallback is only legal before any agent work began; after that
           // re-dispatching through the legacy CLI would run the prompt twice.
           if (!cardResolved && err?.fallbackAllowed) {
+            acpService.closeSession(sessionId);
             this.trackedSessions = this.trackedSessions.filter((x) => x.id !== sessionId);
             configStore.setOpenCodeSessions(this.trackedSessions);
             try {
@@ -325,10 +326,11 @@ class OpenCodeService {
             }
             return;
           }
+          const current = this._trackedEntry(sessionId);
           this._updateSession(sessionId, {
             status: 'failed',
             error: err?.message || String(err),
-            streamMessages: streamState.streamMessages,
+            streamMessages: current?.streamMessages || streamState.streamMessages,
           });
           resolveOnce(buildCard(err?.message || 'ACP dispatch failed.'));
         });
@@ -337,6 +339,49 @@ class OpenCodeService {
 
   _trackedEntry(sessionId) {
     return this.trackedSessions.find((x) => x.id === sessionId);
+  }
+
+  _applyAcpUpdate(sessionId, update) {
+    const current = this._trackedEntry(sessionId);
+    if (!current) return;
+    const next = applySessionUpdate(
+      current.streamMessages || [],
+      update,
+      new Date().toISOString()
+    );
+    if (next === current.streamMessages) return;
+    current.streamMessages = next;
+    this._updateSessionDebounced(sessionId, () => ({ streamMessages: next }));
+  }
+
+  _acpConnectOptions(record) {
+    const opencodeCmd = this.getExecutable();
+    if (!isCommandRunnable(opencodeCmd)) {
+      throw new Error('OpenCode CLI is not on PATH');
+    }
+    return {
+      command: opencodeCmd,
+      args: ['acp'],
+      cwd: record.projectPath,
+      model: record.model,
+      permissionPolicy: 'allow-all',
+      onUpdate: (update) => this._applyAcpUpdate(record.id, update),
+    };
+  }
+
+  async sendFollowUp(rawId, message) {
+    const record = this._trackedEntry(rawId);
+    if (!record) {
+      throw new Error(`Task not found: ${rawId}`);
+    }
+    return sendAcpFollowUp({
+      taskId: rawId,
+      message,
+      getRecord: () => this._trackedEntry(rawId),
+      connectOptions: acpService.hasLiveSession(rawId) ? {} : this._acpConnectOptions(record),
+      updateRecord: (patch) => this._updateSession(rawId, patch),
+      failedLabel: 'OpenCode',
+    });
   }
 
   _spawnLegacySession(opencodeCmd, options, { prompt, projectPath }, sessionId) {
@@ -515,6 +560,7 @@ class OpenCodeService {
       filePath: null,
       status: t.status,
       exitCode: t.exitCode,
+      canFollowUp: acpService.canFollowUp(t.id, t),
     };
 
     let messages = [];

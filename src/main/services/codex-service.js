@@ -8,6 +8,7 @@ const installStatus = require('../utils/install-status');
 const acpService = require('./acp-service');
 const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
+const { sendAcpFollowUp } = require('./acp-follow-up');
 
 const CODEX_DEFAULT_MODEL = 'gpt-5-codex';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
@@ -149,6 +150,7 @@ class CodexService {
 
     return {
       ...this.normalizeRecord(record),
+      canFollowUp: acpService.canFollowUp(record.id, record),
       messages: [
         {
           id: `${record.id}-prompt`,
@@ -217,6 +219,7 @@ class CodexService {
       projectPath,
       repository: projectPath,
       title: prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''),
+      model: model || null,
     });
     record.streamText = '';
     record.streamMessages = [];
@@ -234,11 +237,10 @@ class CodexService {
       };
 
       acpService
-        .runPrompt({
+        .connect({
           command: adapter.command,
           args: adapter.args,
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'allow-all',
           onSessionId: () => {
@@ -248,47 +250,31 @@ class CodexService {
               )
             );
           },
-          onUpdate: (update) => {
-            const nextMessages = applySessionUpdate(
-              record.streamMessages,
-              update,
-              new Date().toISOString()
-            );
-            const text =
-              update?.sessionUpdate === 'agent_message_chunk'
-                ? typeof update.content === 'string'
-                  ? update.content
-                  : update.content?.text
-                : null;
-            if (text && text.trim()) {
-              record.streamText = (record.streamText + text).slice(-STREAM_TEXT_CAP);
-              record.responseText = record.streamText;
-            }
-            if (nextMessages === record.streamMessages && !text) return;
-            record.streamMessages = nextMessages;
-            this._updateTrackedThread(
-              sessionId,
-              {
-                responseText: record.streamText,
-                streamMessages: record.streamMessages,
-              },
-              true
-            );
-          },
+          onUpdate: (update) => this._applyAcpUpdate(sessionId, update),
         })
-        .then(({ stopReason }) => {
-          const failed = stopReason === 'error' || stopReason === 'cancelled';
+        .then((session) => {
+          acpService.registerSession(sessionId, session);
           this._updateTrackedThread(sessionId, {
-            status: failed ? 'failed' : 'completed',
-            responseText: record.streamText || null,
-            error: failed ? `Codex ACP turn ended with stopReason ${stopReason}` : null,
+            acpSessionId: session.sessionId,
+            loadSession: session.loadSession,
+            model: model || record.model || null,
           });
-          resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Codex task finished.'));
+          return session.prompt(prompt).then(({ stopReason }) => {
+            const current = trackedThreads.find((t) => t.id === sessionId);
+            const failed = stopReason === 'error' || stopReason === 'cancelled';
+            this._updateTrackedThread(sessionId, {
+              status: failed ? 'failed' : 'completed',
+              responseText: current?.streamText || current?.responseText || null,
+              error: failed ? `Codex ACP turn ended with stopReason ${stopReason}` : null,
+            });
+            resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Codex task finished.'));
+          });
         })
         .catch((err) => {
           // Fallback is only legal before any agent work began; after that
           // re-dispatching through the legacy CLI would run the prompt twice.
           if (!cardResolved && err?.fallbackAllowed) {
+            acpService.closeSession(sessionId);
             trackedThreads = trackedThreads.filter((t) => t.id !== sessionId);
             this._persistThreads();
             this._spawnLegacySession({ prompt, projectPath }, sessionId).then(
@@ -355,6 +341,65 @@ class CodexService {
           message: 'Codex CLI task started in the background.',
         });
       }, 400);
+    });
+  }
+
+  _applyAcpUpdate(sessionId, update) {
+    const current = trackedThreads.find((t) => t.id === sessionId);
+    if (!current) return;
+    const nextMessages = applySessionUpdate(
+      current.streamMessages || [],
+      update,
+      new Date().toISOString()
+    );
+    const text =
+      update?.sessionUpdate === 'agent_message_chunk'
+        ? typeof update.content === 'string'
+          ? update.content
+          : update.content?.text
+        : null;
+    const streamText = text && text.trim()
+      ? ((current.streamText || '') + text).slice(-STREAM_TEXT_CAP)
+      : current.streamText;
+    if (nextMessages === current.streamMessages && streamText === current.streamText) return;
+    this._updateTrackedThread(
+      sessionId,
+      {
+        streamText,
+        responseText: streamText,
+        streamMessages: nextMessages,
+      },
+      true
+    );
+  }
+
+  _acpConnectOptions(record) {
+    const adapter = toAdapterSpec(acpService.resolveAdapter('codex'));
+    if (!adapter) {
+      throw new Error('Codex ACP adapter is not available');
+    }
+    return {
+      command: adapter.command,
+      args: adapter.args,
+      cwd: record.projectPath || record.repository,
+      model: record.model,
+      permissionPolicy: 'allow-all',
+      onUpdate: (update) => this._applyAcpUpdate(record.id, update),
+    };
+  }
+
+  async sendFollowUp(rawId, message) {
+    const record = trackedThreads.find((t) => t.id === rawId);
+    if (!record) {
+      throw new Error(`Codex task not found: ${rawId}`);
+    }
+    return sendAcpFollowUp({
+      taskId: rawId,
+      message,
+      getRecord: () => trackedThreads.find((t) => t.id === rawId),
+      connectOptions: acpService.hasLiveSession(rawId) ? {} : this._acpConnectOptions(record),
+      updateRecord: (patch) => this._updateTrackedThread(rawId, patch),
+      failedLabel: 'Codex',
     });
   }
 

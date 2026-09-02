@@ -82,8 +82,14 @@ renders every task's transcript as a chat log on the canvas.
   (`applySessionUpdate`): `agent_message_chunk`, `agent_thought_chunk`,
   `tool_call`, and `tool_call_update` all land on stream messages that
   `agents:get-details` returns with `thinking` / `toolCalls` fields.
-- Providers without structured messages fall back to the unified activity
-  feed (Jules) or raw markdown content.
+- Every task detail view renders `ChatTranscript` (same component as the
+  Agent tab). `detailsToTranscript` normalizes ACP `messages[]`, Cursor
+  cloud `conversation[]` / run activities, Jules activities (plan →
+  thinking, commands → Bash, file changes → Edit, verification media →
+  cards), and legacy `content` / prompt-only payloads. The dispatched
+  prompt is always the first **You** bubble when the transcript has no
+  user turn. Context (repo / PR / runs) stays collapsed by default.
+  Running tasks show a neutral **Working…** row and poll details every 2s.
 - Follow-up composer at the bottom sends `tasks:send-message`; supported on
   desktop for jules, cursor (cloud + local ACP `cursor-cli-*`), claude-cloud,
   and local ACP sessions (`claude-cli`, `codex`, `opencode`, `antigravity`)
@@ -140,6 +146,8 @@ renders every task's transcript as a chat log on the canvas.
       focused `Connect` / `Manage` modal with no catalog sidebar
 - [ ] ACP-dispatched sessions stream tool calls and thinking into the task
       chat log, collapsed and expandable
+- [ ] Jules, Cursor cloud, and prompt-only tasks also use `ChatTranscript`
+      (user prompt on the right; thinking / tool chips on the harness side)
 - [ ] Follow-ups work for jules, cursor (cloud and local ACP), claude-cloud, and local ACP tasks that report `canFollowUp`
 - [ ] No blue remains in the UI; only status colors (emerald/amber/red/grey)
       appear. Agent recent tasks: running emerald, completed grey
@@ -154,6 +162,7 @@ renders every task's transcript as a chat log on the canvas.
 - `src/renderer/utils/mobile-nav.js`, `src/renderer/hooks/use-media-query.js`
 - `src/renderer/components/sidebar/ReposAgentsSection.jsx`
 - `src/renderer/modals/RepoSessionsModal.jsx`
+- `src/renderer/utils/task-transcript.js`
 - `src/renderer/pages/AgentPage.jsx`, `NewTaskPage.jsx`, `TaskDetailView.jsx`,
   `PluginsPage.jsx`, `DevicesPage.jsx`
 - `src/renderer/context/app-state.js` (default view, CLOSE_TASK)

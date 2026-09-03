@@ -14,6 +14,7 @@ const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spa
 const { applySessionUpdate } = require('./opencode-session-parser');
 const { sendAcpFollowUp } = require('./acp-follow-up');
 const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
+const { emitTrackedSessionUpdate } = require('./session-events');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -1029,15 +1030,24 @@ class ClaudeService {
   _updateTrackedLocalSession(sessionId, patch, debounced = false) {
     const idx = this.trackedLocalSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
-    this.trackedLocalSessions[idx] = {
-      ...this.trackedLocalSessions[idx],
+    const prev = this.trackedLocalSessions[idx];
+    const next = {
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    this.trackedLocalSessions[idx] = next;
     if (debounced) {
       this._persistTrackedLocalSessionsDebounced();
     } else {
       this._persistTrackedLocalSessions();
+    }
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    if (statusChanged) {
+      emitTrackedSessionUpdate('claude-cli', next, {
+        statusChanged: true,
+        details: this._getTrackedLocalDetails(next),
+      });
     }
   }
 

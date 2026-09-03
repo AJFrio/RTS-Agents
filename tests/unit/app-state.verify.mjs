@@ -7,8 +7,12 @@ import assert from 'node:assert/strict';
 import {
   appReducer,
   initialState,
+  normalizeCreatedTask,
+  reconcileAgentAgainstKnown,
+  resolveTaskStatus,
   syncSelectedTask,
   taskMatches,
+  upsertAgent,
 } from '../../src/renderer/context/app-state.js';
 
 const TESTS = [];
@@ -61,6 +65,80 @@ test('MERGE_AGENTS_DELTA patches selectedTask', () => {
     },
   });
   assert.equal(next.selectedTask.status, 'failed');
+});
+
+test('resolveTaskStatus prefers a terminal status over running', () => {
+  assert.equal(resolveTaskStatus('running', 'completed'), 'completed');
+  assert.equal(resolveTaskStatus('completed', 'running'), 'completed');
+  assert.equal(resolveTaskStatus(undefined, 'running'), 'running');
+  assert.equal(resolveTaskStatus('failed', 'running', 'completed'), 'failed');
+});
+
+test('upsertAgent inserts, merges status, and no-ops unchanged patches', () => {
+  const first = upsertAgent([], { id: 't1', rawId: 't1', status: 'running', name: 'A' });
+  assert.equal(first.length, 1);
+  assert.equal(first[0].status, 'running');
+
+  const updated = upsertAgent(first, { rawId: 't1', status: 'completed' });
+  assert.equal(updated[0].status, 'completed');
+  assert.equal(updated[0].id, 't1');
+  assert.equal(updated[0].name, 'A');
+
+  const same = upsertAgent(updated, { id: 't1', status: 'completed' });
+  assert.equal(same, updated);
+});
+
+test('UPSERT_AGENT patches list and selectedTask status', () => {
+  const state = {
+    ...initialState,
+    selectedTask: { id: 't1', rawId: 't1', status: 'running', provider: 'cursor' },
+    agents: [{ id: 't1', rawId: 't1', status: 'running', provider: 'cursor' }],
+  };
+  const next = appReducer(state, {
+    type: 'UPSERT_AGENT',
+    payload: { rawId: 't1', status: 'completed' },
+  });
+  assert.equal(next.agents[0].status, 'completed');
+  assert.equal(next.selectedTask.status, 'completed');
+});
+
+test('SET_AGENTS does not revive a newer completed row as running', () => {
+  const state = {
+    ...initialState,
+    agents: [
+      { id: 't1', rawId: 't1', status: 'completed', updatedAt: '2026-09-03T20:00:00.000Z' },
+    ],
+  };
+  const next = appReducer(state, {
+    type: 'SET_AGENTS',
+    payload: {
+      agents: [
+        { id: 't1', rawId: 't1', status: 'running', updatedAt: '2026-09-03T19:00:00.000Z' },
+      ],
+    },
+  });
+  assert.equal(next.agents[0].status, 'completed');
+});
+
+test('reconcileAgentAgainstKnown keeps the newer terminal status', () => {
+  const prev = { id: 't1', status: 'completed', updatedAt: '2026-09-03T20:00:00.000Z' };
+  const stale = { id: 't1', status: 'running', updatedAt: '2026-09-03T19:00:00.000Z' };
+  assert.equal(reconcileAgentAgainstKnown(prev, stale).status, 'completed');
+  const newer = { id: 't1', status: 'running', updatedAt: '2026-09-03T21:00:00.000Z' };
+  assert.equal(reconcileAgentAgainstKnown(prev, newer).status, 'running');
+});
+
+test('normalizeCreatedTask reads the createTask envelope', () => {
+  const task = normalizeCreatedTask('cursor', {
+    success: true,
+    task: { id: 'cursor-cli-1', prompt: 'Fix the bug', status: 'running' },
+  });
+  assert.equal(task.id, 'cursor-cli-1');
+  assert.equal(task.rawId, 'cursor-cli-1');
+  assert.equal(task.provider, 'cursor');
+  assert.equal(task.name.startsWith('Fix the bug'), true);
+  assert.equal(normalizeCreatedTask('cursor', { success: true }), null);
+  assert.equal(normalizeCreatedTask('cursor', { success: false, error: 'nope' }), null);
 });
 
 test('keeps selectedTask when it is missing from the new list', () => {

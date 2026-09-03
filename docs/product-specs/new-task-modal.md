@@ -57,7 +57,7 @@ threads it into the same service dispatch paths.
 - [ ] The tab only shows providers that are configured or detected
 - [ ] Model dropdown only appears when the selected harness reports models
 - [ ] Selected model reaches the CLI args / REST body / remote queue payload
-- [ ] Successful create resets the form and the new task appears in the task list after refresh
+- [ ] Successful create opens the new task on the canvas and the task appears in the sidebar / recent list
 - [ ] Validation errors are shown inline (missing repo, missing key)
 
 ## Implementation pointers

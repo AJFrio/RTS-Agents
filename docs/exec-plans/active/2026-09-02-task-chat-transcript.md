@@ -15,8 +15,8 @@ that previously used the activity-feed fallback.
 - [ ] `TaskDetailView` always renders `ChatTranscript` (no activity-feed
       or raw-markdown primary path)
 - [ ] Jules verification media renders via `renderCards` + `JulesActivityMedia`
-- [ ] Task context is collapsed by default; running tasks show Working… and
-      poll every 2s
+- [x] Task context is collapsed by default; running tasks show Working…;
+      cloud tasks poll details, local ACP tasks receive `tasks:session-updated`
 - [ ] Unit tests cover the normalizer; `npm run validate` and the renderer
       build pass
 

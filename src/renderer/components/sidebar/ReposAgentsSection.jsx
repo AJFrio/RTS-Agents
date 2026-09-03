@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useApp } from '../../context/AppContext.jsx';
+import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import { providerMeta } from '../ui/icons.jsx';
 import { StatusDot } from '../ui/status.jsx';
 import RepoSessionsModal from '../../modals/RepoSessionsModal.jsx';
@@ -39,7 +39,7 @@ function sortTasks(tasks) {
 }
 
 function TaskRow({ task }) {
-  const { openTask } = useApp();
+  const { openTask } = useAppActions();
   const running = String(task.status).toLowerCase() === 'running';
   return (
     <button
@@ -134,12 +134,12 @@ function Section({ id, icon, label, tasks, defaultOpen = false, onSeeAll }) {
  * collapse, so they stay visible even when the section is collapsed.
  */
 export default function ReposAgentsSection({ mode }) {
-  const { state } = useApp();
+  const { agents } = useAppState();
   const [sessionsModal, setSessionsModal] = useState(null);
 
   const groups = useMemo(() => {
     const byKey = new Map();
-    for (const agent of state.agents || []) {
+    for (const agent of agents || []) {
       const key =
         mode === 'agents'
           ? providerMeta(agent.provider).label
@@ -158,15 +158,15 @@ export default function ReposAgentsSection({ mode }) {
       return a.key.localeCompare(b.key);
     });
     return entries;
-  }, [state.agents, mode]);
+  }, [agents, mode]);
 
   const modalTasks = useMemo(() => {
     if (!sessionsModal) return [];
-    return (state.agents || []).filter((agent) => {
+    return (agents || []).filter((agent) => {
       if (mode === 'agents') return providerMeta(agent.provider).label === sessionsModal;
       return sectionKey(agent) === sessionsModal;
     });
-  }, [sessionsModal, state.agents, mode]);
+  }, [sessionsModal, agents, mode]);
 
   if (groups.length === 0) {
     return (

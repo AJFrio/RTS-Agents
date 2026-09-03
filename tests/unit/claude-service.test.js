@@ -657,6 +657,7 @@ describe('ClaudeService', () => {
     });
 
     test('getAllLocalSessions merges tracked ACP sessions with filesystem discovery', async () => {
+      acpService.hasLiveSession.mockReturnValue(true);
       claudeService.setTrackedLocalSessions([
         {
           id: 'claude-cli-1-abc',

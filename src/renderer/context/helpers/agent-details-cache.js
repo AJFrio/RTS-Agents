@@ -69,6 +69,9 @@ export function createAgentDetailsCache({
     const targets = [];
     for (const agent of agents) {
       if (!agent || agent.status !== 'running') continue;
+      // OpenCode details come from in-memory streams; prefetch would spawn
+      // `opencode export` and freeze the Electron main process.
+      if (agent.provider === 'opencode') continue;
       const key = keyFor(agent.provider, agent.rawId || agent.id);
       if (entries.has(key) || inFlight.has(key)) continue;
       inFlight.add(key);

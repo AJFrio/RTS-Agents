@@ -535,6 +535,9 @@ function connect(options) {
         get closed() {
           return closed;
         },
+        get isPromptInProgress() {
+          return currentPrompt != null || promptQueue.length > 0;
+        },
         prompt,
         close,
         _onClose: null,
@@ -677,6 +680,11 @@ function hasLiveSession(taskId) {
   return !!getLiveSession(taskId);
 }
 
+function isPromptInProgress(taskId) {
+  const session = getLiveSession(taskId);
+  return Boolean(session && session.isPromptInProgress);
+}
+
 function registerSession(taskId, session) {
   if (!taskId || !session) return;
   const previous = liveSessions.get(taskId);
@@ -752,6 +760,7 @@ module.exports = {
   ensureSession,
   getLiveSession,
   hasLiveSession,
+  isPromptInProgress,
   pickPermissionOption,
   promptFollowUp,
   registerSession,

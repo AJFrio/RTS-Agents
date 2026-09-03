@@ -14,5 +14,12 @@ module.exports = {
     return () => {
       ipcRenderer.removeListener('agents:refresh-tick', subscription);
     };
-  }
+  },
+  onSessionUpdated: (callback) => {
+    const subscription = (_event, payload) => callback(payload);
+    ipcRenderer.on('tasks:session-updated', subscription);
+    return () => {
+      ipcRenderer.removeListener('tasks:session-updated', subscription);
+    };
+  },
 };

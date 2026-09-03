@@ -10,7 +10,8 @@ import {
   fetchAgentDetails,
 } from './helpers/agent-details-cache.js';
 
-const AppContext = createContext(null);
+const AppStateContext = createContext(null);
+const AppActionsContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
@@ -45,9 +46,8 @@ export function AppProvider({ children }) {
     agentDetailsCache,
   });
 
-  const value = useMemo(
+  const actions = useMemo(
     () => ({
-      state,
       dispatch,
       api,
       agentDetailsCache,
@@ -62,7 +62,6 @@ export function AppProvider({ children }) {
       ...modals,
     }),
     [
-      state,
       api,
       agentDetailsCache,
       loadSettings,
@@ -77,14 +76,28 @@ export function AppProvider({ children }) {
     ]
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppActionsContext.Provider value={actions}>
+      <AppStateContext.Provider value={state}>{children}</AppStateContext.Provider>
+    </AppActionsContext.Provider>
+  );
+}
+
+export function useAppState() {
+  const state = useContext(AppStateContext);
+  if (state == null) throw new Error('useAppState must be used within AppProvider');
+  return state;
+}
+
+export function useAppActions() {
+  const actions = useContext(AppActionsContext);
+  if (!actions) throw new Error('useAppActions must be used within AppProvider');
+  return actions;
 }
 
 export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
+  return { state: useAppState(), ...useAppActions() };
 }
 
 export { VIEWS };
-export default AppContext;
+export default AppStateContext;

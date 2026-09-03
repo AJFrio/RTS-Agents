@@ -42,6 +42,7 @@ function acpConnectMockExports() {
     registerSession: jest.fn(),
     closeSession: jest.fn(),
     hasLiveSession: jest.fn(() => false),
+    isPromptInProgress: jest.fn(() => false),
     canFollowUp: jest.fn(() => false),
     promptFollowUp: jest.fn(),
     closeAll: jest.fn(),

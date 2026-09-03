@@ -511,6 +511,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     });
 
     test('getAllAgents surfaces tracked local sessions without an API key', async () => {
+      acpService.hasLiveSession.mockReturnValue(true);
       cursorService.setCursorCliSessions([
         {
           id: 'cursor-cli-1-abc',

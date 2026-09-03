@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext.jsx';
+import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import {
   IconAgent,
   IconNewTask,
@@ -28,8 +28,8 @@ const NAV_ITEMS = [
  * stay visible even when their section is collapsed.
  */
 export default function Sidebar() {
-  const { state, setView, setSidebarMode, openNewTaskModal } = useApp();
-  const { currentView, sidebarMode } = state;
+  const { currentView, sidebarMode } = useAppState();
+  const { setView, setSidebarMode, openNewTaskModal } = useAppActions();
 
   return (
     <aside

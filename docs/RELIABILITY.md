@@ -2,8 +2,8 @@
 
 ## Known risks (see also UPDATES.md / tech-debt-tracker)
 
-1. **Synchronous FS in main** — `claude-service` and `project-service` discovery loops can still stall the main process at scale.
-2. **Full-list polling** — Periodic refresh rescans and ships entire agent lists over IPC → renderer churn.
+1. **Synchronous FS in main** — `claude-service` list scans now reuse per-file mtime metadata, but a first-pass still reads transcripts. Do not add more `spawnCliSync` on live IPC paths (`opencode export` is async and skipped when stream messages exist).
+2. **Full-list polling** — Periodic refresh still ships agent lists over IPC. Session-store `fs.watch` is debounced (~2s) and no longer watches user project repos. Silent ticks must not flip `refreshing`.
 3. **Orchestrator tool loop** — `agent-orchestrator.chat` is iterative with a `maxToolTurns` cap and native OpenRouter tools (JSON-in-text fallback). Read tools reuse the dashboard agent snapshot and run in parallel; `list_*` surfaces cards so Janus does not follow a list with N `show_*` calls. Web runtime is still chat-only.
 
 ## Operational expectations

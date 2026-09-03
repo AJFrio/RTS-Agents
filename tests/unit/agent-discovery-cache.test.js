@@ -97,4 +97,20 @@ describe('agent-discovery-cache', () => {
     expect(agentDiscoveryCache.peekAgents()).toEqual([{ id: '1', status: 'running' }]);
     expect(fetchAllAgents).toHaveBeenCalledTimes(1);
   });
+
+  test('collectWatchRoots excludes configured project repos', () => {
+    const projectRepo = 'D:\\GitHub\\MyRepo';
+    const roots = agentDiscoveryCache.collectWatchRoots({
+      configStore: {
+        getAllProjectPaths: () => [projectRepo],
+        getAntigravityPaths: () => [],
+        getClaudePaths: () => [],
+      },
+      antigravityService: { getDefaultDataPath: () => '/mock/.gemini/antigravity-cli' },
+      claudeService: { getDefaultPath: () => '/mock/.claude' },
+    });
+    expect(roots).not.toContain(projectRepo);
+    expect(roots.some((root) => String(root).includes('.opencode'))).toBe(true);
+    expect(roots.some((root) => String(root).includes('.claude'))).toBe(true);
+  });
 });

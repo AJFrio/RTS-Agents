@@ -32,7 +32,7 @@ Cursor **Cloud Agents API** is a separate HTTP API at `/v1` (there is no Cloud v
 ## Acceptance criteria
 
 - [ ] With an adapter installed, a new local task streams assistant output into task details while running
-- [ ] Task status transitions running → completed/failed when the ACP prompt turn ends
+- [x] Task status transitions running → completed/failed when the ACP prompt turn ends
 - [ ] Without an adapter, dispatch behaves exactly as before (detached CLI spawn, no streaming)
 - [ ] ACP failure after prompt start never re-runs the prompt through the legacy path
 - [ ] On Windows, `.cmd` CLIs start via `cli-spawn` (no EINVAL toast on legacy fallback)

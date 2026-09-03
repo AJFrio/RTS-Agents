@@ -9,6 +9,7 @@ const acpService = require('./acp-service');
 const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
 const { sendAcpFollowUp } = require('./acp-follow-up');
+const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
 
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 
@@ -19,7 +20,14 @@ class AntigravityService {
   }
 
   setTrackedSessions(sessions) {
-    this.trackedSessions = Array.isArray(sessions) ? sessions : [];
+    const { sessions: next, changed } = reconcileOrphanRunningSessions(
+      Array.isArray(sessions) ? sessions : [],
+      { hasLiveSession: (id) => acpService.hasLiveSession(id) }
+    );
+    this.trackedSessions = next;
+    if (changed) {
+      configStore.setAntigravitySessions(this.trackedSessions);
+    }
   }
 
   getTrackedSessions() {

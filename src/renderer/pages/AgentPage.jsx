@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import Composer from '../components/chat/Composer.jsx';
 import RecentTasksList from '../components/chat/RecentTasksList.jsx';
@@ -40,9 +40,14 @@ export default function AgentPage() {
     busy: false,
     recentTasksVisible: true,
   };
-  const { messages, input, busy, recentTasksVisible } = chat;
+  const { messages, input: storedInput, busy, recentTasksVisible } = chat;
+  const [input, setInput] = useState(storedInput || '');
   const scrollRef = useRef(null);
   const selectedModel = state.settings?.selectedModel || 'openrouter/openai/gpt-4o';
+
+  useEffect(() => {
+    setInput(storedInput || '');
+  }, [storedInput]);
 
   useEffect(() => {
     if (messages.length === 0 && !busy) return;
@@ -56,12 +61,26 @@ export default function AgentPage() {
   };
 
   const resetChat = () => {
+    setInput('');
     dispatch({ type: 'RESET_ORCHESTRATOR_CHAT' });
   };
+
+  const renderAgentContent = useCallback((content) => <MarkdownText text={content} />, []);
+  const renderAgentCards = useCallback(
+    (cards) => (
+      <div className="space-y-2">
+        {cards.map((card) => (
+          <SurfaceCard key={`${card.kind || 'task'}-${card.id}`} card={card} />
+        ))}
+      </div>
+    ),
+    []
+  );
 
   const send = async (text) => {
     const prompt = (text ?? input).trim();
     if (!prompt || busy) return;
+    setInput('');
 
     const userMessage = {
       id: nextMessageId(),
@@ -197,14 +216,8 @@ export default function AgentPage() {
                 <ChatTranscript
                   messages={transcriptMessages}
                   assistantLabel="Janus"
-                  renderContent={(content) => <MarkdownText text={content} />}
-                  renderCards={(cards) => (
-                    <div className="space-y-2">
-                      {cards.map((card) => (
-                        <SurfaceCard key={`${card.kind || 'task'}-${card.id}`} card={card} />
-                      ))}
-                    </div>
-                  )}
+                  renderContent={renderAgentContent}
+                  renderCards={renderAgentCards}
                 />
 
                 {busy && (
@@ -222,9 +235,7 @@ export default function AgentPage() {
           <div className="mx-auto w-full max-w-3xl">
             <Composer
               value={input}
-              onChange={(value) =>
-                dispatch({ type: 'SET_ORCHESTRATOR_CHAT', payload: { input: value } })
-              }
+              onChange={setInput}
               onSubmit={() => send()}
               busy={busy}
               disabled={busy}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useApp } from '../../context/AppContext.jsx';
+import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import { useBelowMd } from '../../hooks/use-media-query.js';
 import { isMoreNavView, MORE_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '../../utils/mobile-nav.js';
 import {
@@ -52,8 +52,8 @@ function NavButton({ view, label, Icon, active, onClick, ...rest }) {
 }
 
 export default function BottomNav() {
-  const { state, setView } = useApp();
-  const { currentView } = state;
+  const { currentView } = useAppState();
+  const { setView } = useAppActions();
   const belowMd = useBelowMd();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = isMoreNavView(currentView);

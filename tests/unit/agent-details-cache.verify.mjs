@@ -71,6 +71,19 @@ function makeStubFetch(result) {
 // a. prime fetches only running agents
 // ---------------------------------------------------------------------------
 
+test('prime skips OpenCode even when running', async () => {
+  const { createAgentDetailsCache } = await import(MODULE_PATH);
+  const api = makeApi();
+  const cache = createAgentDetailsCache({ api });
+  cache.prime([
+    { provider: 'opencode', rawId: 'oc1', status: 'running' },
+    { provider: 'cursor', rawId: 'c1', status: 'running' },
+  ]);
+  await flush();
+  assert.equal(api.calls.generic.length, 1);
+  assert.equal(api.calls.generic[0].rawId, 'c1');
+});
+
 test('prime fetches ONLY agents with status running', async () => {
   const { createAgentDetailsCache } = await import(MODULE_PATH);
   const api = makeApi();

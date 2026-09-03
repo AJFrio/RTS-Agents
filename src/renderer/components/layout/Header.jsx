@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { useApp } from '../../context/AppContext.jsx';
+import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import FilterDropdown from '../ui/FilterDropdown.jsx';
 import { IconSync, IconPlus } from '../ui/icons.jsx';
 import { debounce } from '../../utils/debounce.js';
@@ -28,8 +28,8 @@ function getPrRepoName(pr) {
 }
 
 export default function Header() {
+  const state = useAppState();
   const {
-    state,
     dispatch,
     loadAgents,
     fetchComputers,
@@ -38,7 +38,7 @@ export default function Header() {
     openCreateRepoModal,
     openPrRepoFilter,
     loadRemoteQueueActivity,
-  } = useApp();
+  } = useAppActions();
   const { currentView, counts, filters, refreshing, github, selectedTask } = state;
 
   const handleSearch = useMemo(

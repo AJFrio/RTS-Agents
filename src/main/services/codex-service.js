@@ -9,6 +9,7 @@ const acpService = require('./acp-service');
 const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
 const { sendAcpFollowUp } = require('./acp-follow-up');
+const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
 
 const CODEX_DEFAULT_MODEL = 'gpt-5-codex';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
@@ -61,7 +62,13 @@ class CodexService {
   }
 
   setTrackedThreads(threads) {
-    trackedThreads = threads || [];
+    const { sessions: next, changed } = reconcileOrphanRunningSessions(threads || [], {
+      hasLiveSession: (id) => acpService.hasLiveSession(id),
+    });
+    trackedThreads = next;
+    if (changed) {
+      configStore.setCodexThreads(trackedThreads);
+    }
   }
 
   getTrackedThreads() {

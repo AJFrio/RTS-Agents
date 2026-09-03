@@ -227,6 +227,63 @@ describe('OpenCodeService', () => {
       );
     });
 
+    test('getSessionDetails uses stream messages and does not spawn export', async () => {
+      opencodeService.setTrackedSessions([
+        {
+          id: 'opencode-1',
+          prompt: 'Fix the bug',
+          projectPath: '/repo',
+          status: 'completed',
+          streamMessages: [{ role: 'assistant', content: 'done' }],
+          opencodeSessionId: 'ses_abc',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ]);
+
+      const details = await opencodeService.getSessionDetails('opencode-1');
+      expect(details.status).toBe('completed');
+      expect(details.messages).toEqual(
+        expect.arrayContaining([expect.objectContaining({ content: 'done' })])
+      );
+      expect(spawn).not.toHaveBeenCalled();
+      expect(spawnSync).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.arrayContaining(['export']),
+        expect.anything()
+      );
+    });
+
+    test('setTrackedSessions marks orphan running sessions completed', () => {
+      acpService.hasLiveSession.mockReturnValue(false);
+      opencodeService.setTrackedSessions([
+        {
+          id: 'opencode-old',
+          status: 'running',
+          prompt: 'x',
+          streamMessages: [],
+        },
+      ]);
+      expect(opencodeService.getTrackedSessions()[0].status).toBe('completed');
+      expect(configStore.setOpenCodeSessions).toHaveBeenCalled();
+    });
+
+    test('getAllAgents reconciles a live session with no in-flight prompt', () => {
+      acpService.hasLiveSession.mockReturnValue(true);
+      acpService.isPromptInProgress.mockReturnValue(false);
+      opencodeService.setTrackedSessions([
+        {
+          id: 'opencode-1',
+          status: 'running',
+          prompt: 'x',
+          streamMessages: [{ role: 'assistant', content: 'done' }],
+        },
+      ]);
+      expect(opencodeService.getTrackedSessions()[0].status).toBe('running');
+      const agents = opencodeService.getAllAgents();
+      expect(agents[0].status).toBe('completed');
+    });
+
     test('sendFollowUp accepts a follow-up on a live ACP session', async () => {
       pathExists.mockResolvedValue(true);
       mockAcp();

@@ -18,6 +18,7 @@ const queueProcessorService = require('./src/main/services/queue-processor-servi
 const opencodeService = require('./src/main/services/opencode-service');
 const antigravityService = require('./src/main/services/antigravity-service');
 const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
+const { sessionEvents } = require('./src/main/services/session-events');
 const { clearInstallStatusCache } = require('./src/main/utils/install-status');
 const acpService = require('./src/main/services/acp-service');
 
@@ -342,6 +343,18 @@ function stopAutoUpdateTimer() {
   }
 }
 
+function bindSessionEvents() {
+  sessionEvents.removeAllListeners('updated');
+  sessionEvents.on('updated', (payload) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send('tasks:session-updated', payload);
+    if (payload?.statusChanged) {
+      agentDiscoveryCache.invalidate();
+      mainWindow.webContents.send('agents:refresh-tick');
+    }
+  });
+}
+
 function startDiscoveryWatchers() {
   const deps = {
     configStore,
@@ -415,6 +428,7 @@ performUpdate = ipcExports.performUpdate;
 // ============================================
 
 app.whenReady().then(() => {
+  bindSessionEvents();
   createWindow();
 
   app.on('activate', () => {

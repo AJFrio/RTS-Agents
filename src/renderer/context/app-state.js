@@ -65,6 +65,22 @@ function setStoredPrHiddenRepos(repos) {
   }
 }
 
+export function taskMatches(selected, agent) {
+  if (!selected || !agent) return false;
+  if (selected.id && selected.id === agent.id) return true;
+  if (selected.rawId && (selected.rawId === agent.rawId || selected.rawId === agent.id)) {
+    return true;
+  }
+  if (agent.rawId && selected.id === agent.rawId) return true;
+  return false;
+}
+
+export function syncSelectedTask(selectedTask, agents) {
+  if (!selectedTask || !Array.isArray(agents)) return selectedTask;
+  const match = agents.find((agent) => taskMatches(selectedTask, agent));
+  return match || selectedTask;
+}
+
 export const initialState = {
   currentView: 'agent',
   previousView: null,
@@ -286,14 +302,17 @@ export function appReducer(state, action) {
       }
       return { ...state, sidebarMode: mode };
     }
-    case 'SET_AGENTS':
+    case 'SET_AGENTS': {
+      const agents = action.payload.agents ?? state.agents;
       return {
         ...state,
-        agents: action.payload.agents ?? state.agents,
+        agents,
         agentListRevision: action.payload.revision ?? state.agentListRevision,
         counts: action.payload.counts ?? state.counts,
         errors: action.payload.errors ?? state.errors,
+        selectedTask: syncSelectedTask(state.selectedTask, agents),
       };
+    }
     case 'MERGE_AGENTS_DELTA': {
       const { added = [], updated = [], removed = [] } = action.payload.delta || {};
       const byId = new Map(state.agents.map((a) => [a.id, a]));
@@ -306,12 +325,14 @@ export function appReducer(state, action) {
       for (const agent of added) {
         byId.set(agent.id, agent);
       }
+      const agents = [...byId.values()];
       return {
         ...state,
-        agents: [...byId.values()],
+        agents,
         agentListRevision: action.payload.revision ?? state.agentListRevision,
         counts: action.payload.counts ?? state.counts,
         errors: action.payload.errors ?? state.errors,
+        selectedTask: syncSelectedTask(state.selectedTask, agents),
       };
     }
     case 'SET_FILTERED_AGENTS':

@@ -5,7 +5,7 @@
 - React 18 functional components + hooks
 - Vite build → `dist/renderer/`
 - Tailwind CSS 3 (`src/renderer/index.css`, `tailwind.config.js`)
-- Global state: `src/renderer/context/AppContext.jsx`
+- Global state: `src/renderer/context/AppContext.jsx` (`useAppState` / `useAppActions`; `useApp()` is the compatibility wrapper)
 - Safe Electron API: `src/renderer/context/ElectronAPI.jsx` / `preload.js`
 
 ## Structure

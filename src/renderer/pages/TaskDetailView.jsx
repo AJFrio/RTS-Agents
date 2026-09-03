@@ -21,7 +21,9 @@ const FOLLOWUP_PROVIDERS = new Set([
   'opencode',
   'antigravity',
 ]);
-const RUNNING_POLL_MS = 2000;
+const CLOUD_POLL_MS = 8000;
+const CLOUD_DETAIL_POLL_PROVIDERS = new Set(['jules', 'cursor', 'claude-cloud']);
+const SESSION_UPDATE_DEBOUNCE_MS = 100;
 
 /**
  * Task chat log on the canvas (DESIGN.md §2.3): same ChatTranscript as the
@@ -38,8 +40,23 @@ export default function TaskDetailView() {
   const [sending, setSending] = useState(false);
   const [pendingFollowUps, setPendingFollowUps] = useState([]);
   const scrollRef = useRef(null);
+  const sessionUpdateTimer = useRef(null);
+  const pendingSessionUpdate = useRef(null);
+  const liveAgent = useMemo(() => {
+    if (!task) return null;
+    return (
+      (state.agents || []).find(
+        (agent) =>
+          agent.id === task.id ||
+          agent.rawId === task.rawId ||
+          agent.id === task.rawId ||
+          agent.rawId === task.id
+      ) || null
+    );
+  }, [state.agents, task]);
+  const liveStatus = details?.status ?? liveAgent?.status ?? task?.status;
   const meta = providerMeta(task?.provider);
-  const status = statusMeta(task?.status);
+  const status = statusMeta(liveStatus);
 
   const rawId = task?.rawId || task?.id;
   const julesSessionId =
@@ -77,10 +94,37 @@ export default function TaskDetailView() {
   }, [task?.provider, task?.rawId, loadDetails, agentDetailsCache]);
 
   useEffect(() => {
-    if (!task || task.status !== 'running') return undefined;
-    const interval = setInterval(() => loadDetails({ silent: true }), RUNNING_POLL_MS);
+    if (!task || liveStatus !== 'running') return undefined;
+    if (!CLOUD_DETAIL_POLL_PROVIDERS.has(task.provider)) return undefined;
+    const interval = setInterval(() => loadDetails({ silent: true }), CLOUD_POLL_MS);
     return () => clearInterval(interval);
-  }, [task, loadDetails]);
+  }, [task, liveStatus, loadDetails]);
+
+  useEffect(() => {
+    if (!api?.onSessionUpdated || !task) return undefined;
+    const taskId = task.rawId || task.id;
+    const unsub = api.onSessionUpdated((payload) => {
+      if (!payload) return;
+      if (payload.id !== taskId && payload.rawId !== taskId) return;
+      pendingSessionUpdate.current = payload;
+      if (sessionUpdateTimer.current) return;
+      sessionUpdateTimer.current = setTimeout(() => {
+        sessionUpdateTimer.current = null;
+        const next = pendingSessionUpdate.current;
+        pendingSessionUpdate.current = null;
+        if (next?.details) {
+          setDetails((prev) => ({ ...(prev || {}), ...next.details }));
+        }
+      }, SESSION_UPDATE_DEBOUNCE_MS);
+    });
+    return () => {
+      unsub();
+      if (sessionUpdateTimer.current) {
+        clearTimeout(sessionUpdateTimer.current);
+        sessionUpdateTimer.current = null;
+      }
+    };
+  }, [api, task?.id, task?.rawId]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -91,7 +135,8 @@ export default function TaskDetailView() {
   const hasTranscript = hasTranscriptContent(messages);
   const supportsFollowUp =
     FOLLOWUP_PROVIDERS.has(task?.provider) && details?.canFollowUp !== false;
-  const isWorking = task?.status === 'running' || sending;
+  const isWorking = liveStatus === 'running' || sending;
+  const renderContent = useCallback((content) => <MarkdownText text={content} />, []);
 
   const handleFollowUp = async () => {
     const text = followUp.trim();
@@ -157,7 +202,7 @@ export default function TaskDetailView() {
             {task.name || 'Task'}
           </h2>
           <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-neutral-500 dark:text-neutral-400">
-            <StatusDot status={task.status} className={status.pulse ? 'status-pulse' : ''} />
+            <StatusDot status={liveStatus} className={status.pulse ? 'status-pulse' : ''} />
             {status.label} · {meta.label}
             {task.repository && (
               <span className="truncate font-mono">
@@ -225,7 +270,7 @@ export default function TaskDetailView() {
             <ChatTranscript
               messages={transcriptPlusPending}
               assistantLabel={meta.label}
-              renderContent={(content) => <MarkdownText text={content} />}
+              renderContent={renderContent}
               renderCards={renderCards}
             />
           ) : details && !isWorking ? (
@@ -256,7 +301,7 @@ export default function TaskDetailView() {
               maxRows={5}
               placeholder={`Send a follow-up to this ${meta.label} task…`}
               submitLabel="Send follow-up"
-              footerNote={task.status === 'running' ? 'Task is running — the reply lands when the harness picks it up.' : undefined}
+              footerNote={liveStatus === 'running' ? 'Task is running — the reply lands when the harness picks it up.' : undefined}
             />
           ) : (
             <p className="rounded-lg border border-dashed border-border-strong-light px-3 py-2.5 text-center text-[12px] text-neutral-400 dark:border-border-strong-dark dark:text-neutral-500">

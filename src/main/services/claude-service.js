@@ -13,6 +13,7 @@ const projectService = require('./project-service');
 const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
 const { sendAcpFollowUp } = require('./acp-follow-up');
+const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -33,10 +34,18 @@ class ClaudeService {
     this.apiKey = null;
     this.trackedLocalSessions = [];
     this._persistTimer = null;
+    this._sessionListCache = new Map();
   }
 
   setTrackedLocalSessions(sessions) {
-    this.trackedLocalSessions = Array.isArray(sessions) ? sessions : [];
+    const { sessions: next, changed } = reconcileOrphanRunningSessions(
+      Array.isArray(sessions) ? sessions : [],
+      { hasLiveSession: (id) => acpService.hasLiveSession(id) }
+    );
+    this.trackedLocalSessions = next;
+    if (changed) {
+      configStore.setClaudeCliSessions(this.trackedLocalSessions);
+    }
   }
 
   getTrackedLocalSessions() {
@@ -215,10 +224,17 @@ class ClaudeService {
       const sessionPromises = files.map(async (file) => {
         try {
           const filePath = path.join(sessionsPath, file);
-          const [stats, content] = await Promise.all([
-            fsPromises.stat(filePath),
-            fsPromises.readFile(filePath, 'utf-8'),
-          ]);
+          const stats = await fsPromises.stat(filePath);
+          const cached = this._sessionListCache.get(filePath);
+          if (
+            cached &&
+            cached.mtimeMs === stats.mtimeMs &&
+            cached.size === stats.size
+          ) {
+            return cached.listFields;
+          }
+
+          const content = await fsPromises.readFile(filePath, 'utf-8');
           const session = file.endsWith('.jsonl')
             ? this.parseTranscript(content)
             : JSON.parse(content);
@@ -233,7 +249,7 @@ class ClaudeService {
               ? new Date(session.lastUpdated || session.updated_at)
               : stats.mtime;
 
-          return {
+          const listFields = {
             id: `claude-local-${path.basename(projectPath)}-${file.replace(/\.jsonl?$/, '')}`,
             provider: 'claude',
             source: 'local',
@@ -248,6 +264,16 @@ class ClaudeService {
             projectHash: path.basename(projectPath),
             messageCount: this.countMessages(session),
           };
+          this._sessionListCache.set(filePath, {
+            mtimeMs: stats.mtimeMs,
+            size: stats.size,
+            listFields,
+          });
+          if (this._sessionListCache.size > 2000) {
+            const oldest = this._sessionListCache.keys().next().value;
+            this._sessionListCache.delete(oldest);
+          }
+          return listFields;
         } catch (err) {
           return null;
         }

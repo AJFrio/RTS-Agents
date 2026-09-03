@@ -10,6 +10,7 @@ const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spa
 const { applySessionUpdate } = require('./opencode-session-parser');
 const { sendAcpFollowUp } = require('./acp-follow-up');
 const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
+const { emitTrackedSessionUpdate } = require('./session-events');
 
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 
@@ -309,15 +310,24 @@ class AntigravityService {
   _updateSession(sessionId, patch, debounced = false) {
     const idx = this.trackedSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
-    this.trackedSessions[idx] = {
-      ...this.trackedSessions[idx],
+    const prev = this.trackedSessions[idx];
+    const next = {
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    this.trackedSessions[idx] = next;
     if (debounced) {
       this._persistSessionsDebounced();
     } else {
       this._persistSessions();
+    }
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    if (statusChanged) {
+      emitTrackedSessionUpdate('antigravity', next, {
+        statusChanged: true,
+        details: this.getSessionDetails(sessionId),
+      });
     }
   }
 

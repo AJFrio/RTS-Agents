@@ -11,6 +11,7 @@ The dashboard shows tasks from all configured providers in one sortable/filterab
 - User can filter by provider and status.
 - Pagination applies when task count exceeds page size.
 - SYNC or poll interval refreshes the list from main process aggregation.
+- Opening a task, or a live session status event, updates that row immediately so the sidebar / recent list cannot stay green after the chat shows the turn ended.
 - Completing tasks may trigger in-app notification (toast + optional sound).
 
 ## Acceptance criteria

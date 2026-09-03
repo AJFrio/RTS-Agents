@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useApp } from '../context/AppContext.jsx';
+import { resolveTaskStatus } from '../context/app-state.js';
 import { fetchAgentDetails } from '../context/helpers/agent-details-cache.js';
 import { detailsToTranscript, hasTranscriptContent } from '../utils/task-transcript.js';
 import ChatTranscript from '../components/ui/ChatTranscript.jsx';
@@ -32,7 +33,7 @@ const SESSION_UPDATE_DEBOUNCE_MS = 100;
  * harnesses that support it.
  */
 export default function TaskDetailView() {
-  const { state, api, closeTask, agentDetailsCache } = useApp();
+  const { state, api, closeTask, agentDetailsCache, dispatch } = useApp();
   const task = state.selectedTask;
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +55,7 @@ export default function TaskDetailView() {
       ) || null
     );
   }, [state.agents, task]);
-  const liveStatus = details?.status ?? liveAgent?.status ?? task?.status;
+  const liveStatus = resolveTaskStatus(details?.status, liveAgent?.status, task?.status);
   const meta = providerMeta(task?.provider);
   const status = statusMeta(liveStatus);
 
@@ -62,20 +63,44 @@ export default function TaskDetailView() {
   const julesSessionId =
     task?.provider === 'jules' ? String(rawId || '').replace(/^jules-/, '') : '';
 
+  const taskProvider = task?.provider;
+  const taskId = task?.rawId || task?.id;
+  const taskFilePath = task?.filePath;
+
   const loadDetails = useCallback(
     async (opts = {}) => {
-      if (!task || !api) return;
+      if (!taskId || !api) return;
+      const agent = {
+        id: taskId,
+        rawId: taskId,
+        provider: taskProvider,
+        filePath: taskFilePath,
+      };
       if (!opts.silent) setLoading(true);
       try {
-        const fetched = await fetchAgentDetails(api, task);
-        if (fetched) setDetails(fetched);
+        const fetched = await fetchAgentDetails(api, agent);
+        if (fetched) {
+          setDetails(fetched);
+          if (fetched.status) {
+            dispatch({
+              type: 'UPSERT_AGENT',
+              payload: {
+                id: taskId,
+                rawId: taskId,
+                provider: taskProvider,
+                status: fetched.status,
+                updatedAt: fetched.updatedAt || new Date().toISOString(),
+              },
+            });
+          }
+        }
       } catch (err) {
         if (!opts.silent) toast.error(err?.message || 'Failed to load task details');
       } finally {
         if (!opts.silent) setLoading(false);
       }
     },
-    [api, task]
+    [api, taskId, taskProvider, taskFilePath, dispatch]
   );
 
   useEffect(() => {

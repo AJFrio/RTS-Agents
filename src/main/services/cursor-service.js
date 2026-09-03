@@ -8,6 +8,7 @@ const { toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
 const { sendAcpFollowUp } = require('./acp-follow-up');
 const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
+const { emitTrackedSessionUpdate } = require('./session-events');
 
 // Cloud Agents API v1 (replaced v0). There is no Cloud v2 as of 2026-09.
 const BASE_URL = 'https://api.cursor.com/v1';
@@ -648,15 +649,24 @@ class CursorService {
   _updateTrackedCliSession(sessionId, patch, debounced = false) {
     const idx = this.trackedCliSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
-    this.trackedCliSessions[idx] = {
-      ...this.trackedCliSessions[idx],
+    const prev = this.trackedCliSessions[idx];
+    const next = {
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    this.trackedCliSessions[idx] = next;
     if (debounced) {
       this._persistTrackedCliSessionsDebounced();
     } else {
       this._persistTrackedCliSessions();
+    }
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    if (statusChanged) {
+      emitTrackedSessionUpdate('cursor', next, {
+        statusChanged: true,
+        details: this._getTrackedCliDetails(next),
+      });
     }
   }
 

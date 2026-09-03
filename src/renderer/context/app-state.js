@@ -81,6 +81,106 @@ export function syncSelectedTask(selectedTask, agents) {
   return match || selectedTask;
 }
 
+const TERMINAL_STATUSES = new Set(['completed', 'failed', 'stopped']);
+
+/**
+ * Pick the best-known status from details, the live list row, and the
+ * selected-task snapshot. A terminal status from any source wins so the
+ * chat and list do not disagree after a turn ends.
+ */
+export function resolveTaskStatus(...sources) {
+  const values = sources.filter((status) => status != null && String(status).trim() !== '');
+  const terminal = values.find((status) => TERMINAL_STATUSES.has(String(status).toLowerCase()));
+  return terminal || values[0] || null;
+}
+
+/**
+ * Keep a newer terminal status when a stale discovery snapshot still says
+ * running (in-flight list fetches can land after a live session ends).
+ */
+export function reconcileAgentAgainstKnown(prev, next) {
+  if (!prev || !next) return next;
+  const prevStatus = String(prev.status || '').toLowerCase();
+  const nextStatus = String(next.status || '').toLowerCase();
+  if (TERMINAL_STATUSES.has(prevStatus) && nextStatus === 'running') {
+    const prevTime = new Date(prev.updatedAt || 0).getTime();
+    const nextTime = new Date(next.updatedAt || 0).getTime();
+    if (!Number.isFinite(nextTime) || prevTime >= nextTime) {
+      return { ...next, status: prev.status, updatedAt: prev.updatedAt };
+    }
+  }
+  return next;
+}
+
+function mergeIncomingAgents(previous, incoming) {
+  if (!Array.isArray(incoming)) return incoming;
+  const prevList = Array.isArray(previous) ? previous : [];
+  if (prevList.length === 0) return incoming;
+  return incoming.map((agent) => {
+    const prev = prevList.find((item) => taskMatches(item, agent) || taskMatches(agent, item));
+    return reconcileAgentAgainstKnown(prev, agent);
+  });
+}
+
+/**
+ * Insert or merge a task into the agent list. Sparse patches do not wipe
+ * existing ids; a no-op returns the same array reference.
+ */
+export function upsertAgent(agents, incoming) {
+  if (!incoming || (!incoming.id && !incoming.rawId)) {
+    return Array.isArray(agents) ? agents : [];
+  }
+  const list = Array.isArray(agents) ? agents : [];
+  const idx = list.findIndex((agent) => taskMatches(incoming, agent) || taskMatches(agent, incoming));
+  if (idx === -1) {
+    const created = {
+      ...incoming,
+      id: incoming.id || incoming.rawId,
+      rawId: incoming.rawId || incoming.id,
+    };
+    return [created, ...list];
+  }
+
+  const prev = list[idx];
+  const next = { ...prev };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (value === undefined || key === 'id' || key === 'rawId') continue;
+    next[key] = value;
+  }
+  if (!next.id) next.id = prev.id || incoming.id || incoming.rawId;
+  if (!next.rawId) next.rawId = prev.rawId || incoming.rawId || incoming.id;
+
+  const changed = Object.keys(next).some((key) => next[key] !== prev[key]);
+  if (!changed) return list;
+  const copy = [...list];
+  copy[idx] = next;
+  return copy;
+}
+
+/**
+ * Normalize `tasks:create` IPC / web-hub results into a list/detail task.
+ */
+export function normalizeCreatedTask(provider, result) {
+  if (!result || result.success === false) return null;
+  const task = result.task && typeof result.task === 'object' ? result.task : null;
+  if (!task) return null;
+  const id = task.id || task.rawId;
+  if (!id) return null;
+  const prompt = typeof task.prompt === 'string' ? task.prompt : '';
+  return {
+    ...task,
+    id,
+    rawId: task.rawId || task.id || id,
+    provider: task.provider || provider,
+    status: task.status || 'running',
+    name:
+      task.name ||
+      (prompt ? `${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}` : 'Task'),
+    createdAt: task.createdAt || new Date().toISOString(),
+    updatedAt: task.updatedAt || task.createdAt || new Date().toISOString(),
+  };
+}
+
 export const initialState = {
   currentView: 'agent',
   previousView: null,
@@ -270,6 +370,16 @@ export function appReducer(state, action) {
         selectedTask: action.payload,
         currentView: 'task-detail',
         previousView,
+        newTaskModalOpen: false,
+      };
+    }
+    case 'UPSERT_AGENT': {
+      const agents = upsertAgent(state.agents, action.payload);
+      if (agents === state.agents) return state;
+      return {
+        ...state,
+        agents,
+        selectedTask: syncSelectedTask(state.selectedTask, agents),
       };
     }
     case 'CLOSE_TASK': {
@@ -303,7 +413,7 @@ export function appReducer(state, action) {
       return { ...state, sidebarMode: mode };
     }
     case 'SET_AGENTS': {
-      const agents = action.payload.agents ?? state.agents;
+      const agents = mergeIncomingAgents(state.agents, action.payload.agents ?? state.agents);
       return {
         ...state,
         agents,
@@ -320,7 +430,9 @@ export function appReducer(state, action) {
         byId.delete(id);
       }
       for (const agent of updated) {
-        byId.set(agent.id, agent);
+        const prev = byId.get(agent.id) || state.agents.find((item) => taskMatches(item, agent));
+        const merged = reconcileAgentAgainstKnown(prev, agent);
+        byId.set(merged.id || agent.id, merged);
       }
       for (const agent of added) {
         byId.set(agent.id, agent);

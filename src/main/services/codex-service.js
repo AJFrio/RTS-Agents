@@ -10,6 +10,7 @@ const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spa
 const { applySessionUpdate } = require('./opencode-session-parser');
 const { sendAcpFollowUp } = require('./acp-follow-up');
 const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
+const { emitTrackedSessionUpdate } = require('./session-events');
 
 const CODEX_DEFAULT_MODEL = 'gpt-5-codex';
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
@@ -413,15 +414,29 @@ class CodexService {
   _updateTrackedThread(threadId, patch, debounced = false) {
     const idx = trackedThreads.findIndex((t) => t.id === threadId);
     if (idx === -1) return;
-    trackedThreads[idx] = {
-      ...trackedThreads[idx],
+    const prev = trackedThreads[idx];
+    const next = {
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    trackedThreads[idx] = next;
     if (debounced) {
       this._persistThreadsDebounced();
     } else {
       this._persistThreads();
+    }
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    if (statusChanged) {
+      const mapped = this.mapStatus(next.status);
+      emitTrackedSessionUpdate(
+        'codex',
+        { ...next, id: `codex-${next.id}`, rawId: next.id, status: mapped },
+        {
+          statusChanged: true,
+          details: { status: mapped },
+        }
+      );
     }
   }
 

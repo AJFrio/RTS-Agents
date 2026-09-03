@@ -13,4 +13,21 @@ function emitSessionUpdated(payload) {
   sessionEvents.emit('updated', payload);
 }
 
-module.exports = { sessionEvents, emitSessionUpdated };
+/**
+ * Emit a tracked ACP/CLI session update. Status changes invalidate the
+ * discovery cache via main.js; stream-only updates can omit statusChanged.
+ */
+function emitTrackedSessionUpdate(provider, record, { statusChanged = false, details = null } = {}) {
+  if (!record) return;
+  emitSessionUpdated({
+    provider,
+    id: record.id,
+    rawId: record.rawId || record.id,
+    status: record.status,
+    updatedAt: record.updatedAt || new Date().toISOString(),
+    statusChanged: !!statusChanged,
+    details,
+  });
+}
+
+module.exports = { sessionEvents, emitSessionUpdated, emitTrackedSessionUpdate };

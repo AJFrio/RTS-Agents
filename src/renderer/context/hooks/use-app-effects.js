@@ -60,6 +60,30 @@ export function useAppEffects({
     return unsubscribe;
   }, [api, loadAgents, loadRemoteQueueActivity]);
 
+  // Live session status must reach the sidebar / recent-task list immediately.
+  // Discovery polling can lag (or coalesce behind an in-flight fetch).
+  useEffect(() => {
+    if (!api?.onSessionUpdated) return undefined;
+    const unsubscribe = api.onSessionUpdated((payload) => {
+      if (!payload?.status) return;
+      if (payload.statusChanged === false) return;
+      dispatch({
+        type: 'UPSERT_AGENT',
+        payload: {
+          id: payload.id,
+          rawId: payload.rawId || payload.id,
+          provider: payload.provider,
+          status: payload.status,
+          updatedAt: payload.updatedAt || new Date().toISOString(),
+        },
+      });
+      if (payload.statusChanged) {
+        loadAgents({ silent: true, force: true });
+      }
+    });
+    return unsubscribe;
+  }, [api, dispatch, loadAgents]);
+
   useEffect(() => {
     const { agents, filters } = state;
     const { providers, statuses, search } = filters;

@@ -6,7 +6,7 @@
  * ESM-only and therefore incompatible with this CommonJS main process, so
  * the narrow client surface we need is implemented here:
  *
- *   initialize -> session/new|session/load -> [session/set_mode] -> session/prompt*
+ *   initialize -> [authenticate] -> session/new|session/load -> [session/set_mode] -> session/prompt*
  *   with session/update notifications forwarded to the caller,
  *   session/request_permission answered per the caller's permission policy,
  *   and every other agent->client request answered with JSON-RPC -32601 so
@@ -38,6 +38,13 @@ const STDERR_CAP = 2000;
 const DEFAULT_INIT_TIMEOUT_MS = 15000;
 const ADAPTER_PROBE_TIMEOUT_MS = 3000;
 const SAFE_TOOL_KINDS = new Set(['read', 'edit', 'execute']);
+const CLIENT_INFO = { name: 'rts-agents', version: '1.0.0' };
+const CURSOR_BLOCKING_METHODS = new Set(['cursor/ask_question', 'cursor/create_plan']);
+const CURSOR_ACCEPT_METHODS = new Set([
+  'cursor/update_todos',
+  'cursor/task',
+  'cursor/generate_image',
+]);
 
 // provider -> { command, args } | null (probe results are cached for the session)
 const adapterCache = new Map();
@@ -156,6 +163,36 @@ function versionMismatchMessage(protocolVersion) {
   );
 }
 
+function authMethodIdFrom(method) {
+  if (!method || typeof method !== 'object') return null;
+  const id = method.methodId || method.id;
+  return typeof id === 'string' && id.trim() ? id : null;
+}
+
+/**
+ * Choose an ACP authenticate methodId.
+ * Prefers an explicit id when the adapter advertised it (or when nothing
+ * was advertised). Otherwise uses the first advertised method. Cursor CLI
+ * advertises `cursor_login` and requires this call before session/new.
+ */
+function pickAuthMethodId(authMethods, preferredId) {
+  const ids = (Array.isArray(authMethods) ? authMethods : []).map(authMethodIdFrom).filter(Boolean);
+  if (preferredId && (ids.length === 0 || ids.includes(preferredId))) {
+    return preferredId;
+  }
+  return ids[0] || null;
+}
+
+function formatRpcFailure(err) {
+  const rpc = err?.rpcError;
+  if (rpc) {
+    const details = rpc.data?.details || rpc.data?.message;
+    if (details) return `${rpc.message || err.message}: ${details}`;
+    return rpc.message || err.message || JSON.stringify(rpc);
+  }
+  return err?.message || JSON.stringify(err);
+}
+
 function createAcpError(phase, message, fallbackAllowed, stderrTail) {
   const error = new Error(message);
   error.phase = phase;
@@ -211,7 +248,7 @@ function killChildProcess(child) {
 function rpcError(phase, err, fallbackAllowed, stderrTail) {
   return createAcpError(
     phase,
-    `ACP ${phase} failed: ${err?.message || JSON.stringify(err)}`,
+    `ACP ${phase} failed: ${formatRpcFailure(err)}`,
     fallbackAllowed,
     stderrTail
   );
@@ -223,15 +260,18 @@ const liveSessions = new Map();
 /**
  * Open a long-lived ACP adapter session.
  *
- * Handshake is `initialize → session/new` (or `session/load` when
- * `loadSessionId` is set). The first `session/prompt` is the caller's
- * responsibility via `session.prompt(text)`.
+ * Handshake is `initialize → [authenticate] → session/new` (or
+ * `session/load` when `loadSessionId` is set). Authenticate runs when the
+ * adapter advertises `authMethods` or the caller passes `authMethodId`.
+ * The first `session/prompt` is the caller's responsibility via
+ * `session.prompt(text)`.
  *
  * @param {object} options
  * @param {string} options.command
  * @param {string[]} [options.args]
  * @param {string} options.cwd
  * @param {string} [options.model]
+ * @param {string} [options.authMethodId]
  * @param {'allow-all'|'safe-tools'} [options.permissionPolicy]
  * @param {(update: object, sessionId: string) => void} [options.onUpdate]
  * @param {(sessionId: string) => void} [options.onSessionId]
@@ -252,6 +292,7 @@ function connect(options) {
     args = [],
     cwd,
     model,
+    authMethodId: preferredAuthMethodId,
     permissionPolicy = 'allow-all',
     onUpdate,
     onSessionId,
@@ -269,9 +310,7 @@ function connect(options) {
         env: env || {},
       });
     } catch (err) {
-      rejectConnect(
-        createAcpError('spawn', `Failed to start ACP adapter: ${err.message}`, true)
-      );
+      rejectConnect(createAcpError('spawn', `Failed to start ACP adapter: ${err.message}`, true));
       return;
     }
 
@@ -364,11 +403,7 @@ function connect(options) {
       const job = promptQueue.shift();
       currentPrompt = job;
       promptSent = true;
-      request(
-        'session/prompt',
-        { sessionId, prompt: [{ type: 'text', text: job.text }] },
-        'prompt'
-      )
+      request('session/prompt', { sessionId, prompt: [{ type: 'text', text: job.text }] }, 'prompt')
         .then((result) => {
           if (currentPrompt !== job) return;
           currentPrompt = null;
@@ -378,11 +413,7 @@ function connect(options) {
         .catch((err) => {
           if (currentPrompt !== job) return;
           currentPrompt = null;
-          job.reject(
-            err?.phase
-              ? err
-              : rpcError('prompt', err, false, stderrTail)
-          );
+          job.reject(err?.phase ? err : rpcError('prompt', err, false, stderrTail));
           pumpPrompt();
         });
       safeCall(job.onAccepted);
@@ -418,6 +449,7 @@ function connect(options) {
           'initialize',
           {
             protocolVersion: PROTOCOL_VERSION,
+            clientInfo: CLIENT_INFO,
             clientCapabilities: {
               fs: { readTextFile: false, writeTextFile: false },
               terminal: false,
@@ -430,11 +462,7 @@ function connect(options) {
           failConnect(err.phase, err.message, err.fallbackAllowed !== false);
           return;
         }
-        failConnect(
-          'initialize',
-          `ACP initialize failed: ${err.message || JSON.stringify(err)}`,
-          true
-        );
+        failConnect('initialize', `ACP initialize failed: ${formatRpcFailure(err)}`, true);
         return;
       }
       if (initTimer) {
@@ -449,6 +477,25 @@ function connect(options) {
       }
       loadSessionCapable = Boolean(initResult?.agentCapabilities?.loadSession);
 
+      const authMethodId = pickAuthMethodId(initResult?.authMethods, preferredAuthMethodId);
+      if (authMethodId) {
+        try {
+          await request('authenticate', { methodId: authMethodId }, 'authenticate');
+        } catch (err) {
+          if (err?.phase === 'exit' || err?.phase === 'closed') {
+            failConnect(err.phase, err.message, err.fallbackAllowed !== false);
+            return;
+          }
+          failConnect(
+            'authenticate',
+            `ACP authenticate failed: ${formatRpcFailure(err)}. If this is Cursor CLI, run "agent login" once.`,
+            true
+          );
+          return;
+        }
+        if (connectSettled || closed) return;
+      }
+
       if (loadSessionId) {
         if (!loadSessionCapable) {
           failConnect('session-load', 'ACP adapter does not support session/load', true);
@@ -462,11 +509,7 @@ function connect(options) {
             'session-load'
           );
         } catch (err) {
-          failConnect(
-            'session-load',
-            `ACP session-load failed: ${err.message || JSON.stringify(err)}`,
-            true
-          );
+          failConnect('session-load', `ACP session-load failed: ${formatRpcFailure(err)}`, true);
           return;
         }
         if (connectSettled || closed) return;
@@ -485,11 +528,7 @@ function connect(options) {
             failConnect('exit', err.message, !promptSent);
             return;
           }
-          failConnect(
-            'session-new',
-            `ACP session-new failed: ${err.message || JSON.stringify(err)}`,
-            false
-          );
+          failConnect('session-new', `ACP session-new failed: ${formatRpcFailure(err)}`, false);
           return;
         }
         if (connectSettled || closed) return;
@@ -502,22 +541,12 @@ function connect(options) {
         const availableModes = Array.isArray(newResult?.modes?.availableModes)
           ? newResult.modes.availableModes
           : [];
-        const match = model
-          ? availableModes.find((m) => (m?.id ?? m?.value) === model)
-          : null;
+        const match = model ? availableModes.find((m) => (m?.id ?? m?.value) === model) : null;
         if (match && match.id !== newResult?.modes?.currentModeId) {
           try {
-            await request(
-              'session/set_mode',
-              { sessionId, modeId: match.id },
-              'set-mode'
-            );
+            await request('session/set_mode', { sessionId, modeId: match.id }, 'set-mode');
           } catch (err) {
-            failConnect(
-              'set-mode',
-              `ACP set-mode failed: ${err.message || JSON.stringify(err)}`,
-              false
-            );
+            failConnect('set-mode', `ACP set-mode failed: ${formatRpcFailure(err)}`, false);
             return;
           }
         }
@@ -632,6 +661,21 @@ function connect(options) {
                 : { outcome: 'cancelled' },
             },
           });
+        } else if (msg.method === 'cursor/ask_question') {
+          sendRaw({
+            jsonrpc: '2.0',
+            id: msg.id,
+            result: { outcome: { outcome: 'skipped' } },
+          });
+        } else if (
+          CURSOR_BLOCKING_METHODS.has(msg.method) ||
+          CURSOR_ACCEPT_METHODS.has(msg.method)
+        ) {
+          sendRaw({
+            jsonrpc: '2.0',
+            id: msg.id,
+            result: { outcome: { outcome: 'accepted' } },
+          });
         } else {
           sendRaw({
             jsonrpc: '2.0',
@@ -717,11 +761,7 @@ async function ensureSession(taskId, connectOptions, record) {
     registerSession(taskId, session);
     return session;
   }
-  throw createAcpError(
-    'closed',
-    'This session is no longer live. Start a new task.',
-    false
-  );
+  throw createAcpError('closed', 'This session is no longer live. Start a new task.', false);
 }
 
 function promptFollowUp(taskId, text, { connectOptions, record, onAccepted } = {}) {
@@ -758,9 +798,11 @@ module.exports = {
   closeSession,
   connect,
   ensureSession,
+  formatRpcFailure,
   getLiveSession,
   hasLiveSession,
   isPromptInProgress,
+  pickAuthMethodId,
   pickPermissionOption,
   promptFollowUp,
   registerSession,

@@ -12,18 +12,18 @@ Cursor **Cloud Agents API** is a separate HTTP API at `/v1` (there is no Cloud v
 
 ## Behavior
 
-- When an ACP adapter is available, task dispatch runs `initialize → session/new → [session/set_mode] → session/prompt` against the adapter and **keeps the child alive** so later turns can reuse the same session:
+- When an ACP adapter is available, task dispatch runs `initialize → [authenticate] → session/new → [session/set_mode] → session/prompt` against the adapter and **keeps the child alive** so later turns can reuse the same session:
   - Claude Code via `claude-agent-acp`, then native `claude acp` / `claude --acp` if those probes succeed (auto-allows only read/edit/execute tool kinds, matching the legacy `--allowedTools Read,Edit,Bash` policy)
   - Codex via `codex-acp`, then native `codex acp` if present (auto-allows permissions; matches the legacy `--sandbox workspace-write` permissiveness)
   - OpenCode via its native `opencode acp` subcommand
-  - Cursor CLI via `agent acp` (legacy binary `cursor-agent acp`); auth uses the CLI's stored Cursor login
+  - Cursor CLI via `agent acp` (legacy binary `cursor-agent acp`); after initialize, RTS calls `authenticate` with `cursor_login` (the CLI advertises this method and rejects `session/new` without it). Auth reuses the CLI's stored Cursor login (`agent login`)
   - Antigravity via official `agy acp` or `agy --acp` only; otherwise detached `agy --print`. No unofficial PTY wrappers.
 - Windows npm `.cmd`/`.bat` shims are spawned through `cmd.exe` (`src/main/utils/cli-spawn.js`). Install probes and legacy fallbacks use the same helper so EINVAL cannot block task start.
 - Streamed `agent_message_chunk` updates are coalesced into a single flowing assistant message per turn (token-level chunks never render as separate blocks).
 - The task card resolves as soon as the ACP session is created; the task completes/fails when the prompt turn returns. The adapter stays running so a follow-up can send another `session/prompt`.
 - Follow-ups use the existing `tasks:send-message` path. Local providers (`claude-cli`, `codex`, `opencode`, `antigravity`, and Cursor `cursor-cli-*` ids) append a user turn and accept the next prompt immediately; the reply streams into the same transcript. If the child is gone and `initialize` advertised `loadSession`, RTS reconnects with `session/load` using the persisted `acpSessionId`. Legacy detached CLI sessions do not support follow-ups.
 - `runPrompt` remains a one-shot `connect → prompt → close` wrapper. Live sessions are closed on app quit (`acpService.closeAll`).
-- Permission requests from the agent are answered automatically per provider policy; unknown agent→client requests are answered with JSON-RPC `-32601` so the agent cannot hang.
+- Permission requests from the agent are answered automatically per provider policy. Cursor blocking extension methods (`cursor/ask_question`, `cursor/create_plan`) are auto-answered so the turn cannot hang; unknown agent→client requests are answered with JSON-RPC `-32601`.
 - If the adapter is missing or fails before any agent work begins (spawn error, initialize failure/timeout, version mismatch, exit before prompt), dispatch falls back to the legacy detached-CLI path where one exists (Claude, Codex, OpenCode, Antigravity). Cursor has no legacy path: pre-start failures surface as errors. Failures after the prompt was sent mark the task failed and never re-dispatch (no double execution).
 - An explicit custom CLI command (headless/CLI settings) opts out of ACP for Claude, Codex, OpenCode, and Antigravity.
 - Tracked ACP sessions persist across restarts (`opencodeSessions`, `codexThreads`, `claudeCliSessions`, `cursorCliSessions`, `antigravitySessions`).

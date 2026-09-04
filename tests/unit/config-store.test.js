@@ -99,7 +99,7 @@ describe('ConfigStore Unit Tests', () => {
       const thread = {
         id: 't1',
         title: 'Test Thread',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       configStore.addCodexThread(thread);
@@ -177,6 +177,7 @@ describe('ConfigStore Unit Tests', () => {
         prompt: 'Fix the bug',
         projectPath: '/repo',
         status: 'running',
+        error: null,
         streamMessages: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

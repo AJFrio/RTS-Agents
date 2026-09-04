@@ -90,7 +90,9 @@ describe('acp-service runPrompt (real fake-adapter child processes)', () => {
       phase: 'version',
       fallbackAllowed: true,
     });
-    await expect(acpService.runPrompt(fixtureOptions('version-mismatch'))).rejects.toThrow(/v2 is draft/i);
+    await expect(acpService.runPrompt(fixtureOptions('version-mismatch'))).rejects.toThrow(
+      /v2 is draft/i
+    );
   });
 
   test('rejects on initialize error response', async () => {
@@ -100,11 +102,47 @@ describe('acp-service runPrompt (real fake-adapter child processes)', () => {
     });
   });
 
+  test('authenticates when the adapter advertises authMethods', async () => {
+    const result = await acpService.runPrompt(fixtureOptions('auth-required'));
+    expect(result.stopReason).toBe('end_turn');
+    expect(result.sessionId).toMatch(/^ses-fake-\d+-1$/);
+  });
+
+  test('surfaces authenticate RPC details and allows fallback', async () => {
+    await expect(acpService.runPrompt(fixtureOptions('auth-fail'))).rejects.toMatchObject({
+      phase: 'authenticate',
+      fallbackAllowed: true,
+    });
+    await expect(acpService.runPrompt(fixtureOptions('auth-fail'))).rejects.toThrow(
+      /self-signed certificate/i
+    );
+  });
+
+  test('auto-answers Cursor extension methods so the turn cannot hang', async () => {
+    const updates = [];
+    const result = await acpService.runPrompt(
+      fixtureOptions('cursor-extensions', {
+        onUpdate: (update) => updates.push(update.content?.text),
+      })
+    );
+    expect(result.stopReason).toBe('end_turn');
+    expect(updates).toContain('ask:skipped');
+    expect(updates).toContain('plan:accepted');
+  });
+
   test('rejects on initialize timeout and kills the adapter', async () => {
-    const exitFile = path.join(os.tmpdir(), `acp-exit-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const exitFile = path.join(
+      os.tmpdir(),
+      `acp-exit-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    );
 
     await expect(
-      acpService.runPrompt(fixtureOptions('init-timeout', { initTimeoutMs: 300, env: { FAKE_ACP_EXIT_FILE: exitFile } }))
+      acpService.runPrompt(
+        fixtureOptions('init-timeout', {
+          initTimeoutMs: 300,
+          env: { FAKE_ACP_EXIT_FILE: exitFile },
+        })
+      )
     ).rejects.toMatchObject({ phase: 'initialize', fallbackAllowed: true });
 
     expect(await waitForFile(exitFile, 3000)).toBe(true);
@@ -301,24 +339,46 @@ describe('acp-service resolveAdapter', () => {
     }
   });
 
+  test('picks advertised auth methods and honors an explicit Cursor login id', () => {
+    expect(acpService.pickAuthMethodId(undefined, null)).toBeNull();
+    expect(acpService.pickAuthMethodId([], null)).toBeNull();
+    expect(acpService.pickAuthMethodId([{ id: 'cursor_login' }], null)).toBe('cursor_login');
+    expect(acpService.pickAuthMethodId([{ methodId: 'cursor_login' }], 'other')).toBe(
+      'cursor_login'
+    );
+    expect(acpService.pickAuthMethodId([{ id: 'cursor_login' }], 'cursor_login')).toBe(
+      'cursor_login'
+    );
+    expect(acpService.pickAuthMethodId([], 'cursor_login')).toBe('cursor_login');
+  });
+
+  test('formatRpcFailure includes JSON-RPC data details', () => {
+    expect(
+      acpService.formatRpcFailure({
+        message: 'Internal error',
+        rpcError: {
+          message: 'Internal error',
+          data: { details: '[internal] self-signed certificate in certificate chain' },
+        },
+      })
+    ).toBe('Internal error: [internal] self-signed certificate in certificate chain');
+  });
+
   test('safe-tools policy rejects kinds outside read/edit/execute', () => {
     const options = [
       { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
       { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
     ];
     expect(
-      acpService.pickPermissionOption(
-        { toolCall: { kind: 'delete' }, options },
-        'safe-tools'
-      )
+      acpService.pickPermissionOption({ toolCall: { kind: 'delete' }, options }, 'safe-tools')
     ).toEqual({ optionId: 'reject', name: 'Reject', kind: 'reject_once' });
     expect(
-      acpService.pickPermissionOption(
-        { toolCall: { kind: 'edit' }, options },
-        'safe-tools'
-      ).optionId
+      acpService.pickPermissionOption({ toolCall: { kind: 'edit' }, options }, 'safe-tools')
+        .optionId
     ).toBe('allow');
-    expect(acpService.pickPermissionOption({ toolCall: { kind: 'delete' }, options: [] }, 'safe-tools')).toBeNull();
+    expect(
+      acpService.pickPermissionOption({ toolCall: { kind: 'delete' }, options: [] }, 'safe-tools')
+    ).toBeNull();
   });
 });
 

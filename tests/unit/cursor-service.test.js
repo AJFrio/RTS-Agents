@@ -332,9 +332,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       const details = await cursorService.getAgentDetails('bc-1');
 
       expect(details.summary).toBe('Hydrated result');
-      expect(details.conversation).toEqual([
-        expect.objectContaining({ text: 'Hydrated result' }),
-      ]);
+      expect(details.conversation).toEqual([expect.objectContaining({ text: 'Hydrated result' })]);
       expect(details.activities[0].description).toContain('Hydrated result');
     });
 
@@ -350,7 +348,9 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
           };
         }
         if (url.includes('/runs?')) {
-          return { items: [{ id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' }] };
+          return {
+            items: [{ id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' }],
+          };
         }
         if (url.includes('/runs/run-1')) {
           return { id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' };
@@ -444,6 +444,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
           command: 'agent',
           args: ['acp'],
           cwd: '/repo',
+          authMethodId: 'cursor_login',
           permissionPolicy: 'allow-all',
         })
       );

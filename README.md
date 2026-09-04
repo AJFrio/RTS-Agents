@@ -184,7 +184,7 @@ This is not the Cursor Cloud Agents API. Cloud Cursor uses `https://api.cursor.c
 - **Claude Code**: prefer `npm install -g @agentclientprotocol/claude-agent-acp`. RTS also probes native `claude acp` / `claude --acp`. Having `claude` on PATH is enough to start a task (detached fallback) even without an adapter.
 - **Codex**: prefer `npm install -g @agentclientprotocol/codex-acp`. RTS also probes `codex acp`.
 - **OpenCode**: no extra install — the `opencode acp` subcommand is used directly
-- **Cursor CLI**: install the CLI (not just the editor) — `curl -fsSL https://cursor.com/install | bash`, then run `agent login` once; the `agent acp` subcommand is used directly
+- **Cursor CLI**: install the CLI (not just the editor) — `curl -fsSL https://cursor.com/install | bash`, then run `agent login` once; the `agent acp` subcommand is used directly and RTS sends `authenticate` with `cursor_login` before `session/new`
 - **Antigravity**: uses official `agy acp` / `agy --acp` when present; otherwise detached `agy --print`
 
 Without an adapter, tasks fall back to the detached-CLI behavior described below (no live output). On Windows, npm `.cmd` shims are launched through `cmd.exe` so start does not fail with EINVAL. ACP sessions are auto-approved per provider: Claude allows only read/edit/execute tool kinds; Codex, OpenCode, Cursor, and Antigravity allow all permission requests.

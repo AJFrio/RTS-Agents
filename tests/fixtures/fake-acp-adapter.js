@@ -23,6 +23,11 @@
  *                     the supplied sessionId.
  *  slow-prompt      - replies to session/prompt after FAKE_ACP_PROMPT_DELAY_MS
  *                     (default 200) so the client can queue a second turn.
+ *  auth-required    - initialize advertises cursor_login; session/new fails
+ *                     until authenticate succeeds.
+ *  auth-fail        - authenticate returns an Internal error with details.
+ *  cursor-extensions - prompt turn sends cursor/ask_question then
+ *                     cursor/create_plan and reports the client outcomes.
  */
 const fs = require('fs');
 const readline = require('readline');
@@ -37,6 +42,9 @@ let selectedMode = null;
 let nextAgentReqId = 1000;
 let pendingPermissionId = null;
 let pendingUnknownId = null;
+let pendingAskId = null;
+let pendingPlanId = null;
+let authenticated = false;
 
 function nextAgentId() {
   nextAgentReqId += 1;
@@ -95,8 +103,51 @@ function garbageLine() {
   }
 }
 
+function runCursorExtensionsTurn() {
+  pendingAskId = nextAgentId();
+  send({
+    jsonrpc: '2.0',
+    id: pendingAskId,
+    method: 'cursor/ask_question',
+    params: {
+      toolCallId: 'call_q',
+      questions: [{ id: 'q1', prompt: 'Mode?', options: [{ id: 'agent', label: 'Agent' }] }],
+    },
+  });
+}
+
+function onAskResponse(msg) {
+  const outcome = msg.result?.outcome?.outcome || 'none';
+  notify(`ask:${outcome}`);
+  pendingPlanId = nextAgentId();
+  send({
+    jsonrpc: '2.0',
+    id: pendingPlanId,
+    method: 'cursor/create_plan',
+    params: {
+      toolCallId: 'call_plan',
+      name: 'Plan',
+      plan: 'Do the work',
+      todos: [],
+    },
+  });
+}
+
+function onPlanResponse(msg) {
+  const outcome = msg.result?.outcome?.outcome || 'none';
+  notify(`plan:${outcome}`);
+  if (promptId !== null) {
+    reply(promptId, { stopReason: 'end_turn' });
+  }
+}
+
 function runTurn() {
   notify(`mode:${selectedMode || 'none'}`);
+
+  if (scenario === 'cursor-extensions') {
+    runCursorExtensionsTurn();
+    return;
+  }
 
   // Step 1: permission request. happy/crlf/malformed offer allow_once;
   // permission-no-allow offers only reject_once.
@@ -120,7 +171,9 @@ function runTurn() {
 function onPermissionResponse(msg) {
   const outcome = msg.result && msg.result.outcome;
   const label =
-    outcome && outcome.outcome === 'selected' ? `allow:${outcome.optionId}` : `cancelled:${outcome ? outcome.outcome : 'none'}`;
+    outcome && outcome.outcome === 'selected'
+      ? `allow:${outcome.optionId}`
+      : `cancelled:${outcome ? outcome.outcome : 'none'}`;
   notify(`permission:${label}`);
 
   // Step 2: unknown agent->client request; the client must answer -32601.
@@ -160,13 +213,13 @@ rl.on('line', (line) => {
   }
 
   const isResponse =
-    msg.id !== undefined &&
-    !msg.method &&
-    (msg.result !== undefined || msg.error !== undefined);
+    msg.id !== undefined && !msg.method && (msg.result !== undefined || msg.error !== undefined);
 
   if (isResponse) {
     if (msg.id === pendingPermissionId) onPermissionResponse(msg);
     else if (msg.id === pendingUnknownId) onUnknownResponse(msg);
+    else if (msg.id === pendingAskId) onAskResponse(msg);
+    else if (msg.id === pendingPlanId) onPlanResponse(msg);
     return;
   }
 
@@ -182,7 +235,29 @@ rl.on('line', (line) => {
       scenario === 'load-session' || scenario === 'happy' || scenario === 'slow-prompt'
         ? { loadSession: true }
         : {};
-    reply(msg.id, { protocolVersion: version, agentCapabilities });
+    const result = { protocolVersion: version, agentCapabilities };
+    if (scenario === 'auth-required' || scenario === 'auth-fail') {
+      result.authMethods = [{ id: 'cursor_login', name: 'Cursor Login' }];
+    }
+    reply(msg.id, result);
+    return;
+  }
+
+  if (msg.method === 'authenticate') {
+    if (scenario === 'auth-fail') {
+      replyError(msg.id, {
+        code: -32603,
+        message: 'Internal error',
+        data: { details: '[internal] self-signed certificate in certificate chain' },
+      });
+      return;
+    }
+    if (msg.params?.methodId !== 'cursor_login') {
+      replyError(msg.id, { code: -32602, message: 'Unknown auth method' });
+      return;
+    }
+    authenticated = true;
+    reply(msg.id, {});
     return;
   }
 
@@ -194,6 +269,14 @@ rl.on('line', (line) => {
 
   if (msg.method === 'session/new') {
     garbageLine();
+    if (scenario === 'auth-required' && !authenticated) {
+      replyError(msg.id, {
+        code: -32603,
+        message: 'Internal error',
+        data: { message: 'Failed to initialize session services' },
+      });
+      return;
+    }
     if (scenario === 'exit-mid') {
       process.exit(7);
     }

@@ -116,7 +116,7 @@ const schema = {
         prompt: { type: 'string' },
         projectPath: { type: 'string' },
         status: { type: 'string' },
-        error: { type: 'string' },
+        error: { type: ['string', 'null'] },
         streamMessages: {
           type: 'array',
           items: { type: 'object' },
@@ -139,7 +139,7 @@ const schema = {
         prompt: { type: 'string' },
         projectPath: { type: 'string' },
         status: { type: 'string' },
-        error: { type: 'string' },
+        error: { type: ['string', 'null'] },
         streamMessages: {
           type: 'array',
           items: { type: 'object' },

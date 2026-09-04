@@ -175,7 +175,9 @@ class CursorService {
       id: `cursor-${agent.id}`,
       provider: 'cursor',
       name: agent.name || 'Cursor Cloud Agent',
-      status: run ? this.mapRunStatus(run.status) : this.mapAgentStatus(agent.status, !!agent.latestRunId),
+      status: run
+        ? this.mapRunStatus(run.status)
+        : this.mapAgentStatus(agent.status, !!agent.latestRunId),
       prompt: '',
       repository,
       branch:
@@ -293,8 +295,7 @@ class CursorService {
 
     return runs.map((run, index) => {
       const settledEntry = settled[index];
-      const detail =
-        settledEntry.status === 'fulfilled' ? settledEntry.value : null;
+      const detail = settledEntry.status === 'fulfilled' ? settledEntry.value : null;
       return this.mergeRunSummary(run, detail);
     });
   }
@@ -325,17 +326,10 @@ class CursorService {
     const runs = await this.hydrateRuns(id, listRuns);
 
     const latestRunId = agent.latestRunId || runs[0]?.id || null;
-    const latestRun =
-      runs.find((run) => run?.id === latestRunId) || runs[0] || null;
+    const latestRun = runs.find((run) => run?.id === latestRunId) || runs[0] || null;
 
-    const terminalRunsWithResult = runs.filter(
-      (run) => run?.result && String(run.result).trim()
-    );
-    const summary =
-      latestRun?.result ||
-      terminalRunsWithResult[0]?.result ||
-      agent.name ||
-      null;
+    const terminalRunsWithResult = runs.filter((run) => run?.result && String(run.result).trim());
+    const summary = latestRun?.result || terminalRunsWithResult[0]?.result || agent.name || null;
 
     const activities = runs.map((run) => this.buildRunActivity(run));
     const conversation = this.buildConversationFromRuns(runs);
@@ -561,6 +555,7 @@ class CursorService {
           args: adapter.args,
           cwd: projectPath,
           model,
+          authMethodId: 'cursor_login',
           permissionPolicy: 'allow-all',
           onSessionId: () => {
             resolveOnce(
@@ -607,11 +602,7 @@ class CursorService {
   _applyAcpUpdate(sessionId, update) {
     const current = this.trackedCliSessions.find((s) => s.id === sessionId);
     if (!current) return;
-    const next = applySessionUpdate(
-      current.streamMessages || [],
-      update,
-      new Date().toISOString()
-    );
+    const next = applySessionUpdate(current.streamMessages || [], update, new Date().toISOString());
     if (next === current.streamMessages) return;
     this._updateTrackedCliSession(sessionId, { streamMessages: next }, true);
   }
@@ -619,13 +610,16 @@ class CursorService {
   _acpConnectOptions(record) {
     const adapter = toAdapterSpec(acpService.resolveAdapter('cursor'), ['acp']);
     if (!adapter) {
-      throw new Error('Cursor CLI not found. Install it from https://cursor.com/cli and run "agent login" once.');
+      throw new Error(
+        'Cursor CLI not found. Install it from https://cursor.com/cli and run "agent login" once.'
+      );
     }
     return {
       command: adapter.command,
       args: adapter.args,
       cwd: record.projectPath,
       model: record.model,
+      authMethodId: 'cursor_login',
       permissionPolicy: 'allow-all',
       onUpdate: (update) => this._applyAcpUpdate(record.id, update),
     };

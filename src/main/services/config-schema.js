@@ -253,6 +253,16 @@ const schema = {
     },
     default: {},
   },
+  mcpServer: {
+    type: 'object',
+    properties: {
+      enabled: { type: 'boolean', default: false },
+      host: { type: 'string', default: '127.0.0.1' },
+      port: { type: 'number', default: 3210, minimum: 1, maximum: 65535 },
+      token: { type: 'string', default: '' },
+    },
+    default: {},
+  },
   sessionOutputs: {
     type: 'object',
     default: {},

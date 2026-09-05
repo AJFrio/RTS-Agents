@@ -23,6 +23,7 @@ function registerSettingsHandlers(deps) {
     opencodeService,
     antigravityService,
     lifecycle,
+    mcpServerService,
   } = deps;
   const { startPolling, stopPolling, invalidateAgentDiscovery, startDiscoveryWatchers } = lifecycle;
   const { getMainWindow } = deps;
@@ -219,6 +220,37 @@ function registerSettingsHandlers(deps) {
   ipcMain.handle('settings:set-model', async (event, { model }) => {
     configStore.setSelectedModel(model);
     return { success: true };
+  });
+
+  ipcMain.handle('mcp:get-info', async () => {
+    return {
+      status: mcpServerService.status(),
+      token: configStore.getOrCreateMcpToken(),
+    };
+  });
+
+  ipcMain.handle('mcp:set-config', async (event, { enabled, host, port }) => {
+    const next = configStore.setMcpConfig({ enabled, host, port });
+    const status = mcpServerService.status();
+    const shouldRun = next.enabled;
+    if (shouldRun && !status.running) {
+      await mcpServerService.start(deps);
+    } else if (!shouldRun && status.running) {
+      await mcpServerService.stop();
+    } else if (
+      shouldRun &&
+      status.running &&
+      (status.host !== next.host || status.port !== next.port)
+    ) {
+      await mcpServerService.stop();
+      await mcpServerService.start(deps);
+    }
+    return { success: true, status: mcpServerService.status() };
+  });
+
+  ipcMain.handle('mcp:regenerate-token', async () => {
+    const token = configStore.rotateMcpToken();
+    return { success: true, token };
   });
 
   registerSettingsPathHandlers(deps);

@@ -360,6 +360,44 @@ class ConfigStore {
     this.store.set('sessionOutputs', filtered);
   }
 
+  // MCP server (external agent access)
+  getMcpConfig() {
+    const cfg = this.store.get('mcpServer', {});
+    return {
+      enabled: !!cfg?.enabled,
+      host: typeof cfg?.host === 'string' && cfg.host ? cfg.host : '127.0.0.1',
+      port: Number.isInteger(cfg?.port) && cfg.port > 0 && cfg.port <= 65535 ? cfg.port : 3210,
+      token: typeof cfg?.token === 'string' ? cfg.token : '',
+    };
+  }
+
+  setMcpConfig({ enabled, host, port, token } = {}) {
+    const current = this.getMcpConfig();
+    const next = {
+      ...current,
+      ...(typeof enabled === 'boolean' ? { enabled } : {}),
+      ...(typeof host === 'string' && host.trim() ? { host: host.trim() } : {}),
+      ...(Number.isInteger(port) && port > 0 && port <= 65535 ? { port } : {}),
+      ...(typeof token === 'string' ? { token } : {}),
+    };
+    this.store.set('mcpServer', next);
+    return next;
+  }
+
+  getOrCreateMcpToken() {
+    const cfg = this.getMcpConfig();
+    if (cfg.token) return cfg.token;
+    const token = crypto.randomBytes(32).toString('hex');
+    this.store.set('mcpServer', { ...cfg, token });
+    return token;
+  }
+
+  rotateMcpToken() {
+    const token = crypto.randomBytes(32).toString('hex');
+    this.store.set('mcpServer', { ...this.getMcpConfig(), token });
+    return token;
+  }
+
   clear() {
     this.store.clear();
   }

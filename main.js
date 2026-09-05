@@ -18,6 +18,7 @@ const queueProcessorService = require('./src/main/services/queue-processor-servi
 const opencodeService = require('./src/main/services/opencode-service');
 const antigravityService = require('./src/main/services/antigravity-service');
 const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
+const mcpServerService = require('./src/main/services/mcp-server-service');
 const { sessionEvents } = require('./src/main/services/session-events');
 const { clearInstallStatusCache } = require('./src/main/utils/install-status');
 const acpService = require('./src/main/services/acp-service');
@@ -79,6 +80,7 @@ function createWindow() {
     startDiscoveryWatchers();
     startPollingIfEnabled();
     startCloudflareHeartbeatIfEnabled();
+    void startMcpServer();
   });
 
   mainWindow.webContents.on('context-menu', (event, params) => {
@@ -373,6 +375,36 @@ function stopDiscoveryWatchers() {
   agentDiscoveryCache.stopWatchers();
 }
 
+async function startMcpServer() {
+  try {
+    const status = await mcpServerService.start({
+      configStore,
+      antigravityService,
+      julesService,
+      cursorService,
+      codexService,
+      claudeService,
+      openRouterService,
+      agentOrchestrator,
+      githubService,
+      cloudflareKvService,
+      jiraService,
+      projectService,
+      opencodeService,
+      lifecycle,
+    });
+    if (status.running) {
+      console.log(`MCP server listening on ${status.url}`);
+    }
+  } catch (err) {
+    console.error('Failed to start MCP server:', err.message);
+  }
+}
+
+function stopMcpServer() {
+  return mcpServerService.stop();
+}
+
 function invalidateAgentDiscovery() {
   clearInstallStatusCache();
   agentDiscoveryCache.invalidate();
@@ -413,6 +445,7 @@ const ipcExports = registerAllIpcHandlers({
   projectService,
   opencodeService,
   lifecycle,
+  mcpServerService,
   getMainWindow,
   app,
   shell,
@@ -444,6 +477,7 @@ app.on('window-all-closed', () => {
   stopPolling();
   stopDiscoveryWatchers();
   stopCloudflareHeartbeat();
+  stopMcpServer();
   stopAutoUpdateTimer();
   if (process.platform !== 'darwin') {
     app.quit();
@@ -454,6 +488,7 @@ app.on('before-quit', (event) => {
   stopPolling();
   stopDiscoveryWatchers();
   stopCloudflareHeartbeat();
+  stopMcpServer();
   stopAutoUpdateTimer();
   acpService.closeAll();
 

@@ -289,6 +289,14 @@ test('web-api getAgents short-circuits unchanged revisions', async () => {
   assert.equal(second.revision, first.revision);
 });
 
+test('web-api onSessionUpdated is a no-op unsubscribe', async () => {
+  const { createWebApi } = await import('../../src/renderer/platform/web-api.mjs');
+  const api = createWebApi({ storage: makeStorage() });
+  const unsub = api.onSessionUpdated(() => {});
+  assert.equal(typeof unsub, 'function');
+  unsub();
+});
+
 test('web-api onRefreshTick subscribes and unsubscribes', async () => {
   const { createWebApi } = await import('../../src/renderer/platform/web-api.mjs');
   const api = createWebApi({ storage: makeStorage() });

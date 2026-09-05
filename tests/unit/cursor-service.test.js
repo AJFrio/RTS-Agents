@@ -12,13 +12,9 @@ jest.mock('../../src/main/services/config-store', () => ({
   getCursorCliSessions: jest.fn(() => []),
 }));
 
-jest.mock('../../src/main/services/acp-service', () => ({
-  resolveAdapter: jest.fn(),
-  runPrompt: jest.fn(),
-  clearAdapterCache: jest.fn(),
-  pickPermissionOption: jest.fn(),
-  buildSpawnArgs: jest.fn(),
-}));
+jest.mock('../../src/main/services/acp-service', () =>
+  require('./helpers/mock-acp-connect').acpConnectMockExports()
+);
 
 jest.mock('fs', () => ({
   ...jest.requireActual('fs'),
@@ -33,6 +29,7 @@ const cursorService = require('../../src/main/services/cursor-service');
 const httpService = require('../../src/main/services/http-service');
 const acpService = require('../../src/main/services/acp-service');
 const configStore = require('../../src/main/services/config-store');
+const { mockAcpConnect, flushPromises } = require('./helpers/mock-acp-connect');
 
 describe('CursorService Unit Tests (Local Repos - Async)', () => {
   beforeEach(() => {
@@ -335,9 +332,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       const details = await cursorService.getAgentDetails('bc-1');
 
       expect(details.summary).toBe('Hydrated result');
-      expect(details.conversation).toEqual([
-        expect.objectContaining({ text: 'Hydrated result' }),
-      ]);
+      expect(details.conversation).toEqual([expect.objectContaining({ text: 'Hydrated result' })]);
       expect(details.activities[0].description).toContain('Hydrated result');
     });
 
@@ -353,7 +348,9 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
           };
         }
         if (url.includes('/runs?')) {
-          return { items: [{ id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' }] };
+          return {
+            items: [{ id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' }],
+          };
         }
         if (url.includes('/runs/run-1')) {
           return { id: 'run-1', status: 'RUNNING', createdAt: '2026-04-13T18:30:00.000Z' };
@@ -407,10 +404,12 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
 
   describe('ACP local dispatch', () => {
     function mockAcp(overrides = {}) {
-      acpService.resolveAdapter.mockReturnValue('agent');
-      acpService.runPrompt.mockImplementation(({ onSessionId, onUpdate }) => {
-        if (overrides.onRun) overrides.onRun({ onSessionId, onUpdate });
-        return overrides.promise || Promise.resolve({ sessionId: 'acp-1', stopReason: 'end_turn' });
+      mockAcpConnect(acpService, {
+        resolveAdapter: 'agent',
+        onPrompt: overrides.onPrompt || overrides.onRun,
+        promptPromise: overrides.promise,
+        connectReject: overrides.connectReject,
+        fireSessionId: overrides.fireSessionId,
       });
     }
 
@@ -421,8 +420,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     test('startCliSession dispatches via ACP, coalesces chunks, and completes', async () => {
       mockAccess.mockResolvedValue(undefined);
       mockAcp({
-        onRun: ({ onSessionId, onUpdate }) => {
-          onSessionId('acp-1');
+        onPrompt: ({ onUpdate }) => {
           onUpdate(
             { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hello ' } },
             'acp-1'
@@ -441,12 +439,12 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(acpService.runPrompt).toHaveBeenCalledWith(
+      expect(acpService.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           command: 'agent',
           args: ['acp'],
           cwd: '/repo',
-          prompt: 'Fix the login bug',
+          authMethodId: 'cursor_login',
           permissionPolicy: 'allow-all',
         })
       );
@@ -481,12 +479,10 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     test('cleans up and rejects when ACP fails before start', async () => {
       mockAccess.mockResolvedValue(undefined);
       mockAcp({
-        promise: Promise.reject(
-          Object.assign(new Error('Failed to start ACP adapter'), {
-            phase: 'spawn',
-            fallbackAllowed: true,
-          })
-        ),
+        connectReject: Object.assign(new Error('Failed to start ACP adapter'), {
+          phase: 'spawn',
+          fallbackAllowed: true,
+        }),
       });
 
       await expect(
@@ -498,7 +494,6 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     test('marks the tracked session failed when ACP fails after start', async () => {
       mockAccess.mockResolvedValue(undefined);
       mockAcp({
-        onRun: ({ onSessionId }) => onSessionId('acp-1'),
         promise: Promise.reject(
           Object.assign(new Error('ACP adapter exited (code 1)'), {
             phase: 'exit',
@@ -508,8 +503,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
       });
 
       await cursorService.startCliSession({ prompt: 'Fix it', projectPath: '/repo' });
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
 
       expect(cursorService.getCursorCliSessions()[0]).toMatchObject({
         status: 'failed',
@@ -518,6 +512,7 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
     });
 
     test('getAllAgents surfaces tracked local sessions without an API key', async () => {
+      acpService.hasLiveSession.mockReturnValue(true);
       cursorService.setCursorCliSessions([
         {
           id: 'cursor-cli-1-abc',
@@ -559,6 +554,25 @@ describe('CursorService Unit Tests (Local Repos - Async)', () => {
         expect.objectContaining({ role: 'user', content: 'Fix the bug' }),
         expect.objectContaining({ role: 'assistant', content: 'All done' }),
       ]);
+    });
+
+    test('sendCliFollowUp accepts a follow-up on a live ACP session', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      mockAcp();
+      acpService.hasLiveSession.mockReturnValue(true);
+      acpService.canFollowUp.mockReturnValue(true);
+      acpService.promptFollowUp.mockImplementation(async (_id, _text, { onAccepted }) => {
+        onAccepted?.();
+        return { sessionId: 'acp-1', stopReason: 'end_turn' };
+      });
+
+      await cursorService.startCliSession({ prompt: 'Fix it', projectPath: '/repo' });
+      await Promise.resolve();
+      await Promise.resolve();
+      const id = cursorService.getCursorCliSessions()[0].id;
+      const result = await cursorService.sendCliFollowUp(id, 'Also add tests');
+      expect(result.success).toBe(true);
+      expect(acpService.promptFollowUp).toHaveBeenCalled();
     });
   });
 });

@@ -127,13 +127,13 @@ export default function PullRequestsPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-                      <span className="max-w-[200px] truncate rounded-sm bg-inset-light px-1.5 py-0.5 font-medium text-neutral-600 dark:bg-inset-dark dark:text-neutral-300">
+                    <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+                      <span className="max-w-[min(200px,70vw)] truncate rounded-sm bg-inset-light px-1.5 py-0.5 font-medium text-neutral-600 dark:bg-inset-dark dark:text-neutral-300">
                         {repoName}
                       </span>
-                      <span className="font-mono">{pr.head.ref}</span>
+                      <span className="max-w-[40vw] truncate font-mono sm:max-w-none">{pr.head.ref}</span>
                       <IconArrowRight size={10} className="shrink-0" />
-                      <span className="font-mono">{pr.base.ref}</span>
+                      <span className="max-w-[40vw] truncate font-mono sm:max-w-none">{pr.base.ref}</span>
                     </div>
                     <h3 className="truncate pr-2 text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
                       {pr.title}

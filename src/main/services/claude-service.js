@@ -12,6 +12,9 @@ const configStore = require('./config-store');
 const projectService = require('./project-service');
 const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
+const { sendAcpFollowUp } = require('./acp-follow-up');
+const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
+const { emitTrackedSessionUpdate } = require('./session-events');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_HOME = path.join(os.homedir(), '.claude');
@@ -32,10 +35,18 @@ class ClaudeService {
     this.apiKey = null;
     this.trackedLocalSessions = [];
     this._persistTimer = null;
+    this._sessionListCache = new Map();
   }
 
   setTrackedLocalSessions(sessions) {
-    this.trackedLocalSessions = Array.isArray(sessions) ? sessions : [];
+    const { sessions: next, changed } = reconcileOrphanRunningSessions(
+      Array.isArray(sessions) ? sessions : [],
+      { hasLiveSession: (id) => acpService.hasLiveSession(id) }
+    );
+    this.trackedLocalSessions = next;
+    if (changed) {
+      configStore.setClaudeCliSessions(this.trackedLocalSessions);
+    }
   }
 
   getTrackedLocalSessions() {
@@ -214,10 +225,17 @@ class ClaudeService {
       const sessionPromises = files.map(async (file) => {
         try {
           const filePath = path.join(sessionsPath, file);
-          const [stats, content] = await Promise.all([
-            fsPromises.stat(filePath),
-            fsPromises.readFile(filePath, 'utf-8'),
-          ]);
+          const stats = await fsPromises.stat(filePath);
+          const cached = this._sessionListCache.get(filePath);
+          if (
+            cached &&
+            cached.mtimeMs === stats.mtimeMs &&
+            cached.size === stats.size
+          ) {
+            return cached.listFields;
+          }
+
+          const content = await fsPromises.readFile(filePath, 'utf-8');
           const session = file.endsWith('.jsonl')
             ? this.parseTranscript(content)
             : JSON.parse(content);
@@ -232,7 +250,7 @@ class ClaudeService {
               ? new Date(session.lastUpdated || session.updated_at)
               : stats.mtime;
 
-          return {
+          const listFields = {
             id: `claude-local-${path.basename(projectPath)}-${file.replace(/\.jsonl?$/, '')}`,
             provider: 'claude',
             source: 'local',
@@ -247,6 +265,16 @@ class ClaudeService {
             projectHash: path.basename(projectPath),
             messageCount: this.countMessages(session),
           };
+          this._sessionListCache.set(filePath, {
+            mtimeMs: stats.mtimeMs,
+            size: stats.size,
+            listFields,
+          });
+          if (this._sessionListCache.size > 2000) {
+            const oldest = this._sessionListCache.keys().next().value;
+            this._sessionListCache.delete(oldest);
+          }
+          return listFields;
         } catch (err) {
           return null;
         }
@@ -553,6 +581,7 @@ class ClaudeService {
         summary: this.extractSummary(session),
         status: this.inferStatus(session, stats),
         source: 'local',
+        canFollowUp: false,
 
         // Timestamps
         createdAt: session.startTime || session.created_at || stats.birthtime,
@@ -812,6 +841,7 @@ class ClaudeService {
       status: 'running',
       streamMessages: [],
       error: null,
+      model: model || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -843,11 +873,10 @@ class ClaudeService {
       };
 
       acpService
-        .runPrompt({
+        .connect({
           command: adapter.command,
           args: adapter.args,
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'safe-tools',
           onSessionId: () => {
@@ -858,33 +887,28 @@ class ClaudeService {
               )
             );
           },
-          onUpdate: (update) => {
-            const next = applySessionUpdate(
-              record.streamMessages,
-              update,
-              new Date().toISOString()
-            );
-            if (next === record.streamMessages) return;
-            record.streamMessages = next;
-            this._updateTrackedLocalSession(
-              sessionId,
-              { streamMessages: record.streamMessages },
-              true
-            );
-          },
+          onUpdate: (update) => this._applyAcpUpdate(sessionId, update),
         })
-        .then(({ stopReason }) => {
-          const failed = stopReason === 'error' || stopReason === 'cancelled';
+        .then((session) => {
+          acpService.registerSession(sessionId, session);
           this._updateTrackedLocalSession(sessionId, {
-            status: failed ? 'failed' : 'completed',
-            error: failed ? `Claude Code ACP turn ended with stopReason ${stopReason}` : null,
+            acpSessionId: session.sessionId,
+            loadSession: session.loadSession,
           });
-          resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Claude Code task finished.'));
+          return session.prompt(prompt).then(({ stopReason }) => {
+            const failed = stopReason === 'error' || stopReason === 'cancelled';
+            this._updateTrackedLocalSession(sessionId, {
+              status: failed ? 'failed' : 'completed',
+              error: failed ? `Claude Code ACP turn ended with stopReason ${stopReason}` : null,
+            });
+            resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Claude Code task finished.'));
+          });
         })
         .catch((err) => {
           // Fallback is only legal before any agent work began; after that
           // re-dispatching through the legacy CLI would run the prompt twice.
           if (!cardResolved && err?.fallbackAllowed) {
+            acpService.closeSession(sessionId);
             this.trackedLocalSessions = this.trackedLocalSessions.filter(
               (s) => s.id !== sessionId
             );
@@ -961,18 +985,69 @@ class ClaudeService {
     });
   }
 
+  _applyAcpUpdate(sessionId, update) {
+    const current = this.trackedLocalSessions.find((s) => s.id === sessionId);
+    if (!current) return;
+    const next = applySessionUpdate(
+      current.streamMessages || [],
+      update,
+      new Date().toISOString()
+    );
+    if (next === current.streamMessages) return;
+    this._updateTrackedLocalSession(sessionId, { streamMessages: next }, true);
+  }
+
+  _acpConnectOptions(record) {
+    const adapter = toAdapterSpec(acpService.resolveAdapter('claude'));
+    if (!adapter) {
+      throw new Error('Claude ACP adapter is not available');
+    }
+    return {
+      command: adapter.command,
+      args: adapter.args,
+      cwd: record.projectPath,
+      model: record.model,
+      permissionPolicy: 'safe-tools',
+      onUpdate: (update) => this._applyAcpUpdate(record.id, update),
+    };
+  }
+
+  async sendLocalFollowUp(rawId, message) {
+    const record = this.trackedLocalSessions.find((s) => s.id === rawId);
+    if (!record) {
+      throw new Error(`Task not found: ${rawId}`);
+    }
+    return sendAcpFollowUp({
+      taskId: rawId,
+      message,
+      getRecord: () => this.trackedLocalSessions.find((s) => s.id === rawId),
+      connectOptions: acpService.hasLiveSession(rawId) ? {} : this._acpConnectOptions(record),
+      updateRecord: (patch) => this._updateTrackedLocalSession(rawId, patch),
+      failedLabel: 'Claude Code',
+    });
+  }
+
   _updateTrackedLocalSession(sessionId, patch, debounced = false) {
     const idx = this.trackedLocalSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
-    this.trackedLocalSessions[idx] = {
-      ...this.trackedLocalSessions[idx],
+    const prev = this.trackedLocalSessions[idx];
+    const next = {
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    this.trackedLocalSessions[idx] = next;
     if (debounced) {
       this._persistTrackedLocalSessionsDebounced();
     } else {
       this._persistTrackedLocalSessions();
+    }
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    if (statusChanged) {
+      emitTrackedSessionUpdate('claude-cli', next, {
+        statusChanged: true,
+        details: this._getTrackedLocalDetails(next),
+      });
     }
   }
 
@@ -1030,6 +1105,7 @@ class ClaudeService {
       summary: this._normalizeTrackedLocal(record).summary,
       status: record.status || 'running',
       source: 'local',
+      canFollowUp: acpService.canFollowUp(record.id, record),
       createdAt: record.createdAt || null,
       updatedAt: record.updatedAt || null,
       messages: [

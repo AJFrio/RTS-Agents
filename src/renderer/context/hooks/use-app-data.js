@@ -1,10 +1,12 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { initialState } from '../app-state.js';
 
 /**
  * Settings, agents, connection status, computers, and remote queue loaders.
  */
 export function useAppData(api, state, dispatch) {
+  const loadAgentsInFlight = useRef(null);
+
   const loadSettings = useCallback(async () => {
     if (!api) return;
     try {
@@ -130,56 +132,74 @@ export function useAppData(api, state, dispatch) {
       const silent = typeof arg === 'boolean' ? arg : (arg.silent ?? false);
       const force = typeof arg === 'object' && arg !== null ? (arg.force ?? false) : false;
 
-      if (!silent && state.agents.length === 0) {
-        dispatch({ type: 'SET_LOADING', payload: true });
+      if (loadAgentsInFlight.current) {
+        if (!force) return loadAgentsInFlight.current;
+        await loadAgentsInFlight.current;
       }
-      dispatch({ type: 'SET_REFRESHING', payload: true });
-      try {
-        const result = await api.getAgents({
-          sinceRevision: state.agentListRevision,
-          force: force || (!silent && state.agents.length === 0),
-        });
 
-        if (result?.unchanged) {
-          return;
+      const run = (async () => {
+        if (!silent && state.agents.length === 0) {
+          dispatch({ type: 'SET_LOADING', payload: true });
         }
+        if (!silent) {
+          dispatch({ type: 'SET_REFRESHING', payload: true });
+        }
+        try {
+          const result = await api.getAgents({
+            sinceRevision: state.agentListRevision,
+            force: force || (!silent && state.agents.length === 0),
+          });
 
-        const payload = {
-          revision: result.revision,
-          counts: result.counts ?? state.counts,
-          errors: result.errors ?? [],
-        };
+          if (result?.unchanged) {
+            return;
+          }
 
-        if (result.full) {
+          const payload = {
+            revision: result.revision,
+            counts: result.counts ?? state.counts,
+            errors: result.errors ?? [],
+          };
+
+          if (result.full) {
+            dispatch({
+              type: 'SET_AGENTS',
+              payload: {
+                ...payload,
+                agents: result.agents ?? [],
+              },
+            });
+            return;
+          }
+
+          if (result.delta) {
+            dispatch({
+              type: 'MERGE_AGENTS_DELTA',
+              payload: {
+                ...payload,
+                delta: result.delta,
+              },
+            });
+          }
+        } catch (err) {
+          console.error('Error loading agents:', err);
           dispatch({
             type: 'SET_AGENTS',
-            payload: {
-              ...payload,
-              agents: result.agents ?? [],
-            },
+            payload: { errors: [{ provider: 'system', error: err.message }] },
           });
-          return;
+        } finally {
+          dispatch({ type: 'SET_LOADING', payload: false });
+          if (!silent) {
+            dispatch({ type: 'SET_REFRESHING', payload: false });
+          }
         }
+      })();
 
-        if (result.delta) {
-          dispatch({
-            type: 'MERGE_AGENTS_DELTA',
-            payload: {
-              ...payload,
-              delta: result.delta,
-            },
-          });
+      loadAgentsInFlight.current = run.finally(() => {
+        if (loadAgentsInFlight.current === run) {
+          loadAgentsInFlight.current = null;
         }
-      } catch (err) {
-        console.error('Error loading agents:', err);
-        dispatch({
-          type: 'SET_AGENTS',
-          payload: { errors: [{ provider: 'system', error: err.message }] },
-        });
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
-        dispatch({ type: 'SET_REFRESHING', payload: false });
-      }
+      });
+      return loadAgentsInFlight.current;
     },
     [api, dispatch, state.agents.length, state.agentListRevision, state.counts]
   );

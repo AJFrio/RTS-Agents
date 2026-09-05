@@ -1,6 +1,7 @@
 const fsPromises = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const { sessionStatusSignature } = require('../utils/tracked-session-status');
 
 const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
 
@@ -67,10 +68,12 @@ function getConfigSignature(configStore) {
       cursor: configStore.hasApiKey('cursor'),
       claude: configStore.hasApiKey('claude'),
     },
-    codexThreads: (configStore.getCodexThreads?.() || []).length,
-    claudeConversations: (configStore.getClaudeConversations?.() || []).length,
-    opencodeSessions: (configStore.getOpenCodeSessions?.() || []).length,
-    antigravitySessions: (configStore.getAntigravitySessions?.() || []).length,
+    codexThreads: sessionStatusSignature(configStore.getCodexThreads?.() || []),
+    claudeConversations: sessionStatusSignature(configStore.getClaudeConversations?.() || []),
+    claudeCliSessions: sessionStatusSignature(configStore.getClaudeCliSessions?.() || []),
+    cursorCliSessions: sessionStatusSignature(configStore.getCursorCliSessions?.() || []),
+    opencodeSessions: sessionStatusSignature(configStore.getOpenCodeSessions?.() || []),
+    antigravitySessions: sessionStatusSignature(configStore.getAntigravitySessions?.() || []),
   });
 }
 

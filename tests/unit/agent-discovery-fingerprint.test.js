@@ -2,7 +2,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { fingerprintJsonDir } = require('../../src/main/services/agent-discovery-fingerprint');
+const {
+  fingerprintJsonDir,
+  getConfigSignature,
+} = require('../../src/main/services/agent-discovery-fingerprint');
 
 describe('agent-discovery-fingerprint', () => {
   let dir;
@@ -49,6 +52,29 @@ describe('agent-discovery-fingerprint', () => {
     fs.writeFileSync(file, '{"title":"ab"}');
     const after = await fingerprintJsonDir(dir);
 
+    expect(after).not.toBe(before);
+  });
+
+  test('getConfigSignature changes when an OpenCode session status changes', () => {
+    const sessions = [{ id: '1', status: 'running', updatedAt: 'a' }];
+    const store = {
+      getAllProjectPaths: () => [],
+      getAntigravityPaths: () => [],
+      getClaudePaths: () => [],
+      getCursorPaths: () => [],
+      getCodexPaths: () => [],
+      getOpenCodePaths: () => [],
+      hasApiKey: () => false,
+      getCodexThreads: () => [],
+      getClaudeConversations: () => [],
+      getClaudeCliSessions: () => [],
+      getCursorCliSessions: () => [],
+      getOpenCodeSessions: () => sessions,
+      getAntigravitySessions: () => [],
+    };
+    const before = getConfigSignature(store);
+    sessions[0] = { id: '1', status: 'completed', updatedAt: 'b' };
+    const after = getConfigSignature(store);
     expect(after).not.toBe(before);
   });
 });

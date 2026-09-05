@@ -12,7 +12,7 @@
     "check:web": "npm run build && wrangler deploy --dry-run",
     "dev:headless": "node headless.js",
     "test": "jest",
-    "test:ci": "node tests/unit/web-platform.verify.mjs && jest --testPathIgnorePatterns=integration",
+    "test:ci": "node tests/unit/web-platform.verify.mjs && node tests/unit/app-state.verify.mjs && node tests/unit/agent-details-cache.verify.mjs && jest --testPathIgnorePatterns=integration",
     "test:e2e": "npm run build && cross-env E2E_NO_FOCUS=1 ELECTRON_DISABLE_SANDBOX=1 env -u DISPLAY xvfb-maybe playwright test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

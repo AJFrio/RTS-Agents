@@ -60,17 +60,21 @@ export default function FilterDropdown() {
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
-        className={`flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium rounded-md border border-border-light dark:border-border-dark hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-[0.98] transition-colors duration-150 text-neutral-600 dark:text-neutral-300 ${
+        className={`flex min-h-8 items-center gap-2 px-3 py-1.5 text-[12px] font-medium rounded-md border border-border-light dark:border-border-dark hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-[0.98] transition-colors duration-150 text-neutral-600 dark:text-neutral-300 ${
           isOpen ? 'bg-neutral-100 dark:bg-neutral-800' : ''
         }`}
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Filters'}
       >
         <span className="material-symbols-outlined text-sm">filter_list</span>
-        Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+        <span className="sm:hidden">{activeFilterCount > 0 ? `(${activeFilterCount})` : 'Filter'}</span>
+        <span className="hidden sm:inline">
+          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+        </span>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg z-50 p-4 space-y-4">
+        <div className="absolute right-0 mt-2 w-[min(16rem,calc(100vw-1.5rem))] bg-card-light dark:bg-card-dark border border-border-light dark:border-border-dark rounded-lg z-50 p-4 space-y-4">
           <div>
             <div className="text-[11px] text-neutral-400 dark:text-neutral-500 mb-2.5 px-1 font-semibold uppercase tracking-wider">
               Providers

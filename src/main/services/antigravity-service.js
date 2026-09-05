@@ -8,6 +8,9 @@ const providerHealth = require('./provider-health');
 const acpService = require('./acp-service');
 const { isCommandRunnable, spawnCli, toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
+const { sendAcpFollowUp } = require('./acp-follow-up');
+const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
+const { emitTrackedSessionUpdate } = require('./session-events');
 
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
 
@@ -18,7 +21,14 @@ class AntigravityService {
   }
 
   setTrackedSessions(sessions) {
-    this.trackedSessions = Array.isArray(sessions) ? sessions : [];
+    const { sessions: next, changed } = reconcileOrphanRunningSessions(
+      Array.isArray(sessions) ? sessions : [],
+      { hasLiveSession: (id) => acpService.hasLiveSession(id) }
+    );
+    this.trackedSessions = next;
+    if (changed) {
+      configStore.setAntigravitySessions(this.trackedSessions);
+    }
   }
 
   getTrackedSessions() {
@@ -117,6 +127,7 @@ class AntigravityService {
       status: 'running',
       streamMessages: [],
       error: null,
+      model: model || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -146,11 +157,10 @@ class AntigravityService {
       };
 
       acpService
-        .runPrompt({
+        .connect({
           command: adapter.command,
           args: adapter.args,
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'allow-all',
           onSessionId: () => {
@@ -160,27 +170,26 @@ class AntigravityService {
               )
             );
           },
-          onUpdate: (update) => {
-            const next = applySessionUpdate(
-              entry.streamMessages,
-              update,
-              new Date().toISOString()
-            );
-            if (next === entry.streamMessages) return;
-            entry.streamMessages = next;
-            this._updateSession(sessionId, { streamMessages: entry.streamMessages }, true);
-          },
+          onUpdate: (update) => this._applyAcpUpdate(sessionId, update),
         })
-        .then(({ stopReason }) => {
-          const failed = stopReason === 'error' || stopReason === 'cancelled';
+        .then((session) => {
+          acpService.registerSession(sessionId, session);
           this._updateSession(sessionId, {
-            status: failed ? 'failed' : 'completed',
-            error: failed ? `Antigravity ACP turn ended with stopReason ${stopReason}` : null,
+            acpSessionId: session.sessionId,
+            loadSession: session.loadSession,
           });
-          resolveOnce(buildCard('Antigravity task finished.'));
+          return session.prompt(prompt).then(({ stopReason }) => {
+            const failed = stopReason === 'error' || stopReason === 'cancelled';
+            this._updateSession(sessionId, {
+              status: failed ? 'failed' : 'completed',
+              error: failed ? `Antigravity ACP turn ended with stopReason ${stopReason}` : null,
+            });
+            resolveOnce(buildCard('Antigravity task finished.'));
+          });
         })
         .catch((err) => {
           if (!cardResolved && err?.fallbackAllowed) {
+            acpService.closeSession(sessionId);
             this.trackedSessions = this.trackedSessions.filter((x) => x.id !== sessionId);
             this._persistSessions();
             this._spawnLegacySession({ prompt, projectPath, model }, sessionId).then(
@@ -256,18 +265,69 @@ class AntigravityService {
     });
   }
 
+  _applyAcpUpdate(sessionId, update) {
+    const current = this.trackedSessions.find((x) => x.id === sessionId);
+    if (!current) return;
+    const next = applySessionUpdate(
+      current.streamMessages || [],
+      update,
+      new Date().toISOString()
+    );
+    if (next === current.streamMessages) return;
+    this._updateSession(sessionId, { streamMessages: next }, true);
+  }
+
+  _acpConnectOptions(record) {
+    const adapter = toAdapterSpec(acpService.resolveAdapter('antigravity'));
+    if (!adapter) {
+      throw new Error('Antigravity ACP adapter is not available');
+    }
+    return {
+      command: adapter.command,
+      args: adapter.args,
+      cwd: record.projectPath,
+      model: record.model,
+      permissionPolicy: 'allow-all',
+      onUpdate: (update) => this._applyAcpUpdate(record.id, update),
+    };
+  }
+
+  async sendFollowUp(rawId, message) {
+    const record = this.trackedSessions.find((x) => x.id === rawId);
+    if (!record) {
+      throw new Error(`Task not found: ${rawId}`);
+    }
+    return sendAcpFollowUp({
+      taskId: rawId,
+      message,
+      getRecord: () => this.trackedSessions.find((x) => x.id === rawId),
+      connectOptions: acpService.hasLiveSession(rawId) ? {} : this._acpConnectOptions(record),
+      updateRecord: (patch) => this._updateSession(rawId, patch),
+      failedLabel: 'Antigravity',
+    });
+  }
+
   _updateSession(sessionId, patch, debounced = false) {
     const idx = this.trackedSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
-    this.trackedSessions[idx] = {
-      ...this.trackedSessions[idx],
+    const prev = this.trackedSessions[idx];
+    const next = {
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    this.trackedSessions[idx] = next;
     if (debounced) {
       this._persistSessionsDebounced();
     } else {
       this._persistSessions();
+    }
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    if (statusChanged) {
+      emitTrackedSessionUpdate('antigravity', next, {
+        statusChanged: true,
+        details: this.getSessionDetails(sessionId),
+      });
     }
   }
 
@@ -328,6 +388,7 @@ class AntigravityService {
       name: t.prompt ? t.prompt.substring(0, 80) : 'Antigravity',
       prompt: t.prompt,
       status: t.status || 'running',
+      canFollowUp: acpService.canFollowUp(t.id, t),
       messages: [
         { role: 'user', content: t.prompt, timestamp: t.createdAt },
         ...(stream.length > 0 ? stream : [fallbackAssistant]),

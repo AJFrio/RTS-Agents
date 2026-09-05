@@ -19,7 +19,9 @@ const opencodeService = require('./src/main/services/opencode-service');
 const antigravityService = require('./src/main/services/antigravity-service');
 const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
 const mcpServerService = require('./src/main/services/mcp-server-service');
+const { sessionEvents } = require('./src/main/services/session-events');
 const { clearInstallStatusCache } = require('./src/main/utils/install-status');
+const acpService = require('./src/main/services/acp-service');
 
 const { registerAllIpcHandlers } = require('./src/main/ipc');
 
@@ -343,6 +345,18 @@ function stopAutoUpdateTimer() {
   }
 }
 
+function bindSessionEvents() {
+  sessionEvents.removeAllListeners('updated');
+  sessionEvents.on('updated', (payload) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send('tasks:session-updated', payload);
+    if (payload?.statusChanged) {
+      agentDiscoveryCache.invalidate();
+      mainWindow.webContents.send('agents:refresh-tick');
+    }
+  });
+}
+
 function startDiscoveryWatchers() {
   const deps = {
     configStore,
@@ -447,6 +461,7 @@ performUpdate = ipcExports.performUpdate;
 // ============================================
 
 app.whenReady().then(() => {
+  bindSessionEvents();
   createWindow();
 
   app.on('activate', () => {
@@ -475,6 +490,7 @@ app.on('before-quit', (event) => {
   stopCloudflareHeartbeat();
   stopMcpServer();
   stopAutoUpdateTimer();
+  acpService.closeAll();
 
   if (isQuitting) return;
   isQuitting = true;

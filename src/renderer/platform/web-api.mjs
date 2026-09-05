@@ -205,6 +205,10 @@ export function createWebApi(options = {}) {
       };
     },
 
+    onSessionUpdated() {
+      return () => {};
+    },
+
     _emitRefreshTick: emitRefreshTick,
 
     // ------------------------------------------------------------------

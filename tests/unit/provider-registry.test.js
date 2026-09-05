@@ -10,7 +10,7 @@ jest.mock('../../src/main/services/cloudflare-kv-service', () => ({
   enqueueDeviceTask: jest.fn(),
 }));
 
-const { createTask, sortAgentsByDate, REMOTE_TASK_PROVIDERS } = require(
+const { createTask, sendTaskMessage, sortAgentsByDate, REMOTE_TASK_PROVIDERS } = require(
   '../../src/main/ipc/provider-registry'
 );
 const cloudflareKvService = require('../../src/main/services/cloudflare-kv-service');
@@ -81,5 +81,50 @@ describe('provider-registry createTask remote payload', () => {
 
     const task = cloudflareKvService.enqueueDeviceTask.mock.calls[0][2];
     expect(task.model).toBeNull();
+  });
+});
+
+describe('provider-registry sendTaskMessage', () => {
+  test('routes local ACP providers to the matching follow-up method', async () => {
+    const deps = {
+      configStore: { hasApiKey: jest.fn(() => true) },
+      julesService: { sendMessage: jest.fn() },
+      cursorService: { sendCliFollowUp: jest.fn(), addFollowUp: jest.fn() },
+      claudeService: { sendLocalFollowUp: jest.fn(), sendFollowUp: jest.fn() },
+      codexService: { sendFollowUp: jest.fn() },
+      opencodeService: { sendFollowUp: jest.fn() },
+      antigravityService: { sendFollowUp: jest.fn() },
+    };
+
+    await sendTaskMessage(deps, { provider: 'claude-cli', rawId: 'claude-cli-1', message: 'hi' });
+    expect(deps.claudeService.sendLocalFollowUp).toHaveBeenCalledWith('claude-cli-1', 'hi');
+
+    await sendTaskMessage(deps, { provider: 'codex', rawId: 'codex-cli-1', message: 'hi' });
+    expect(deps.codexService.sendFollowUp).toHaveBeenCalledWith('codex-cli-1', 'hi');
+
+    await sendTaskMessage(deps, { provider: 'opencode', rawId: 'opencode-1', message: 'hi' });
+    expect(deps.opencodeService.sendFollowUp).toHaveBeenCalledWith('opencode-1', 'hi');
+
+    await sendTaskMessage(deps, { provider: 'antigravity', rawId: 'antigravity-1', message: 'hi' });
+    expect(deps.antigravityService.sendFollowUp).toHaveBeenCalledWith('antigravity-1', 'hi');
+  });
+
+  test('routes cursor-cli ids to local ACP and other cursor ids to the cloud API', async () => {
+    const deps = {
+      configStore: { hasApiKey: jest.fn(() => true) },
+      cursorService: { sendCliFollowUp: jest.fn(), addFollowUp: jest.fn() },
+      claudeService: {},
+      codexService: {},
+      opencodeService: {},
+      antigravityService: {},
+      julesService: {},
+    };
+
+    await sendTaskMessage(deps, { provider: 'cursor', rawId: 'cursor-cli-9', message: 'local' });
+    expect(deps.cursorService.sendCliFollowUp).toHaveBeenCalledWith('cursor-cli-9', 'local');
+    expect(deps.cursorService.addFollowUp).not.toHaveBeenCalled();
+
+    await sendTaskMessage(deps, { provider: 'cursor', rawId: 'bc-cloud', message: 'cloud' });
+    expect(deps.cursorService.addFollowUp).toHaveBeenCalledWith('bc-cloud', 'cloud');
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import Composer from '../components/chat/Composer.jsx';
 import RecentTasksList from '../components/chat/RecentTasksList.jsx';
@@ -40,11 +40,17 @@ export default function AgentPage() {
     busy: false,
     recentTasksVisible: true,
   };
-  const { messages, input, busy, recentTasksVisible } = chat;
+  const { messages, input: storedInput, busy, recentTasksVisible } = chat;
+  const [input, setInput] = useState(storedInput || '');
   const scrollRef = useRef(null);
   const selectedModel = state.settings?.selectedModel || 'openrouter/openai/gpt-4o';
 
   useEffect(() => {
+    setInput(storedInput || '');
+  }, [storedInput]);
+
+  useEffect(() => {
+    if (messages.length === 0 && !busy) return;
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
@@ -55,12 +61,26 @@ export default function AgentPage() {
   };
 
   const resetChat = () => {
+    setInput('');
     dispatch({ type: 'RESET_ORCHESTRATOR_CHAT' });
   };
+
+  const renderAgentContent = useCallback((content) => <MarkdownText text={content} />, []);
+  const renderAgentCards = useCallback(
+    (cards) => (
+      <div className="space-y-2">
+        {cards.map((card) => (
+          <SurfaceCard key={`${card.kind || 'task'}-${card.id}`} card={card} />
+        ))}
+      </div>
+    ),
+    []
+  );
 
   const send = async (text) => {
     const prompt = (text ?? input).trim();
     if (!prompt || busy) return;
+    setInput('');
 
     const userMessage = {
       id: nextMessageId(),
@@ -163,28 +183,28 @@ export default function AgentPage() {
       <div className="flex min-h-0 flex-1 flex-col">
         <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div
-            className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-6 ${
-              isEmpty ? 'justify-center' : 'justify-start pb-4'
+            className={`mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 ${
+              isEmpty ? 'justify-start pt-2 sm:justify-center sm:pt-6' : 'justify-start pb-4 pt-6'
             }`}
           >
             {isEmpty ? (
-              <div className="flex flex-col items-center gap-5 py-6 text-center">
+              <div className="flex flex-col items-center gap-3 py-2 text-center sm:gap-5 sm:py-6">
                 <div>
-                  <h2 className="text-[22px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
+                  <h2 className="text-[18px] font-semibold tracking-tight text-neutral-900 sm:text-[22px] dark:text-neutral-100">
                     What should we work on?
                   </h2>
-                  <p className="mt-1.5 text-[13px] text-neutral-500 dark:text-neutral-400">
+                  <p className="mt-1.5 text-[12px] text-neutral-500 sm:text-[13px] dark:text-neutral-400">
                     Janus can start tasks, browse devices and repos, and
                     open pull requests.
                   </p>
                 </div>
-                <div className="grid w-full max-w-xl gap-2 sm:grid-cols-2">
+                <div className="grid w-full max-w-xl gap-1.5 sm:grid-cols-2 sm:gap-2">
                   {SUGGESTIONS.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
                       onClick={() => send(suggestion)}
-                      className="rounded-lg border border-border-light px-3 py-2.5 text-left text-[13px] text-neutral-600 transition-colors hover:border-border-strong-light hover:bg-neutral-50 dark:border-border-dark dark:text-neutral-400 dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40"
+                      className="rounded-lg border border-border-light px-3 py-2 text-left text-[13px] text-neutral-600 transition-colors hover:border-border-strong-light hover:bg-neutral-50 sm:py-2.5 dark:border-border-dark dark:text-neutral-400 dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40"
                     >
                       {suggestion}
                     </button>
@@ -196,14 +216,8 @@ export default function AgentPage() {
                 <ChatTranscript
                   messages={transcriptMessages}
                   assistantLabel="Janus"
-                  renderContent={(content) => <MarkdownText text={content} />}
-                  renderCards={(cards) => (
-                    <div className="space-y-2">
-                      {cards.map((card) => (
-                        <SurfaceCard key={`${card.kind || 'task'}-${card.id}`} card={card} />
-                      ))}
-                    </div>
-                  )}
+                  renderContent={renderAgentContent}
+                  renderCards={renderAgentCards}
                 />
 
                 {busy && (
@@ -221,9 +235,7 @@ export default function AgentPage() {
           <div className="mx-auto w-full max-w-3xl">
             <Composer
               value={input}
-              onChange={(value) =>
-                dispatch({ type: 'SET_ORCHESTRATOR_CHAT', payload: { input: value } })
-              }
+              onChange={setInput}
               onSubmit={() => send()}
               busy={busy}
               disabled={busy}
@@ -243,7 +255,7 @@ export default function AgentPage() {
       </div>
 
       <div
-        className={`grid max-h-[40%] min-h-0 shrink-0 transition-[grid-template-rows,opacity] duration-200 ease-out ${
+        className={`grid max-h-[26%] min-h-0 shrink-0 sm:max-h-[40%] transition-[grid-template-rows,opacity] duration-200 ease-out ${
           recentTasksVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
         aria-hidden={!recentTasksVisible}

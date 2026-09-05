@@ -23,7 +23,8 @@ renders every task's transcript as a chat log on the canvas.
   `src/renderer/context/app-state.js`).
 - Closing a task (`CLOSE_TASK`) returns to `previousView`, or Agent if none.
 - The sidebar wordmark (`data-view="dashboard"`) still opens the All Tasks
-  dashboard card grid. Mobile bottom nav keeps a Tasks tab for that view.
+  dashboard card grid. Mobile bottom nav keeps a Tasks tab for that view and
+  a More sheet for destinations that do not fit the five-tab bar.
 
 ## Sidebar sections
 
@@ -81,11 +82,36 @@ renders every task's transcript as a chat log on the canvas.
   (`applySessionUpdate`): `agent_message_chunk`, `agent_thought_chunk`,
   `tool_call`, and `tool_call_update` all land on stream messages that
   `agents:get-details` returns with `thinking` / `toolCalls` fields.
-- Providers without structured messages fall back to the unified activity
-  feed (Jules) or raw markdown content.
+- Every task detail view renders `ChatTranscript` (same component as the
+  Agent tab). `detailsToTranscript` normalizes ACP `messages[]`, Cursor
+  cloud `conversation[]` / run activities, Jules activities (plan →
+  thinking, commands → Bash, file changes → Edit, verification media →
+  cards), and legacy `content` / prompt-only payloads. The dispatched
+  prompt is always the first **You** bubble when the transcript has no
+  user turn. Context (repo / PR / runs) stays collapsed by default.
+  Running tasks show a neutral **Working…** row and poll details every 2s.
 - Follow-up composer at the bottom sends `tasks:send-message`; supported on
-  desktop for jules, cursor (cloud), and claude-cloud.
-  Other harnesses show a disabled note instead.
+  desktop for jules, cursor (cloud + local ACP `cursor-cli-*`), claude-cloud,
+  and local ACP sessions (`claude-cli`, `codex`, `opencode`, `antigravity`)
+  when details report `canFollowUp !== false`. Scanned/legacy CLI sessions
+  set `canFollowUp: false` and keep the disabled note. Web/PWA stays cloud-only.
+
+## Mobile shell (<768px)
+
+- Sidebar and its resize handle are hidden; `#bottom-nav` is the only
+  primary navigation.
+- **Primary tabs:** Agent, New Task, Tasks (`dashboard`), Repos (`branches`),
+  More.
+- **More sheet** (`#bottom-nav-more`): Plugins, Pull Requests, Devices,
+  Settings. Opening a destination closes the sheet.
+- Canvas padding uses `--bottom-nav-offset` so Agent / New Task / task
+  follow-up composers and the Repositories list-detail pane are not covered
+  by the tab bar or the iOS home indicator.
+- Repositories and Devices switch to a one-pane drill-in below `lg`
+  (1024px): the list hides while a selection is open; a back control
+  returns to the list.
+- Header actions wrap; dashboard search occupies its own row on narrow
+  viewports. Toasts move to `top-center` so they do not sit on the tab bar.
 
 ## Service hub
 
@@ -120,15 +146,23 @@ renders every task's transcript as a chat log on the canvas.
       focused `Connect` / `Manage` modal with no catalog sidebar
 - [ ] ACP-dispatched sessions stream tool calls and thinking into the task
       chat log, collapsed and expandable
-- [ ] Follow-ups work for jules, cursor, and claude-cloud tasks
+- [ ] Jules, Cursor cloud, and prompt-only tasks also use `ChatTranscript`
+      (user prompt on the right; thinking / tool chips on the harness side)
+- [ ] Follow-ups work for jules, cursor (cloud and local ACP), claude-cloud, and local ACP tasks that report `canFollowUp`
 - [ ] No blue remains in the UI; only status colors (emerald/amber/red/grey)
-      appear. Agent recent tasks: running emerald, completed grey.
+      appear. Agent recent tasks: running emerald, completed grey
+- [ ] Below 768px, `#sidebar` is hidden, `#bottom-nav` shows Agent / New Task /
+      Tasks / Repos / More, and More opens Plugins, PRs, Devices, Settings
+- [ ] Mobile canvas clears `--bottom-nav-offset`; Repositories and Devices
+      drill in below `lg` with a back control
 
 ## Implementation pointers
 
 - `src/renderer/components/layout/` (Layout, Sidebar, Header, BottomNav)
+- `src/renderer/utils/mobile-nav.js`, `src/renderer/hooks/use-media-query.js`
 - `src/renderer/components/sidebar/ReposAgentsSection.jsx`
 - `src/renderer/modals/RepoSessionsModal.jsx`
+- `src/renderer/utils/task-transcript.js`
 - `src/renderer/pages/AgentPage.jsx`, `NewTaskPage.jsx`, `TaskDetailView.jsx`,
   `PluginsPage.jsx`, `DevicesPage.jsx`
 - `src/renderer/context/app-state.js` (default view, CLOSE_TASK)

@@ -6,6 +6,9 @@ const acpService = require('./acp-service');
 const configStore = require('./config-store');
 const { toAdapterSpec } = require('../utils/cli-spawn');
 const { applySessionUpdate } = require('./opencode-session-parser');
+const { sendAcpFollowUp } = require('./acp-follow-up');
+const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
+const { emitTrackedSessionUpdate } = require('./session-events');
 
 // Cloud Agents API v1 (replaced v0). There is no Cloud v2 as of 2026-09.
 const BASE_URL = 'https://api.cursor.com/v1';
@@ -24,7 +27,14 @@ class CursorService {
   }
 
   setCursorCliSessions(sessions) {
-    this.trackedCliSessions = Array.isArray(sessions) ? sessions : [];
+    const { sessions: next, changed } = reconcileOrphanRunningSessions(
+      Array.isArray(sessions) ? sessions : [],
+      { hasLiveSession: (id) => acpService.hasLiveSession(id) }
+    );
+    this.trackedCliSessions = next;
+    if (changed) {
+      configStore.setCursorCliSessions(this.trackedCliSessions);
+    }
   }
 
   getCursorCliSessions() {
@@ -165,7 +175,9 @@ class CursorService {
       id: `cursor-${agent.id}`,
       provider: 'cursor',
       name: agent.name || 'Cursor Cloud Agent',
-      status: run ? this.mapRunStatus(run.status) : this.mapAgentStatus(agent.status, !!agent.latestRunId),
+      status: run
+        ? this.mapRunStatus(run.status)
+        : this.mapAgentStatus(agent.status, !!agent.latestRunId),
       prompt: '',
       repository,
       branch:
@@ -283,8 +295,7 @@ class CursorService {
 
     return runs.map((run, index) => {
       const settledEntry = settled[index];
-      const detail =
-        settledEntry.status === 'fulfilled' ? settledEntry.value : null;
+      const detail = settledEntry.status === 'fulfilled' ? settledEntry.value : null;
       return this.mergeRunSummary(run, detail);
     });
   }
@@ -315,17 +326,10 @@ class CursorService {
     const runs = await this.hydrateRuns(id, listRuns);
 
     const latestRunId = agent.latestRunId || runs[0]?.id || null;
-    const latestRun =
-      runs.find((run) => run?.id === latestRunId) || runs[0] || null;
+    const latestRun = runs.find((run) => run?.id === latestRunId) || runs[0] || null;
 
-    const terminalRunsWithResult = runs.filter(
-      (run) => run?.result && String(run.result).trim()
-    );
-    const summary =
-      latestRun?.result ||
-      terminalRunsWithResult[0]?.result ||
-      agent.name ||
-      null;
+    const terminalRunsWithResult = runs.filter((run) => run?.result && String(run.result).trim());
+    const summary = latestRun?.result || terminalRunsWithResult[0]?.result || agent.name || null;
 
     const activities = runs.map((run) => this.buildRunActivity(run));
     const conversation = this.buildConversationFromRuns(runs);
@@ -514,6 +518,7 @@ class CursorService {
       status: 'running',
       streamMessages: [],
       error: null,
+      model: model || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -545,12 +550,12 @@ class CursorService {
       };
 
       acpService
-        .runPrompt({
+        .connect({
           command: adapter.command,
           args: adapter.args,
           cwd: projectPath,
-          prompt,
           model,
+          authMethodId: 'cursor_login',
           permissionPolicy: 'allow-all',
           onSessionId: () => {
             resolveOnce(
@@ -560,31 +565,26 @@ class CursorService {
               )
             );
           },
-          onUpdate: (update) => {
-            const next = applySessionUpdate(
-              record.streamMessages,
-              update,
-              new Date().toISOString()
-            );
-            if (next === record.streamMessages) return;
-            record.streamMessages = next;
-            this._updateTrackedCliSession(
-              sessionId,
-              { streamMessages: record.streamMessages },
-              true
-            );
-          },
+          onUpdate: (update) => this._applyAcpUpdate(sessionId, update),
         })
-        .then(({ stopReason }) => {
-          const failed = stopReason === 'error' || stopReason === 'cancelled';
+        .then((session) => {
+          acpService.registerSession(sessionId, session);
           this._updateTrackedCliSession(sessionId, {
-            status: failed ? 'failed' : 'completed',
-            error: failed ? `Cursor ACP turn ended with stopReason ${stopReason}` : null,
+            acpSessionId: session.sessionId,
+            loadSession: session.loadSession,
           });
-          resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Cursor task finished.'));
+          return session.prompt(prompt).then(({ stopReason }) => {
+            const failed = stopReason === 'error' || stopReason === 'cancelled';
+            this._updateTrackedCliSession(sessionId, {
+              status: failed ? 'failed' : 'completed',
+              error: failed ? `Cursor ACP turn ended with stopReason ${stopReason}` : null,
+            });
+            resolveOnce(buildCard(failed ? 'failed' : 'completed', 'Cursor task finished.'));
+          });
         })
         .catch((err) => {
           if (!cardResolved) {
+            acpService.closeSession(sessionId);
             this.trackedCliSessions = this.trackedCliSessions.filter((s) => s.id !== sessionId);
             this._persistTrackedCliSessions();
             rejectCard(err);
@@ -599,18 +599,68 @@ class CursorService {
     });
   }
 
+  _applyAcpUpdate(sessionId, update) {
+    const current = this.trackedCliSessions.find((s) => s.id === sessionId);
+    if (!current) return;
+    const next = applySessionUpdate(current.streamMessages || [], update, new Date().toISOString());
+    if (next === current.streamMessages) return;
+    this._updateTrackedCliSession(sessionId, { streamMessages: next }, true);
+  }
+
+  _acpConnectOptions(record) {
+    const adapter = toAdapterSpec(acpService.resolveAdapter('cursor'), ['acp']);
+    if (!adapter) {
+      throw new Error(
+        'Cursor CLI not found. Install it from https://cursor.com/cli and run "agent login" once.'
+      );
+    }
+    return {
+      command: adapter.command,
+      args: adapter.args,
+      cwd: record.projectPath,
+      model: record.model,
+      authMethodId: 'cursor_login',
+      permissionPolicy: 'allow-all',
+      onUpdate: (update) => this._applyAcpUpdate(record.id, update),
+    };
+  }
+
+  async sendCliFollowUp(rawId, message) {
+    const record = this.trackedCliSessions.find((s) => s.id === rawId);
+    if (!record) {
+      throw new Error(`Cursor task not found: ${rawId}`);
+    }
+    return sendAcpFollowUp({
+      taskId: rawId,
+      message,
+      getRecord: () => this.trackedCliSessions.find((s) => s.id === rawId),
+      connectOptions: acpService.hasLiveSession(rawId) ? {} : this._acpConnectOptions(record),
+      updateRecord: (patch) => this._updateTrackedCliSession(rawId, patch),
+      failedLabel: 'Cursor',
+    });
+  }
+
   _updateTrackedCliSession(sessionId, patch, debounced = false) {
     const idx = this.trackedCliSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
-    this.trackedCliSessions[idx] = {
-      ...this.trackedCliSessions[idx],
+    const prev = this.trackedCliSessions[idx];
+    const next = {
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
+    this.trackedCliSessions[idx] = next;
     if (debounced) {
       this._persistTrackedCliSessionsDebounced();
     } else {
       this._persistTrackedCliSessions();
+    }
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    if (statusChanged) {
+      emitTrackedSessionUpdate('cursor', next, {
+        statusChanged: true,
+        details: this._getTrackedCliDetails(next),
+      });
     }
   }
 
@@ -665,6 +715,7 @@ class CursorService {
       summary: this._normalizeTrackedCli(record).summary,
       status: record.status || 'running',
       source: 'local',
+      canFollowUp: acpService.canFollowUp(record.id, record),
       repository: record.projectPath || null,
       createdAt: record.createdAt || null,
       updatedAt: record.updatedAt || null,

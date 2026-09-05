@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp } from '../../context/AppContext.jsx';
+import { useAppActions } from '../../context/AppContext.jsx';
 import { providerMeta } from '../ui/icons.jsx';
 import { StatusDot, canvasStatusMeta } from '../ui/status.jsx';
 import { relativeTime, shortRepo, truncate } from './card-meta.js';
@@ -17,7 +17,7 @@ function MetaDot() {
  * (DESIGN.md §5). Clicking opens the task transcript on the canvas.
  */
 export default function TaskCard({ task, compact = false, onClick }) {
-  const { openTask } = useApp();
+  const { openTask } = useAppActions();
   const meta = providerMeta(task?.provider);
   const Icon = meta.Icon;
   const status = canvasStatusMeta(task?.status);

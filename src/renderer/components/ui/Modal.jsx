@@ -17,7 +17,7 @@ const SIZE = {
 export default function Modal({ open, onClose, children, className = '', size }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-4">
       <div
         className="fixed inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
@@ -27,7 +27,7 @@ export default function Modal({ open, onClose, children, className = '', size })
         aria-label="Close modal"
       />
       <div
-        className={`relative z-10 overflow-hidden rounded-lg border border-border-light bg-card-light shadow-xl dark:border-border-dark dark:bg-card-dark ${SIZE[size] ?? ''} ${className}`}
+        className={`relative z-10 my-0 max-h-[min(92dvh,calc(100dvh-var(--safe-bottom)))] w-full overflow-y-auto rounded-t-lg border border-border-light bg-card-light shadow-xl sm:my-auto sm:max-h-[min(90vh,calc(100dvh-2rem))] sm:rounded-lg dark:border-border-dark dark:bg-card-dark ${SIZE[size] ?? ''} ${className}`}
       >
         {children}
       </div>

@@ -123,14 +123,14 @@ export default function Composer({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="Attach images"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800 md:h-7 md:w-7 dark:border-neutral-600 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
                 >
                   <IconPlus size={14} />
                 </button>
               </>
             )}
             {!onFiles && (
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-400 dark:border-neutral-600 dark:text-neutral-500" aria-hidden="true">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-400 md:h-7 md:w-7 dark:border-neutral-600 dark:text-neutral-500" aria-hidden="true">
                 <IconPlus size={14} />
               </span>
             )}
@@ -142,7 +142,7 @@ export default function Composer({
             onClick={() => canSubmit && onSubmit?.()}
             disabled={!canSubmit}
             aria-label={submitLabel}
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-opacity ${
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-opacity md:h-7 md:w-7 ${
               canSubmit
                 ? 'bg-neutral-900 text-white hover:opacity-90 active:scale-95 dark:bg-white dark:text-neutral-900'
                 : 'bg-neutral-200 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'

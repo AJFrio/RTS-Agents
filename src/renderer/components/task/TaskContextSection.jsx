@@ -38,6 +38,7 @@ export default function TaskContextSection({ details, onOpenExternal, onOpenOpen
   return (
     <Collapsible
       variant="plain"
+      defaultOpen={false}
       label="Context"
       icon="data_object"
       meta={repoName ? <span className="text-[10px] technical-font text-slate-500">{repoName}</span> : null}

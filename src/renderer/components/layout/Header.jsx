@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { useApp } from '../../context/AppContext.jsx';
+import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import FilterDropdown from '../ui/FilterDropdown.jsx';
 import { IconSync, IconPlus } from '../ui/icons.jsx';
 import { debounce } from '../../utils/debounce.js';
@@ -28,8 +28,8 @@ function getPrRepoName(pr) {
 }
 
 export default function Header() {
+  const state = useAppState();
   const {
-    state,
     dispatch,
     loadAgents,
     fetchComputers,
@@ -38,7 +38,7 @@ export default function Header() {
     openCreateRepoModal,
     openPrRepoFilter,
     loadRemoteQueueActivity,
-  } = useApp();
+  } = useAppActions();
   const { currentView, counts, filters, refreshing, github, selectedTask } = state;
 
   const handleSearch = useMemo(
@@ -105,7 +105,7 @@ export default function Header() {
               : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
 
   return (
-    <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between border-b border-border-light bg-background-light/90 px-4 backdrop-blur-sm dark:border-border-dark dark:bg-background-dark/90 sm:px-6">
+    <header className="sticky top-0 z-10 flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-background-light/90 px-3 py-2 backdrop-blur-sm dark:border-border-dark dark:bg-background-dark/90 sm:h-12 sm:flex-nowrap sm:px-6 sm:py-0">
       <div className="flex min-w-0 items-baseline gap-2 sm:gap-4">
         <h2
           id="view-title"
@@ -120,16 +120,16 @@ export default function Header() {
         )}
       </div>
       {showHeaderActions && (
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-nowrap sm:gap-3">
           {currentView === 'dashboard' && (
             <>
-              <div className="relative">
+              <div className="relative order-3 w-full sm:order-none sm:w-auto">
                 <input
                   type="text"
                   id="search-input"
                   placeholder="Search tasks"
                   defaultValue={filters.search}
-                  className="w-40 rounded-md py-1.5 pl-8 text-[13px] sm:w-56"
+                  className="w-full rounded-md py-1.5 pl-8 text-[13px] sm:w-40 md:w-56"
                   onChange={handleSearch}
                 />
                 <svg
@@ -162,7 +162,7 @@ export default function Header() {
               <button
                 type="button"
                 id="create-repo-btn"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={openCreateRepoModal}
               >
                 <IconPlus size={13} />
@@ -171,7 +171,7 @@ export default function Header() {
               <button
                 type="button"
                 id="refresh-branches-btn"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] disabled:opacity-60 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] disabled:opacity-60 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >
@@ -185,7 +185,7 @@ export default function Header() {
                 <button
                   type="button"
                   id="pr-repo-filter-btn"
-                  className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors active:scale-[0.98] ${
+                  className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-medium transition-colors active:scale-[0.98] ${
                     hiddenPrRepoCount > 0
                       ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
                       : 'border-border-light text-neutral-700 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800'
@@ -193,13 +193,18 @@ export default function Header() {
                   onClick={openPrRepoFilter}
                   aria-label="Filter pull request repositories"
                 >
-                  FILTER{hiddenPrRepoCount > 0 ? ` (${hiddenPrRepoCount})` : ''}
+                  <span className="sm:hidden">
+                    Filter{hiddenPrRepoCount > 0 ? ` (${hiddenPrRepoCount})` : ''}
+                  </span>
+                  <span className="hidden sm:inline">
+                    FILTER{hiddenPrRepoCount > 0 ? ` (${hiddenPrRepoCount})` : ''}
+                  </span>
                 </button>
               )}
               <button
                 type="button"
                 id="refresh-btn"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] disabled:opacity-60 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2.5 py-1.5 text-[12px] font-medium text-neutral-700 transition-colors hover:bg-neutral-100 active:scale-[0.98] disabled:opacity-60 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >

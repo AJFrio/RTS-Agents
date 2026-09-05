@@ -47,6 +47,7 @@ const TOOL_ICONS = {
   list_tasks: IconTasks,
   show_task: IconTasks,
   start_task: IconTasks,
+  Run: IconGitBranch,
 };
 
 const MAX_RESULT_CHARS = 4000;
@@ -250,6 +251,65 @@ function ThinkingBlock({ text }) {
   );
 }
 
+const MessageGroup = React.memo(function MessageGroup({
+  group,
+  showDay,
+  day,
+  assistantLabel,
+  renderContent,
+  renderCards,
+}) {
+  const isUser = group.role === 'user';
+  const last = group.items[group.items.length - 1];
+  const time = formatTime(last.timestamp);
+
+  return (
+    <>
+      {showDay && (
+        <div className="flex items-center gap-3 py-1">
+          <div className="h-px flex-1 bg-border-light dark:bg-border-dark" />
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+            {day}
+          </span>
+          <div className="h-px flex-1 bg-border-light dark:bg-border-dark" />
+        </div>
+      )}
+
+      <div className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
+        {!isUser && (
+          <div
+            aria-hidden="true"
+            className="mt-6 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-light bg-card-light text-neutral-500 dark:border-border-dark dark:bg-card-dark dark:text-neutral-400"
+          >
+            <IconAgent size={14} />
+          </div>
+        )}
+
+        <div className={`flex max-w-[90%] flex-col gap-1 sm:max-w-[78%] ${isUser ? 'items-end' : 'items-start'}`}>
+          <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+            {isUser ? 'You' : assistantLabel}
+          </span>
+
+          <div
+            className={`w-full space-y-2 ${
+              isUser ? 'rounded-lg rounded-br-sm bg-inset-light px-3.5 py-2 dark:bg-inset-dark' : ''
+            }`}
+          >
+            <MessageBody
+              items={group.items}
+              isUser={isUser}
+              renderContent={renderContent}
+              renderCards={renderCards}
+            />
+          </div>
+
+          {time && <span className="px-1 text-[10px] text-neutral-400">{time}</span>}
+        </div>
+      </div>
+    </>
+  );
+});
+
 /**
  * Chat-style transcript: user turns right-aligned, assistant left,
  * consecutive turns grouped, tool calls and reasoning collapsed.
@@ -267,59 +327,24 @@ export default function ChatTranscript({
   let lastDay = '';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-selectable="true">
       {groups.map((group, groupIndex) => {
-        const isUser = group.role === 'user';
-        const last = group.items[group.items.length - 1];
-        const time = formatTime(last.timestamp);
         const day = formatDay(group.items[0].timestamp);
         const showDay = day && day !== lastDay;
         if (showDay) lastDay = day;
+        const groupKey = group.items.map((item) => item.id).filter(Boolean).join(':')
+          || `group-${groupIndex}`;
 
         return (
-          <React.Fragment key={group.items[0].id ?? groupIndex}>
-            {showDay && (
-              <div className="flex items-center gap-3 py-1">
-                <div className="h-px flex-1 bg-border-light dark:bg-border-dark" />
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-                  {day}
-                </span>
-                <div className="h-px flex-1 bg-border-light dark:bg-border-dark" />
-              </div>
-            )}
-
-            <div className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
-              {!isUser && (
-                <div
-                  aria-hidden="true"
-                  className="mt-6 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border-light bg-card-light text-neutral-500 dark:border-border-dark dark:bg-card-dark dark:text-neutral-400"
-                >
-                  <IconAgent size={14} />
-                </div>
-              )}
-
-              <div className={`flex max-w-[78%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
-                <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-                  {isUser ? 'You' : assistantLabel}
-                </span>
-
-                <div
-                  className={`w-full space-y-2 ${
-                    isUser ? 'rounded-lg rounded-br-sm bg-inset-light px-3.5 py-2 dark:bg-inset-dark' : ''
-                  }`}
-                >
-                  <MessageBody
-                    items={group.items}
-                    isUser={isUser}
-                    renderContent={renderContent}
-                    renderCards={renderCards}
-                  />
-                </div>
-
-                {time && <span className="px-1 text-[10px] text-neutral-400">{time}</span>}
-              </div>
-            </div>
-          </React.Fragment>
+          <MessageGroup
+            key={groupKey}
+            group={group}
+            showDay={showDay}
+            day={day}
+            assistantLabel={assistantLabel}
+            renderContent={renderContent}
+            renderCards={renderCards}
+          />
         );
       })}
     </div>

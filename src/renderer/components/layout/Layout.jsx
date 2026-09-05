@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import Sidebar from './Sidebar.jsx';
 import Header from './Header.jsx';
 import BottomNav from './BottomNav.jsx';
-import { useApp } from '../../context/AppContext.jsx';
+import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import { SIDEBAR_DEFAULT_WIDTH } from '../../context/app-state.js';
 
 /**
@@ -11,7 +11,8 @@ import { SIDEBAR_DEFAULT_WIDTH } from '../../context/app-state.js';
  * scroll per view. Only the sidebar section list and the canvas body scroll.
  */
 export default function Layout({ children, fixedHeight }) {
-  const { state, setSidebarWidth } = useApp();
+  const { sidebarWidth } = useAppState();
+  const { setSidebarWidth } = useAppActions();
   const dragState = useRef(null);
   const handleRef = useRef(null);
 
@@ -19,13 +20,13 @@ export default function Layout({ children, fixedHeight }) {
     (e) => {
       dragState.current = {
         startX: e.clientX,
-        startWidth: state.sidebarWidth,
+        startWidth: sidebarWidth,
       };
       handleRef.current?.setPointerCapture(e.pointerId);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [state.sidebarWidth]
+    [sidebarWidth]
   );
 
   const onPointerMove = useCallback(
@@ -53,10 +54,10 @@ export default function Layout({ children, fixedHeight }) {
   const overflowClass = fixedHeight ? 'overflow-hidden' : 'overflow-y-auto';
 
   return (
-    <div id="app" className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
+    <div id="app" className="safe-left safe-right flex h-dvh overflow-hidden bg-background-light dark:bg-background-dark">
       <div
         className="hidden h-full shrink-0 md:flex"
-        style={{ width: state.sidebarWidth }}
+        style={{ width: sidebarWidth }}
       >
         <Sidebar />
       </div>
@@ -78,7 +79,9 @@ export default function Layout({ children, fixedHeight }) {
         <Header />
         <div
           className={`min-h-0 flex-1 ${overflowClass} ${
-            fixedHeight ? '' : 'p-4 pb-24 md:p-6 md:pb-6'
+            fixedHeight
+              ? 'pb-[var(--bottom-nav-offset)] md:pb-0'
+              : 'p-4 pb-[calc(var(--bottom-nav-offset)+1rem)] md:p-6 md:pb-6'
           }`}
         >
           {children}

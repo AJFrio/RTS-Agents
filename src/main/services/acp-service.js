@@ -6,11 +6,15 @@
  * ESM-only and therefore incompatible with this CommonJS main process, so
  * the narrow client surface we need is implemented here:
  *
- *   initialize -> session/new -> [session/set_mode] -> session/prompt
+ *   initialize -> [authenticate] -> session/new|session/load -> [session/set_mode] -> session/prompt*
  *   with session/update notifications forwarded to the caller,
  *   session/request_permission answered per the caller's permission policy,
  *   and every other agent->client request answered with JSON-RPC -32601 so
  *   the agent can never hang waiting on an unhandled request.
+ *
+ * `connect` keeps the adapter alive so later `session/prompt` turns can reuse
+ * the same session. `runPrompt` is the one-shot wrapper (connect → prompt →
+ * close) used by tests and any caller that still wants kill-on-completion.
  *
  * Fallback rule for callers: `err.fallbackAllowed` is true only when the
  * failure happened before any agent work began (spawn failure, initialize
@@ -34,6 +38,13 @@ const STDERR_CAP = 2000;
 const DEFAULT_INIT_TIMEOUT_MS = 15000;
 const ADAPTER_PROBE_TIMEOUT_MS = 3000;
 const SAFE_TOOL_KINDS = new Set(['read', 'edit', 'execute']);
+const CLIENT_INFO = { name: 'rts-agents', version: '1.0.0' };
+const CURSOR_BLOCKING_METHODS = new Set(['cursor/ask_question', 'cursor/create_plan']);
+const CURSOR_ACCEPT_METHODS = new Set([
+  'cursor/update_todos',
+  'cursor/task',
+  'cursor/generate_image',
+]);
 
 // provider -> { command, args } | null (probe results are cached for the session)
 const adapterCache = new Map();
@@ -152,42 +163,145 @@ function versionMismatchMessage(protocolVersion) {
   );
 }
 
+function authMethodIdFrom(method) {
+  if (!method || typeof method !== 'object') return null;
+  const id = method.methodId || method.id;
+  return typeof id === 'string' && id.trim() ? id : null;
+}
+
 /**
- * Run one prompt turn against an ACP adapter.
+ * Choose an ACP authenticate methodId.
+ * Prefers an explicit id when the adapter advertised it (or when nothing
+ * was advertised). Otherwise uses the first advertised method. Cursor CLI
+ * advertises `cursor_login` and requires this call before session/new.
+ */
+function pickAuthMethodId(authMethods, preferredId) {
+  const ids = (Array.isArray(authMethods) ? authMethods : []).map(authMethodIdFrom).filter(Boolean);
+  if (preferredId && (ids.length === 0 || ids.includes(preferredId))) {
+    return preferredId;
+  }
+  return ids[0] || null;
+}
+
+function formatRpcFailure(err) {
+  const rpc = err?.rpcError;
+  if (rpc) {
+    const details = rpc.data?.details || rpc.data?.message;
+    if (details) return `${rpc.message || err.message}: ${details}`;
+    return rpc.message || err.message || JSON.stringify(rpc);
+  }
+  return err?.message || JSON.stringify(err);
+}
+
+function createAcpError(phase, message, fallbackAllowed, stderrTail) {
+  const error = new Error(message);
+  error.phase = phase;
+  error.fallbackAllowed = fallbackAllowed;
+  error.stderrTail = stderrTail;
+  return error;
+}
+
+function safeCall(fn, ...callArgs) {
+  if (typeof fn !== 'function') return;
+  try {
+    fn(...callArgs);
+  } catch (err) {
+    console.error('ACP callback error:', err?.message || err);
+  }
+}
+
+function killChildProcess(child) {
+  if (!child) return;
+  const pid = child.pid;
+  try {
+    child.stdin.end();
+  } catch {
+    // stdin already closed - nothing to do
+  }
+
+  const forceKill = () => {
+    try {
+      if (process.platform === 'win32' && pid) {
+        // .cmd shims spawn nested processes; SIGTERM would not reap them.
+        spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
+          stdio: 'ignore',
+          windowsHide: true,
+        });
+      } else {
+        child.kill('SIGTERM');
+      }
+    } catch {
+      // best-effort cleanup; the child may already be gone
+    }
+  };
+
+  // Give stdin-EOF a chance to run the adapter's graceful exit
+  // (Windows taskkill /F skips Node exit handlers).
+  if (process.platform === 'win32') {
+    const forceTimer = setTimeout(forceKill, 250);
+    child.once('exit', () => clearTimeout(forceTimer));
+    return;
+  }
+  forceKill();
+}
+
+function rpcError(phase, err, fallbackAllowed, stderrTail) {
+  return createAcpError(
+    phase,
+    `ACP ${phase} failed: ${formatRpcFailure(err)}`,
+    fallbackAllowed,
+    stderrTail
+  );
+}
+
+// RTS task id -> live AcpSession
+const liveSessions = new Map();
+
+/**
+ * Open a long-lived ACP adapter session.
+ *
+ * Handshake is `initialize → [authenticate] → session/new` (or
+ * `session/load` when `loadSessionId` is set). Authenticate runs when the
+ * adapter advertises `authMethods` or the caller passes `authMethodId`.
+ * The first `session/prompt` is the caller's responsibility via
+ * `session.prompt(text)`.
  *
  * @param {object} options
- * @param {string} options.command - Adapter command (already resolved).
- * @param {string[]} [options.args] - Extra adapter CLI args (e.g. ['acp']).
- * @param {string} options.cwd - Project directory for session/new.
- * @param {string} options.prompt - User prompt text.
- * @param {string} [options.model] - Requested model id; applied via
- *   session/set_mode when the adapter offers it among its session modes.
+ * @param {string} options.command
+ * @param {string[]} [options.args]
+ * @param {string} options.cwd
+ * @param {string} [options.model]
+ * @param {string} [options.authMethodId]
  * @param {'allow-all'|'safe-tools'} [options.permissionPolicy]
  * @param {(update: object, sessionId: string) => void} [options.onUpdate]
- * @param {(sessionId: string) => void} [options.onSessionId] - Fires once
- *   the ACP session is created (before the agent starts working), so
- *   callers can resolve their task card early.
- * @param {object} [options.env] - Extra environment variables.
+ * @param {(sessionId: string) => void} [options.onSessionId]
+ * @param {object} [options.env]
  * @param {number} [options.initTimeoutMs]
- * @returns {Promise<{sessionId: string, stopReason: string}>} Resolves when
- *   the prompt turn completes. Never re-dispatch after a rejection whose
- *   `fallbackAllowed` is false.
+ * @param {string} [options.loadSessionId] - When set, resume via session/load.
+ * @returns {Promise<{
+ *   sessionId: string,
+ *   loadSession: boolean,
+ *   closed: boolean,
+ *   prompt: (text: string, opts?: { onAccepted?: () => void }) => Promise<{sessionId: string, stopReason: string}>,
+ *   close: () => void,
+ * }>}
  */
-function runPrompt(options) {
+function connect(options) {
   const {
     command,
     args = [],
     cwd,
-    prompt,
     model,
+    authMethodId: preferredAuthMethodId,
     permissionPolicy = 'allow-all',
     onUpdate,
     onSessionId,
     env,
     initTimeoutMs = DEFAULT_INIT_TIMEOUT_MS,
+    loadSessionId = null,
   } = options;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolveConnect, rejectConnect) => {
     let child;
     try {
       child = spawnCli(command, args, {
@@ -196,77 +310,71 @@ function runPrompt(options) {
         env: env || {},
       });
     } catch (err) {
-      const error = new Error(`Failed to start ACP adapter: ${err.message}`);
-      error.phase = 'spawn';
-      error.fallbackAllowed = true;
-      reject(error);
+      rejectConnect(createAcpError('spawn', `Failed to start ACP adapter: ${err.message}`, true));
       return;
     }
 
-    let settled = false;
+    let connectSettled = false;
+    let closed = false;
     let promptSent = false;
-    let sessionId = null;
+    let sessionId = loadSessionId || null;
+    let loadSessionCapable = false;
     let nextId = 1;
     let initTimer = null;
     let stderrTail = '';
     let stdoutBuf = '';
-    const pending = new Map(); // request id -> { phase, onResult, onError }
+    const pending = new Map();
+    const promptQueue = [];
+    let currentPrompt = null;
+    let session = null;
 
-    function fail(phase, message, fallbackAllowed) {
-      if (settled) return;
-      settled = true;
-      if (initTimer) clearTimeout(initTimer);
+    function rejectPending(error) {
+      for (const entry of pending.values()) {
+        entry.reject(error);
+      }
       pending.clear();
-      killChild();
-      const error = new Error(message);
-      error.phase = phase;
-      error.fallbackAllowed = fallbackAllowed;
-      error.stderrTail = stderrTail;
-      reject(error);
+      if (currentPrompt) {
+        const job = currentPrompt;
+        currentPrompt = null;
+        job.reject(error);
+      }
+      while (promptQueue.length) {
+        promptQueue.shift().reject(error);
+      }
     }
 
-    function succeed() {
-      if (settled) return;
-      settled = true;
-      if (initTimer) clearTimeout(initTimer);
-      pending.clear();
-      killChild();
-      resolve({ sessionId, stopReason: 'end_turn' });
+    function finishClose() {
+      if (session) safeCall(session._onClose);
     }
 
-    function killChild() {
-      if (!child) return;
-      const pid = child.pid;
-      try {
-        child.stdin.end();
-      } catch {
-        // stdin already closed - nothing to do
+    function rejectConnectOnce(error) {
+      if (connectSettled) return;
+      connectSettled = true;
+      if (initTimer) {
+        clearTimeout(initTimer);
+        initTimer = null;
       }
+      closed = true;
+      rejectPending(error);
+      killChildProcess(child);
+      rejectConnect(error);
+    }
 
-      const forceKill = () => {
-        try {
-          if (process.platform === 'win32' && pid) {
-            // .cmd shims spawn nested processes; SIGTERM would not reap them.
-            spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
-              stdio: 'ignore',
-              windowsHide: true,
-            });
-          } else {
-            child.kill('SIGTERM');
-          }
-        } catch {
-          // best-effort cleanup; the child may already be gone
-        }
-      };
+    function failConnect(phase, message, fallbackAllowed) {
+      rejectConnectOnce(createAcpError(phase, message, fallbackAllowed, stderrTail));
+    }
 
-      // Give stdin-EOF a chance to run the adapter's graceful exit
-      // (Windows taskkill /F skips Node exit handlers).
-      if (process.platform === 'win32') {
-        const forceTimer = setTimeout(forceKill, 250);
-        child.once('exit', () => clearTimeout(forceTimer));
-        return;
+    function close() {
+      if (closed) return;
+      closed = true;
+      if (initTimer) {
+        clearTimeout(initTimer);
+        initTimer = null;
       }
-      forceKill();
+      const error = createAcpError('closed', 'ACP session closed', false, stderrTail);
+      rejectPending(error);
+      killChildProcess(child);
+      if (connectSettled) finishClose();
     }
 
     function sendRaw(message) {
@@ -277,111 +385,199 @@ function runPrompt(options) {
       }
     }
 
-    function safeCall(fn, ...callArgs) {
-      if (typeof fn !== 'function') return;
-      try {
-        fn(...callArgs);
-      } catch (err) {
-        console.error('ACP callback error:', err?.message || err);
-      }
-    }
-
-    function request(method, params, phase, onResult) {
-      const id = nextId;
-      nextId += 1;
-      pending.set(id, {
-        phase,
-        onResult,
-        onError: (err) =>
-          fail(phase, `ACP ${phase} failed: ${err.message || JSON.stringify(err)}`, phase === 'initialize'),
-      });
-      sendRaw({ jsonrpc: '2.0', id, method, params });
-    }
-
-    function sendSessionNew() {
-      request(
-        'session/new',
-        { cwd, mcpServers: [] },
-        'session-new',
-        (result) => {
-          sessionId = result?.sessionId || null;
-          if (!sessionId) {
-            fail('session-new', 'ACP adapter returned no sessionId', false);
-            return;
-          }
-          safeCall(onSessionId, sessionId);
-          const availableModes = Array.isArray(result?.modes?.availableModes)
-            ? result.modes.availableModes
-            : [];
-          const match = model
-            ? availableModes.find((m) => (m?.id ?? m?.value) === model)
-            : null;
-          if (match && match.id !== result?.modes?.currentModeId) {
-            request(
-              'session/set_mode',
-              { sessionId, modeId: match.id },
-              'set-mode',
-              () => sendPrompt()
-            );
-          } else {
-            sendPrompt();
-          }
-        }
-      );
-    }
-
-    function sendPrompt() {
-      promptSent = true;
-      request(
-        'session/prompt',
-        { sessionId, prompt: [{ type: 'text', text: prompt }] },
-        'prompt',
-        () => succeed()
-      );
-    }
-
-    initTimer = setTimeout(() => {
-      fail(
-        'initialize',
-        `ACP adapter did not respond to initialize within ${initTimeoutMs}ms`,
-        true
-      );
-    }, initTimeoutMs);
-
-    const initId = nextId;
-    nextId += 1;
-    pending.set(initId, {
-      phase: 'initialize',
-      onResult: (result) => {
-        if (initTimer) clearTimeout(initTimer);
-        if (result?.protocolVersion !== PROTOCOL_VERSION) {
-          fail('version', versionMismatchMessage(result?.protocolVersion), true);
+    function request(method, params, phase) {
+      return new Promise((resolve, reject) => {
+        if (closed) {
+          reject(createAcpError('closed', 'ACP session is closed', false, stderrTail));
           return;
         }
-        sendSessionNew();
-      },
-      onError: (err) =>
-        fail(
+        const id = nextId;
+        nextId += 1;
+        pending.set(id, { phase, resolve, reject });
+        sendRaw({ jsonrpc: '2.0', id, method, params });
+      });
+    }
+
+    function pumpPrompt() {
+      if (closed || currentPrompt || promptQueue.length === 0) return;
+      const job = promptQueue.shift();
+      currentPrompt = job;
+      promptSent = true;
+      request('session/prompt', { sessionId, prompt: [{ type: 'text', text: job.text }] }, 'prompt')
+        .then((result) => {
+          if (currentPrompt !== job) return;
+          currentPrompt = null;
+          job.resolve({ sessionId, stopReason: result?.stopReason || 'end_turn' });
+          pumpPrompt();
+        })
+        .catch((err) => {
+          if (currentPrompt !== job) return;
+          currentPrompt = null;
+          job.reject(err?.phase ? err : rpcError('prompt', err, false, stderrTail));
+          pumpPrompt();
+        });
+      safeCall(job.onAccepted);
+    }
+
+    function prompt(text, { onAccepted } = {}) {
+      if (closed) {
+        return Promise.reject(createAcpError('closed', 'ACP session is closed', false, stderrTail));
+      }
+      return new Promise((resolve, reject) => {
+        const job = { text, resolve, reject, onAccepted };
+        if (currentPrompt) {
+          safeCall(onAccepted);
+          job.onAccepted = null;
+        }
+        promptQueue.push(job);
+        pumpPrompt();
+      });
+    }
+
+    async function handshake() {
+      initTimer = setTimeout(() => {
+        failConnect(
           'initialize',
-          `ACP initialize failed: ${err.message || JSON.stringify(err)}`,
+          `ACP adapter did not respond to initialize within ${initTimeoutMs}ms`,
           true
-        ),
-    });
-    sendRaw({
-      jsonrpc: '2.0',
-      id: initId,
-      method: 'initialize',
-      params: {
-        protocolVersion: PROTOCOL_VERSION,
-        clientCapabilities: {
-          fs: { readTextFile: false, writeTextFile: false },
-          terminal: false,
+        );
+      }, initTimeoutMs);
+
+      let initResult;
+      try {
+        initResult = await request(
+          'initialize',
+          {
+            protocolVersion: PROTOCOL_VERSION,
+            clientInfo: CLIENT_INFO,
+            clientCapabilities: {
+              fs: { readTextFile: false, writeTextFile: false },
+              terminal: false,
+            },
+          },
+          'initialize'
+        );
+      } catch (err) {
+        if (err?.phase === 'exit' || err?.phase === 'closed') {
+          failConnect(err.phase, err.message, err.fallbackAllowed !== false);
+          return;
+        }
+        failConnect('initialize', `ACP initialize failed: ${formatRpcFailure(err)}`, true);
+        return;
+      }
+      if (initTimer) {
+        clearTimeout(initTimer);
+        initTimer = null;
+      }
+      if (connectSettled || closed) return;
+
+      if (initResult?.protocolVersion !== PROTOCOL_VERSION) {
+        failConnect('version', versionMismatchMessage(initResult?.protocolVersion), true);
+        return;
+      }
+      loadSessionCapable = Boolean(initResult?.agentCapabilities?.loadSession);
+
+      const authMethodId = pickAuthMethodId(initResult?.authMethods, preferredAuthMethodId);
+      if (authMethodId) {
+        try {
+          await request('authenticate', { methodId: authMethodId }, 'authenticate');
+        } catch (err) {
+          if (err?.phase === 'exit' || err?.phase === 'closed') {
+            failConnect(err.phase, err.message, err.fallbackAllowed !== false);
+            return;
+          }
+          failConnect(
+            'authenticate',
+            `ACP authenticate failed: ${formatRpcFailure(err)}. If this is Cursor CLI, run "agent login" once.`,
+            true
+          );
+          return;
+        }
+        if (connectSettled || closed) return;
+      }
+
+      if (loadSessionId) {
+        if (!loadSessionCapable) {
+          failConnect('session-load', 'ACP adapter does not support session/load', true);
+          return;
+        }
+        let loaded;
+        try {
+          loaded = await request(
+            'session/load',
+            { sessionId: loadSessionId, cwd, mcpServers: [] },
+            'session-load'
+          );
+        } catch (err) {
+          failConnect('session-load', `ACP session-load failed: ${formatRpcFailure(err)}`, true);
+          return;
+        }
+        if (connectSettled || closed) return;
+        sessionId = loaded?.sessionId || loadSessionId;
+        if (!sessionId) {
+          failConnect('session-load', 'ACP adapter returned no sessionId', true);
+          return;
+        }
+        safeCall(onSessionId, sessionId);
+      } else {
+        let newResult;
+        try {
+          newResult = await request('session/new', { cwd, mcpServers: [] }, 'session-new');
+        } catch (err) {
+          if (err?.phase === 'exit') {
+            failConnect('exit', err.message, !promptSent);
+            return;
+          }
+          failConnect('session-new', `ACP session-new failed: ${formatRpcFailure(err)}`, false);
+          return;
+        }
+        if (connectSettled || closed) return;
+        sessionId = newResult?.sessionId || null;
+        if (!sessionId) {
+          failConnect('session-new', 'ACP adapter returned no sessionId', false);
+          return;
+        }
+        safeCall(onSessionId, sessionId);
+        const availableModes = Array.isArray(newResult?.modes?.availableModes)
+          ? newResult.modes.availableModes
+          : [];
+        const match = model ? availableModes.find((m) => (m?.id ?? m?.value) === model) : null;
+        if (match && match.id !== newResult?.modes?.currentModeId) {
+          try {
+            await request('session/set_mode', { sessionId, modeId: match.id }, 'set-mode');
+          } catch (err) {
+            failConnect('set-mode', `ACP set-mode failed: ${formatRpcFailure(err)}`, false);
+            return;
+          }
+        }
+      }
+
+      if (connectSettled || closed) return;
+      connectSettled = true;
+      session = {
+        get sessionId() {
+          return sessionId;
         },
-      },
-    });
+        get loadSession() {
+          return loadSessionCapable;
+        },
+        get closed() {
+          return closed;
+        },
+        get isPromptInProgress() {
+          return currentPrompt != null || promptQueue.length > 0;
+        },
+        prompt,
+        close,
+        _onClose: null,
+      };
+      resolveConnect(session);
+    }
 
     child.on('error', (err) => {
-      fail('spawn', `Failed to start ACP adapter: ${err.message}`, true);
+      if (!connectSettled) {
+        failConnect('spawn', `Failed to start ACP adapter: ${err.message}`, true);
+      }
     });
 
     child.stdout.on('data', (chunk) => {
@@ -403,11 +599,25 @@ function runPrompt(options) {
     });
 
     child.on('exit', (code) => {
-      fail(
+      if (closed) return;
+      closed = true;
+      const error = createAcpError(
         'exit',
         `ACP adapter exited (code ${code}).${stderrTail.trim() ? `\n${stderrTail.trim()}` : ''}`,
-        !promptSent
+        !promptSent,
+        stderrTail
       );
+      rejectPending(error);
+      if (!connectSettled) {
+        connectSettled = true;
+        if (initTimer) {
+          clearTimeout(initTimer);
+          initTimer = null;
+        }
+        rejectConnect(error);
+        return;
+      }
+      finishClose();
     });
 
     function handleMessage(line) {
@@ -423,9 +633,11 @@ function runPrompt(options) {
         const entry = pending.get(msg.id);
         pending.delete(msg.id);
         if (msg.error) {
-          entry.onError(msg.error);
+          const err = new Error(msg.error.message || JSON.stringify(msg.error));
+          err.rpcError = msg.error;
+          entry.reject(err);
         } else {
-          entry.onResult(msg.result);
+          entry.resolve(msg.result);
         }
         return;
       }
@@ -449,6 +661,21 @@ function runPrompt(options) {
                 : { outcome: 'cancelled' },
             },
           });
+        } else if (msg.method === 'cursor/ask_question') {
+          sendRaw({
+            jsonrpc: '2.0',
+            id: msg.id,
+            result: { outcome: { outcome: 'skipped' } },
+          });
+        } else if (
+          CURSOR_BLOCKING_METHODS.has(msg.method) ||
+          CURSOR_ACCEPT_METHODS.has(msg.method)
+        ) {
+          sendRaw({
+            jsonrpc: '2.0',
+            id: msg.id,
+            result: { outcome: { outcome: 'accepted' } },
+          });
         } else {
           sendRaw({
             jsonrpc: '2.0',
@@ -458,15 +685,127 @@ function runPrompt(options) {
         }
       }
     }
+
+    handshake().catch((err) => {
+      if (!connectSettled) {
+        failConnect(err.phase || 'initialize', err.message, err.fallbackAllowed !== false);
+      }
+    });
   });
+}
+
+/**
+ * Run one prompt turn against an ACP adapter, then kill the child.
+ * Kept as a one-shot wrapper around `connect` for tests and callers that
+ * do not need follow-up turns.
+ *
+ * @param {object} options - Same as `connect`, plus `prompt`.
+ * @returns {Promise<{sessionId: string, stopReason: string}>}
+ */
+async function runPrompt(options) {
+  const session = await connect(options);
+  try {
+    return await session.prompt(options.prompt);
+  } finally {
+    session.close();
+  }
+}
+
+function getLiveSession(taskId) {
+  const session = liveSessions.get(taskId);
+  if (!session || session.closed) {
+    liveSessions.delete(taskId);
+    return null;
+  }
+  return session;
+}
+
+function hasLiveSession(taskId) {
+  return !!getLiveSession(taskId);
+}
+
+function isPromptInProgress(taskId) {
+  const session = getLiveSession(taskId);
+  return Boolean(session && session.isPromptInProgress);
+}
+
+function registerSession(taskId, session) {
+  if (!taskId || !session) return;
+  const previous = liveSessions.get(taskId);
+  if (previous && previous !== session && !previous.closed) {
+    previous.close();
+  }
+  liveSessions.set(taskId, session);
+  const prior = session._onClose;
+  session._onClose = () => {
+    safeCall(prior);
+    if (liveSessions.get(taskId) === session) {
+      liveSessions.delete(taskId);
+    }
+  };
+}
+
+function canFollowUp(taskId, record) {
+  if (hasLiveSession(taskId)) return true;
+  return Boolean(record?.acpSessionId && record?.loadSession);
+}
+
+async function ensureSession(taskId, connectOptions, record) {
+  const live = getLiveSession(taskId);
+  if (live) return live;
+  if (record?.acpSessionId && record?.loadSession) {
+    const session = await connect({
+      ...connectOptions,
+      loadSessionId: record.acpSessionId,
+    });
+    registerSession(taskId, session);
+    return session;
+  }
+  throw createAcpError('closed', 'This session is no longer live. Start a new task.', false);
+}
+
+function promptFollowUp(taskId, text, { connectOptions, record, onAccepted } = {}) {
+  return ensureSession(taskId, connectOptions, record).then((session) =>
+    session.prompt(text, { onAccepted })
+  );
+}
+
+function closeSession(taskId) {
+  const session = liveSessions.get(taskId);
+  if (session) session.close();
+  liveSessions.delete(taskId);
+}
+
+function closeAll() {
+  const sessions = [...liveSessions.values()];
+  liveSessions.clear();
+  for (const session of sessions) {
+    try {
+      session.close();
+    } catch {
+      // best-effort cleanup on quit
+    }
+  }
 }
 
 module.exports = {
   PROTOCOL_VERSION,
   adapterCandidates,
   buildSpawnArgs,
+  canFollowUp,
   clearAdapterCache,
+  closeAll,
+  closeSession,
+  connect,
+  ensureSession,
+  formatRpcFailure,
+  getLiveSession,
+  hasLiveSession,
+  isPromptInProgress,
+  pickAuthMethodId,
   pickPermissionOption,
+  promptFollowUp,
+  registerSession,
   resolveAdapter,
   runPrompt,
   toAdapterSpec,

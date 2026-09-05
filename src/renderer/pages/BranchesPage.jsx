@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
+import { useBelowLg } from '../hooks/use-media-query.js';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { formatTimeAgo } from '../utils/format.js';
@@ -11,6 +12,7 @@ import {
   IconSync,
   IconCheck,
   IconTasks,
+  IconChevronLeft,
 } from '../components/ui/icons.jsx';
 import { statusMeta } from '../components/ui/status.jsx';
 
@@ -29,6 +31,7 @@ export default function BranchesPage() {
   const [prError, setPrError] = useState(null);
   const [updatesContent, setUpdatesContent] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
+  const belowLg = useBelowLg();
 
   const loadBranches = async () => {
     if (!api?.github?.getRepos || !configuredServices.github) return;
@@ -196,10 +199,23 @@ export default function BranchesPage() {
   const selectedRepo = github.selectedRepo;
   const prs = github.prs || [];
 
+  const showList = !belowLg || !selectedRepo;
+  const showDetail = !belowLg || !!selectedRepo;
+
+  const clearSelectedRepo = () => {
+    dispatch({ type: 'SET_GITHUB', payload: { selectedRepo: null, prs: [], loadingPrs: false } });
+    setUpdatesContent(null);
+    setPrError(null);
+  };
+
   return (
     <div id="view-branches" className="view-content h-full">
       <div className="grid h-full grid-cols-1 gap-4 overflow-hidden lg:grid-cols-3">
-        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark lg:col-span-1">
+        <div
+          className={`${
+            showList ? 'flex' : 'hidden'
+          } h-full flex-col overflow-hidden rounded-lg border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark lg:col-span-1 lg:flex`}
+        >
           <div className="border-b border-border-light p-2 dark:border-border-dark">
             <input
               type="text"
@@ -249,7 +265,11 @@ export default function BranchesPage() {
           </div>
         </div>
 
-        <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark lg:col-span-2">
+        <div
+          className={`${
+            showDetail ? 'flex' : 'hidden'
+          } h-full flex-col overflow-hidden rounded-lg border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark lg:col-span-2 lg:flex`}
+        >
           {!selectedRepo ? (
             <div
               id="repo-details-placeholder"
@@ -260,14 +280,27 @@ export default function BranchesPage() {
             </div>
           ) : (
             <div id="repo-details-content" className="flex h-full flex-col">
-              <div className="flex items-center justify-between gap-2 border-b border-border-light bg-sidebar-light px-4 py-2.5 dark:border-border-dark dark:bg-sidebar-dark">
-                <h2
-                  id="selected-repo-name"
-                  className="truncate text-[15px] font-semibold text-neutral-900 dark:text-neutral-100"
-                >
-                  {selectedRepo.name}
-                </h2>
-                <div className="flex shrink-0 items-center gap-2">
+              <div className="flex flex-col gap-2 border-b border-border-light bg-sidebar-light px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4 dark:border-border-dark dark:bg-sidebar-dark">
+                <div className="flex min-w-0 items-center gap-2">
+                  {belowLg && (
+                    <button
+                      type="button"
+                      id="repo-details-back"
+                      onClick={clearSelectedRepo}
+                      aria-label="Back to repositories"
+                      className="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                    >
+                      <IconChevronLeft size={16} />
+                    </button>
+                  )}
+                  <h2
+                    id="selected-repo-name"
+                    className="truncate text-[15px] font-semibold text-neutral-900 dark:text-neutral-100"
+                  >
+                    {selectedRepo.name}
+                  </h2>
+                </div>
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <a
                     id="selected-repo-link"
                     href={selectedRepo.html_url}

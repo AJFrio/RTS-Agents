@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { providerMeta, IconDevices, IconArrowRight, IconClose, IconTerminal } from '../components/ui/icons.jsx';
+import { useBelowLg } from '../hooks/use-media-query.js';
+import { providerMeta, IconDevices, IconArrowRight, IconClose, IconTerminal, IconChevronLeft } from '../components/ui/icons.jsx';
 import { StatusDot } from '../components/ui/status.jsx';
 
 function isOnline(device) {
@@ -130,17 +131,15 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
 
   return (
     <div className="rounded-lg border border-border-light bg-card-light dark:border-border-dark dark:bg-card-dark">
-      <div className="flex items-center justify-between gap-2 border-b border-border-light px-4 py-3 dark:border-border-dark">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-light px-3 py-3 sm:px-4 dark:border-border-dark">
         <div className="flex min-w-0 items-center gap-2.5">
           <button
             type="button"
             onClick={onBack}
             aria-label="Back to devices"
-            className="rounded-md p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+            className="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="rotate-180">
-              <path d="M4 12h16M14 6l6 6-6 6" />
-            </svg>
+            <IconChevronLeft size={16} />
           </button>
           <h3 className="truncate text-[14px] font-semibold text-neutral-900 dark:text-neutral-100">
             {device.name || device.id}
@@ -278,6 +277,7 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
 export default function DevicesPage() {
   const { state, fetchComputers, loadRemoteQueueActivity } = useApp();
   const [selectedId, setSelectedId] = useState(state.focusedDeviceId || null);
+  const belowLg = useBelowLg();
 
   useEffect(() => {
     fetchComputers?.();
@@ -328,7 +328,7 @@ export default function DevicesPage() {
         </div>
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 sm:grid-cols-2 ${selected && belowLg ? 'hidden lg:grid' : ''}`}>
             {computers.map((device) => (
               <DeviceCard
                 key={device.id}

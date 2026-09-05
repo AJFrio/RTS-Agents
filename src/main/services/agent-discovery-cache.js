@@ -8,6 +8,8 @@ const {
   getConfigSignature
 } = require('./agent-discovery-fingerprint');
 
+const WATCH_DEBOUNCE_MS = 2000;
+
 class AgentDiscoveryCache {
   constructor() {
     this.snapshot = null;
@@ -52,13 +54,9 @@ class AgentDiscoveryCache {
     };
 
     add(antigravityService.getDefaultDataPath());
-    add(claudeService.getDefaultPath());
     add(path.join(os.homedir(), '.claude', 'projects'));
     add(path.join(os.homedir(), '.opencode'));
 
-    for (const p of configStore.getAllProjectPaths?.() || []) {
-      add(p);
-    }
     for (const p of configStore.getAntigravityPaths?.() || []) add(p);
     for (const p of configStore.getClaudePaths?.() || []) add(p);
 
@@ -84,7 +82,7 @@ class AgentDiscoveryCache {
       try {
         const watcher = fs.watch(root, { recursive: true }, () => {
           if (this.invalidateDebounce) clearTimeout(this.invalidateDebounce);
-          this.invalidateDebounce = setTimeout(notify, 400);
+          this.invalidateDebounce = setTimeout(notify, WATCH_DEBOUNCE_MS);
         });
         watcher.on('error', () => {
           try {
@@ -98,7 +96,7 @@ class AgentDiscoveryCache {
         try {
           const watcher = fs.watch(root, () => {
             if (this.invalidateDebounce) clearTimeout(this.invalidateDebounce);
-            this.invalidateDebounce = setTimeout(notify, 400);
+            this.invalidateDebounce = setTimeout(notify, WATCH_DEBOUNCE_MS);
           });
           this.watchers.push(watcher);
         } catch {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast as sonnerToast } from 'sonner';
 import { useApp } from '../context/AppContext.jsx';
+import { normalizeCreatedTask } from '../context/app-state.js';
 import Composer from '../components/chat/Composer.jsx';
 import { getProviderDisplayName } from '../utils/format.js';
 import { getLastSelectedModel, setLastSelectedModel } from '../utils/last-selected-model.js';
@@ -115,7 +116,7 @@ function ControlPill({ label, value, onClick, id }) {
  * (DESIGN.md §5 — power controls as composer pills).
  */
 export default function NewTaskPage() {
-  const { state, api, fetchComputers, loadAgents } = useApp();
+  const { state, api, fetchComputers, loadAgents, dispatch, openTask } = useApp();
   const { initialPrompt, presetEnvironment, presetTargetDeviceId, presetPreferredProvider } =
     state.newTask || {};
 
@@ -463,16 +464,22 @@ export default function NewTaskPage() {
 
     sonnerToast.promise(creation, {
       loading: `Starting ${providerLabel} task...`,
-      success: () => {
+      success: (result) => {
+        const created = normalizeCreatedTask(selectedProvider, result);
+        if (created) {
+          dispatch({ type: 'UPSERT_AGENT', payload: created });
+          openTask(created);
+        } else {
+          setPrompt('');
+          setSelectedRepo('');
+          setSelectedModel('');
+          setModels([]);
+          setTargetDeviceId('');
+          setAttachments([]);
+          setFieldErrors({});
+          setSubmitAttempted(false);
+        }
         if (loadAgents) loadAgents({ force: true });
-        setPrompt('');
-        setSelectedRepo('');
-        setSelectedModel('');
-        setModels([]);
-        setTargetDeviceId('');
-        setAttachments([]);
-        setFieldErrors({});
-        setSubmitAttempted(false);
         return `${providerLabel} task started`;
       },
       error: (err) => err?.message || 'Failed to create task',

@@ -15,11 +15,16 @@ const {
   applySessionUpdate,
   parseExportToMessages,
 } = require('./opencode-session-parser');
+const { sendAcpFollowUp } = require('./acp-follow-up');
+const { emitSessionUpdated } = require('./session-events');
+const { reconcileOrphanRunningSessions } = require('../utils/tracked-session-status');
 
 const STDERR_CAP = 2000;
 const EXPORT_TIMEOUT_MS = 60000;
+const EXPORT_MAX_BYTES = 10 * 1024 * 1024;
 const STDOUT_BUFFER_CAP = 512 * 1024;
 const ACP_PERSIST_DEBOUNCE_MS = 1000;
+const STREAM_EMIT_DEBOUNCE_MS = 100;
 
 function supportsRunSubcommand(executable) {
   try {
@@ -53,10 +58,19 @@ class OpenCodeService {
   constructor() {
     this.trackedSessions = [];
     this._persistTimer = null;
+    this._streamEmitTimers = new Map();
+    this._exportCache = new Map();
   }
 
   setTrackedSessions(sessions) {
-    this.trackedSessions = Array.isArray(sessions) ? sessions : [];
+    const { sessions: next, changed } = reconcileOrphanRunningSessions(
+      Array.isArray(sessions) ? sessions : [],
+      { hasLiveSession: (id) => acpService.hasLiveSession(id) }
+    );
+    this.trackedSessions = next;
+    if (changed) {
+      configStore.setOpenCodeSessions(this.trackedSessions);
+    }
   }
 
   getTrackedSessions() {
@@ -139,8 +153,9 @@ class OpenCodeService {
   _updateSession(sessionId, patch) {
     const idx = this.trackedSessions.findIndex((x) => x.id === sessionId);
     if (idx === -1) return;
+    const prev = this.trackedSessions[idx];
     this.trackedSessions[idx] = {
-      ...this.trackedSessions[idx],
+      ...prev,
       ...patch,
       updatedAt: new Date().toISOString(),
     };
@@ -150,6 +165,8 @@ class OpenCodeService {
       this._persistTimer = null;
     }
     configStore.setOpenCodeSessions(this.trackedSessions);
+    const statusChanged = patch.status !== undefined && patch.status !== prev.status;
+    this._emitSessionUpdated(sessionId, { statusChanged });
   }
 
   _updateSessionDebounced(sessionId, patchProvider) {
@@ -190,8 +207,66 @@ class OpenCodeService {
     }
     if (message) {
       state.streamMessages = appendStreamMessage(state.streamMessages, message);
-      this._updateSession(sessionId, { streamMessages: state.streamMessages });
+      this._updateSessionDebounced(sessionId, () => ({
+        streamMessages: state.streamMessages,
+        opencodeSessionId: state.opencodeSessionId,
+      }));
+      this._scheduleStreamEmit(sessionId);
     }
+  }
+
+  _scheduleStreamEmit(sessionId) {
+    const existing = this._streamEmitTimers.get(sessionId);
+    if (existing) clearTimeout(existing);
+    this._streamEmitTimers.set(
+      sessionId,
+      setTimeout(() => {
+        this._streamEmitTimers.delete(sessionId);
+        this._emitSessionUpdated(sessionId, { statusChanged: false });
+      }, STREAM_EMIT_DEBOUNCE_MS)
+    );
+  }
+
+  _emitSessionUpdated(sessionId, { statusChanged } = {}) {
+    const t = this._trackedEntry(sessionId);
+    if (!t) return;
+    emitSessionUpdated({
+      provider: 'opencode',
+      id: t.id,
+      rawId: t.id,
+      status: t.status,
+      statusChanged: !!statusChanged,
+      details: this._detailsFromTracked(t),
+    });
+  }
+
+  _detailsFromTracked(t) {
+    return {
+      name: t.prompt ? t.prompt.substring(0, 80) : 'OpenCode',
+      prompt: t.prompt,
+      repository: t.projectPath,
+      projectPath: t.projectPath,
+      opencodeSessionId: t.opencodeSessionId || null,
+      trackingId: t.id,
+      filePath: null,
+      status: t.status,
+      exitCode: t.exitCode,
+      canFollowUp: acpService.canFollowUp(t.id, t),
+      messages: this._buildMessagesFromTracked(t),
+    };
+  }
+
+  _reconcileMissedTurn(t) {
+    if (!t || t.status !== 'running') return;
+    if (!acpService.hasLiveSession(t.id)) return;
+    if (acpService.isPromptInProgress?.(t.id)) return;
+    const stream = t.streamMessages || [];
+    if (stream.length === 0) return;
+    this._updateSession(t.id, { status: 'completed', exitCode: 0, error: null });
+  }
+
+  _hasStreamMessages(t) {
+    return Array.isArray(t?.streamMessages) && t.streamMessages.length > 0;
   }
 
   async startSession(options) {
@@ -237,6 +312,7 @@ class OpenCodeService {
       status: 'running',
       exitCode: null,
       error: null,
+      model: model || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -258,11 +334,10 @@ class OpenCodeService {
       };
 
       acpService
-        .runPrompt({
+        .connect({
           command: opencodeCmd,
           args: ['acp'],
           cwd: projectPath,
-          prompt,
           model,
           permissionPolicy: 'allow-all',
           onSessionId: (acpSessionId) => {
@@ -274,43 +349,43 @@ class OpenCodeService {
               )
             );
           },
-          onUpdate: (update) => {
-            const next = applySessionUpdate(
-              streamState.streamMessages,
-              update,
-              new Date().toISOString()
-            );
-            if (next === streamState.streamMessages) return;
-            streamState.streamMessages = next;
-            this._updateSessionDebounced(sessionId, () => ({
-              streamMessages: streamState.streamMessages,
-            }));
-          },
+          onUpdate: (update) => this._applyAcpUpdate(sessionId, update),
         })
-        .then(({ stopReason }) => {
-          const failed = stopReason === 'error' || stopReason === 'cancelled';
-          this._updateSession(
-            sessionId,
-            failed
-              ? {
-                  status: 'failed',
-                  exitCode: 1,
-                  error: `OpenCode ACP turn ended with stopReason ${stopReason}`,
-                  streamMessages: streamState.streamMessages,
-                }
-              : {
-                  status: 'completed',
-                  exitCode: 0,
-                  error: null,
-                  streamMessages: streamState.streamMessages,
-                }
-          );
-          resolveOnce(buildCard('OpenCode task finished.'));
+        .then((session) => {
+          acpService.registerSession(sessionId, session);
+          this._updateSession(sessionId, {
+            acpSessionId: session.sessionId,
+            opencodeSessionId: session.sessionId || streamState.opencodeSessionId,
+            loadSession: session.loadSession,
+            model: model || null,
+          });
+          return session.prompt(prompt).then(({ stopReason }) => {
+            const current = this._trackedEntry(sessionId);
+            const failed = stopReason === 'error' || stopReason === 'cancelled';
+            this._updateSession(
+              sessionId,
+              failed
+                ? {
+                    status: 'failed',
+                    exitCode: 1,
+                    error: `OpenCode ACP turn ended with stopReason ${stopReason}`,
+                    streamMessages: current?.streamMessages || streamState.streamMessages,
+                  }
+                : {
+                    status: 'completed',
+                    exitCode: 0,
+                    error: null,
+                    streamMessages: current?.streamMessages || streamState.streamMessages,
+                  }
+            );
+            resolveOnce(buildCard('OpenCode task finished.'));
+          });
         })
         .catch((err) => {
           // Fallback is only legal before any agent work began; after that
           // re-dispatching through the legacy CLI would run the prompt twice.
           if (!cardResolved && err?.fallbackAllowed) {
+            acpService.closeSession(sessionId);
             this.trackedSessions = this.trackedSessions.filter((x) => x.id !== sessionId);
             configStore.setOpenCodeSessions(this.trackedSessions);
             try {
@@ -325,10 +400,11 @@ class OpenCodeService {
             }
             return;
           }
+          const current = this._trackedEntry(sessionId);
           this._updateSession(sessionId, {
             status: 'failed',
             error: err?.message || String(err),
-            streamMessages: streamState.streamMessages,
+            streamMessages: current?.streamMessages || streamState.streamMessages,
           });
           resolveOnce(buildCard(err?.message || 'ACP dispatch failed.'));
         });
@@ -337,6 +413,50 @@ class OpenCodeService {
 
   _trackedEntry(sessionId) {
     return this.trackedSessions.find((x) => x.id === sessionId);
+  }
+
+  _applyAcpUpdate(sessionId, update) {
+    const current = this._trackedEntry(sessionId);
+    if (!current) return;
+    const next = applySessionUpdate(
+      current.streamMessages || [],
+      update,
+      new Date().toISOString()
+    );
+    if (next === current.streamMessages) return;
+    current.streamMessages = next;
+    this._updateSessionDebounced(sessionId, () => ({ streamMessages: next }));
+    this._scheduleStreamEmit(sessionId);
+  }
+
+  _acpConnectOptions(record) {
+    const opencodeCmd = this.getExecutable();
+    if (!isCommandRunnable(opencodeCmd)) {
+      throw new Error('OpenCode CLI is not on PATH');
+    }
+    return {
+      command: opencodeCmd,
+      args: ['acp'],
+      cwd: record.projectPath,
+      model: record.model,
+      permissionPolicy: 'allow-all',
+      onUpdate: (update) => this._applyAcpUpdate(record.id, update),
+    };
+  }
+
+  async sendFollowUp(rawId, message) {
+    const record = this._trackedEntry(rawId);
+    if (!record) {
+      throw new Error(`Task not found: ${rawId}`);
+    }
+    return sendAcpFollowUp({
+      taskId: rawId,
+      message,
+      getRecord: () => this._trackedEntry(rawId),
+      connectOptions: acpService.hasLiveSession(rawId) ? {} : this._acpConnectOptions(record),
+      updateRecord: (patch) => this._updateSession(rawId, patch),
+      failedLabel: 'OpenCode',
+    });
   }
 
   _spawnLegacySession(opencodeCmd, options, { prompt, projectPath }, sessionId) {
@@ -460,18 +580,61 @@ class OpenCodeService {
   }
 
   _runExport(opencodeCmd, projectPath, opencodeSessionId) {
-    const result = spawnCliSync(opencodeCmd, ['export', opencodeSessionId], {
-      cwd: projectPath,
-      encoding: 'utf8',
-      timeout: EXPORT_TIMEOUT_MS,
-      maxBuffer: 10 * 1024 * 1024,
+    return new Promise((resolve) => {
+      const child = spawnCli(opencodeCmd, ['export', opencodeSessionId], {
+        cwd: projectPath,
+      });
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(result);
+      };
+      const timer = setTimeout(() => {
+        try {
+          child.kill();
+        } catch {
+          // ignore
+        }
+        finish({
+          ok: false,
+          stdout,
+          stderr,
+          error: new Error('OpenCode export timed out'),
+        });
+      }, EXPORT_TIMEOUT_MS);
+
+      if (child.stdout) {
+        child.stdout.on('data', (chunk) => {
+          stdout += chunk.toString();
+          if (stdout.length > EXPORT_MAX_BYTES) {
+            stdout = stdout.slice(0, EXPORT_MAX_BYTES);
+          }
+        });
+      }
+      if (child.stderr) {
+        child.stderr.on('data', (chunk) => {
+          stderr += chunk.toString();
+          if (stderr.length > STDERR_CAP) {
+            stderr = stderr.slice(-STDERR_CAP);
+          }
+        });
+      }
+      child.on('error', (error) => {
+        finish({ ok: false, stdout, stderr, error });
+      });
+      child.on('close', (code) => {
+        finish({
+          ok: code === 0,
+          stdout,
+          stderr,
+          error: code === 0 ? null : new Error(`OpenCode export exited with code ${code}`),
+        });
+      });
     });
-    return {
-      ok: result.status === 0,
-      stdout: result.stdout || '',
-      stderr: result.stderr || '',
-      error: result.error,
-    };
   }
 
   _buildMessagesFromTracked(t) {
@@ -505,40 +668,46 @@ class OpenCodeService {
     const t = this.trackedSessions.find((x) => x.id === rawId);
     if (!t) return null;
 
-    const base = {
-      name: t.prompt ? t.prompt.substring(0, 80) : 'OpenCode',
-      prompt: t.prompt,
-      repository: t.projectPath,
-      projectPath: t.projectPath,
-      opencodeSessionId: t.opencodeSessionId || null,
-      trackingId: t.id,
-      filePath: null,
-      status: t.status,
-      exitCode: t.exitCode,
-    };
+    const base = this._detailsFromTracked(t);
+
+    if (this._hasStreamMessages(t)) {
+      return base;
+    }
 
     let messages = [];
 
     if (t.opencodeSessionId && isValidOpenCodeSessionId(t.opencodeSessionId)) {
-      const opencodeCmd = this.getExecutable();
-      const exported = this._runExport(opencodeCmd, t.projectPath, t.opencodeSessionId);
-      if (exported.ok && exported.stdout.trim()) {
-        try {
-          const parsed = JSON.parse(exported.stdout);
-          messages = parseExportToMessages(parsed);
-        } catch {
-          messages = [];
+      const cacheKey = `${t.opencodeSessionId}:${t.updatedAt || ''}`;
+      if (this._exportCache.has(cacheKey)) {
+        messages = this._exportCache.get(cacheKey);
+      } else {
+        const opencodeCmd = this.getExecutable();
+        const exported = await this._runExport(opencodeCmd, t.projectPath, t.opencodeSessionId);
+        if (exported.ok && exported.stdout.trim()) {
+          try {
+            const parsed = JSON.parse(exported.stdout);
+            messages = parseExportToMessages(parsed);
+          } catch {
+            messages = [];
+          }
         }
-      }
-      if (messages.length === 0 && !exported.ok) {
-        const errText = (exported.stderr || exported.error?.message || '').trim();
-        if (errText) {
-          messages = this._buildMessagesFromTracked(t);
-          messages.push({
-            role: 'assistant',
-            content: `Could not load OpenCode export:\n\n${errText}`,
-          });
-          return { ...base, messages };
+        if (messages.length === 0 && !exported.ok) {
+          const errText = (exported.stderr || exported.error?.message || '').trim();
+          if (errText) {
+            messages = this._buildMessagesFromTracked(t);
+            messages.push({
+              role: 'assistant',
+              content: `Could not load OpenCode export:\n\n${errText}`,
+            });
+            return { ...base, messages };
+          }
+        }
+        if (messages.length > 0) {
+          this._exportCache.set(cacheKey, messages);
+          if (this._exportCache.size > 20) {
+            const oldest = this._exportCache.keys().next().value;
+            this._exportCache.delete(oldest);
+          }
         }
       }
     }
@@ -635,6 +804,9 @@ class OpenCodeService {
   }
 
   getAllAgents() {
+    for (const t of this.trackedSessions) {
+      this._reconcileMissedTurn(t);
+    }
     return this.trackedSessions.map((t) => this._mapTrackedToAgent(t));
   }
 

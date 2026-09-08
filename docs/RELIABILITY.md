@@ -3,14 +3,14 @@
 ## Known risks (see also UPDATES.md / tech-debt-tracker)
 
 1. **Synchronous FS in main** — `claude-service` list scans now reuse per-file mtime metadata, but a first-pass still reads transcripts. Do not add more `spawnCliSync` on live IPC paths (`opencode export` is async and skipped when stream messages exist).
-2. **Full-list polling** — Periodic refresh still ships agent lists over IPC. Session-store `fs.watch` is debounced (~2s) and no longer watches user project repos. Silent ticks must not flip `refreshing`.
+2. **Full-list polling** — Periodic refresh still ships agent lists over IPC. Session-store `fs.watch` is debounced (~2s) and no longer watches user project repos. Silent ticks must not flip `refreshing`. Last-scan snapshot is persisted so restart does not wait on a full provider scan to paint the sidebar.
 3. **Orchestrator tool loop** — `agent-orchestrator.chat` is iterative with a `maxToolTurns` cap and native OpenRouter tools (JSON-in-text fallback). Read tools reuse the dashboard agent snapshot and run in parallel; `list_*` surfaces cards so Janus does not follow a list with N `show_*` calls. Web runtime is still chat-only.
 
 ## Operational expectations
 
 | Area | Target | Notes |
 |------|--------|-------|
-| App boot | Interactive window after `ready-to-show` | Services init after first paint |
+| App boot | Interactive window after `ready-to-show`; sidebar hydrates last task snapshot from localStorage / `userData` | Services init after first paint; live discovery replaces the snapshot |
 | Poll interval | User-configurable (Settings) | Default ~30s; disable when not needed |
 | Cloudflare heartbeat | 5 min | Devices marked offline after ~6 min stale |
 | Provider errors | Per-provider error object in responses | UI shows Offline/Error, not silent fail |

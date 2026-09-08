@@ -3,29 +3,8 @@ import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import { providerMeta } from '../ui/icons.jsx';
 import { StatusDot } from '../ui/status.jsx';
 import RepoSessionsModal from '../../modals/RepoSessionsModal.jsx';
-
-function shortRepo(repository) {
-  const text = String(repository || '').trim();
-  if (!text) return null;
-  const base = text.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
-  return base || text;
-}
-
-function relativeTime(timestamp) {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return '';
-  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
-  if (minutes < 1) return 'now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
-function sectionKey(agent) {
-  return shortRepo(agent.repository) || 'No repository';
-}
+import { groupTasksByRepo } from '../../utils/repo-identity.js';
+import { relativeTime } from '../chat/card-meta.js';
 
 function sortTasks(tasks) {
   const rank = (task) => (task.status === 'running' ? 0 : 1);
@@ -41,6 +20,7 @@ function sortTasks(tasks) {
 function TaskRow({ task }) {
   const { openTask } = useAppActions();
   const running = String(task.status).toLowerCase() === 'running';
+  const meta = providerMeta(task.provider);
   return (
     <button
       type="button"
@@ -50,6 +30,7 @@ function TaskRow({ task }) {
       }`}
     >
       <StatusDot status={task.status} />
+      <meta.Icon size={12} className="shrink-0 text-neutral-400" />
       <span className="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">
         {task.name || 'Task'}
       </span>
@@ -60,7 +41,7 @@ function TaskRow({ task }) {
   );
 }
 
-function Section({ id, icon, label, tasks, defaultOpen = false, onSeeAll }) {
+function Section({ id, label, tasks, defaultOpen = false, onSeeAll }) {
   const [open, setOpen] = useState(defaultOpen);
   const running = tasks.filter(
     (task) => String(task.status).toLowerCase() === 'running'
@@ -71,7 +52,7 @@ function Section({ id, icon, label, tasks, defaultOpen = false, onSeeAll }) {
   const shown = rest.slice(0, 10);
 
   return (
-    <section>
+    <section data-repo-key={id}>
       <button
         type="button"
         aria-expanded={open}
@@ -87,7 +68,6 @@ function Section({ id, icon, label, tasks, defaultOpen = false, onSeeAll }) {
             <path d="m9 6 6 6-6 6" />
           </svg>
         </span>
-        {icon}
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {running.length > 0 && (
           <span className="shrink-0 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
@@ -117,7 +97,7 @@ function Section({ id, icon, label, tasks, defaultOpen = false, onSeeAll }) {
         {rest.length > shown.length && (
           <button
             type="button"
-            onClick={() => onSeeAll?.(label)}
+            onClick={() => onSeeAll?.()}
             className="w-full rounded-md px-2 py-1.5 text-left text-[11px] font-medium text-neutral-500 underline-offset-2 transition-colors hover:text-neutral-800 hover:underline dark:text-neutral-400 dark:hover:text-neutral-200"
           >
             See all {rest.length} sessions
@@ -130,43 +110,46 @@ function Section({ id, icon, label, tasks, defaultOpen = false, onSeeAll }) {
 
 /**
  * Repos/Agents sidebar sections (DESIGN.md §6). Groups the local/cloud task
- * list by repository or by harness. Running sessions render above the
- * collapse, so they stay visible even when the section is collapsed.
+ * list by canonical repository identity or by harness. Local paths and cloud
+ * URLs for the same project share one section so two running tasks (CLI +
+ * cloud) count together. Running sessions render above the collapse.
  */
 export default function ReposAgentsSection({ mode }) {
   const { agents } = useAppState();
   const [sessionsModal, setSessionsModal] = useState(null);
 
   const groups = useMemo(() => {
-    const byKey = new Map();
-    for (const agent of agents || []) {
-      const key =
-        mode === 'agents'
-          ? providerMeta(agent.provider).label
-          : sectionKey(agent);
-      if (!byKey.has(key)) byKey.set(key, []);
-      byKey.get(key).push(agent);
+    let entries;
+    if (mode === 'agents') {
+      const byKey = new Map();
+      for (const agent of agents || []) {
+        const key = providerMeta(agent.provider).label;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(agent);
+      }
+      entries = [...byKey.entries()].map(([key, tasks]) => ({
+        key,
+        label: key,
+        tasks: sortTasks(tasks),
+      }));
+    } else {
+      entries = groupTasksByRepo(agents).map((group) => ({
+        ...group,
+        tasks: sortTasks(group.tasks),
+      }));
     }
-    const entries = [...byKey.entries()].map(([key, tasks]) => ({
-      key,
-      tasks: sortTasks(tasks),
-    }));
     entries.sort((a, b) => {
       const aRunning = a.tasks.some((t) => t.status === 'running') ? 0 : 1;
       const bRunning = b.tasks.some((t) => t.status === 'running') ? 0 : 1;
       if (aRunning !== bRunning) return aRunning - bRunning;
-      return a.key.localeCompare(b.key);
+      return a.label.localeCompare(b.label);
     });
     return entries;
   }, [agents, mode]);
 
-  const modalTasks = useMemo(() => {
-    if (!sessionsModal) return [];
-    return (agents || []).filter((agent) => {
-      if (mode === 'agents') return providerMeta(agent.provider).label === sessionsModal;
-      return sectionKey(agent) === sessionsModal;
-    });
-  }, [sessionsModal, agents, mode]);
+  const modalGroup = sessionsModal
+    ? groups.find((group) => group.key === sessionsModal) || null
+    : null;
 
   if (groups.length === 0) {
     return (
@@ -184,16 +167,16 @@ export default function ReposAgentsSection({ mode }) {
           <Section
             key={group.key}
             id={group.key}
-            label={group.key}
+            label={group.label}
             tasks={group.tasks}
-            onSeeAll={setSessionsModal}
+            onSeeAll={() => setSessionsModal(group.key)}
           />
         ))}
       </div>
       <RepoSessionsModal
-        open={!!sessionsModal}
-        title={sessionsModal}
-        tasks={modalTasks}
+        open={!!modalGroup}
+        title={modalGroup?.label}
+        tasks={modalGroup?.tasks || []}
         onClose={() => setSessionsModal(null)}
       />
     </>

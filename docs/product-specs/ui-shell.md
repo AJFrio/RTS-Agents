@@ -29,11 +29,17 @@ renders every task's transcript as a chat log on the canvas.
 ## Sidebar sections
 
 - Toggle (persisted in `rts_sidebar_mode_v1`): **Repos** groups tasks by
-  repository, **Agents** groups them by harness.
+  canonical repository identity (local path and cloud URL for the same git
+  project share one section), **Agents** groups them by harness.
+- Last-seen tasks hydrate from `rts_agent_snapshot_v1` on boot so Repos /
+  Agents populate before provider discovery finishes; live `agents:get-all`
+  replaces the snapshot.
 - Each section is collapsed by default and shows its first 10 non-running
   tasks when expanded; "See all" opens the repo/harness sessions modal.
 - Running tasks always render above the collapse, even when the section is
-  collapsed, with a pulsing emerald status dot.
+  collapsed, with a pulsing emerald status dot. Merged repo sections count
+  every provider's running tasks in that project (`2 active` for local +
+  cloud).
 
 ## Agent tab (Janus)
 
@@ -138,7 +144,10 @@ renders every task's transcript as a chat log on the canvas.
 - [ ] Sidebar wordmark opens `#view-dashboard`; CLOSE_TASK returns to the
       previous view or Agent
 - [ ] Sidebar resize clamps to [200px, 33% window] and persists across restarts
-- [ ] Running tasks stay visible when their repo/harness section is collapsed
+- [ ] Running tasks stay visible when their repo/harness section is collapsed;
+      local + cloud tasks for the same git project share one Repos section
+- [ ] Restart shows last-seen sidebar tasks from `rts_agent_snapshot_v1` before
+      discovery finishes
 - [ ] Janus tool calls group under a Tool Calls bar; task / device /
       repo / PR cards render in the chat; clicking a task card or a
       `.agent-recent-task` row opens the task chat log
@@ -161,6 +170,8 @@ renders every task's transcript as a chat log on the canvas.
 - `src/renderer/components/layout/` (Layout, Sidebar, Header, BottomNav)
 - `src/renderer/utils/mobile-nav.js`, `src/renderer/hooks/use-media-query.js`
 - `src/renderer/components/sidebar/ReposAgentsSection.jsx`
+- `src/renderer/utils/repo-identity.js`
+- `src/renderer/utils/agent-snapshot-cache.js`
 - `src/renderer/modals/RepoSessionsModal.jsx`
 - `src/renderer/utils/task-transcript.js`
 - `src/renderer/pages/AgentPage.jsx`, `NewTaskPage.jsx`, `TaskDetailView.jsx`,

@@ -28,7 +28,9 @@ device / repo, watch every running session, and read any task's transcript — w
    power controls (harness, model, repo, device) only when needed. Task creation and follow-ups
    reuse the same composer surface.
 2. **Living sidebar** — Repos/Agents sections show what is running *right now*, even when collapsed.
-   Running sessions stay visible and pulse until they finish.
+   Running sessions stay visible and pulse until they finish. The same git project on local and
+   cloud providers is one repo row (combined active count). Last-seen tasks appear immediately
+   after restart from a local snapshot.
 3. **Canvas** — One right-hand region renders the selected tab. Clicking a task anywhere opens its
    transcript as a chat log on the canvas: user vs. agent clearly distinct; tool calls, thinking,
    and artifacts collapsed by default, expandable in place.

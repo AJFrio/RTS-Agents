@@ -364,6 +364,13 @@ function startDiscoveryWatchers() {
     claudeService,
     opencodeService,
   };
+  try {
+    agentDiscoveryCache.configurePersist({
+      persistPath: path.join(app.getPath('userData'), 'agent-discovery-snapshot.json'),
+    });
+  } catch {
+    // Headless / tests without a ready Electron app skip disk persist.
+  }
   agentDiscoveryCache.startWatchers(deps, () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('agents:refresh-tick');

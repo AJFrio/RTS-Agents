@@ -15,4 +15,11 @@ describe('agent-list-delta', () => {
     expect(delta.added.map((a) => a.id)).toEqual(['c']);
     expect(delta.updated.map((a) => a.id)).toEqual(['a']);
   });
+
+  test('treats repoRemote changes as updates', () => {
+    const prev = [{ id: 'a', status: 'running', updatedAt: '1', name: 'A', summary: '', prompt: '', repository: '/tmp/app' }];
+    const next = [{ id: 'a', status: 'running', updatedAt: '1', name: 'A', summary: '', prompt: '', repository: '/tmp/app', repoRemote: 'github.com/acme/app' }];
+    const delta = computeAgentListDelta(prev, next);
+    expect(delta.updated.map((a) => a.id)).toEqual(['a']);
+  });
 });

@@ -50,7 +50,7 @@ Main process (main.js, CommonJS)
 
 1. `main.js` timer calls each provider service’s discovery methods.
 2. Results normalized to a shared agent/task shape and sent via `agents:get-all`.
-3. Renderer `AppContext` holds list state; pages filter/paginate locally.
+3. Renderer `AppContext` holds list state (hydrated from the last snapshot on boot); pages filter/paginate locally.
 4. On completion transitions, renderer may show toast + sound.
 
 ## Web/mobile sync (optional)

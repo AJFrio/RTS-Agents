@@ -1,3 +1,5 @@
+import { loadAgentSnapshot, saveAgentSnapshot, countsFromAgents } from '../utils/agent-snapshot-cache.js';
+
 export const VIEWS = [
   'agent',
   'new-task',
@@ -23,6 +25,17 @@ export function sidebarMaxWidth() {
 const PR_HIDDEN_REPOS_STORAGE_KEY = 'rts_pr_hidden_repos_v1';
 const SIDEBAR_WIDTH_STORAGE_KEY = 'rts_sidebar_width_v1';
 const SIDEBAR_MODE_STORAGE_KEY = 'rts_sidebar_mode_v1';
+const AGENT_PERSIST_DEBOUNCE_MS = 200;
+
+let persistAgentsTimer = null;
+
+function persistAgentsSoon(agents) {
+  if (persistAgentsTimer) clearTimeout(persistAgentsTimer);
+  persistAgentsTimer = setTimeout(() => {
+    persistAgentsTimer = null;
+    saveAgentSnapshot(agents);
+  }, AGENT_PERSIST_DEBOUNCE_MS);
+}
 
 function getStoredSidebarWidth() {
   try {
@@ -181,12 +194,14 @@ export function normalizeCreatedTask(provider, result) {
   };
 }
 
+const hydratedAgents = loadAgentSnapshot();
+
 export const initialState = {
   currentView: 'agent',
   previousView: null,
-  agents: [],
+  agents: hydratedAgents,
   agentListRevision: 0,
-  filteredAgents: [],
+  filteredAgents: hydratedAgents,
   filters: {
     providers: {
       antigravity: true,
@@ -220,16 +235,7 @@ export const initialState = {
     jiraBaseUrl: '',
     selectedModel: 'openrouter/openai/gpt-4o',
   },
-  counts: {
-    antigravity: 0,
-    jules: 0,
-    cursor: 0,
-    codex: 0,
-    'claude-cli': 0,
-    'claude-cloud': 0,
-    opencode: 0,
-    total: 0,
-  },
+  counts: countsFromAgents(hydratedAgents),
   configuredServices: {
     antigravity: false,
     jules: false,
@@ -376,6 +382,7 @@ export function appReducer(state, action) {
     case 'UPSERT_AGENT': {
       const agents = upsertAgent(state.agents, action.payload);
       if (agents === state.agents) return state;
+      persistAgentsSoon(agents);
       return {
         ...state,
         agents,
@@ -414,6 +421,7 @@ export function appReducer(state, action) {
     }
     case 'SET_AGENTS': {
       const agents = mergeIncomingAgents(state.agents, action.payload.agents ?? state.agents);
+      persistAgentsSoon(agents);
       return {
         ...state,
         agents,
@@ -438,6 +446,7 @@ export function appReducer(state, action) {
         byId.set(agent.id, agent);
       }
       const agents = [...byId.values()];
+      persistAgentsSoon(agents);
       return {
         ...state,
         agents,

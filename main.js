@@ -267,7 +267,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     if (Object.keys(providers).length > 0) {
       modelCatalog = { updatedAt: nowIso, providers };
     }
-  } catch (err) {
+  } catch {
     // Ignore model listing failures; device heartbeats should remain lightweight.
     modelCatalog = null;
   }

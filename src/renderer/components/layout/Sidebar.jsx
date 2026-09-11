@@ -7,6 +7,7 @@ import {
   IconDevices,
   IconRepositories,
   IconSettings,
+  IconTasks,
   IconLogo,
 } from '../ui/icons.jsx';
 import ReposAgentsSection from '../sidebar/ReposAgentsSection.jsx';
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { view: 'plugins', Icon: IconPlugins, label: 'Plugins', id: null },
   { view: 'devices', Icon: IconDevices, label: 'Devices', id: null },
   { view: 'branches', Icon: IconRepositories, label: 'Repositories', id: null },
+  { view: 'project-management', Icon: IconTasks, label: 'Project Management', id: null },
   { view: 'settings', Icon: IconSettings, label: 'Settings', id: null },
 ];
 

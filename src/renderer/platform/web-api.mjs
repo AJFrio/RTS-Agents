@@ -23,7 +23,15 @@ import { createProviders } from './providers/index.mjs';
 import { createAgentHub } from './web-agent-hub.mjs';
 import { createCloudflareSync } from './web-cloudflare-sync.mjs';
 
-const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'claude', 'github', 'jira', 'openrouter']);
+const API_KEY_PROVIDERS = new Set([
+  'jules',
+  'cursor',
+  'claude',
+  'github',
+  'jira',
+  'linear',
+  'openrouter',
+]);
 
 function defaultTimers() {
   return {
@@ -124,6 +132,8 @@ export function createWebApi(options = {}) {
         return providers.github.testConnection();
       case 'jira':
         return providers.jira.testConnection();
+      case 'linear':
+        return providers.linear.testConnection();
       case 'openrouter':
         return providers.openrouter.testConnection();
       default:
@@ -271,10 +281,11 @@ export function createWebApi(options = {}) {
     getAllRepositories,
 
     // ------------------------------------------------------------------
-    // GitHub / Jira (worker proxy via provider services)
+    // GitHub / Jira / Linear (worker proxy via provider services)
     // ------------------------------------------------------------------
     github: providers.github,
     jira: providers.jira,
+    linear: providers.linear,
 
     platform: 'web',
     versions: {},

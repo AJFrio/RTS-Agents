@@ -10,6 +10,7 @@ export const SERVICE_GROUPS = [
   { id: 'openrouter', title: 'OpenRouter', members: ['openrouter-cloud'] },
   { id: 'github', title: 'GitHub', members: ['github-cloud', 'github-local'] },
   { id: 'jira', title: 'Jira', members: ['jira-cloud'] },
+  { id: 'linear', title: 'Linear', members: ['linear-cloud'] },
   { id: 'cloudflare', title: 'Cloudflare Sync', members: ['cloudflare-sync'] },
 ];
 
@@ -73,6 +74,8 @@ export function getServiceStatus(serviceId, state) {
       return state.connectionStatus?.github;
     case 'jira-cloud':
       return state.connectionStatus?.jira;
+    case 'linear-cloud':
+      return state.connectionStatus?.linear;
     case 'cloudflare-sync':
       return state.computers?.configured
         ? { success: true, connected: true }
@@ -135,6 +138,7 @@ export function isDisconnectable(serviceId, state) {
       'openrouter-cloud',
       'github-cloud',
       'jira-cloud',
+      'linear-cloud',
       'cloudflare-sync',
     ].includes(serviceId)
   ) {

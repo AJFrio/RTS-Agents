@@ -43,7 +43,12 @@ try {
         'dashboard',
         'branches',
       ]);
-      expect(MORE_NAV_ITEMS.map((item) => item.view)).toEqual(['plugins', 'devices', 'settings']);
+      expect(MORE_NAV_ITEMS.map((item) => item.view)).toEqual([
+        'plugins',
+        'project-management',
+        'devices',
+        'settings',
+      ]);
     });
 
     test('classifies primary vs more views without overlap', () => {
@@ -51,6 +56,7 @@ try {
       expect(isPrimaryNavView('settings')).toBe(false);
       expect(isMoreNavView('settings')).toBe(true);
       expect(isMoreNavView('plugins')).toBe(true);
+      expect(isMoreNavView('project-management')).toBe(true);
       expect(isMoreNavView('agent')).toBe(false);
       expect(isMoreNavView('task-detail')).toBe(false);
     });

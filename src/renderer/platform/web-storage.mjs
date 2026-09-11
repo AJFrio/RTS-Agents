@@ -16,6 +16,7 @@ const LEGACY_KEY_ALIASES = {
   codex: ['codexApiKey', 'openai', 'openaiApiKey'],
   claude: ['claudeApiKey', 'anthropic', 'anthropicApiKey'],
   jira: ['jiraApiKey', 'jiraToken'],
+  linear: ['linearApiKey'],
   github: ['githubApiKey', 'githubToken'],
 };
 

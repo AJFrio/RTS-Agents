@@ -271,6 +271,7 @@ test('web-api getSettings returns the flat desktop shape', async () => {
   assert.equal(result.apiKeys.claude, false);
   assert.equal(result.apiKeys.github, false);
   assert.equal(result.apiKeys.jira, false);
+  assert.equal(result.apiKeys.linear, false);
   assert.equal(result.apiKeys.cloudflare, true);
   // cloudflare block
   assert.equal(result.cloudflare.configured, true);
@@ -292,6 +293,9 @@ test('web-api setApiKey validates providers and persists', async () => {
   assert.deepEqual(await api.setApiKey('nope', 'x'), { success: false, error: 'Unknown provider' });
   assert.deepEqual(await api.setApiKey('jules', 'k1'), { success: true });
   assert.equal(storage.hasApiKey('jules'), true);
+  assert.deepEqual(await api.setApiKey('linear', 'lin-k1'), { success: true });
+  assert.equal(storage.hasApiKey('linear'), true);
+  assert.deepEqual(await api.removeApiKey('linear'), { success: true });
   assert.deepEqual(await api.removeApiKey('jules'), { success: true });
   assert.equal(storage.hasApiKey('jules'), false);
 
@@ -1107,6 +1111,117 @@ test('web-api jira envelopes send X-JIRA-BASE-URL alongside the API key', async 
   }
 });
 
+test('web-api linear envelopes POST GraphQL to /api/linear with the API key', async () => {
+  const { createStorage } = await import('../../src/renderer/platform/web-storage.mjs');
+  const { createWebApi } = await import('../../src/renderer/platform/web-api.mjs');
+  const storage = createStorage(makeStorage());
+  storage.setApiKey('linear', 'lin-key');
+
+  // Same fixtures as the desktop service tests (tests/unit/linear-service.test.js).
+  const issueNode = {
+    id: 'issue-uuid-1',
+    identifier: 'ENG-42',
+    title: 'Fix login bug',
+    description: 'Steps to reproduce...',
+    state: { name: 'In Progress' },
+    priority: 2,
+    url: 'https://linear.app/acme/issue/ENG-42/fix-login-bug',
+    project: { name: 'Platform' },
+    assignee: { name: 'AJ' },
+    updatedAt: '2026-09-10T12:00:00.000Z',
+  };
+  const normalizedIssue = {
+    id: 'issue-uuid-1',
+    key: 'ENG-42',
+    title: 'Fix login bug',
+    description: 'Steps to reproduce...',
+    state: 'In Progress',
+    priority: 2,
+    url: 'https://linear.app/acme/issue/ENG-42/fix-login-bug',
+    project: 'Platform',
+    assignee: 'AJ',
+    updatedAt: '2026-09-10T12:00:00.000Z',
+  };
+
+  const fetchStub = makeFetch([
+    {
+      match: (url, opts) => urlHas('/api/linear')(url) && opts.method === 'POST',
+      respond: (url, opts) => {
+        const { query } = JSON.parse(opts.body);
+        if (query.includes('teams')) {
+          return jsonResponse({
+            data: { teams: { nodes: [{ id: 'team-1', name: 'Engineering', key: 'ENG' }] } },
+          });
+        }
+        if (query.includes('issues(filter')) {
+          return jsonResponse({ data: { issues: { nodes: [issueNode] } } });
+        }
+        if (query.includes('issue(id')) {
+          return jsonResponse({ data: { issue: issueNode } });
+        }
+        return jsonResponse({
+          data: { viewer: { id: 'user-1', name: 'AJ', email: 'aj@example.com' } },
+        });
+      },
+    },
+  ]);
+  const api = createWebApi({ storage, fetchImpl: fetchStub });
+
+  // Provider registered with the desktop api.linear surface.
+  assert.equal(typeof api.linear, 'object');
+  for (const fn of ['getTeams', 'getIssues', 'getIssue', 'testConnection']) {
+    assert.equal(typeof api.linear[fn], 'function', `api.linear.${fn} must exist`);
+  }
+
+  const teams = await api.linear.getTeams();
+  assert.deepEqual(teams, {
+    success: true,
+    teams: [{ id: 'team-1', name: 'Engineering', key: 'ENG' }],
+  });
+
+  const issues = await api.linear.getIssues('team-1');
+  assert.equal(issues.success, true);
+  assert.deepEqual(issues.issues, [normalizedIssue]);
+  const issuesCall = fetchStub.calls.find(
+    (c) => JSON.parse(c.opts.body).variables?.teamId === 'team-1'
+  );
+  assert.ok(issuesCall, 'getIssues must send the teamId variable');
+  assert.equal(JSON.parse(issuesCall.opts.body).variables.first, 50);
+
+  const issue = await api.linear.getIssue('issue-uuid-1');
+  assert.deepEqual(issue, { success: true, issue: normalizedIssue });
+
+  const test = await api.linear.testConnection();
+  assert.equal(test.success, true);
+  assert.deepEqual(test.user, { id: 'user-1', name: 'AJ', email: 'aj@example.com' });
+
+  for (const call of fetchStub.calls) {
+    assert.equal(call.url, '/api/linear');
+    assert.equal(call.opts.method, 'POST');
+    assert.equal(call.opts.headers['X-API-Key'], 'lin-key');
+  }
+
+  // Missing key → desktop-style failure envelope, no network call.
+  const bareApi = createWebApi({ storage: createStorage(makeStorage()), fetchImpl: fetchStub });
+  const noKey = await bareApi.linear.getTeams();
+  assert.equal(noKey.success, false);
+  assert.ok(noKey.error.includes('Linear API key not configured'));
+
+  // GraphQL errors envelope surfaces as {success:false, error}.
+  const gqlErrorApi = createWebApi({
+    storage,
+    fetchImpl: makeFetch([
+      {
+        match: urlHas('/api/linear'),
+        respond: () => jsonResponse({ errors: [{ message: 'Something broke' }] }),
+      },
+    ]),
+  });
+  const gqlFailed = await gqlErrorApi.linear.getTeams();
+  assert.equal(gqlFailed.success, false);
+  assert.ok(gqlFailed.error.includes('Something broke'));
+});
+
 // ---------------------------------------------------------------------------
 // web-api — testApiKey routing
 // ---------------------------------------------------------------------------
@@ -1120,6 +1235,7 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   storage.setApiKey('claude', 'a-key');
   storage.setApiKey('github', 'g-key');
   storage.setApiKey('jira', 'j-token');
+  storage.setApiKey('linear', 'lin-token');
   storage.setApiKey('openrouter', 'or-key');
   storage.setSettings({ jiraBaseUrl: 'https://jira.example.com' });
   const fetchStub = makeFetch([
@@ -1135,6 +1251,10 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
     { match: urlHas('/api/github/user'), respond: () => jsonResponse({ login: 'alice' }) },
     { match: urlHas('/api/jira/rest/api/3/myself'), respond: () => jsonResponse({}) },
     {
+      match: (url, opts) => urlHas('/api/linear')(url) && opts.method === 'POST',
+      respond: () => jsonResponse({ data: { viewer: { id: 'user-1', name: 'AJ' } } }),
+    },
+    {
       match: urlHas('https://openrouter.ai/api/v1/models'),
       respond: () => jsonResponse({ data: [] }),
     },
@@ -1147,6 +1267,7 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   assert.equal((await api.testApiKey('claude')).success, true);
   assert.equal((await api.testApiKey('github')).success, true);
   assert.equal((await api.testApiKey('jira')).success, true);
+  assert.equal((await api.testApiKey('linear')).success, true);
   assert.equal((await api.testApiKey('openrouter')).success, true);
 
   assert.ok(fetchStub.calls.some((c) => c.url.includes('/api/jules/sources?pageSize=1')));
@@ -1155,6 +1276,11 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   assert.ok(fetchStub.calls.some((c) => c.url.includes('/api/github/user')));
   const jiraCall = fetchStub.calls.find((c) => c.url.includes('/api/jira/rest/api/3/myself'));
   assert.equal(jiraCall.opts.headers['X-JIRA-BASE-URL'], 'https://jira.example.com');
+  const linearCall = fetchStub.calls.find(
+    (c) => c.url === '/api/linear' && c.opts.method === 'POST'
+  );
+  assert.ok(linearCall, 'testApiKey(linear) must POST GraphQL to /api/linear');
+  assert.equal(linearCall.opts.headers['X-API-Key'], 'lin-token');
   const orCall = fetchStub.calls.find((c) => c.url.includes('openrouter.ai'));
   assert.ok(
     orCall.url.startsWith('https://openrouter.ai/api/v1/models'),
@@ -1250,6 +1376,7 @@ test('web-api pushKeysToCloudflare / pullKeysFromCloudflare sync the keys KV val
   storage.setCloudflareConfig({ accountId: 'acc1', apiToken: 'tok1', namespaceId: 'ns1' });
   storage.setApiKey('jules', 'j-secret');
   storage.setApiKey('github', 'g-secret');
+  storage.setApiKey('linear', 'l-secret');
 
   let storedKeys = null;
   const fetchStub = makeFetch([
@@ -1262,7 +1389,8 @@ test('web-api pushKeysToCloudflare / pullKeysFromCloudflare sync the keys KV val
     },
     {
       match: (url, opts) => urlHas('/values/keys')(url) && opts.method === 'GET',
-      respond: () => textResponse(JSON.stringify({ jules: 'remote-j', cursor: 'remote-c' })),
+      respond: () =>
+        textResponse(JSON.stringify({ jules: 'remote-j', cursor: 'remote-c', linear: 'remote-l' })),
     },
   ]);
   const api = createWebApi({ storage, fetchImpl: fetchStub });
@@ -1270,13 +1398,14 @@ test('web-api pushKeysToCloudflare / pullKeysFromCloudflare sync the keys KV val
   const pushed = await api.pushKeysToCloudflare();
   assert.equal(pushed.success, true);
   // Only synced providers with keys are pushed.
-  assert.deepEqual(storedKeys, { jules: 'j-secret', github: 'g-secret' });
+  assert.deepEqual(storedKeys, { jules: 'j-secret', github: 'g-secret', linear: 'l-secret' });
 
   const pulled = await api.pullKeysFromCloudflare();
   assert.equal(pulled.success, true);
-  assert.deepEqual(pulled.keys, { jules: 'remote-j', cursor: 'remote-c' });
+  assert.deepEqual(pulled.keys, { jules: 'remote-j', cursor: 'remote-c', linear: 'remote-l' });
   assert.equal(storage.getApiKey('jules'), 'remote-j');
   assert.equal(storage.getApiKey('cursor'), 'remote-c');
+  assert.equal(storage.getApiKey('linear'), 'remote-l', 'linear key syncs from the cloud');
   assert.equal(storage.getApiKey('github'), 'g-secret', 'non-overridden keys survive');
 
   // Unconfigured → clear failure envelope.

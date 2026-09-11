@@ -13,6 +13,7 @@ const agentOrchestrator = require('./src/main/services/agent-orchestrator');
 const githubService = require('./src/main/services/github-service');
 const cloudflareKvService = require('./src/main/services/cloudflare-kv-service');
 const jiraService = require('./src/main/services/jira-service');
+const linearService = require('./src/main/services/linear-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 const runBroadcasterService = require('./src/main/services/run-broadcaster-service');
@@ -480,6 +481,7 @@ const ipcExports = registerAllIpcHandlers({
   githubService,
   cloudflareKvService,
   jiraService,
+  linearService,
   projectService,
   opencodeService,
   lifecycle,

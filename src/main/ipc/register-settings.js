@@ -1,7 +1,7 @@
 const { ipcMain } = require('electron');
 const { registerSettingsPathHandlers } = require('./register-settings-paths');
 
-const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'claude', 'github', 'jira', 'openrouter']);
+const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'claude', 'github', 'jira', 'linear', 'openrouter']);
 
 function registerSettingsHandlers(deps) {
   const {
@@ -13,6 +13,7 @@ function registerSettingsHandlers(deps) {
     openRouterService,
     githubService,
     jiraService,
+    linearService,
     opencodeService,
     antigravityService,
     lifecycle,
@@ -44,6 +45,7 @@ function registerSettingsHandlers(deps) {
         claude: configStore.hasApiKey('claude'),
         github: configStore.hasApiKey('github'),
         jira: configStore.hasApiKey('jira'),
+        linear: configStore.hasApiKey('linear'),
         cloudflare: configStore.hasCloudflareConfig(),
       },
       jiraBaseUrl: configStore.getJiraBaseUrl(),
@@ -126,6 +128,8 @@ function registerSettingsHandlers(deps) {
         return await githubService.testConnection();
       } else if (provider === 'jira') {
         return await jiraService.testConnection();
+      } else if (provider === 'linear') {
+        return await linearService.testConnection();
       } else if (provider === 'openrouter') {
         return await openRouterService.testConnection();
       }

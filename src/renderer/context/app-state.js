@@ -12,6 +12,7 @@ export const VIEWS = [
   'dashboard',
   'branches',
   'jira',
+  'project-management',
   'settings',
   'task-detail',
 ];
@@ -252,6 +253,7 @@ export const initialState = {
     openrouter: false,
     github: false,
     jira: false,
+    linear: false,
   },
   capabilities: {
     antigravity: { cloud: false, local: false },
@@ -345,6 +347,13 @@ export const initialState = {
     loading: false,
     error: null,
   },
+  linear: {
+    teams: [],
+    issues: [],
+    selectedTeamId: null,
+    loading: false,
+    error: null,
+  },
   localDeviceId: null,
   orchestratorChat: {
     messages: [],
@@ -361,6 +370,7 @@ export const initialState = {
   prModal: null,
   confirmModal: null,
   jiraIssueModal: null,
+  linearIssueModal: null,
   pastedImageModal: null,
 };
 
@@ -524,6 +534,8 @@ export function appReducer(state, action) {
       };
     case 'SET_JIRA':
       return { ...state, jira: { ...state.jira, ...action.payload } };
+    case 'SET_LINEAR':
+      return { ...state, linear: { ...state.linear, ...action.payload } };
     case 'SET_REMOTE_QUEUE':
       return { ...state, remoteQueue: { ...state.remoteQueue, ...action.payload } };
     case 'SET_PAGINATION':
@@ -584,6 +596,10 @@ export function appReducer(state, action) {
       return { ...state, jiraIssueModal: action.payload };
     case 'CLOSE_JIRA_ISSUE_MODAL':
       return { ...state, jiraIssueModal: null };
+    case 'OPEN_LINEAR_ISSUE_MODAL':
+      return { ...state, linearIssueModal: action.payload };
+    case 'CLOSE_LINEAR_ISSUE_MODAL':
+      return { ...state, linearIssueModal: null };
     case 'OPEN_PASTED_IMAGE_MODAL':
       return { ...state, pastedImageModal: action.payload };
     case 'CLOSE_PASTED_IMAGE_MODAL':

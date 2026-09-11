@@ -218,6 +218,24 @@ export const SERVICE_CATALOG = [
     ],
   },
   {
+    id: 'linear-cloud',
+    title: 'Linear',
+    subtitle: 'Project integration',
+    category: 'Integrations',
+    kind: 'cloud-api-key',
+    provider: 'linear',
+    icon: 'task_alt',
+    description: 'Connect Linear with a personal API key so teams and issues can be loaded.',
+    fields: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        placeholder: 'Enter Linear personal API key',
+      },
+    ],
+  },
+  {
     id: 'cloudflare-sync',
     title: 'Cloudflare KV',
     subtitle: 'Sync integration',

@@ -3,6 +3,7 @@ const { registerGithubHandlers } = require('./register-github');
 const { registerSettingsHandlers } = require('./register-settings');
 const { registerCloudflareHandlers } = require('./register-cloudflare');
 const { registerJiraHandlers } = require('./register-jira');
+const { registerLinearHandlers } = require('./register-linear');
 const { registerTasksHandlers } = require('./register-tasks');
 const { registerProjectsHandlers } = require('./register-projects');
 const { registerUtilsHandlers } = require('./register-utils');
@@ -17,6 +18,7 @@ function registerAllIpcHandlers(deps) {
   registerSettingsHandlers(deps);
   registerCloudflareHandlers(deps);
   registerJiraHandlers(deps);
+  registerLinearHandlers(deps);
   registerTasksHandlers(deps);
   registerProjectsHandlers(deps);
   return registerUtilsHandlers(deps);

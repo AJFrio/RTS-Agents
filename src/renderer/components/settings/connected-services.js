@@ -32,6 +32,8 @@ export function useConnectedServices() {
         } else if (serviceId === 'jira-cloud') {
           await api.removeApiKey('jira');
           await api.setJiraBaseUrl('');
+        } else if (serviceId === 'linear-cloud') {
+          await api.removeApiKey('linear');
         } else if (serviceId === 'cloudflare-sync') {
           await api.clearCloudflareConfig();
         } else if (serviceId === 'cursor-local') {
@@ -118,6 +120,7 @@ export function buildConnectedServices(state) {
   if (apiKeys.github) services.push('github-cloud');
   if ((state.settings?.githubPaths || []).length > 0) services.push('github-local');
   if (apiKeys.jira || state.settings?.jiraBaseUrl) services.push('jira-cloud');
+  if (apiKeys.linear) services.push('linear-cloud');
   if (state.serviceInfo?.cloudflare?.configured || state.computers?.configured)
     services.push('cloudflare-sync');
 

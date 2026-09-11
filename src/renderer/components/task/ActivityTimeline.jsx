@@ -1,6 +1,7 @@
 import React from 'react';
 import Collapsible from '../ui/Collapsible.jsx';
 import JulesActivityMedia from './JulesActivityMedia.jsx';
+import { relativeTime } from '../../utils/format.js';
 
 function getActivityTypeLabel(type) {
   if (!type) return 'Activity';
@@ -8,13 +9,6 @@ function getActivityTypeLabel(type) {
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
-}
-
-function formatActivityTime(timestamp) {
-  if (!timestamp) return null;
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString();
 }
 
 export default function ActivityTimeline({
@@ -33,7 +27,7 @@ export default function ActivityTimeline({
     <div className="space-y-4">
       {activities.map((activity) => {
         const rowId = activity.id;
-        const time = formatActivityTime(activity.timestamp);
+        const time = relativeTime(activity.timestamp);
         const counts = [];
         if (activity.commands?.length > 0) counts.push(`${activity.commands.length} cmd(s)`);
         if (activity.fileChanges?.length > 0) counts.push(`${activity.fileChanges.length} file(s)`);

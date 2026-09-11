@@ -16,7 +16,7 @@ import {
 } from '../components/ui/icons.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { parseMarkdown } from '../utils/markdown.js';
-import { formatTimeAgo } from '../utils/format.js';
+import { relativeTime } from '../utils/format.js';
 import DOMPurify from 'dompurify';
 
 export default function PrModal({ pr, onClose, api }) {
@@ -383,7 +383,7 @@ export default function PrModal({ pr, onClose, api }) {
           </a>
           <span id="pr-modal-meta" className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400">
             <IconUpdatedAt size={11} className="shrink-0" />
-            Updated {formatTimeAgo(data?.updated_at)}
+            Updated {relativeTime(data?.updated_at)}
           </span>
         </div>
       </div>

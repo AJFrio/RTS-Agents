@@ -18,7 +18,7 @@ import {
   IconSearch,
 } from '../components/ui/icons.jsx';
 import { StatusPill } from '../components/ui/status.jsx';
-import { formatTimeAgo, extractRepoName } from '../utils/format.js';
+import { relativeTime, extractRepoName } from '../utils/format.js';
 
 function formatShortTool(tool) {
   if (!tool) return '';
@@ -58,7 +58,7 @@ function RemoteActivityRow({ activity }) {
           Last run on {lastDevice.name || lastDevice.deviceId}: {lastTask.status}
           {lastTask.tool ? ` · ${formatShortTool(lastTask.tool)}` : ''}
           {lastTask.error ? ` · ${lastTask.error}` : ''}
-          {lastTask.updatedAt ? ` · ${formatTimeAgo(lastTask.updatedAt)}` : ''}
+          {lastTask.updatedAt ? ` · ${relativeTime(lastTask.updatedAt)}` : ''}
         </div>
       )}
       {activity.loading && <span className="shrink-0 text-xs text-neutral-500">Updating</span>}
@@ -130,7 +130,7 @@ function SummaryStrip({ agents, counts, filters, dispatch, api }) {
 }
 
 const AgentCardItem = React.memo(function AgentCardItem({ agent, onClick }) {
-  const timeAgo = formatTimeAgo(agent.updatedAt || agent.createdAt);
+  const timeAgo = relativeTime(agent.updatedAt || agent.createdAt);
   const { label: providerName, Icon: ProviderIcon } = providerMeta(agent.provider);
 
   return (

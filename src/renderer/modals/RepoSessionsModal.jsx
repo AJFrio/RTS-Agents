@@ -3,18 +3,7 @@ import Modal from '../components/ui/Modal.jsx';
 import { useApp } from '../context/AppContext.jsx';
 import { providerMeta } from '../components/ui/icons.jsx';
 import { StatusDot, statusMeta } from '../components/ui/status.jsx';
-
-function formatWhen(timestamp) {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
+import { relativeTime } from '../utils/format.js';
 
 /**
  * "See all sessions" modal for one repo or harness section in the sidebar
@@ -128,7 +117,7 @@ export default function RepoSessionsModal({ open, title, tasks, onClose }) {
                         </span>
                       </div>
                       <p className="mt-1 truncate pl-[21px] text-[11px] text-neutral-400 dark:text-neutral-500">
-                        {meta.label} · {formatWhen(task.updatedAt || task.createdAt)}
+                        {meta.label} · {relativeTime(task.updatedAt || task.createdAt)}
                       </p>
                     </button>
                   </li>

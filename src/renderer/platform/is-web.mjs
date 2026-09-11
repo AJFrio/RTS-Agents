@@ -1,5 +1,4 @@
-export function isWebRuntime() {
-  return typeof window !== 'undefined' && !window.electronAPI && !window.__electronAPI;
-}
+import { isWebRuntime } from './runtime.mjs';
 
+export { isWebRuntime };
 export default isWebRuntime;

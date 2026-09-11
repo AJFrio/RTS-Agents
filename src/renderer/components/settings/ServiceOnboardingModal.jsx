@@ -11,6 +11,8 @@ import {
   getOnboardingModalTitle,
   verifyCloudflareConnection,
 } from './service-onboarding.js';
+import { useRuntime } from '../../hooks/use-runtime.js';
+import { isDesktopOnlyService } from '../../platform/runtime.mjs';
 
 function getExistingPaths(serviceId, state) {
   switch (serviceId) {
@@ -139,6 +141,7 @@ export default function ServiceOnboardingModal({
   onClose,
   onConnected,
 }) {
+  const runtime = useRuntime();
   const [formValues, setFormValues] = useState({});
   const [feedback, setFeedback] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -150,6 +153,7 @@ export default function ServiceOnboardingModal({
     () => (open ? getServiceDefinition(initialServiceId) : null),
     [open, initialServiceId]
   );
+  const desktopOnlyOnWeb = service && isDesktopOnlyService(service) && !runtime.localCliServices;
 
   // Seed only when the modal opens or the focused service changes — not on
   // every `state` tick (that would wipe a pasted apiToken).
@@ -395,7 +399,14 @@ export default function ServiceOnboardingModal({
             </div>
           </div>
 
-          {service.requiresInstall && (
+          {desktopOnlyOnWeb && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-400">
+              {service.title} is a local desktop service. Connect it in the RTS Agents app — the
+              website cannot install or run CLIs on this machine.
+            </div>
+          )}
+
+          {service.requiresInstall && !desktopOnlyOnWeb && (
             <div
               className={`rounded-md border px-3 py-2 text-[12px] ${
                 installReady
@@ -422,7 +433,7 @@ export default function ServiceOnboardingModal({
             </div>
           )}
 
-          {service.fields.map((field) => {
+          {!desktopOnlyOnWeb && service.fields.map((field) => {
             const helper = getOnboardingFieldHelper(service, field.key);
             const isPath = field.type === 'path';
             const showDetect =
@@ -442,15 +453,17 @@ export default function ServiceOnboardingModal({
                       placeholder={field.placeholder}
                       className="min-w-0 flex-1 rounded-none border-0"
                     />
-                    <button
-                      type="button"
-                      onClick={browseForPath}
-                      aria-label="Browse for folder"
-                      className="inline-flex shrink-0 items-center gap-1.5 border-l border-border-light px-2.5 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
-                    >
-                      <IconFolder size={14} />
-                      Browse
-                    </button>
+                    {runtime.directoryPicker && (
+                      <button
+                        type="button"
+                        onClick={browseForPath}
+                        aria-label="Browse for folder"
+                        className="inline-flex shrink-0 items-center gap-1.5 border-l border-border-light px-2.5 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
+                      >
+                        <IconFolder size={14} />
+                        Browse
+                      </button>
+                    )}
                   </div>
                 ) : showDetect ? (
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -538,9 +551,11 @@ export default function ServiceOnboardingModal({
             <Button variant="secondary" onClick={onClose} disabled={closeBlocked || busy}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleConnect} disabled={busy}>
-              {busy ? 'VERIFYING...' : 'VERIFY & CONNECT'}
-            </Button>
+            {!desktopOnlyOnWeb && (
+              <Button variant="primary" onClick={handleConnect} disabled={busy}>
+                {busy ? 'VERIFYING...' : 'VERIFY & CONNECT'}
+              </Button>
+            )}
           </div>
         </div>
       </div>

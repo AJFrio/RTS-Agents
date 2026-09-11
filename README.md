@@ -71,7 +71,7 @@ The same React app that powers the desktop build also runs as a web app, served 
 
 ### Limitations
 
-- **No Local Execution**: It cannot run local CLI tools (Antigravity/Claude CLI/Codex/OpenCode) — it dispatches those tasks to your running desktop instances.
+- **No Local Execution**: It cannot run local CLI tools (Antigravity/Claude CLI/Codex/OpenCode) — those plugin cards, the Local run location, folder pickers, and Update & restart are hidden on the website. Dispatch those tasks to a running desktop instance via Remote.
 - **Requires Cloudflare KV**: Syncing between desktop and web requires Cloudflare KV configuration.
 
 ### Build & deploy
@@ -82,7 +82,10 @@ npm run check:web     # build + wrangler deploy --dry-run
 npm run deploy:web    # build + wrangler deploy
 ```
 
-The worker proxies provider traffic through same-origin `/api/*` routes; API keys stay client-side (localStorage) and are forwarded per-request.
+`wrangler.jsonc` runs `npm run build` before deploy so Cloudflare Workers
+Builds (and `wrangler deploy`) produce `dist/renderer` before uploading
+assets. The worker proxies provider traffic through same-origin `/api/*`
+routes; API keys stay client-side (localStorage) and are forwarded per-request.
 
 ---
 

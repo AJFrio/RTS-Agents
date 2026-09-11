@@ -132,7 +132,9 @@ renders every task's transcript as a chat log on the canvas.
   and verifies in one shot (`src/renderer/components/settings/service-onboarding.js`).
   The detect control is hidden when `discoverCloudflareAccount` is missing
   (web degradation).
-- Settings keeps only Display, Data polling, and System sections.
+- Settings keeps Display, Data polling, and (desktop only) System / window
+  mode. The web runtime hides Window mode and Update & restart — see
+  [web-desktop-surfaces.md](web-desktop-surfaces.md).
 - Devices tab replaces the old Computers page: device cards open a detail
   pane with services, repositories, running tasks (local device) or the
   remote queue, and a start-task button that pre-targets the device.

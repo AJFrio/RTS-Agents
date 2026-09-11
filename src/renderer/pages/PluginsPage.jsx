@@ -6,6 +6,8 @@ import { buildConnectedServiceGroups } from '../components/settings/service-stat
 import { useConnectedServices, buildConnectedServices } from '../components/settings/connected-services.js';
 import { providerMeta, IconKey, IconExternal } from '../components/ui/icons.jsx';
 import { StatusDot } from '../components/ui/status.jsx';
+import { useRuntime } from '../hooks/use-runtime.js';
+import { filterServicesForRuntime, isDesktopOnlyService } from '../platform/runtime.mjs';
 
 function getStatusMeta(status) {
   if (!status) {
@@ -115,15 +117,25 @@ function ServiceCard({
 export default function PluginsPage() {
   const { state, api, loadSettings, checkConnectionStatus, setView } = useApp();
   const { disconnectServiceGroup } = useConnectedServices();
+  const runtime = useRuntime();
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [activeServiceId, setActiveServiceId] = useState(null);
   const [busyServiceId, setBusyServiceId] = useState(null);
 
   const connectedServices = useMemo(() => buildConnectedServices(state), [state]);
-  const connectedGroups = useMemo(
-    () => buildConnectedServiceGroups(connectedServices, state),
-    [connectedServices, state]
-  );
+  const connectedGroups = useMemo(() => {
+    const groups = buildConnectedServiceGroups(connectedServices, state);
+    if (runtime.localCliServices) return groups;
+    return groups
+      .map((group) => ({
+        ...group,
+        services: group.services.filter((id) => {
+          const definition = getServiceDefinition(id);
+          return definition && !isDesktopOnlyService(definition);
+        }),
+      }))
+      .filter((group) => group.services.length > 0);
+  }, [connectedServices, state, runtime]);
 
   const openOnboarding = useCallback((serviceId) => {
     setActiveServiceId(serviceId);
@@ -137,8 +149,12 @@ export default function PluginsPage() {
     [disconnectServiceGroup]
   );
 
+  const catalog = useMemo(
+    () => filterServicesForRuntime(SERVICE_CATALOG, runtime),
+    [runtime]
+  );
   const connectedCatalogIds = new Set(connectedGroups.flatMap((group) => group.services));
-  const availableServices = SERVICE_CATALOG.filter((service) => !connectedCatalogIds.has(service.id));
+  const availableServices = catalog.filter((service) => !connectedCatalogIds.has(service.id));
 
   return (
     <div id="view-plugins" className="view-content mx-auto w-full max-w-5xl space-y-8">
@@ -209,6 +225,12 @@ export default function PluginsPage() {
           <p className="mt-0.5 text-[12px] text-neutral-500 dark:text-neutral-400">
             Click one to connect it with the guided setup.
           </p>
+          {runtime.web && (
+            <p className="mt-1.5 text-[12px] text-neutral-400 dark:text-neutral-500">
+              Local CLIs (Claude Code, OpenCode, Codex, Antigravity, and local repo roots) connect
+              from the desktop app. On the web, add cloud keys or dispatch to a remote device.
+            </p>
+          )}
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {availableServices.map((definition) => (

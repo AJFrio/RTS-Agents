@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useBelowLg } from '../hooks/use-media-query.js';
 import { providerMeta, IconDevices, IconArrowRight, IconClose, IconTerminal, IconChevronLeft } from '../components/ui/icons.jsx';
 import { StatusDot } from '../components/ui/status.jsx';
+import { useRuntime } from '../hooks/use-runtime.js';
 
 function isOnline(device) {
   if (device?.status === 'on') return true;
@@ -105,6 +106,7 @@ function DeviceCard({ device, isLocal, queue, onSelect, selected }) {
 
 function DeviceDetail({ device, isLocal, queue, onBack }) {
   const { state, openNewTaskModal, openTask } = useApp();
+  const runtime = useRuntime();
   const tools = getTools(device);
   const repos = Array.isArray(device.repos) ? device.repos : [];
   const online = isOnline(device);
@@ -118,7 +120,7 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
   }, [isLocal, state.agents]);
 
   const handleStartTask = () => {
-    if (isLocal) {
+    if (isLocal && runtime.localTaskEnvironment) {
       openNewTaskModal({ presetEnvironment: 'local' });
       return;
     }

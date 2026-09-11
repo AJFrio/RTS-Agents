@@ -9,7 +9,13 @@ import MarkdownText from '../components/ui/Markdown.jsx';
 import Composer from '../components/chat/Composer.jsx';
 import JulesActivityMedia from '../components/task/JulesActivityMedia.jsx';
 import TaskContextSection, { hasTaskContext } from '../components/task/TaskContextSection.jsx';
-import { providerMeta, IconExternal, IconTerminal, IconClose, IconSync } from '../components/ui/icons.jsx';
+import {
+  providerMeta,
+  IconExternal,
+  IconTerminal,
+  IconClose,
+  IconSync,
+} from '../components/ui/icons.jsx';
 import { StatusDot, statusMeta } from '../components/ui/status.jsx';
 
 const FOLLOWUP_PROVIDERS = new Set([
@@ -158,8 +164,7 @@ export default function TaskDetailView() {
 
   const messages = useMemo(() => detailsToTranscript(details, task), [details, task]);
   const hasTranscript = hasTranscriptContent(messages);
-  const supportsFollowUp =
-    FOLLOWUP_PROVIDERS.has(task?.provider) && details?.canFollowUp !== false;
+  const supportsFollowUp = FOLLOWUP_PROVIDERS.has(task?.provider) && details?.canFollowUp !== false;
   const isWorking = liveStatus === 'running' || sending;
   const renderContent = useCallback((content) => <MarkdownText text={content} />, []);
 
@@ -232,7 +237,11 @@ export default function TaskDetailView() {
             {task.repository && (
               <span className="truncate font-mono">
                 {' '}
-                · {String(task.repository).replace(/[\\/]+$/, '').split(/[\\/]/).pop()}
+                ·{' '}
+                {String(task.repository)
+                  .replace(/[\\/]+$/, '')
+                  .split(/[\\/]/)
+                  .pop()}
               </span>
             )}
           </p>
@@ -241,7 +250,9 @@ export default function TaskDetailView() {
           {details?.webUrl || details?.prUrl || task.prUrl || task.webUrl ? (
             <button
               type="button"
-              onClick={() => api?.openExternal?.(details?.webUrl || details?.prUrl || task.prUrl || task.webUrl)}
+              onClick={() =>
+                api?.openExternal?.(details?.webUrl || details?.prUrl || task.prUrl || task.webUrl)
+              }
               aria-label="Go to task"
               className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
             >
@@ -253,7 +264,10 @@ export default function TaskDetailView() {
             <button
               type="button"
               onClick={() =>
-                api.openOpenCodeSession(details.opencodeSessionId, details.projectPath || task.repository)
+                api.openOpenCodeSession(
+                  details.opencodeSessionId,
+                  details.projectPath || task.repository
+                )
               }
               aria-label="Open terminal"
               className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"
@@ -326,7 +340,11 @@ export default function TaskDetailView() {
               maxRows={5}
               placeholder={`Send a follow-up to this ${meta.label} task…`}
               submitLabel="Send follow-up"
-              footerNote={liveStatus === 'running' ? 'Task is running — the reply lands when the harness picks it up.' : undefined}
+              footerNote={
+                liveStatus === 'running'
+                  ? 'Task is running — the reply lands when the harness picks it up.'
+                  : undefined
+              }
             />
           ) : (
             <p className="rounded-lg border border-dashed border-border-strong-light px-3 py-2.5 text-center text-[12px] text-neutral-400 dark:border-border-strong-dark dark:text-neutral-500">

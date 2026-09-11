@@ -63,14 +63,16 @@ function App() {
                 ? BranchesPage
                 : view === 'jira'
                   ? JiraPage
-                    : view === 'settings'
-                      ? SettingsPage
-                      : DashboardPage;
+                  : view === 'settings'
+                    ? SettingsPage
+                    : DashboardPage;
 
   return (
     <>
       <Layout fixedHeight={FIXED_HEIGHT_VIEWS.has(view)}>
-        <Page key={view === 'new-task' ? `new-task-${state.newTask?.newTaskLaunchId || 0}` : view} />
+        <Page
+          key={view === 'new-task' ? `new-task-${state.newTask?.newTaskLaunchId || 0}` : view}
+        />
       </Layout>
       <CreateRepoModal open={state.createRepoModalOpen} onClose={closeCreateRepoModal} api={api} />
       <PrModal pr={state.prModal} onClose={closePrModal} api={api} />

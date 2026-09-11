@@ -1,10 +1,10 @@
 # Design docs index
 
-| Document | Status | Summary |
-|----------|--------|---------|
-| [core-beliefs.md](core-beliefs.md) | Verified | Agent-first operating principles for this repo |
-| [electron-ipc.md](electron-ipc.md) | Verified | IPC and preload boundaries |
-| [provider-integration.md](provider-integration.md) | Verified | How to add or change a coding provider |
+| Document                                           | Status   | Summary                                        |
+| -------------------------------------------------- | -------- | ---------------------------------------------- |
+| [core-beliefs.md](core-beliefs.md)                 | Verified | Agent-first operating principles for this repo |
+| [electron-ipc.md](electron-ipc.md)                 | Verified | IPC and preload boundaries                     |
+| [provider-integration.md](provider-integration.md) | Verified | How to add or change a coding provider         |
 
 ## Verification legend
 

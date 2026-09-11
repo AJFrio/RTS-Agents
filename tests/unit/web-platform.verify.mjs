@@ -52,9 +52,8 @@ test('storage removes key when set to empty string', async () => {
 });
 
 test('storage reads legacy alias keys and removes them on overwrite', async () => {
-  const { createStorage, STORAGE_PREFIX } = await import(
-    '../../src/renderer/platform/web-storage.mjs'
-  );
+  const { createStorage, STORAGE_PREFIX } =
+    await import('../../src/renderer/platform/web-storage.mjs');
   const impl = makeStorage();
   const storage = createStorage(impl);
   impl.setItem(`${STORAGE_PREFIX}key_githubToken`, Buffer.from('legacy-token').toString('base64'));
@@ -66,9 +65,8 @@ test('storage reads legacy alias keys and removes them on overwrite', async () =
 });
 
 test('storage removes legacy aliases on removeApiKey', async () => {
-  const { createStorage, STORAGE_PREFIX } = await import(
-    '../../src/renderer/platform/web-storage.mjs'
-  );
+  const { createStorage, STORAGE_PREFIX } =
+    await import('../../src/renderer/platform/web-storage.mjs');
   const impl = makeStorage();
   const storage = createStorage(impl);
   impl.setItem(`${STORAGE_PREFIX}key_jiraToken`, 'x');
@@ -125,9 +123,8 @@ test('storage settings and filters merge over defaults', async () => {
 // ---------------------------------------------------------------------------
 
 test('detectRuntime treats preload and e2e mocks as desktop', async () => {
-  const { detectRuntime, isDesktopRuntime, isWebRuntime, RUNTIME } = await import(
-    '../../src/renderer/platform/runtime.mjs'
-  );
+  const { detectRuntime, isDesktopRuntime, isWebRuntime, RUNTIME } =
+    await import('../../src/renderer/platform/runtime.mjs');
   assert.equal(detectRuntime({ electronAPI: {} }), RUNTIME.DESKTOP);
   assert.equal(detectRuntime({ __electronAPI: {} }), RUNTIME.DESKTOP);
   assert.equal(detectRuntime({ window: { electronAPI: { updateApp() {} } } }), RUNTIME.DESKTOP);
@@ -143,7 +140,8 @@ test('is-web.mjs re-exports the runtime helper', async () => {
 });
 
 test('web capabilities hide local CLIs, app updates, and window mode', async () => {
-  const { getRuntimeCapabilities, RUNTIME } = await import('../../src/renderer/platform/runtime.mjs');
+  const { getRuntimeCapabilities, RUNTIME } =
+    await import('../../src/renderer/platform/runtime.mjs');
   const web = getRuntimeCapabilities(RUNTIME.WEB);
   assert.equal(web.web, true);
   assert.equal(web.appUpdates, false);
@@ -315,7 +313,11 @@ test('web-api setPolling, setTheme, setModel, saveFilters persist', async () => 
   assert.deepEqual(await api.setTheme('dark'), { success: true });
   assert.deepEqual(await api.setModel('m1'), { success: true });
   assert.deepEqual(
-    await api.saveFilters({ providers: { jules: false }, statuses: { running: false }, search: 'x' }),
+    await api.saveFilters({
+      providers: { jules: false },
+      statuses: { running: false },
+      search: 'x',
+    }),
     { success: true }
   );
   settings = (await api.getSettings()).settings;
@@ -499,7 +501,10 @@ test('web-api jules fetcher maps sessions to the desktop Agent shape with counts
               updateTime: '2026-01-04T00:00:00.000Z',
               outputs: [
                 {
-                  pullRequest: { url: 'https://github.com/acme/web/pull/5', description: 'ships it' },
+                  pullRequest: {
+                    url: 'https://github.com/acme/web/pull/5',
+                    description: 'ships it',
+                  },
                 },
               ],
             },
@@ -672,7 +677,10 @@ test('web-api getAgents serves cached revision without refetching, force refetch
   const fetchStub = makeFetch([
     {
       match: urlHas('/api/jules/sessions?pageSize=100'),
-      respond: () => jsonResponse({ sessions: [{ id: 's1', prompt: 'p', createTime: '2026-01-01T00:00:00.000Z' }] }),
+      respond: () =>
+        jsonResponse({
+          sessions: [{ id: 's1', prompt: 'p', createTime: '2026-01-01T00:00:00.000Z' }],
+        }),
     },
   ]);
   const api = createWebApi({ storage, fetchImpl: fetchStub });
@@ -739,7 +747,10 @@ test('web-api polling auto-starts at boot, ticks refresh the cache, setPolling r
   const fetchStub = makeFetch([
     {
       match: urlHas('/api/jules/sessions?pageSize=100'),
-      respond: () => jsonResponse({ sessions: [{ id: 's1', prompt: 'p', createTime: '2026-01-01T00:00:00.000Z' }] }),
+      respond: () =>
+        jsonResponse({
+          sessions: [{ id: 's1', prompt: 'p', createTime: '2026-01-01T00:00:00.000Z' }],
+        }),
     },
   ]);
   const timers = makeTimers();
@@ -794,7 +805,10 @@ test('web-api createTask jules provider path returns the task envelope', async (
           title: 'New task',
           state: 'QUEUED',
           prompt: 'make it',
-          sourceContext: { source: 'sources/github/acme/web', githubRepoContext: { startingBranch: 'main' } },
+          sourceContext: {
+            source: 'sources/github/acme/web',
+            githubRepoContext: { startingBranch: 'main' },
+          },
         }),
     },
   ]);
@@ -826,7 +840,8 @@ test('web-api createTask dispatches remotely via KV queue when targetDeviceId is
   const fetchStub = makeFetch([
     {
       match: (url, opts) =>
-        url.includes('/api/cloudflare/namespaces/ns1/values/queue%3Adevice1') && opts.method === 'PUT',
+        url.includes('/api/cloudflare/namespaces/ns1/values/queue%3Adevice1') &&
+        opts.method === 'PUT',
       respond: () => textResponse('200 OK'),
     },
   ]);
@@ -844,16 +859,20 @@ test('web-api createTask dispatches remotely via KV queue when targetDeviceId is
   assert.equal(result.task.name, 'Remote jules task');
   assert.equal(result.task.summary, 'Queued on remote device');
 
-  const put = fetchStub.calls.find((c) => c.url.includes('queue%3Adevice1') && c.opts.method === 'PUT');
+  const put = fetchStub.calls.find(
+    (c) => c.url.includes('queue%3Adevice1') && c.opts.method === 'PUT'
+  );
   assert.ok(put, 'queue:<deviceId> value must be written');
   assert.equal(put.opts.headers['Content-Type'], 'text/plain');
 
   const queue = JSON.parse(put.opts.body);
   assert.equal(queue.length, 1);
   assert.equal(queue[0].tool, 'jules');
-  assert.equal(queue[0].repo, '/srv/repo');
+  assert.deepEqual(queue[0].repo, { path: '/srv/repo' });
   assert.equal(queue[0].prompt, 'do remote thing');
   assert.equal(queue[0].requestedBy, 'web-pwa');
+  assert.equal(queue[0].autoCreatePr, false, 'autoCreatePr defaults off when not requested');
+  assert.equal(queue[0].branch, 'main');
   assert.ok(queue[0].id.startsWith('task-'), 'QueuedTask carries an id');
   assert.ok(queue[0].createdAt, 'QueuedTask carries a createdAt timestamp');
 });
@@ -901,7 +920,10 @@ test('web-api getAgentDetails merges provider details over the cached base agent
               title: 'Fix login',
               state: 'IN_PROGRESS',
               prompt: 'base prompt',
-              sourceContext: { source: 'sources/github/acme/web', githubRepoContext: { startingBranch: 'fx' } },
+              sourceContext: {
+                source: 'sources/github/acme/web',
+                githubRepoContext: { startingBranch: 'fx' },
+              },
               createTime: '2026-01-01T00:00:00.000Z',
               updateTime: '2026-01-02T00:00:00.000Z',
             },
@@ -916,7 +938,10 @@ test('web-api getAgentDetails merges provider details over the cached base agent
           title: 'Fix login',
           state: 'IN_PROGRESS',
           prompt: 'base prompt',
-          sourceContext: { source: 'sources/github/acme/web', githubRepoContext: { startingBranch: 'fx' } },
+          sourceContext: {
+            source: 'sources/github/acme/web',
+            githubRepoContext: { startingBranch: 'fx' },
+          },
           createTime: '2026-01-01T00:00:00.000Z',
           updateTime: '2026-01-02T00:00:00.000Z',
         }),
@@ -925,7 +950,13 @@ test('web-api getAgentDetails merges provider details over the cached base agent
       match: urlHas('/api/jules/sessions/s1/activities?pageSize=100'),
       respond: () =>
         jsonResponse({
-          activities: [{ id: 'a1', createTime: '2026-01-03T00:00:00.000Z', agentMessaged: { agentMessage: 'working on it' } }],
+          activities: [
+            {
+              id: 'a1',
+              createTime: '2026-01-03T00:00:00.000Z',
+              agentMessaged: { agentMessage: 'working on it' },
+            },
+          ],
         }),
     },
   ]);
@@ -973,7 +1004,9 @@ test('web-api github getRepos and getAllPrs return desktop envelopes', async () 
     {
       match: urlHas('/api/github/repos/acme/repoB/pulls?state=open'),
       respond: () =>
-        jsonResponse([{ id: 21, number: 20, title: 'PR B', created_at: '2026-01-01T00:00:00.000Z' }]),
+        jsonResponse([
+          { id: 21, number: 20, title: 'PR B', created_at: '2026-01-01T00:00:00.000Z' },
+        ]),
     },
   ]);
   const api = createWebApi({ storage, fetchImpl: fetchStub });
@@ -1031,13 +1064,23 @@ test('web-api jira envelopes send X-JIRA-BASE-URL alongside the API key', async 
     {
       match: urlHas('/api/jira/rest/api/3/issue/K-1/comment'),
       respond: () =>
-        jsonResponse({ comments: [{ id: 100, body: 'looking at it', created: '2026-01-01T00:00:00.000Z' }] }),
+        jsonResponse({
+          comments: [{ id: 100, body: 'looking at it', created: '2026-01-01T00:00:00.000Z' }],
+        }),
     },
     {
       match: urlHas('/api/jira/rest/agile/1.0/board/1/sprint'),
       respond: () =>
         jsonResponse({
-          values: [{ id: 5, name: 'Sprint 5', state: 'active', startDate: '2026-01-01', endDate: '2026-01-07' }],
+          values: [
+            {
+              id: 5,
+              name: 'Sprint 5',
+              state: 'active',
+              startDate: '2026-01-01',
+              endDate: '2026-01-07',
+            },
+          ],
         }),
     },
   ]);
@@ -1080,7 +1123,10 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   storage.setApiKey('openrouter', 'or-key');
   storage.setSettings({ jiraBaseUrl: 'https://jira.example.com' });
   const fetchStub = makeFetch([
-    { match: urlHas('/api/jules/sources?pageSize=1'), respond: () => jsonResponse({ sources: [] }) },
+    {
+      match: urlHas('/api/jules/sources?pageSize=1'),
+      respond: () => jsonResponse({ sources: [] }),
+    },
     { match: urlHas('/api/cursor/me'), respond: () => jsonResponse({}) },
     {
       match: (url, opts) => urlHas('/api/claude/messages')(url) && opts.method === 'POST',
@@ -1088,7 +1134,10 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
     },
     { match: urlHas('/api/github/user'), respond: () => jsonResponse({ login: 'alice' }) },
     { match: urlHas('/api/jira/rest/api/3/myself'), respond: () => jsonResponse({}) },
-    { match: urlHas('https://openrouter.ai/api/v1/models'), respond: () => jsonResponse({ data: [] }) },
+    {
+      match: urlHas('https://openrouter.ai/api/v1/models'),
+      respond: () => jsonResponse({ data: [] }),
+    },
   ]);
   const api = createWebApi({ storage, fetchImpl: fetchStub });
 
@@ -1107,11 +1156,16 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   const jiraCall = fetchStub.calls.find((c) => c.url.includes('/api/jira/rest/api/3/myself'));
   assert.equal(jiraCall.opts.headers['X-JIRA-BASE-URL'], 'https://jira.example.com');
   const orCall = fetchStub.calls.find((c) => c.url.includes('openrouter.ai'));
-  assert.ok(orCall.url.startsWith('https://openrouter.ai/api/v1/models'), 'openrouter calls the API directly');
+  assert.ok(
+    orCall.url.startsWith('https://openrouter.ai/api/v1/models'),
+    'openrouter calls the API directly'
+  );
   assert.equal(orCall.opts.headers['Authorization'], 'Bearer or-key');
 
   // Failure path surfaces {success:false, error}.
-  const bad = makeFetch([{ match: urlHas('/api/jules/sources'), respond: () => jsonResponse({ error: 'denied' }, 403) }]);
+  const bad = makeFetch([
+    { match: urlHas('/api/jules/sources'), respond: () => jsonResponse({ error: 'denied' }, 403) },
+  ]);
   const badApi = createWebApi({
     storage,
     fetchImpl: bad,
@@ -1120,7 +1174,10 @@ test('web-api testApiKey routes to the real provider test endpoints', async () =
   assert.equal(failed.success, false);
   assert.ok(failed.error.includes('403'));
 
-  assert.deepEqual(await badApi.testApiKey('nope'), { success: false, error: 'Unknown provider: nope' });
+  assert.deepEqual(await badApi.testApiKey('nope'), {
+    success: false,
+    error: 'Unknown provider: nope',
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1138,11 +1195,19 @@ test('web-api listComputers and getQueueActivity match the desktop shapes', asyn
       respond: () =>
         textResponse(
           JSON.stringify([
-            { id: 'dev1', name: 'Workstation', status: 'on', lastHeartbeat: '2026-01-01T00:00:00.000Z' },
+            {
+              id: 'dev1',
+              name: 'Workstation',
+              status: 'on',
+              lastHeartbeat: '2026-01-01T00:00:00.000Z',
+            },
           ])
         ),
     },
-    { match: urlHas('/values/tasks'), respond: () => textResponse(JSON.stringify({ dev1: { status: 'running', tool: 'jules' } })) },
+    {
+      match: urlHas('/values/tasks'),
+      respond: () => textResponse(JSON.stringify({ dev1: { status: 'running', tool: 'jules' } })),
+    },
     {
       match: urlHas('/values/queue%3Adev1'),
       respond: () => textResponse(JSON.stringify([{ id: 'queued-1' }, { id: 'queued-2' }])),
@@ -1170,7 +1235,11 @@ test('web-api listComputers and getQueueActivity match the desktop shapes', asyn
   // Unconfigured → configured:false, empty shapes.
   const bare = createWebApi({ storage: makeStorage() });
   assert.deepEqual(await bare.listComputers(), { success: true, configured: false, computers: [] });
-  assert.deepEqual(await bare.getQueueActivity(), { success: true, configured: false, devices: [] });
+  assert.deepEqual(await bare.getQueueActivity(), {
+    success: true,
+    configured: false,
+    devices: [],
+  });
 });
 
 test('web-api pushKeysToCloudflare / pullKeysFromCloudflare sync the keys KV value', async () => {
@@ -1193,8 +1262,7 @@ test('web-api pushKeysToCloudflare / pullKeysFromCloudflare sync the keys KV val
     },
     {
       match: (url, opts) => urlHas('/values/keys')(url) && opts.method === 'GET',
-      respond: () =>
-        textResponse(JSON.stringify({ jules: 'remote-j', cursor: 'remote-c' })),
+      respond: () => textResponse(JSON.stringify({ jules: 'remote-j', cursor: 'remote-c' })),
     },
   ]);
   const api = createWebApi({ storage, fetchImpl: fetchStub });

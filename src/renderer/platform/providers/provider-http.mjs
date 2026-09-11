@@ -52,7 +52,11 @@ export function createRequester({
     });
 
     if (!response.ok) {
-      throw new Error(formatError ? await formatError(response) : `${label} API error: ${response.status} - ${await response.text()}`);
+      throw new Error(
+        formatError
+          ? await formatError(response)
+          : `${label} API error: ${response.status} - ${await response.text()}`
+      );
     }
 
     return parseResponse(response);

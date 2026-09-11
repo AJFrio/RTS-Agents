@@ -8,7 +8,7 @@ test.describe('Settings View', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
     window = await electronApp.firstWindow();
     await window.waitForLoadState('domcontentloaded');
@@ -105,9 +105,7 @@ test.describe('Settings View', () => {
     await expect(
       window.locator('h2').filter({ hasText: /^(Connect|Manage) Cloudflare KV$/ })
     ).toBeVisible();
-    await expect(
-      window.locator('button:has-text("Create token on Cloudflare")')
-    ).toBeVisible();
+    await expect(window.locator('button:has-text("Create token on Cloudflare")')).toBeVisible();
     await expect(window.locator('button:has-text("Detect & connect")')).toBeVisible();
     await expect(window.locator('button:has-text("Detect Account ID")')).toHaveCount(0);
 
@@ -142,9 +140,7 @@ test.describe('Settings View', () => {
 
     await openCloudflareOnboarding();
 
-    await expect(
-      window.locator('button:has-text("Create token on Cloudflare")')
-    ).toBeVisible();
+    await expect(window.locator('button:has-text("Create token on Cloudflare")')).toBeVisible();
     await expect(window.locator('button:has-text("Detect & connect")')).toHaveCount(0);
     await expect(window.locator('button:has-text("Detect Account ID")')).toHaveCount(0);
   });

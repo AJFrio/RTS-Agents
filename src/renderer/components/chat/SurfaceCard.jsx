@@ -1,11 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
-import {
-  IconDevices,
-  IconRepositories,
-  IconPullRequests,
-  IconGitBranch,
-} from '../ui/icons.jsx';
+import { IconDevices, IconRepositories, IconPullRequests, IconGitBranch } from '../ui/icons.jsx';
 import { StatusDot } from '../ui/status.jsx';
 import { relativeTime, shortRepo, truncate } from './card-meta.js';
 import TaskCard from './TaskCard.jsx';
@@ -32,7 +27,8 @@ function CardShell({ onClick, children }) {
 
 function DeviceSurfaceCard({ card }) {
   const { setView, dispatch } = useApp();
-  const online = card.thisDevice || String(card.status || '').toLowerCase() === 'on' || card.status === 'local';
+  const online =
+    card.thisDevice || String(card.status || '').toLowerCase() === 'on' || card.status === 'local';
   const repoCount = Array.isArray(card.repos) ? card.repos.length : (card.repoCount ?? 0);
 
   return (
@@ -61,7 +57,9 @@ function DeviceSurfaceCard({ card }) {
           {online ? 'Online' : card.status || 'Idle'}
         </span>
         <MetaDot />
-        <span>{repoCount} repo{repoCount === 1 ? '' : 's'}</span>
+        <span>
+          {repoCount} repo{repoCount === 1 ? '' : 's'}
+        </span>
         {card.lastHeartbeat && (
           <>
             <MetaDot />
@@ -138,7 +136,8 @@ function prToModalPayload(card) {
       repo: {
         name: card.repo,
         owner: { login: card.owner },
-        full_name: card.fullName || (card.owner && card.repo ? `${card.owner}/${card.repo}` : undefined),
+        full_name:
+          card.fullName || (card.owner && card.repo ? `${card.owner}/${card.repo}` : undefined),
       },
     },
     head: {
@@ -154,7 +153,8 @@ function prToModalPayload(card) {
 
 function PullRequestSurfaceCard({ card }) {
   const { openPrModal } = useApp();
-  const repoLabel = card.fullName || (card.owner && card.repo ? `${card.owner}/${card.repo}` : 'Pull request');
+  const repoLabel =
+    card.fullName || (card.owner && card.repo ? `${card.owner}/${card.repo}` : 'Pull request');
   const state = String(card.state || 'open').toLowerCase();
   const stateLabel = card.draft ? 'Draft' : state;
 

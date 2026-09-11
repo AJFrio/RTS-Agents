@@ -17,7 +17,11 @@ function emitSessionUpdated(payload) {
  * Emit a tracked ACP/CLI session update. Status changes invalidate the
  * discovery cache via main.js; stream-only updates can omit statusChanged.
  */
-function emitTrackedSessionUpdate(provider, record, { statusChanged = false, details = null } = {}) {
+function emitTrackedSessionUpdate(
+  provider,
+  record,
+  { statusChanged = false, details = null } = {}
+) {
   if (!record) return;
   emitSessionUpdated({
     provider,

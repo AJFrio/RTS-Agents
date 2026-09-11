@@ -53,11 +53,7 @@ for (const file of walk(RENDERER)) {
 }
 
 // Services directory should exist with core modules
-const expectedServices = [
-  'config-store.js',
-  'agent-orchestrator.js',
-  'github-service.js',
-];
+const expectedServices = ['config-store.js', 'agent-orchestrator.js', 'github-service.js'];
 
 for (const svc of expectedServices) {
   const p = path.join(MAIN_SERVICES, svc);

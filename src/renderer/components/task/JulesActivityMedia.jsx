@@ -66,9 +66,7 @@ export default function JulesActivityMedia({ sessionId, activity, api, scrollRoo
           Loading verification capture…
         </div>
       )}
-      {error && !loading && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-      )}
+      {error && !loading && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
       {mediaItems?.length > 0 && (
         <div
           className={`grid gap-2 ${mediaItems.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}

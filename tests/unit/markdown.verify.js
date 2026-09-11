@@ -4,8 +4,8 @@ const assert = require('assert');
 
 const markdownPath = path.join(__dirname, '../../src/renderer/utils/markdown.js');
 if (!fs.existsSync(markdownPath)) {
-    console.error('markdown.js not found');
-    process.exit(1);
+  console.error('markdown.js not found');
+  process.exit(1);
 }
 
 let code = fs.readFileSync(markdownPath, 'utf8');
@@ -25,7 +25,10 @@ try {
 
   // Test 1: Headers
   assert.strictEqual(parseMarkdown('# Header 1').trim(), '<h1>Header 1</h1>');
-  assert.strictEqual(parseMarkdown('# **Bold** Header').trim(), '<h1><strong>Bold</strong> Header</h1>');
+  assert.strictEqual(
+    parseMarkdown('# **Bold** Header').trim(),
+    '<h1><strong>Bold</strong> Header</h1>'
+  );
 
   // Test 2: Paragraphs
   assert.strictEqual(parseMarkdown('Hello world').trim(), '<p>Hello world</p>');

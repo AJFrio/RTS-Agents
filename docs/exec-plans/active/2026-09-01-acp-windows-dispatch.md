@@ -15,7 +15,7 @@ Unblock local OpenCode/Claude (and sibling CLI) task start on Windows, widen off
 
 ## Progress log
 
-| Date | Note |
-|------|------|
+| Date       | Note                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------ |
 | 2026-09-01 | Implemented cli-spawn, adapter resolution, Antigravity ACP probe, Cursor v1 audit, start-path UX, docs/tests |
-| 2026-09-01 | Windows-aware spawn assertions, PATH .cmd fixtures, graceful ACP stdin shutdown before taskkill |
+| 2026-09-01 | Windows-aware spawn assertions, PATH .cmd fixtures, graceful ACP stdin shutdown before taskkill              |

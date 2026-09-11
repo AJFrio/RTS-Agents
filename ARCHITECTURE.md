@@ -4,12 +4,12 @@ RTS Agents is an **agent orchestration dashboard**: one place to monitor, create
 
 ## System boundaries
 
-| Surface | Runtime | Entry | Role |
-|---------|---------|-------|------|
-| Desktop app | Electron 44 | `main.js` | Primary product: IPC, polling, provider services |
-| Renderer UI | React 18 + Vite | `src/renderer/` | Dashboard, settings, modals, GitHub/Jira views |
-| Web app | Cloudflare Worker + Workers Assets | `worker/index.ts`, `wrangler.jsonc` | Same renderer served from `dist/renderer` at `https://agents.ajfrio.com`; `/api/*` proxy; dispatches to desktop via KV |
-| Headless node | Node (no UI) | `headless.js` | Registers device, pulls keys, runs queued remote tasks |
+| Surface       | Runtime                            | Entry                               | Role                                                                                                                   |
+| ------------- | ---------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Desktop app   | Electron 44                        | `main.js`                           | Primary product: IPC, polling, provider services                                                                       |
+| Renderer UI   | React 18 + Vite                    | `src/renderer/`                     | Dashboard, settings, modals, GitHub/Jira views                                                                         |
+| Web app       | Cloudflare Worker + Workers Assets | `worker/index.ts`, `wrangler.jsonc` | Same renderer served from `dist/renderer` at `https://agents.ajfrio.com`; `/api/*` proxy; dispatches to desktop via KV |
+| Headless node | Node (no UI)                       | `headless.js`                       | Registers device, pulls keys, runs queued remote tasks                                                                 |
 
 The renderer is runtime-agnostic: `useElectronAPI()` returns the Electron preload bridge, or the web adapter in `src/renderer/platform/` (localStorage settings, worker-proxy providers) when `window.electronAPI` is absent. `useRuntime()` exposes capability flags so desktop-only UI (app update/restart, window mode, local CLI plugins, folder pickers, Local task environment) is hidden on the website instead of shown as a dead end.
 
@@ -36,15 +36,15 @@ Main process (main.js, CommonJS)
 
 ## Domain modules
 
-| Domain | Main services | Renderer areas |
-|--------|---------------|----------------|
-| Agent discovery | `antigravity-service`, `claude-service`, `opencode-service`, `jules-service`, `cursor-service`, `codex-service` | Dashboard, AgentPage |
-| Task creation | same + `project-service` | NewTaskModal |
-| Orchestration | `agent-orchestrator`, `openrouter-service` | Agent chat / tools |
-| GitHub | `github-service` | BranchesPage, PullRequestsPage, PrModal |
-| Multi-device | `cloudflare-kv-service`, `queue-processor-service` | ComputersPage, Settings |
-| Projects / repos | `project-service`, `config-store` paths | Settings, repo pickers |
-| Integrations | `jira-service` | Jira views (where enabled) |
+| Domain           | Main services                                                                                                   | Renderer areas                          |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Agent discovery  | `antigravity-service`, `claude-service`, `opencode-service`, `jules-service`, `cursor-service`, `codex-service` | Dashboard, AgentPage                    |
+| Task creation    | same + `project-service`                                                                                        | NewTaskModal                            |
+| Orchestration    | `agent-orchestrator`, `openrouter-service`                                                                      | Agent chat / tools                      |
+| GitHub           | `github-service`                                                                                                | BranchesPage, PullRequestsPage, PrModal |
+| Multi-device     | `cloudflare-kv-service`, `queue-processor-service`                                                              | ComputersPage, Settings                 |
+| Projects / repos | `project-service`, `config-store` paths                                                                         | Settings, repo pickers                  |
+| Integrations     | `jira-service`                                                                                                  | Jira views (where enabled)              |
 
 ## Data flow (typical poll cycle)
 

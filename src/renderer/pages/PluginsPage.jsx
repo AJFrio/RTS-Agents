@@ -3,7 +3,10 @@ import { useApp } from '../context/AppContext.jsx';
 import ServiceOnboardingModal from '../components/settings/ServiceOnboardingModal.jsx';
 import { SERVICE_CATALOG, getServiceDefinition } from '../components/settings/service-catalog.js';
 import { buildConnectedServiceGroups } from '../components/settings/service-status.js';
-import { useConnectedServices, buildConnectedServices } from '../components/settings/connected-services.js';
+import {
+  useConnectedServices,
+  buildConnectedServices,
+} from '../components/settings/connected-services.js';
 import { providerMeta, IconKey, IconExternal } from '../components/ui/icons.jsx';
 import { StatusDot } from '../components/ui/status.jsx';
 import { useRuntime } from '../hooks/use-runtime.js';
@@ -58,7 +61,15 @@ function ServiceCard({
                       : 'bg-neutral-400/10 text-neutral-500 dark:text-neutral-400'
                 }`}
               >
-                <StatusDot status={statusInfo.tone === 'completed' ? 'completed' : statusInfo.tone === 'failed' ? 'failed' : 'idle'} />
+                <StatusDot
+                  status={
+                    statusInfo.tone === 'completed'
+                      ? 'completed'
+                      : statusInfo.tone === 'failed'
+                        ? 'failed'
+                        : 'idle'
+                  }
+                />
                 {statusInfo.label}
               </span>
             )}
@@ -149,10 +160,7 @@ export default function PluginsPage() {
     [disconnectServiceGroup]
   );
 
-  const catalog = useMemo(
-    () => filterServicesForRuntime(SERVICE_CATALOG, runtime),
-    [runtime]
-  );
+  const catalog = useMemo(() => filterServicesForRuntime(SERVICE_CATALOG, runtime), [runtime]);
   const connectedCatalogIds = new Set(connectedGroups.flatMap((group) => group.services));
   const availableServices = catalog.filter((service) => !connectedCatalogIds.has(service.id));
 

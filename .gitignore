@@ -35,3 +35,6 @@ test-results/
 
 # Coverage
 coverage/
+
+# opencode session state
+.omo/

@@ -2,15 +2,7 @@ import React from 'react';
 import { formatCount } from '../../utils/format.js';
 import { IconChevronRight } from './icons.jsx';
 
-export default function Pagination({
-  start,
-  end,
-  total,
-  currentPage,
-  totalPages,
-  onPrev,
-  onNext,
-}) {
+export default function Pagination({ start, end, total, currentPage, totalPages, onPrev, onNext }) {
   if (totalPages <= 1) return null;
   const currentStr = formatCount(currentPage);
   const totalStr = formatCount(totalPages);

@@ -10,9 +10,12 @@ jest.mock('../../src/main/services/cloudflare-kv-service', () => ({
   enqueueDeviceTask: jest.fn(),
 }));
 
-const { createTask, sendTaskMessage, sortAgentsByDate, REMOTE_TASK_PROVIDERS } = require(
-  '../../src/main/ipc/provider-registry'
-);
+const {
+  createTask,
+  sendTaskMessage,
+  sortAgentsByDate,
+  REMOTE_TASK_PROVIDERS,
+} = require('../../src/main/ipc/provider-registry');
 const cloudflareKvService = require('../../src/main/services/cloudflare-kv-service');
 
 describe('provider-registry', () => {
@@ -20,7 +23,7 @@ describe('provider-registry', () => {
     const sorted = sortAgentsByDate([
       { id: 'a', createdAt: '2020-01-01' },
       { id: 'b', updatedAt: '2025-01-01' },
-      { id: 'c', createdAt: '2024-06-01' }
+      { id: 'c', createdAt: '2024-06-01' },
     ]);
     expect(sorted.map((a) => a.id)).toEqual(['b', 'c', 'a']);
   });

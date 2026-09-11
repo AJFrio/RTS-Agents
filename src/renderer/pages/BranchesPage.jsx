@@ -52,7 +52,11 @@ export default function BranchesPage() {
 
   const repoOpenPrCount = (repo) => {
     if (!repo) return 0;
-    const fullName = repo.full_name || (repo.owner?.login || repo.owner ? `${repo.owner?.login || repo.owner}/${repo.name}` : repo.name);
+    const fullName =
+      repo.full_name ||
+      (repo.owner?.login || repo.owner
+        ? `${repo.owner?.login || repo.owner}/${repo.name}`
+        : repo.name);
     return openPrCounts.get(fullName) || openPrCounts.get(repo.name) || 0;
   };
 
@@ -164,7 +168,7 @@ export default function BranchesPage() {
     const tasks = [];
     let currentTask = null;
 
-    lines.forEach(line => {
+    lines.forEach((line) => {
       // Level 1 bullet: * Title or - Title or 1. Title
       // We look for lines starting with optional space (0-1), then a bullet marker, then space
       const titleMatch = line.match(/^(\s{0,1})(?:-|\*|\d+\.)\s+(.*)/);
@@ -175,21 +179,21 @@ export default function BranchesPage() {
         if (currentTask) tasks.push(currentTask);
         currentTask = {
           title: titleMatch[2].trim(),
-          descriptionLines: []
+          descriptionLines: [],
         };
       } else if (currentTask) {
         if (descMatch) {
-            currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
+          currentTask.descriptionLines.push(`* ${descMatch[2].trim()}`);
         } else if (line.trim()) {
-            currentTask.descriptionLines.push(line.trim());
+          currentTask.descriptionLines.push(line.trim());
         }
       }
     });
     if (currentTask) tasks.push(currentTask);
 
-    return tasks.map(t => ({
+    return tasks.map((t) => ({
       title: t.title,
-      description: t.descriptionLines.join('\n')
+      description: t.descriptionLines.join('\n'),
     }));
   }, [updatesContent]);
 
@@ -278,9 +282,7 @@ export default function BranchesPage() {
                         {repo.name}
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5">
-                        {repo.private && (
-                          <IconKey size={11} className="mt-0.5 text-neutral-400" />
-                        )}
+                        {repo.private && <IconKey size={11} className="mt-0.5 text-neutral-400" />}
                         {openPrCount > 0 && (
                           <span
                             title={`${openPrCount} open pull request${openPrCount !== 1 ? 's' : ''}`}
@@ -458,7 +460,10 @@ export default function BranchesPage() {
                     className="flex min-h-0 flex-1 flex-col overflow-hidden bg-sidebar-light dark:bg-sidebar-dark"
                   >
                     <div className="flex items-center gap-2 border-b border-border-light bg-card-light px-3 py-2 dark:border-border-dark dark:bg-card-dark">
-                      <IconTasks size={13} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
+                      <IconTasks
+                        size={13}
+                        className="shrink-0 text-neutral-500 dark:text-neutral-400"
+                      />
                       <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                         Tasks
                       </span>

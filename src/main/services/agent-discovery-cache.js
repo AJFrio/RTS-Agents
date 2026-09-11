@@ -4,10 +4,7 @@ const os = require('os');
 const { fetchAllAgents } = require('../ipc/provider-registry');
 const { computeAgentListDelta } = require('../utils/agent-list-delta');
 const { slimAgents } = require('../utils/repo-identity');
-const {
-  computeLocalFingerprint,
-  getConfigSignature
-} = require('./agent-discovery-fingerprint');
+const { computeLocalFingerprint, getConfigSignature } = require('./agent-discovery-fingerprint');
 const repoRemoteCache = require('./repo-remote-cache');
 
 const WATCH_DEBOUNCE_MS = 2000;
@@ -61,7 +58,7 @@ class AgentDiscoveryCache {
   }
 
   collectWatchRoots(deps) {
-    const { configStore, antigravityService, claudeService } = deps;
+    const { configStore, antigravityService } = deps;
     const roots = new Set();
     const add = (p) => {
       if (p && typeof p === 'string') roots.add(p);
@@ -96,7 +93,7 @@ class AgentDiscoveryCache {
       this.snapshot = {
         agents: this.remoteCache.applyToAgents(agents),
         counts,
-        errors: []
+        errors: [],
       };
       if (typeof parsed.revision === 'number' && parsed.revision > 0) {
         this.revision = parsed.revision;
@@ -126,7 +123,7 @@ class AgentDiscoveryCache {
         revision: this.revision,
         agents: slimAgents(this.snapshot.agents),
         counts: this.snapshot.counts || {},
-        remotes: this.remoteCache.serialize ? this.remoteCache.serialize() : {}
+        remotes: this.remoteCache.serialize ? this.remoteCache.serialize() : {},
       };
       fs.writeFileSync(this.persistPath, JSON.stringify(payload));
     } catch {
@@ -192,7 +189,7 @@ class AgentDiscoveryCache {
       agents: full ? snapshot.agents : [],
       delta,
       counts: snapshot.counts || {},
-      errors: snapshot.errors || []
+      errors: snapshot.errors || [],
     };
   }
 
@@ -209,7 +206,7 @@ class AgentDiscoveryCache {
         if (!changed || !this.snapshot) return;
         this.snapshot = {
           ...this.snapshot,
-          agents: cache.applyToAgents(this.snapshot.agents)
+          agents: cache.applyToAgents(this.snapshot.agents),
         };
         this.revision += 1;
         this.persistSoon();

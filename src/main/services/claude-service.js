@@ -160,7 +160,9 @@ class ClaudeService {
               path: projectPath,
               sessionsPath: sessionsPath,
             };
-          } catch {}
+          } catch {
+            // ignore
+          }
 
           try {
             await fsPromises.access(chatsPath);
@@ -169,14 +171,14 @@ class ClaudeService {
               path: projectPath,
               sessionsPath: chatsPath,
             };
-          } catch {}
+          } catch {
+            // ignore
+          }
 
           try {
             // Check if the directory itself contains session files
             const files = await fsPromises.readdir(projectPath);
-            const hasSessionFiles = files.some(
-              (f) => f.endsWith('.json') || f.endsWith('.jsonl')
-            );
+            const hasSessionFiles = files.some((f) => f.endsWith('.json') || f.endsWith('.jsonl'));
             if (hasSessionFiles) {
               return {
                 hash: entry.name,
@@ -184,14 +186,16 @@ class ClaudeService {
                 sessionsPath: projectPath,
               };
             }
-          } catch {}
+          } catch {
+            // ignore
+          }
 
           return null;
         });
 
         const results = await Promise.all(entryPromises);
         return results.filter((r) => r !== null);
-      } catch (err) {
+      } catch {
         // Ignore errors
         return [];
       }
@@ -227,11 +231,7 @@ class ClaudeService {
           const filePath = path.join(sessionsPath, file);
           const stats = await fsPromises.stat(filePath);
           const cached = this._sessionListCache.get(filePath);
-          if (
-            cached &&
-            cached.mtimeMs === stats.mtimeMs &&
-            cached.size === stats.size
-          ) {
+          if (cached && cached.mtimeMs === stats.mtimeMs && cached.size === stats.size) {
             return cached.listFields;
           }
 
@@ -275,14 +275,14 @@ class ClaudeService {
             this._sessionListCache.delete(oldest);
           }
           return listFields;
-        } catch (err) {
+        } catch {
           return null;
         }
       });
 
       const results = await Promise.all(sessionPromises);
       return results.filter((s) => s !== null);
-    } catch (err) {
+    } catch {
       // Ignore error
     }
 
@@ -508,7 +508,7 @@ class ClaudeService {
       try {
         const localSessions = await this.getAllLocalSessions(additionalPaths);
         results.push(...localSessions);
-      } catch (err) {
+      } catch {
         // Ignore error
       }
     }
@@ -518,7 +518,7 @@ class ClaudeService {
       try {
         const cloudConversations = await this.getAllCloudConversations();
         results.push(...cloudConversations);
-      } catch (err) {
+      } catch {
         // Ignore error
       }
     }
@@ -595,7 +595,7 @@ class ClaudeService {
         filePath: filePath,
         fileSize: stats.size,
       };
-    } catch (err) {
+    } catch {
       return null;
     }
   }
@@ -727,7 +727,7 @@ class ClaudeService {
       // Add attachments
       for (const attachment of attachments) {
         if (attachment.dataUrl) {
-          const match = attachment.dataUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+          const match = attachment.dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
           if (match) {
             messageContent.push({
               type: 'image',
@@ -814,9 +814,8 @@ class ClaudeService {
     }
 
     const sessionId = `claude-cli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const adapter = command && String(command).trim()
-      ? null
-      : toAdapterSpec(acpService.resolveAdapter('claude'));
+    const adapter =
+      command && String(command).trim() ? null : toAdapterSpec(acpService.resolveAdapter('claude'));
     const claudeCmd =
       command && String(command).trim() ? String(command).trim() : this.getExecutable();
 
@@ -829,7 +828,10 @@ class ClaudeService {
     if (adapter) {
       return this._startAcpSession(adapter, { prompt, projectPath, model }, sessionId);
     }
-    return this._spawnLegacySession({ prompt, projectPath, allowedTools, command: claudeCmd, model }, sessionId);
+    return this._spawnLegacySession(
+      { prompt, projectPath, allowedTools, command: claudeCmd, model },
+      sessionId
+    );
   }
 
   _startAcpSession(adapter, { prompt, projectPath, model }, sessionId) {
@@ -909,9 +911,7 @@ class ClaudeService {
           // re-dispatching through the legacy CLI would run the prompt twice.
           if (!cardResolved && err?.fallbackAllowed) {
             acpService.closeSession(sessionId);
-            this.trackedLocalSessions = this.trackedLocalSessions.filter(
-              (s) => s.id !== sessionId
-            );
+            this.trackedLocalSessions = this.trackedLocalSessions.filter((s) => s.id !== sessionId);
             this._persistTrackedLocalSessions();
             try {
               Promise.resolve(
@@ -934,7 +934,10 @@ class ClaudeService {
     });
   }
 
-  _spawnLegacySession({ prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command, model }, sessionId) {
+  _spawnLegacySession(
+    { prompt, projectPath, allowedTools = CLAUDE_DEFAULT_TOOLS, command, model },
+    sessionId
+  ) {
     // Build command: claude -p "prompt" --allowedTools "Read,Edit,Bash"
     // -p: prompt/headless mode
     // --allowedTools: auto-approve these tools
@@ -988,11 +991,7 @@ class ClaudeService {
   _applyAcpUpdate(sessionId, update) {
     const current = this.trackedLocalSessions.find((s) => s.id === sessionId);
     if (!current) return;
-    const next = applySessionUpdate(
-      current.streamMessages || [],
-      update,
-      new Date().toISOString()
-    );
+    const next = applySessionUpdate(current.streamMessages || [], update, new Date().toISOString());
     if (next === current.streamMessages) return;
     this._updateTrackedLocalSession(sessionId, { streamMessages: next }, true);
   }

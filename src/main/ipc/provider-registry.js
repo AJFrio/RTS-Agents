@@ -424,6 +424,8 @@ async function createRemoteTask(deps, provider, options) {
     prompt: options.prompt,
     attachments: options.attachments,
     model: options.model || null,
+    autoCreatePr: options.autoCreatePr === true,
+    branch: options.branch || 'main',
     requestedBy: identity.name,
     createdAt: nowIso,
   };

@@ -114,12 +114,9 @@ export function createCloudflareKvService({ storage, fetchImpl } = {}) {
     if (!key) throw new Error('Missing Cloudflare KV key');
 
     const body = typeof value === 'string' ? value : JSON.stringify(value);
-    await textRequest(
-      `/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`,
-      'PUT',
-      body,
-      { 'Content-Type': 'text/plain' }
-    );
+    await textRequest(`/namespaces/${namespaceId}/values/${encodeURIComponent(key)}`, 'PUT', body, {
+      'Content-Type': 'text/plain',
+    });
     return { success: true };
   }
 
@@ -168,6 +165,10 @@ export function createCloudflareKvService({ storage, fetchImpl } = {}) {
       tool: task.tool,
       repo: task.repo,
       prompt: task.prompt,
+      attachments: Array.isArray(task.attachments) ? task.attachments : [],
+      model: task.model || null,
+      autoCreatePr: task.autoCreatePr === true,
+      branch: task.branch || 'main',
       requestedBy: task.requestedBy || 'web-pwa',
       createdAt: new Date().toISOString(),
     };

@@ -19,7 +19,9 @@ const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode'];
 function getCachedModels(provider) {
   try {
     const raw =
-      typeof localStorage !== 'undefined' ? localStorage.getItem(MODELS_CACHE_KEY_PREFIX + provider) : null;
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(MODELS_CACHE_KEY_PREFIX + provider)
+        : null;
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -41,7 +43,9 @@ function setCachedModels(provider, models) {
 function getCachedRepos(provider) {
   try {
     const raw =
-      typeof localStorage !== 'undefined' ? localStorage.getItem(CACHE_KEY_PREFIX + provider) : null;
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(CACHE_KEY_PREFIX + provider)
+        : null;
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -66,12 +70,66 @@ function capabilityForProvider(state, provider) {
   return state.capabilities?.[provider];
 }
 
-function getAgentsForEnvironment(state, environment) {
+/**
+ * Map a device's heartbeat-published CLI tools (`tools[0]['CLI tools']`, e.g.
+ * "claude CLI", "OpenCode CLI") to remote-dispatchable provider ids.
+ */
+function providersForDevice(device) {
+  const tools = device?.tools?.[0]?.['CLI tools'];
+  if (!Array.isArray(tools)) return [];
+  const joined = tools.join(' ').toLowerCase();
+  const patterns = [
+    ['opencode', 'opencode'],
+    ['codex', 'codex'],
+    ['claude', 'claude-cli'],
+    ['antigravity', 'antigravity'],
+  ];
+  return patterns.filter(([needle]) => joined.includes(needle)).map(([, id]) => id);
+}
+
+/**
+ * Repos advertised by devices in KV (heartbeat publishes `{name, path}`).
+ * Name-only entries (desktop listComputers summaries) carry no dispatchable
+ * path and are skipped.
+ */
+function deviceRepos(devices) {
+  const seen = new Set();
+  const list = [];
+  for (const device of devices) {
+    const repos = Array.isArray(device?.repos) ? device.repos : [];
+    for (const repo of repos) {
+      const path = typeof repo === 'string' ? '' : repo?.path || '';
+      if (!path || seen.has(path)) continue;
+      seen.add(path);
+      list.push({ path, name: repo?.name || shortRepo(path) });
+    }
+  }
+  return list;
+}
+
+function getAgentsForEnvironment(
+  state,
+  environment,
+  { targetDeviceId = '', includeLocal = false } = {}
+) {
   if (environment === 'cloud') {
     return CLOUD_PROVIDERS.filter((id) => capabilityForProvider(state, id)?.cloud);
   }
   if (environment === 'remote') {
-    return REMOTE_PROVIDERS.filter((id) => capabilityForProvider(state, id)?.local);
+    // includeLocal keeps desktop parity: this machine's CLIs can serve as the
+    // remote target when dispatching to itself.
+    const available = new Set();
+    if (includeLocal) {
+      for (const id of REMOTE_PROVIDERS) {
+        if (capabilityForProvider(state, id)?.local) available.add(id);
+      }
+    }
+    const computers = state.computers?.list ?? [];
+    const pool = targetDeviceId ? computers.filter((c) => c.id === targetDeviceId) : computers;
+    for (const device of pool) {
+      for (const id of providersForDevice(device)) available.add(id);
+    }
+    return REMOTE_PROVIDERS.filter((id) => available.has(id));
   }
   return LOCAL_PROVIDERS.filter((id) => capabilityForProvider(state, id)?.local);
 }
@@ -87,7 +145,12 @@ function getRepoLabel(repo) {
 function shortRepo(repository) {
   const text = String(repository || '').trim();
   if (!text) return '';
-  return text.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || text;
+  return (
+    text
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .pop() || text
+  );
 }
 
 function looksLikeLocalPath(value) {
@@ -171,8 +234,18 @@ export default function NewTaskPage() {
   }, [environment, runtime]);
 
   const agentsForEnv = useMemo(
-    () => getAgentsForEnvironment(state, environment),
-    [state.capabilities, environment]
+    () =>
+      getAgentsForEnvironment(state, environment, {
+        targetDeviceId,
+        includeLocal: runtime.localTaskEnvironment,
+      }),
+    [
+      state.capabilities,
+      state.computers?.list,
+      environment,
+      targetDeviceId,
+      runtime.localTaskEnvironment,
+    ]
   );
 
   const filteredRepos = useMemo(() => {
@@ -214,7 +287,15 @@ export default function NewTaskPage() {
     }
   }, [environment, agentsForEnv]);
 
+  const remoteDeviceRepos = useMemo(() => {
+    if (environment !== 'remote') return [];
+    const computers = state.computers?.list ?? [];
+    const pool = targetDeviceId ? computers.filter((c) => c.id === targetDeviceId) : computers;
+    return deviceRepos(pool);
+  }, [environment, targetDeviceId, state.computers?.list]);
+
   useEffect(() => {
+    if (environment === 'remote' && remoteDeviceRepos.length > 0) return;
     if (!selectedProvider || !api?.getRepositories || selectedProvider === 'claude-cloud') return;
 
     const cached = getCachedRepos(selectedProvider);
@@ -229,10 +310,13 @@ export default function NewTaskPage() {
     }
 
     setLoadingRepos(true);
+    let cancelled = false;
     api
       .getRepositories(selectedProvider)
       .then((result) => {
-        const list = result?.success && Array.isArray(result.repositories) ? result.repositories : [];
+        if (cancelled) return;
+        const list =
+          result?.success && Array.isArray(result.repositories) ? result.repositories : [];
         setRepos(list);
         setCachedRepos(selectedProvider, list);
         setSelectedRepo((prev) => {
@@ -244,8 +328,21 @@ export default function NewTaskPage() {
       .catch(() => {
         // Keep the cached list if any.
       })
-      .finally(() => setLoadingRepos(false));
-  }, [selectedProvider, api]);
+      .finally(() => {
+        if (!cancelled) setLoadingRepos(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProvider, api, environment, remoteDeviceRepos]);
+
+  useEffect(() => {
+    if (remoteDeviceRepos.length === 0) return;
+    setRepos(remoteDeviceRepos);
+    setSelectedRepo((prev) =>
+      prev && remoteDeviceRepos.some((r) => r.path === prev) ? prev : remoteDeviceRepos[0].path
+    );
+  }, [remoteDeviceRepos]);
 
   useEffect(() => {
     if (!selectedProvider || !api?.getProviderModels) {
@@ -402,7 +499,12 @@ export default function NewTaskPage() {
       reader.onload = (ev) => {
         setAttachments((prev) => [
           ...prev,
-          { id: Math.random().toString(36).slice(2, 11), file, dataUrl: ev.target.result, name: file.name },
+          {
+            id: Math.random().toString(36).slice(2, 11),
+            file,
+            dataUrl: ev.target.result,
+            name: file.name,
+          },
         ]);
       };
       reader.readAsDataURL(file);
@@ -420,21 +522,29 @@ export default function NewTaskPage() {
       reader.onload = (ev) => {
         setAttachments((prev) => [
           ...prev,
-          { id: Math.random().toString(36).slice(2, 11), file, dataUrl: ev.target.result, name: 'Pasted image' },
+          {
+            id: Math.random().toString(36).slice(2, 11),
+            file,
+            dataUrl: ev.target.result,
+            name: 'Pasted image',
+          },
         ]);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const resolvedRepoPath = selectedRepo || (looksLikeLocalPath(repoSearch) ? repoSearch.trim() : '');
+  const resolvedRepoPath =
+    selectedRepo || (looksLikeLocalPath(repoSearch) ? repoSearch.trim() : '');
 
   const validate = () => {
     const errors = {};
     if (!selectedProvider) errors.agent = 'Choose an agent before creating the task.';
     if (!prompt.trim()) errors.prompt = 'Describe what the agent should do.';
-    if (environment === 'remote' && !targetDeviceId) errors.device = 'Choose the device that should run this queued task.';
-    if (repoRequired && !resolvedRepoPath) errors.repo = 'Choose the repository or local project path for this task.';
+    if (environment === 'remote' && !targetDeviceId)
+      errors.device = 'Choose the device that should run this queued task.';
+    if (repoRequired && !resolvedRepoPath)
+      errors.repo = 'Choose the repository or local project path for this task.';
     return errors;
   };
 
@@ -502,13 +612,18 @@ export default function NewTaskPage() {
   };
 
   return (
-    <div id="new-task-modal" className="mx-auto h-full min-h-0 max-w-3xl overflow-y-auto px-4 py-4 md:px-6">
+    <div
+      id="new-task-modal"
+      className="mx-auto h-full min-h-0 max-w-3xl overflow-y-auto px-4 py-4 md:px-6"
+    >
       <div className="space-y-3">
         <section>
           <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Run location
           </h3>
-          <div className={`grid gap-1.5 ${taskEnvironments.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          <div
+            className={`grid gap-1.5 ${taskEnvironments.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+          >
             {taskEnvironments.map(({ id, label }) => (
               <button
                 key={id}
@@ -594,9 +709,7 @@ export default function NewTaskPage() {
         {(() => {
           const reason = Object.values(validate())[0];
           if (reason) {
-            return (
-              <p className="text-[12px] text-amber-700 dark:text-amber-400">{reason}</p>
-            );
+            return <p className="text-[12px] text-amber-700 dark:text-amber-400">{reason}</p>;
           }
           return null;
         })()}
@@ -648,7 +761,9 @@ export default function NewTaskPage() {
                 <option value="">Device</option>
                 {computersList.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.id === state.localDeviceId ? `${c.name || c.id} (this device)` : c.name || c.id}
+                    {c.id === state.localDeviceId
+                      ? `${c.name || c.id} (this device)`
+                      : c.name || c.id}
                   </option>
                 ))}
               </select>
@@ -711,10 +826,16 @@ export default function NewTaskPage() {
                     ref={repoListRef}
                     className="fixed z-20 max-h-48 overflow-y-auto rounded-md border border-border-light bg-card-light py-1 dark:border-border-dark dark:bg-card-dark"
                     role="listbox"
-                    style={{ top: repoDropdownPos.top, left: repoDropdownPos.left, width: repoDropdownPos.width }}
+                    style={{
+                      top: repoDropdownPos.top,
+                      left: repoDropdownPos.left,
+                      width: repoDropdownPos.width,
+                    }}
                   >
                     {filteredRepos.length === 0 ? (
-                      <li className="px-3 py-2 text-[13px] text-neutral-400">No repositories found</li>
+                      <li className="px-3 py-2 text-[13px] text-neutral-400">
+                        No repositories found
+                      </li>
                     ) : (
                       filteredRepos.map((repo, index) => {
                         const value = getRepoValue(repo);
@@ -734,7 +855,9 @@ export default function NewTaskPage() {
                                 setFieldErrors((prev) => ({ ...prev, repo: null }));
                               }}
                               className={`repo-option w-full px-3 py-2 text-left font-mono text-[12px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                                isHighlighted ? 'active-repo-option bg-neutral-100 dark:bg-neutral-800' : ''
+                                isHighlighted
+                                  ? 'active-repo-option bg-neutral-100 dark:bg-neutral-800'
+                                  : ''
                               } ${isSelected ? 'font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400'}`}
                             >
                               {label}
@@ -792,7 +915,9 @@ export default function NewTaskPage() {
                         aria-selected={!selectedModel}
                         onClick={() => chooseModel('')}
                         className={`w-full px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                          !selectedModel ? 'font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400'
+                          !selectedModel
+                            ? 'font-semibold text-neutral-900 dark:text-neutral-100'
+                            : 'text-neutral-600 dark:text-neutral-400'
                         }`}
                       >
                         Harness default
@@ -806,7 +931,9 @@ export default function NewTaskPage() {
                           aria-selected={selectedModel === m}
                           onClick={() => chooseModel(m)}
                           className={`w-full truncate px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                            index === modelHighlightedIndex ? 'bg-neutral-100 dark:bg-neutral-800' : ''
+                            index === modelHighlightedIndex
+                              ? 'bg-neutral-100 dark:bg-neutral-800'
+                              : ''
                           } ${selectedModel === m ? 'font-semibold text-neutral-900 dark:text-neutral-100' : 'text-neutral-600 dark:text-neutral-400'}`}
                         >
                           {m}

@@ -73,7 +73,10 @@ describe('OpenCodeService', () => {
       mockAcp({
         onPrompt: ({ onUpdate }) => {
           onUpdate(
-            { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Live output' } },
+            {
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: 'Live output' },
+            },
             'ses_acp1'
           );
         },
@@ -188,9 +191,7 @@ describe('OpenCodeService', () => {
 
         jest.advanceTimersByTime(1100);
         const persisted = configStore.setOpenCodeSessions.mock.calls.at(-1)[0];
-        expect(persisted[0].streamMessages).toEqual([
-          expect.objectContaining({ content: 'live' }),
-        ]);
+        expect(persisted[0].streamMessages).toEqual([expect.objectContaining({ content: 'live' })]);
         expect(persisted[0].status).toBe('running');
         await startPromise;
       } finally {

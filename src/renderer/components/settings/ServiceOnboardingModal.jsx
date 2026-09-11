@@ -301,7 +301,11 @@ export default function ServiceOnboardingModal({
 
       await refreshAfterConnect();
 
-      if (service.kind === 'local-path' || service.kind === 'cloud-api-key' || service.kind === 'jira') {
+      if (
+        service.kind === 'local-path' ||
+        service.kind === 'cloud-api-key' ||
+        service.kind === 'jira'
+      ) {
         setFormValues((prev) => ({
           ...prev,
           path: '',
@@ -433,66 +437,69 @@ export default function ServiceOnboardingModal({
             </div>
           )}
 
-          {!desktopOnlyOnWeb && service.fields.map((field) => {
-            const helper = getOnboardingFieldHelper(service, field.key);
-            const isPath = field.type === 'path';
-            const showDetect =
-              service.kind === 'cloudflare' && field.key === 'accountId' && canDetectCloudflareAccount;
+          {!desktopOnlyOnWeb &&
+            service.fields.map((field) => {
+              const helper = getOnboardingFieldHelper(service, field.key);
+              const isPath = field.type === 'path';
+              const showDetect =
+                service.kind === 'cloudflare' &&
+                field.key === 'accountId' &&
+                canDetectCloudflareAccount;
 
-            return (
-              <div key={field.key} className="space-y-1.5">
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                  {field.label}
-                </label>
-                {isPath ? (
-                  <div className="flex overflow-hidden rounded-sm border border-border-light dark:border-border-dark">
+              return (
+                <div key={field.key} className="space-y-1.5">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                    {field.label}
+                  </label>
+                  {isPath ? (
+                    <div className="flex overflow-hidden rounded-sm border border-border-light dark:border-border-dark">
+                      <input
+                        type="text"
+                        value={formValues[field.key] || ''}
+                        onChange={(event) => updateValue(field.key, event.target.value)}
+                        placeholder={field.placeholder}
+                        className="min-w-0 flex-1 rounded-none border-0"
+                      />
+                      {runtime.directoryPicker && (
+                        <button
+                          type="button"
+                          onClick={browseForPath}
+                          aria-label="Browse for folder"
+                          className="inline-flex shrink-0 items-center gap-1.5 border-l border-border-light px-2.5 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        >
+                          <IconFolder size={14} />
+                          Browse
+                        </button>
+                      )}
+                    </div>
+                  ) : showDetect ? (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="text"
+                        value={formValues[field.key] || ''}
+                        onChange={(event) => updateValue(field.key, event.target.value)}
+                        placeholder={field.placeholder}
+                        className="min-w-0 flex-1"
+                      />
+                      <Button variant="secondary" onClick={handleDetectAndConnect} disabled={busy}>
+                        {busy ? 'Connecting…' : 'Detect & connect'}
+                      </Button>
+                    </div>
+                  ) : (
                     <input
-                      type="text"
+                      type={field.type === 'password' ? 'password' : 'text'}
                       value={formValues[field.key] || ''}
                       onChange={(event) => updateValue(field.key, event.target.value)}
                       placeholder={field.placeholder}
-                      className="min-w-0 flex-1 rounded-none border-0"
+                      className="w-full"
                     />
-                    {runtime.directoryPicker && (
-                      <button
-                        type="button"
-                        onClick={browseForPath}
-                        aria-label="Browse for folder"
-                        className="inline-flex shrink-0 items-center gap-1.5 border-l border-border-light px-2.5 text-[12px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-300 dark:hover:bg-neutral-800"
-                      >
-                        <IconFolder size={14} />
-                        Browse
-                      </button>
-                    )}
-                  </div>
-                ) : showDetect ? (
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      type="text"
-                      value={formValues[field.key] || ''}
-                      onChange={(event) => updateValue(field.key, event.target.value)}
-                      placeholder={field.placeholder}
-                      className="min-w-0 flex-1"
-                    />
-                    <Button variant="secondary" onClick={handleDetectAndConnect} disabled={busy}>
-                      {busy ? 'Connecting…' : 'Detect & connect'}
-                    </Button>
-                  </div>
-                ) : (
-                  <input
-                    type={field.type === 'password' ? 'password' : 'text'}
-                    value={formValues[field.key] || ''}
-                    onChange={(event) => updateValue(field.key, event.target.value)}
-                    placeholder={field.placeholder}
-                    className="w-full"
-                  />
-                )}
-                {helper ? (
-                  <p className="text-[12px] text-neutral-500 dark:text-neutral-400">{helper}</p>
-                ) : null}
-              </div>
-            );
-          })}
+                  )}
+                  {helper ? (
+                    <p className="text-[12px] text-neutral-500 dark:text-neutral-400">{helper}</p>
+                  ) : null}
+                </div>
+              );
+            })}
 
           {existingPaths.length > 0 && (
             <div className="space-y-1">

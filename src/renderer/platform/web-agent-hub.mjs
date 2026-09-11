@@ -185,11 +185,16 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
     const repoPath = options.projectPath || options.repository;
     if (!repoPath) throw new Error('Repository path is required for remote tasks');
 
+    // Shape must match the desktop queue-processor contract: repo is {path},
+    // and model/attachments/autoCreatePr/branch ride along to the device.
     const queue = await providers.cloudflareKv.enqueueDeviceTask(options.targetDeviceId, {
       tool: provider,
-      repo: repoPath,
+      repo: { path: repoPath },
       prompt: options.prompt,
+      attachments: Array.isArray(options.attachments) ? options.attachments : [],
       model: options.model || null,
+      autoCreatePr: options.autoCreatePr === true,
+      branch: options.branch || 'main',
       requestedBy: REMOTE_TASK_REQUESTED_BY,
     });
     const queued = queue[queue.length - 1];

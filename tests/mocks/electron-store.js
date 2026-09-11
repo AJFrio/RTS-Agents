@@ -4,7 +4,7 @@ class Store {
     this.data = options.default || {};
     // Apply schema defaults if provided
     if (options.schema) {
-      Object.keys(options.schema).forEach(key => {
+      Object.keys(options.schema).forEach((key) => {
         if (this.data[key] === undefined && options.schema[key].default !== undefined) {
           this.data[key] = options.schema[key].default;
         }

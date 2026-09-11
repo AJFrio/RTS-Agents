@@ -208,12 +208,14 @@ class CodexService {
     const sessionId = `codex-cli-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     // An explicit custom CLI command opts out of ACP (it names the CLI itself).
     const adapter =
-      command && String(command).trim()
-        ? null
-        : toAdapterSpec(acpService.resolveAdapter('codex'));
+      command && String(command).trim() ? null : toAdapterSpec(acpService.resolveAdapter('codex'));
 
     if (adapter) {
-      return this._startAcpSession(adapter, { prompt, projectPath: cwd, model: options.model }, sessionId);
+      return this._startAcpSession(
+        adapter,
+        { prompt, projectPath: cwd, model: options.model },
+        sessionId
+      );
     }
     return this._spawnLegacySession(options, sessionId);
   }
@@ -366,9 +368,10 @@ class CodexService {
           ? update.content
           : update.content?.text
         : null;
-    const streamText = text && text.trim()
-      ? ((current.streamText || '') + text).slice(-STREAM_TEXT_CAP)
-      : current.streamText;
+    const streamText =
+      text && text.trim()
+        ? ((current.streamText || '') + text).slice(-STREAM_TEXT_CAP)
+        : current.streamText;
     if (nextMessages === current.streamMessages && streamText === current.streamText) return;
     this._updateTrackedThread(
       sessionId,

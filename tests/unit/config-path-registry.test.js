@@ -9,7 +9,7 @@ describe('config-path-registry', () => {
     },
     set(key, value) {
       data[key] = value;
-    }
+    },
   };
 
   beforeEach(() => {

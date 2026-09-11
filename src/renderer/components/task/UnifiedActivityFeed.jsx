@@ -41,7 +41,16 @@ function formatMessageTime(ms) {
  * icon + type chip + title line; expands to description, message markdown,
  * plan steps, and (for Jules) verification media.
  */
-function ActivityRow({ item, renderMessage, expandedIds, onToggleRow, showMedia, mediaApi, mediaSessionId, scrollRootRef }) {
+function ActivityRow({
+  item,
+  renderMessage,
+  expandedIds,
+  onToggleRow,
+  showMedia,
+  mediaApi,
+  mediaSessionId,
+  scrollRootRef,
+}) {
   const raw = item.raw ?? {};
   const time = relativeTime(item.timestamp);
   const counts = [];
@@ -69,16 +78,10 @@ function ActivityRow({ item, renderMessage, expandedIds, onToggleRow, showMedia,
         onClick={handleToggle}
         className="flex w-full items-center gap-2 rounded-md py-0.5 pr-1 text-left transition-colors hover:bg-slate-100/70 dark:hover:bg-slate-800/50"
       >
-        <span
-          aria-hidden="true"
-          className="material-symbols-outlined text-[14px] text-slate-400"
-        >
+        <span aria-hidden="true" className="material-symbols-outlined text-[14px] text-slate-400">
           {isOpen ? 'expand_more' : 'chevron_right'}
         </span>
-        <span
-          aria-hidden="true"
-          className="material-symbols-outlined text-[16px] text-primary"
-        >
+        <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-primary">
           {activityIcon(raw.type)}
         </span>
         <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary dark:bg-primary/20">
@@ -100,9 +103,7 @@ function ActivityRow({ item, renderMessage, expandedIds, onToggleRow, showMedia,
       </button>
       {isOpen && (
         <div className="ml-6 mt-1 space-y-2 pb-1">
-          {item.text && (
-            <p className="text-xs text-slate-600 dark:text-slate-400">{item.text}</p>
-          )}
+          {item.text && <p className="text-xs text-slate-600 dark:text-slate-400">{item.text}</p>}
           {raw.message && renderMessage(raw.message)}
           {raw.planSteps?.length > 0 && (
             <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
@@ -144,7 +145,9 @@ function MessageRow({ item, renderMessage, assistantLabel }) {
           <span className="material-symbols-outlined text-[16px]">smart_toy</span>
         </div>
       )}
-      <div className={`flex max-w-[90%] flex-col gap-1 sm:max-w-[78%] ${item.isUser ? 'items-end' : 'items-start'}`}>
+      <div
+        className={`flex max-w-[90%] flex-col gap-1 sm:max-w-[78%] ${item.isUser ? 'items-end' : 'items-start'}`}
+      >
         <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           {item.isUser ? 'You' : assistantLabel}
         </span>

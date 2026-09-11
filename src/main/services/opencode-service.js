@@ -295,7 +295,11 @@ class OpenCodeService {
 
     // An explicit custom CLI command opts out of ACP (it names the CLI itself).
     if (!(command && String(command).trim())) {
-      return this._startAcpSession(opencodeCmd, { prompt, projectPath, model: options.model }, sessionId);
+      return this._startAcpSession(
+        opencodeCmd,
+        { prompt, projectPath, model: options.model },
+        sessionId
+      );
     }
     return this._spawnLegacySession(opencodeCmd, options, { prompt, projectPath }, sessionId);
   }
@@ -418,11 +422,7 @@ class OpenCodeService {
   _applyAcpUpdate(sessionId, update) {
     const current = this._trackedEntry(sessionId);
     if (!current) return;
-    const next = applySessionUpdate(
-      current.streamMessages || [],
-      update,
-      new Date().toISOString()
-    );
+    const next = applySessionUpdate(current.streamMessages || [], update, new Date().toISOString());
     if (next === current.streamMessages) return;
     current.streamMessages = next;
     this._updateSessionDebounced(sessionId, () => ({ streamMessages: next }));
@@ -759,25 +759,25 @@ class OpenCodeService {
     if (process.platform === 'darwin') {
       const escapedPath = projectPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       const script = `cd "${escapedPath}" && ${opencodeCmd} -s ${opencodeSessionId}`;
-      const child = spawn('osascript', ['-e', `tell application "Terminal" to do script "${script}"`], {
-        detached: true,
-        stdio: 'ignore',
-        shell: false,
-      });
+      const child = spawn(
+        'osascript',
+        ['-e', `tell application "Terminal" to do script "${script}"`],
+        {
+          detached: true,
+          stdio: 'ignore',
+          shell: false,
+        }
+      );
       child.unref();
       return { success: true, method: 'terminal-mac' };
     }
 
-    const child = spawn(
-      'x-terminal-emulator',
-      ['-e', opencodeCmd, ...tuiArgs],
-      {
-        cwd: projectPath,
-        detached: true,
-        stdio: 'ignore',
-        shell: false,
-      }
-    );
+    const child = spawn('x-terminal-emulator', ['-e', opencodeCmd, ...tuiArgs], {
+      cwd: projectPath,
+      detached: true,
+      stdio: 'ignore',
+      shell: false,
+    });
     child.on('error', () => {
       spawn(opencodeCmd, tuiArgs, {
         cwd: projectPath,

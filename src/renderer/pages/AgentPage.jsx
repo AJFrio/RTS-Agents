@@ -111,7 +111,9 @@ export default function AgentPage() {
               sender: 'assistant',
               text: result?.content || '',
               toolCalls: result?.toolCalls || [],
-              cards: result?.cards || (result?.taskCards || []).map((card) => ({ ...card, kind: 'task' })),
+              cards:
+                result?.cards ||
+                (result?.taskCards || []).map((card) => ({ ...card, kind: 'task' })),
               isError: /error/i.test(result?.content || '') && !result?.toolCalls?.length,
             },
           ],
@@ -194,8 +196,7 @@ export default function AgentPage() {
                     What should we work on?
                   </h2>
                   <p className="mt-1.5 text-[12px] text-neutral-500 sm:text-[13px] dark:text-neutral-400">
-                    Janus can start tasks, browse devices and repos, and
-                    open pull requests.
+                    Janus can start tasks, browse devices and repos, and open pull requests.
                   </p>
                 </div>
                 <div className="grid w-full max-w-xl gap-1.5 sm:grid-cols-2 sm:gap-2">
@@ -244,11 +245,7 @@ export default function AgentPage() {
               submitLabel="Send message"
               autoFocus
             >
-              <ModelSelector
-                variant="inline"
-                value={selectedModel}
-                onChange={handleModelChange}
-              />
+              <ModelSelector variant="inline" value={selectedModel} onChange={handleModelChange} />
             </Composer>
           </div>
         </div>

@@ -31,7 +31,6 @@ jest.mock('child_process', () => ({
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const { EventEmitter } = require('events');
 const { spawn, spawnSync } = require('child_process');
 const { expectSpawnedCli, platformCli } = require('./helpers/cli-spawn-assert');
@@ -43,7 +42,6 @@ const configStore = require('../../src/main/services/config-store');
 describe('Codex Service', () => {
   let mockRequest;
   let mockResponse;
-  let requestSpy;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -61,7 +59,7 @@ describe('Codex Service', () => {
     mockResponse.statusCode = 200;
     mockResponse.headers = { 'content-type': 'application/json' };
 
-    requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
+    jest.spyOn(https, 'request').mockImplementation((options, callback) => {
       if (callback) {
         callback(mockResponse);
       }
@@ -330,11 +328,12 @@ describe('Codex Service', () => {
         projectPath: '/path/to/repo',
       });
 
-      expectSpawnedCli(
-        spawn,
-        platformCli('codex'),
-        ['exec', '--sandbox', 'workspace-write', 'Fix tests']
-      );
+      expectSpawnedCli(spawn, platformCli('codex'), [
+        'exec',
+        '--sandbox',
+        'workspace-write',
+        'Fix tests',
+      ]);
     });
 
     test('ACP dispatch forwards the requested model to connect', async () => {

@@ -17,7 +17,7 @@ describe('GitHub Service', () => {
     mockResponse.statusCode = 200;
 
     // Mock https.request
-    requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
+    requestSpy = jest.spyOn(https, 'request').mockImplementation((_options, _callback) => {
       // Immediately call callback if provided (optional, depends on implementation)
       // but in the test we call it manually to control timing.
       return mockRequest;

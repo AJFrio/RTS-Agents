@@ -1,14 +1,7 @@
 const { ipcMain } = require('electron');
 const { registerSettingsPathHandlers } = require('./register-settings-paths');
 
-const API_KEY_PROVIDERS = new Set([
-  'jules',
-  'cursor',
-  'claude',
-  'github',
-  'jira',
-  'openrouter',
-]);
+const API_KEY_PROVIDERS = new Set(['jules', 'cursor', 'claude', 'github', 'jira', 'openrouter']);
 
 function registerSettingsHandlers(deps) {
   const {
@@ -29,14 +22,19 @@ function registerSettingsHandlers(deps) {
   const { getMainWindow } = deps;
 
   ipcMain.handle('settings:get', async () => {
-    const [antigravityInstalled, claudeCliInstalled, codexInstalled, opencodeInstalled, cursorCliInstalled] =
-      await Promise.all([
-        antigravityService.isAntigravityInstalled(),
-        claudeService.isClaudeInstalled(),
-        codexService.isCodexInstalled(),
-        opencodeService.isOpenCodeInstalled(),
-        Promise.resolve(cursorService.isCursorCliAvailable()),
-      ]);
+    const [
+      antigravityInstalled,
+      claudeCliInstalled,
+      codexInstalled,
+      opencodeInstalled,
+      cursorCliInstalled,
+    ] = await Promise.all([
+      antigravityService.isAntigravityInstalled(),
+      claudeService.isClaudeInstalled(),
+      codexService.isCodexInstalled(),
+      opencodeService.isOpenCodeInstalled(),
+      Promise.resolve(cursorService.isCursorCliAvailable()),
+    ]);
     return {
       settings: configStore.getAllSettings(),
       apiKeys: {

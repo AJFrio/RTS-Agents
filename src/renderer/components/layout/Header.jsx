@@ -52,14 +52,7 @@ export default function Header() {
       loadBranches();
       loadAllPrs();
     } else if (currentView === 'devices') fetchComputers();
-  }, [
-    currentView,
-    loadAgents,
-    fetchComputers,
-    loadBranches,
-    loadAllPrs,
-    loadRemoteQueueActivity,
-  ]);
+  }, [currentView, loadAgents, fetchComputers, loadBranches, loadAllPrs, loadRemoteQueueActivity]);
 
   const showHeaderActions = ['dashboard', 'branches', 'devices'].includes(currentView);
   const activeFilterCount = getActiveFilterCount(filters);
@@ -96,7 +89,10 @@ export default function Header() {
           {headerTitle}
         </h2>
         {taskCount && (
-          <span id="total-count" className="shrink-0 text-[12px] text-neutral-500 dark:text-neutral-400">
+          <span
+            id="total-count"
+            className="shrink-0 text-[12px] text-neutral-500 dark:text-neutral-400"
+          >
             {taskCount}
           </span>
         )}

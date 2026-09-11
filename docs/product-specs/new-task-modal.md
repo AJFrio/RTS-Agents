@@ -16,37 +16,37 @@ Users create new work from the New Task canvas tab (formerly a modal) with provi
 - Device and Repository / project path live in the Composer footer as
   text+chevron controls next to Branch / Auto-PR / Model (DESIGN.md §5).
   The Composer itself is the shared Cursor chat box (rounded-2xl, circular
-  + and send).
+  - and send).
 - Stable ids for e2e: `#new-task-modal`, `#environment-*`, `#service-*`,
   `#task-repo-search`, `#repo-dropdown`, `#task-device`, `#create-task-btn`.
 - Validation copy stays inline. Do not reserve a large empty error panel.
 
 ## Provider options (desktop)
 
-| Provider | Required input |
-|----------|----------------|
-| Jules | Repo source, branch, optional auto-PR |
-| Cursor cloud | Repository, ref, optional auto-PR |
-| Antigravity CLI | Local git repo path |
-| Codex | Prompt; repo optional |
-| Claude CLI | Local repo path |
-| Claude cloud | Prompt only |
-| OpenCode | Per opencode-service capabilities |
+| Provider        | Required input                        |
+| --------------- | ------------------------------------- |
+| Jules           | Repo source, branch, optional auto-PR |
+| Cursor cloud    | Repository, ref, optional auto-PR     |
+| Antigravity CLI | Local git repo path                   |
+| Codex           | Prompt; repo optional                 |
+| Claude CLI      | Local repo path                       |
+| Claude cloud    | Prompt only                           |
+| OpenCode        | Per opencode-service capabilities     |
 
 ## Model selection (optional)
 
 When a harness reports the models it supports, the composer shows a
 "Model" pill dropdown; leaving it on "Harness default" sends no model.
 
-| Harness | Model list source | Model applied via |
-|---------|-------------------|-------------------|
-| OpenCode | `opencode models` (live) | `--model` CLI arg / ACP `session/set_mode` |
-| Antigravity | `agy models` (live) | `--model` CLI arg |
-| Cursor | `agent models` (CLI) or Cursor cloud API | ACP `session/set_mode` / cloud `body.model` |
-| Codex | None (harness default) | `--model` CLI arg when a model is typed |
-| Claude CLI | Static documented aliases | `--model` CLI arg / ACP `session/set_mode` |
-| Claude cloud | Anthropic `/v1/models` (API key) | Messages API `model` field |
-| Jules | Not supported (API has no model field) | — |
+| Harness      | Model list source                        | Model applied via                           |
+| ------------ | ---------------------------------------- | ------------------------------------------- |
+| OpenCode     | `opencode models` (live)                 | `--model` CLI arg / ACP `session/set_mode`  |
+| Antigravity  | `agy models` (live)                      | `--model` CLI arg                           |
+| Cursor       | `agent models` (CLI) or Cursor cloud API | ACP `session/set_mode` / cloud `body.model` |
+| Codex        | None (harness default)                   | `--model` CLI arg when a model is typed     |
+| Claude CLI   | Static documented aliases                | `--model` CLI arg / ACP `session/set_mode`  |
+| Claude cloud | Anthropic `/v1/models` (API key)         | Messages API `model` field                  |
+| Jules        | Not supported (API has no model field)   | —                                           |
 
 Remote tasks carry the model in the KV queue payload; the executing device
 threads it into the same service dispatch paths.

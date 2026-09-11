@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAppActions, useAppState } from '../../context/AppContext.jsx';
 import {
   IconAgent,
@@ -58,9 +58,7 @@ export default function Sidebar() {
                   id={id ?? undefined}
                   data-view={view}
                   aria-current={isActive ? 'page' : undefined}
-                  onClick={() =>
-                    view === 'new-task' ? openNewTaskModal() : setView(view)
-                  }
+                  onClick={() => (view === 'new-task' ? openNewTaskModal() : setView(view))}
                   className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors ${
                     isActive
                       ? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
@@ -76,7 +74,10 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      <div className="mx-3 border-t border-border-light dark:border-border-dark" aria-hidden="true" />
+      <div
+        className="mx-3 border-t border-border-light dark:border-border-dark"
+        aria-hidden="true"
+      />
 
       <div className="shrink-0 p-2 pb-1">
         <div

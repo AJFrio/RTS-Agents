@@ -3,13 +3,12 @@ const https = require('https');
 const { EventEmitter } = require('events');
 
 jest.mock('https', () => ({
-    request: jest.fn()
+  request: jest.fn(),
 }));
 
 describe('OpenRouter Service', () => {
   let mockRequest;
   let mockResponse;
-  let requestSpy;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -21,14 +20,14 @@ describe('OpenRouter Service', () => {
       write: jest.fn(),
       end: jest.fn(),
       destroy: jest.fn(),
-      setTimeout: jest.fn((timeout, callback) => {})
+      setTimeout: jest.fn((_timeout, _callback) => {}),
     };
 
     mockResponse = new EventEmitter();
     mockResponse.statusCode = 200;
     mockResponse.headers = {};
 
-    requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
+    jest.spyOn(https, 'request').mockImplementation((options, callback) => {
       if (callback) {
         callback(mockResponse);
       }
@@ -38,7 +37,9 @@ describe('OpenRouter Service', () => {
 
   test('request throws error without API key', async () => {
     openRouterService.setApiKey(null);
-    await expect(openRouterService.request('/test')).rejects.toThrow('OpenRouter API key not configured');
+    await expect(openRouterService.request('/test')).rejects.toThrow(
+      'OpenRouter API key not configured'
+    );
   });
 
   test('request handles successful response', async () => {
@@ -79,14 +80,14 @@ describe('OpenRouter Service', () => {
     await promise;
 
     expect(https.request).toHaveBeenCalledWith(
-        expect.objectContaining({
-            headers: expect.objectContaining({
-                'Authorization': 'Bearer test-key',
-                'HTTP-Referer': 'https://rts-agents.com',
-                'X-Title': 'RTS Agents'
-            })
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-key',
+          'HTTP-Referer': 'https://rts-agents.com',
+          'X-Title': 'RTS Agents',
         }),
-        expect.any(Function)
+      }),
+      expect.any(Function)
     );
   });
 
@@ -101,18 +102,18 @@ describe('OpenRouter Service', () => {
       const promise = openRouterService.getModels();
 
       mockResponse.headers['content-type'] = 'application/json';
-      mockResponse.emit('data', JSON.stringify({
-        data: [
-          { id: 'model-1', name: 'Model 1' },
-          { id: 'model-2' }
-        ]
-      }));
+      mockResponse.emit(
+        'data',
+        JSON.stringify({
+          data: [{ id: 'model-1', name: 'Model 1' }, { id: 'model-2' }],
+        })
+      );
       mockResponse.emit('end');
 
       const models = await promise;
       expect(models).toEqual([
         { id: 'openrouter/model-1', name: 'Model 1', provider: 'openrouter' },
-        { id: 'openrouter/model-2', name: 'model-2', provider: 'openrouter' }
+        { id: 'openrouter/model-2', name: 'model-2', provider: 'openrouter' },
       ]);
     });
 

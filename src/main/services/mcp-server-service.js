@@ -14,11 +14,7 @@ const {
 } = require('../ipc/provider-registry');
 
 const MCP_PROTOCOL_VERSION = '2025-06-18';
-const MCP_SUPPORTED_PROTOCOL_VERSIONS = new Set([
-  '2025-06-18',
-  '2025-03-26',
-  '2024-11-05',
-]);
+const MCP_SUPPORTED_PROTOCOL_VERSIONS = new Set(['2025-06-18', '2025-03-26', '2024-11-05']);
 const MCP_ENDPOINT_PATH = '/mcp';
 const MCP_MAX_BODY_BYTES = 1024 * 1024;
 const MCP_LIST_LIMIT_DEFAULT = 50;
@@ -97,8 +93,7 @@ const MCP_TOOLS = [
   },
   {
     name: 'send_task_message',
-    description:
-      'Send a follow-up message to a running cloud agent (jules, cursor, claude-cloud).',
+    description: 'Send a follow-up message to a running cloud agent (jules, cursor, claude-cloud).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -140,7 +135,9 @@ let cachedServerVersion = null;
 function serverVersion() {
   if (cachedServerVersion) return cachedServerVersion;
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'package.json'), 'utf8'));
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '..', '..', '..', 'package.json'), 'utf8')
+    );
     cachedServerVersion = typeof pkg.version === 'string' && pkg.version ? pkg.version : '1.0.0';
   } catch (err) {
     console.error('Failed to read package version for MCP serverInfo:', err.message);
@@ -175,7 +172,13 @@ class McpServerService {
         if (!res.headersSent) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
         }
-        res.end(JSON.stringify({ jsonrpc: '2.0', error: { code: -32603, message: 'Internal error' }, id: null }));
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Internal error' },
+            id: null,
+          })
+        );
       });
     });
 
@@ -259,7 +262,11 @@ class McpServerService {
     try {
       message = JSON.parse(raw);
     } catch {
-      this.writeJsonRpc(res, { jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' }, id: null });
+      this.writeJsonRpc(res, {
+        jsonrpc: '2.0',
+        error: { code: -32700, message: 'Parse error' },
+        id: null,
+      });
       return;
     }
 
@@ -297,7 +304,7 @@ class McpServerService {
       return {
         jsonrpc: '2.0',
         error: { code: -32600, message: 'Invalid Request' },
-        id: message && typeof message === 'object' ? message.id ?? null : null,
+        id: message && typeof message === 'object' ? (message.id ?? null) : null,
       };
     }
     if (typeof message.method !== 'string') {
@@ -392,9 +399,7 @@ class McpServerService {
         }
         if (args.status) {
           const wanted = String(args.status).toLowerCase();
-          agents = agents.filter(
-            (agent) => String(agent.status || '').toLowerCase() === wanted
-          );
+          agents = agents.filter((agent) => String(agent.status || '').toLowerCase() === wanted);
         }
         return {
           agents: agents.slice(0, clampLimit(args.limit)),

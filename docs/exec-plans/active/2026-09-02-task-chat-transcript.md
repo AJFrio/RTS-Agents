@@ -22,6 +22,6 @@ that previously used the activity-feed fallback.
 
 ## Progress log
 
-| Date | Note |
-|------|------|
+| Date       | Note                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------ |
 | 2026-09-02 | Implemented normalizer, task-detail ChatTranscript path, Jules media extract, spec + tests |

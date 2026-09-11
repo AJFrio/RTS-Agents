@@ -78,9 +78,7 @@ export function extractFilesFromPatch(patch) {
  */
 export function mapActivity(activity, stripMedia) {
   const artifacts = activity.artifacts || [];
-  const commands = artifacts
-    .filter((a) => a.bashOutput?.command)
-    .map((a) => a.bashOutput.command);
+  const commands = artifacts.filter((a) => a.bashOutput?.command).map((a) => a.bashOutput.command);
   const fileChanges = artifacts
     .filter((a) => a.changeSet?.gitPatch?.unidiffPatch)
     .flatMap((a) => extractFilesFromPatch(a.changeSet.gitPatch.unidiffPatch));

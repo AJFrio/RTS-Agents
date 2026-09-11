@@ -54,11 +54,11 @@ export default function Layout({ children, fixedHeight }) {
   const overflowClass = fixedHeight ? 'overflow-hidden' : 'overflow-y-auto';
 
   return (
-    <div id="app" className="safe-left safe-right flex h-dvh overflow-hidden bg-background-light dark:bg-background-dark">
-      <div
-        className="hidden h-full shrink-0 md:flex"
-        style={{ width: sidebarWidth }}
-      >
+    <div
+      id="app"
+      className="safe-left safe-right flex h-dvh overflow-hidden bg-background-light dark:bg-background-dark"
+    >
+      <div className="hidden h-full shrink-0 md:flex" style={{ width: sidebarWidth }}>
         <Sidebar />
       </div>
       <div

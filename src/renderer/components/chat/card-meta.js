@@ -3,7 +3,10 @@ export { relativeTime } from '../../utils/format.js';
 export function shortRepo(repository) {
   if (!repository) return null;
   const text = String(repository);
-  const base = text.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+  const base = text
+    .replace(/[\\/]+$/, '')
+    .split(/[\\/]/)
+    .pop();
   return base || text;
 }
 

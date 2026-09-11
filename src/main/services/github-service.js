@@ -39,14 +39,14 @@ const makeRequest = (path, method = 'GET', body = null) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
             resolve(JSON.parse(data));
-          } catch (e) {
+          } catch {
             resolve(data); // Handle non-JSON responses if any
           }
         } else {
           try {
             const error = JSON.parse(data);
             reject(new Error(error.message || `GitHub API Error: ${res.statusCode}`));
-          } catch (e) {
+          } catch {
             reject(new Error(`GitHub API Error: ${res.statusCode}`));
           }
         }
@@ -139,8 +139,8 @@ const getCommitChecks = async (owner, repo, ref) => {
             s.state === 'success'
               ? 'success'
               : s.state === 'failure' || s.state === 'error'
-              ? 'failure'
-              : null,
+                ? 'failure'
+                : null,
           url: s.target_url || null,
           appName: s.creator?.login || null,
           startedAt: s.created_at || null,

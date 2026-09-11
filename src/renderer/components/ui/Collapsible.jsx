@@ -72,7 +72,10 @@ export default function Collapsible({
       >
         <Chevron size={14} className="shrink-0 text-neutral-400" />
         {icon && (
-          <span className="material-symbols-outlined text-[14px] text-neutral-400" aria-hidden="true">
+          <span
+            className="material-symbols-outlined text-[14px] text-neutral-400"
+            aria-hidden="true"
+          >
             {icon}
           </span>
         )}

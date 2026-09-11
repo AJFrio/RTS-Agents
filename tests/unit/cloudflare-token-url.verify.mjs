@@ -17,9 +17,8 @@ function test(name, fn) {
 }
 
 test('builds the default quick-setup token URL', async () => {
-  const { buildCloudflareTokenUrl } = await import(
-    '../../src/renderer/utils/cloudflare-token-url.js'
-  );
+  const { buildCloudflareTokenUrl } =
+    await import('../../src/renderer/utils/cloudflare-token-url.js');
   assert.equal(
     buildCloudflareTokenUrl(),
     'https://dash.cloudflare.com/profile/api-tokens' +
@@ -29,9 +28,8 @@ test('builds the default quick-setup token URL', async () => {
 });
 
 test('builds the token URL with a custom token name', async () => {
-  const { buildCloudflareTokenUrl } = await import(
-    '../../src/renderer/utils/cloudflare-token-url.js'
-  );
+  const { buildCloudflareTokenUrl } =
+    await import('../../src/renderer/utils/cloudflare-token-url.js');
   const url = buildCloudflareTokenUrl({ name: 'My Custom Token' });
   assert.equal(
     url,
@@ -42,9 +40,8 @@ test('builds the token URL with a custom token name', async () => {
 });
 
 test('permissionGroupKeys query param decodes to Workers KV edit permission', async () => {
-  const { buildCloudflareTokenUrl } = await import(
-    '../../src/renderer/utils/cloudflare-token-url.js'
-  );
+  const { buildCloudflareTokenUrl } =
+    await import('../../src/renderer/utils/cloudflare-token-url.js');
   const url = new URL(buildCloudflareTokenUrl());
   assert.equal(url.origin, 'https://dash.cloudflare.com');
   assert.equal(url.pathname, '/profile/api-tokens');
@@ -56,9 +53,8 @@ test('permissionGroupKeys query param decodes to Workers KV edit permission', as
 });
 
 test('custom name does not alter the pre-selected permission', async () => {
-  const { buildCloudflareTokenUrl } = await import(
-    '../../src/renderer/utils/cloudflare-token-url.js'
-  );
+  const { buildCloudflareTokenUrl } =
+    await import('../../src/renderer/utils/cloudflare-token-url.js');
   const url = new URL(buildCloudflareTokenUrl({ name: 'RTS Agents — KV' }));
   assert.equal(url.searchParams.get('name'), 'RTS Agents — KV');
   assert.deepEqual(JSON.parse(url.searchParams.get('permissionGroupKeys')), [

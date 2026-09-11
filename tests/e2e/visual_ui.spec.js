@@ -23,14 +23,7 @@ test.describe('UI visual smoke coverage', () => {
     await expect(window.locator('#view-settings')).toBeVisible();
     await window.locator('#theme-light').click();
 
-    for (const view of [
-      'dashboard',
-      'agent',
-      'branches',
-      'devices',
-      'plugins',
-      'settings',
-    ]) {
+    for (const view of ['dashboard', 'agent', 'branches', 'devices', 'plugins', 'settings']) {
       await window.locator(`button[data-view="${view}"]`).click();
       await expect(window.locator(`#view-${view}`)).toBeVisible();
       await window.mouse.move(0, 0);
@@ -71,7 +64,12 @@ test.describe('UI visual smoke coverage', () => {
         getRepositories: async () => ({
           success: true,
           repositories: [
-            { id: 'repo-1', name: 'my-repo', url: 'https://github.com/user/my-repo', displayName: 'MY-REPO' },
+            {
+              id: 'repo-1',
+              name: 'my-repo',
+              url: 'https://github.com/user/my-repo',
+              displayName: 'MY-REPO',
+            },
           ],
         }),
         createTask: async () => ({ success: true }),

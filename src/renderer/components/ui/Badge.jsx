@@ -13,7 +13,5 @@ export function ProviderBadge({ provider, children }) {
 export function StatusBadge({ status, children }) {
   const key = status === 'stopped' ? 'failed' : status;
   const meta = statusMeta(key);
-  return (
-    <span className={`status-badge ${meta.bg} ${meta.text}`}>{children ?? status}</span>
-  );
+  return <span className={`status-badge ${meta.bg} ${meta.text}`}>{children ?? status}</span>;
 }

@@ -268,11 +268,7 @@ class AntigravityService {
   _applyAcpUpdate(sessionId, update) {
     const current = this.trackedSessions.find((x) => x.id === sessionId);
     if (!current) return;
-    const next = applySessionUpdate(
-      current.streamMessages || [],
-      update,
-      new Date().toISOString()
-    );
+    const next = applySessionUpdate(current.streamMessages || [], update, new Date().toISOString());
     if (next === current.streamMessages) return;
     this._updateSession(sessionId, { streamMessages: next }, true);
   }

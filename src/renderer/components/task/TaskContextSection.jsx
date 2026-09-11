@@ -8,8 +8,7 @@ export function hasTaskContext(details) {
   const hasPrUrl = details.prUrl && String(details.prUrl).trim();
   const hasRuns = details.runs?.length > 0;
   const hasLatestRun = details.latestRunId && String(details.latestRunId).trim();
-  const hasOpenCodeSession =
-    details.opencodeSessionId && String(details.opencodeSessionId).trim();
+  const hasOpenCodeSession = details.opencodeSessionId && String(details.opencodeSessionId).trim();
   const hasTrackingId = details.trackingId && String(details.trackingId).trim();
   return !!(
     hasRepository ||
@@ -31,7 +30,8 @@ function shortRepoName(repository) {
 export default function TaskContextSection({ details, onOpenExternal, onOpenOpenCodeSession }) {
   if (!hasTaskContext(details)) return null;
 
-  const latestRun = details.runs?.find((run) => run.id === details.latestRunId) || details.runs?.[0];
+  const latestRun =
+    details.runs?.find((run) => run.id === details.latestRunId) || details.runs?.[0];
   const projectPath = details.projectPath || details.repository;
   const repoName = shortRepoName(details.repository);
 
@@ -41,24 +41,34 @@ export default function TaskContextSection({ details, onOpenExternal, onOpenOpen
       defaultOpen={false}
       label="Context"
       icon="data_object"
-      meta={repoName ? <span className="text-[10px] technical-font text-slate-500">{repoName}</span> : null}
+      meta={
+        repoName ? (
+          <span className="text-[10px] technical-font text-slate-500">{repoName}</span>
+        ) : null
+      }
     >
       <dl className="space-y-2 text-sm text-slate-800 dark:text-slate-200">
         {details.repository && (
           <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Repository</dt>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Repository
+            </dt>
             <dd className="min-w-0 break-all">{details.repository}</dd>
           </div>
         )}
         {details.branch && (
           <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Branch</dt>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Branch
+            </dt>
             <dd className="min-w-0 break-all">{details.branch}</dd>
           </div>
         )}
         {details.prUrl && (
           <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Pull request</dt>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Pull request
+            </dt>
             <dd className="min-w-0 break-all">
               <button
                 type="button"
@@ -72,7 +82,9 @@ export default function TaskContextSection({ details, onOpenExternal, onOpenOpen
         )}
         {details.latestRunId && (
           <div>
-            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Latest run</dt>
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Latest run
+            </dt>
             <dd className="technical-font text-xs min-w-0 break-all">
               {details.latestRunId}
               {latestRun?.status ? ` (${latestRun.status})` : ''}
@@ -95,7 +107,9 @@ export default function TaskContextSection({ details, onOpenExternal, onOpenOpen
                   {details.opencodeSessionId}
                 </button>
               ) : (
-                <span className="technical-font text-xs break-all">{details.opencodeSessionId}</span>
+                <span className="technical-font text-xs break-all">
+                  {details.opencodeSessionId}
+                </span>
               )}
             </dd>
           </div>

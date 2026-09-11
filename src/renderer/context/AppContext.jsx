@@ -5,10 +5,7 @@ import { useAppData } from './hooks/use-app-data.js';
 import { useAppGithub } from './hooks/use-app-github.js';
 import { useAppEffects } from './hooks/use-app-effects.js';
 import { useAppModals } from './hooks/use-app-modals.js';
-import {
-  createAgentDetailsCache,
-  fetchAgentDetails,
-} from './helpers/agent-details-cache.js';
+import { createAgentDetailsCache, fetchAgentDetails } from './helpers/agent-details-cache.js';
 
 const AppStateContext = createContext(null);
 const AppActionsContext = createContext(null);

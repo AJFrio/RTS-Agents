@@ -6,7 +6,7 @@ describe('Service URL Generation', () => {
     const session = {
       id: '12345',
       title: 'Test Session',
-      state: 'COMPLETED'
+      state: 'COMPLETED',
     };
     const normalized = julesService.normalizeSession(session);
     expect(normalized.webUrl).toBe('https://jules.google.com/session/12345');
@@ -16,7 +16,7 @@ describe('Service URL Generation', () => {
     const agent = {
       id: '67890',
       name: 'Test Agent',
-      status: 'FINISHED'
+      status: 'FINISHED',
     };
     const normalized = cursorService.normalizeAgent(agent);
     expect(normalized.webUrl).toBe('https://cursor.com/agents/67890');

@@ -27,15 +27,17 @@ test('merges activities, messages and conversation into one array sorted by time
       { id: 'a2', title: 'Later activity', description: 'd2', timestamp: '2024-01-01T03:00:00Z' },
       { id: 'a1', title: 'Early activity', description: 'd1', timestamp: '2024-01-01T00:30:00Z' },
     ],
-    messages: [
-      { id: 'm1', role: 'assistant', content: 'hi', createdAt: '2024-01-01T01:30:00Z' },
-    ],
-    conversation: [
-      { id: 'c1', isUser: true, text: 'hello', timestamp: '2024-01-01T01:00:00Z' },
-    ],
+    messages: [{ id: 'm1', role: 'assistant', content: 'hi', createdAt: '2024-01-01T01:30:00Z' }],
+    conversation: [{ id: 'c1', isUser: true, text: 'hello', timestamp: '2024-01-01T01:00:00Z' }],
   });
-  assert.deepEqual(feed.map((i) => i.id), ['a1', 'c1', 'm1', 'a2']);
-  assert.deepEqual(feed.map((i) => i.kind), ['activity', 'conversation', 'message', 'activity']);
+  assert.deepEqual(
+    feed.map((i) => i.id),
+    ['a1', 'c1', 'm1', 'a2']
+  );
+  assert.deepEqual(
+    feed.map((i) => i.kind),
+    ['activity', 'conversation', 'message', 'activity']
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -54,7 +56,10 @@ test('items without timestamps come after timestamped ones in stable source orde
   });
   // Timestamped first, then untimed in stable source order
   // (activities -> messages -> conversation), with `${kind}-${index}` fallback ids.
-  assert.deepEqual(feed.map((i) => i.id), ['a1', 'activity-1', 'message-0', 'conversation-0']);
+  assert.deepEqual(
+    feed.map((i) => i.id),
+    ['a1', 'activity-1', 'message-0', 'conversation-0']
+  );
   assert.equal(feed[1].title, 'untimed-act');
   assert.equal(feed[2].text, 'untimed-msg');
   assert.equal(feed[3].text, 'untimed-conv');
@@ -70,7 +75,10 @@ test('null, undefined and empty inputs are tolerated and return an empty feed', 
   assert.deepEqual(buildUnifiedFeed(null), []);
   assert.deepEqual(buildUnifiedFeed(undefined), []);
   assert.deepEqual(buildUnifiedFeed({}), []);
-  assert.deepEqual(buildUnifiedFeed({ activities: null, messages: undefined, conversation: [] }), []);
+  assert.deepEqual(
+    buildUnifiedFeed({ activities: null, messages: undefined, conversation: [] }),
+    []
+  );
   assert.deepEqual(buildUnifiedFeed({ activities: 'not-an-array' }), []);
 });
 

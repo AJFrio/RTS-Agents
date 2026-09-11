@@ -9,7 +9,10 @@ const RECENT_TASK_LIMIT = 20;
 function shortRepo(repository) {
   if (!repository) return null;
   const text = String(repository);
-  const base = text.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+  const base = text
+    .replace(/[\\/]+$/, '')
+    .split(/[\\/]/)
+    .pop();
   return base || text;
 }
 

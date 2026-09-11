@@ -29,10 +29,12 @@ const { registerAllIpcHandlers } = require('./src/main/ipc');
 let mainWindow;
 let pollingInterval = null;
 let cloudflareHeartbeatInterval = null;
+let cloudflareQueuePollInterval = null;
 let updateInterval = null;
 let isQuitting = false;
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
+const CLOUDFLARE_QUEUE_POLL_INTERVAL_MS = 10000; // 10 seconds (faster queue consumption)
 const UPDATE_INTERVAL_MS = 21600000; // 6 hours
 const DEVICE_STALE_OFFLINE_MS = 6 * 60 * 1000; // 6 minutes
 
@@ -282,12 +284,30 @@ function startCloudflareHeartbeatIfEnabled() {
       console.warn('Cloudflare heartbeat failed:', err?.message || err);
     });
   }, CLOUDFLARE_HEARTBEAT_INTERVAL_MS);
+
+  // Dedicated fast queue poll so remote dispatches start without waiting for
+  // the next 5-minute heartbeat (mirrors headless.js).
+  cloudflareQueuePollInterval = setInterval(() => {
+    if (isQuitting) return;
+    void ensureCloudflareNamespaceId()
+      .then((namespaceId) => {
+        if (!namespaceId) return;
+        return queueProcessorService.processQueue(namespaceId);
+      })
+      .catch((err) => {
+        console.warn('Cloudflare queue polling failed:', err?.message || err);
+      });
+  }, CLOUDFLARE_QUEUE_POLL_INTERVAL_MS);
 }
 
 function stopCloudflareHeartbeat() {
   if (cloudflareHeartbeatInterval) {
     clearInterval(cloudflareHeartbeatInterval);
     cloudflareHeartbeatInterval = null;
+  }
+  if (cloudflareQueuePollInterval) {
+    clearInterval(cloudflareQueuePollInterval);
+    cloudflareQueuePollInterval = null;
   }
 }
 

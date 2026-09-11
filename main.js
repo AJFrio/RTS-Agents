@@ -237,7 +237,9 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   if (antigravityInstalled) availableCliTools.push('Antigravity CLI');
   if (claudeInstalled) availableCliTools.push('claude CLI');
   if (opencodeInstalled) availableCliTools.push('OpenCode CLI');
-  if (configStore.getCursorPaths().length > 0) availableCliTools.push('cursor CLI');
+  if (cursorService.isCursorCliAvailable() || configStore.getCursorPaths().length > 0) {
+    availableCliTools.push('cursor CLI');
+  }
 
   const device = {
     id: identity.id,

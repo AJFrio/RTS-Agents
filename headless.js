@@ -18,6 +18,7 @@ const antigravityService = require('./src/main/services/antigravity-service');
 const claudeService = require('./src/main/services/claude-service');
 const opencodeService = require('./src/main/services/opencode-service');
 const codexService = require('./src/main/services/codex-service');
+const cursorService = require('./src/main/services/cursor-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
 
@@ -92,6 +93,9 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     )
   ) {
     availableCliTools.push('OpenCode CLI');
+  }
+  if (cursorService.isCursorCliAvailable()) {
+    availableCliTools.push('cursor CLI');
   }
 
   const device = {

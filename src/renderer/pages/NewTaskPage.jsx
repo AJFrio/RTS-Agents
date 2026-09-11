@@ -14,7 +14,7 @@ const MODELS_CACHE_KEY_PREFIX = 'rts_model_cache_';
 
 const CLOUD_PROVIDERS = ['jules', 'cursor', 'claude-cloud'];
 const LOCAL_PROVIDERS = ['antigravity', 'cursor', 'codex', 'claude-cli', 'opencode'];
-const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode'];
+const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode', 'cursor'];
 
 function getCachedModels(provider) {
   try {
@@ -83,6 +83,7 @@ function providersForDevice(device) {
     ['codex', 'codex'],
     ['claude', 'claude-cli'],
     ['antigravity', 'antigravity'],
+    ['cursor', 'cursor'],
   ];
   return patterns.filter(([needle]) => joined.includes(needle)).map(([, id]) => id);
 }

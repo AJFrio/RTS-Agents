@@ -29,6 +29,7 @@ function pickPreferredProvider(tools) {
   if (joined.includes('codex')) return 'codex';
   if (joined.includes('claude')) return 'claude-cli';
   if (joined.includes('antigravity')) return 'antigravity';
+  if (joined.includes('cursor')) return 'cursor';
   return null;
 }
 

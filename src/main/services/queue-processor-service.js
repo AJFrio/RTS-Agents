@@ -3,6 +3,7 @@ const cloudflareKvService = require('./cloudflare-kv-service');
 const antigravityService = require('./antigravity-service');
 const claudeService = require('./claude-service');
 const codexService = require('./codex-service');
+const cursorService = require('./cursor-service');
 const opencodeService = require('./opencode-service');
 const projectService = require('./project-service');
 const { isCommandRunnable } = require('../utils/cli-spawn');
@@ -203,6 +204,16 @@ class QueueProcessorService {
           model: item?.model || undefined,
         });
         configStore.setOpenCodeSessions(opencodeService.getTrackedSessions());
+      } else if (tool === 'cursor') {
+        if (!cursorService.isCursorCliAvailable()) {
+          throw new Error('Cursor CLI not detected on target device');
+        }
+        started = await cursorService.startCliSession({
+          prompt: dispatchPrompt,
+          projectPath: repoPath,
+          model: item?.model || undefined,
+        });
+        configStore.setCursorCliSessions(cursorService.getCursorCliSessions());
       } else {
         throw new Error(`Unsupported queued tool: ${tool}`);
       }

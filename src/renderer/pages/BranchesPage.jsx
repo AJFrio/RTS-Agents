@@ -13,6 +13,7 @@ import {
   IconCheck,
   IconTasks,
   IconChevronLeft,
+  IconPullRequests,
 } from '../components/ui/icons.jsx';
 import { statusMeta } from '../components/ui/status.jsx';
 
@@ -22,8 +23,12 @@ function prStateMeta(pr) {
   return { key: 'idle', label: 'Closed' };
 }
 
+function getPrRepoName(pr) {
+  return pr?.base?.repo?.full_name || pr?.repository?.full_name || 'Unknown Repository';
+}
+
 export default function BranchesPage() {
-  const { state, dispatch, setView, api, openPrModal, openNewTaskModal } = useApp();
+  const { state, dispatch, setView, api, openPrModal, openNewTaskModal, loadAllPrs } = useApp();
   const { github, configuredServices, currentView } = state;
   const [repoFilter, setRepoFilter] = useState('');
   const [prFilter, setPrFilter] = useState('open');
@@ -32,6 +37,24 @@ export default function BranchesPage() {
   const [updatesContent, setUpdatesContent] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const belowLg = useBelowLg();
+
+  const openPrCounts = useMemo(() => {
+    const counts = new Map();
+    const hiddenRepos = new Set(github.hiddenPrRepos || []);
+    for (const pr of github.allPrs || []) {
+      if (pr.state && pr.state !== 'open') continue;
+      const name = getPrRepoName(pr);
+      if (hiddenRepos.has(name)) continue;
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    return counts;
+  }, [github.allPrs, github.hiddenPrRepos]);
+
+  const repoOpenPrCount = (repo) => {
+    if (!repo) return 0;
+    const fullName = repo.full_name || (repo.owner?.login || repo.owner ? `${repo.owner?.login || repo.owner}/${repo.name}` : repo.name);
+    return openPrCounts.get(fullName) || openPrCounts.get(repo.name) || 0;
+  };
 
   const loadBranches = async () => {
     if (!api?.github?.getRepos || !configuredServices.github) return;
@@ -68,6 +91,7 @@ export default function BranchesPage() {
   useEffect(() => {
     if (currentView === 'branches' && configuredServices.github) {
       loadBranches();
+      loadAllPrs();
     }
   }, [currentView, configuredServices.github]);
 
@@ -232,35 +256,51 @@ export default function BranchesPage() {
                 No repositories found
               </div>
             ) : (
-              filteredRepos.map((repo) => (
-                <div
-                  key={repo.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => selectRepo(repo)}
-                  onKeyDown={(e) => e.key === 'Enter' && selectRepo(repo)}
-                  className={`repo-item cursor-pointer rounded-md border p-2 transition-colors ${
-                    selectedRepo?.id === repo.id
-                      ? 'border-border-strong-light bg-inset-light dark:border-border-strong-dark dark:bg-inset-dark'
-                      : 'border-transparent hover:border-border-strong-light hover:bg-neutral-50 dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40'
-                  }`}
-                >
-                  <div className="mb-0.5 flex items-start justify-between gap-2">
-                    <span className="truncate pr-1 text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
-                      {repo.name}
-                    </span>
-                    {repo.private && (
-                      <IconKey size={11} className="mt-0.5 shrink-0 text-neutral-400" />
-                    )}
+              filteredRepos.map((repo) => {
+                const openPrCount = repoOpenPrCount(repo);
+                return (
+                  <div
+                    key={repo.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => selectRepo(repo)}
+                    onKeyDown={(e) => e.key === 'Enter' && selectRepo(repo)}
+                    className={`repo-item cursor-pointer rounded-md border p-2 transition-colors ${
+                      selectedRepo?.id === repo.id
+                        ? 'border-border-strong-light bg-inset-light dark:border-border-strong-dark dark:bg-inset-dark'
+                        : openPrCount > 0
+                          ? 'border-amber-500/40 hover:border-border-strong-light hover:bg-neutral-50 dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40'
+                          : 'border-transparent hover:border-border-strong-light hover:bg-neutral-50 dark:hover:border-border-strong-dark dark:hover:bg-neutral-800/40'
+                    }`}
+                  >
+                    <div className="mb-0.5 flex items-start justify-between gap-2">
+                      <span className="truncate pr-1 text-[13px] font-medium text-neutral-900 dark:text-neutral-100">
+                        {repo.name}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {repo.private && (
+                          <IconKey size={11} className="mt-0.5 text-neutral-400" />
+                        )}
+                        {openPrCount > 0 && (
+                          <span
+                            title={`${openPrCount} open pull request${openPrCount !== 1 ? 's' : ''}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400"
+                          >
+                            <IconPullRequests size={10} />
+                            {openPrCount}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+                      <span>{formatTimeAgo(repo.updated_at)}</span>
+                      <span title="Stars" className="shrink-0 font-mono tabular-nums">
+                        {repo.stargazers_count ?? 0}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-                    <span>{formatTimeAgo(repo.updated_at)}</span>
-                    <span title="Stars" className="shrink-0 font-mono tabular-nums">
-                      {repo.stargazers_count ?? 0}
-                    </span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

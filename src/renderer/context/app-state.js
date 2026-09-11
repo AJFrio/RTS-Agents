@@ -7,7 +7,6 @@ export const VIEWS = [
   'devices',
   'dashboard',
   'branches',
-  'pull-requests',
   'jira',
   'settings',
   'task-detail',

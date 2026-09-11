@@ -9,7 +9,6 @@ import {
   IconMore,
   IconNewTask,
   IconPlugins,
-  IconPullRequests,
   IconRepositories,
   IconSettings,
   IconTasks,
@@ -21,7 +20,6 @@ const ICONS = {
   dashboard: IconTasks,
   branches: IconRepositories,
   plugins: IconPlugins,
-  'pull-requests': IconPullRequests,
   devices: IconDevices,
   settings: IconSettings,
 };

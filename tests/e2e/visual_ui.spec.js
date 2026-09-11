@@ -27,7 +27,6 @@ test.describe('UI visual smoke coverage', () => {
       'dashboard',
       'agent',
       'branches',
-      'pull-requests',
       'devices',
       'plugins',
       'settings',

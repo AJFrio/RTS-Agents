@@ -35,7 +35,7 @@ try {
       fs.unlinkSync(tempPath);
     });
 
-    test('keeps five primary destinations including Tasks and More overflow', () => {
+    test('keeps primary destinations including Tasks and More overflow', () => {
       expect(PRIMARY_NAV_ITEMS).toHaveLength(4);
       expect(PRIMARY_NAV_ITEMS.map((item) => item.view)).toEqual([
         'agent',
@@ -45,7 +45,6 @@ try {
       ]);
       expect(MORE_NAV_ITEMS.map((item) => item.view)).toEqual([
         'plugins',
-        'pull-requests',
         'devices',
         'settings',
       ]);

@@ -108,7 +108,7 @@ Hover = background tone shift + `border-strong` edge, never shadow growth.
 - Mobile (<768px): sidebar hidden; canvas is full-bleed and clears
   `--bottom-nav-offset` (4rem bar + safe-area inset) so composers and
   list/detail panes sit above the tab bar. Bottom nav shows Agent, New Task,
-  Tasks, Repos, and **More** (Plugins, Pull Requests, Devices, Settings).
+  Tasks, Repos, and **More** (Plugins, Devices, Settings).
 
 Stress contract: empty lists render an inline empty state in the canvas; long repo/task names
 truncate with ellipsis; unbroken strings (paths, tokens) `overflow-wrap: anywhere`; sidebar
@@ -143,8 +143,7 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 ├──────────────────────────────┤
 │ Agent        New Task         │  nav rows, 13px, icon+label
 │ Plugins      Devices          │
-│ Pull Requests                 │
-│ Repositories                  │
+│ Repositories (open-PR badges) │
 │ Settings                      │
 ├─ hairline divider ───────────┤
 │ [ Repos | Agents ] toggle     │  segmented control, full width

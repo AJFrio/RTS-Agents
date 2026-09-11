@@ -5,7 +5,6 @@ import {
   IconNewTask,
   IconPlugins,
   IconDevices,
-  IconPullRequests,
   IconRepositories,
   IconSettings,
   IconLogo,
@@ -17,7 +16,6 @@ const NAV_ITEMS = [
   { view: 'new-task', Icon: IconNewTask, label: 'New Task', id: 'new-task-btn' },
   { view: 'plugins', Icon: IconPlugins, label: 'Plugins', id: null },
   { view: 'devices', Icon: IconDevices, label: 'Devices', id: null },
-  { view: 'pull-requests', Icon: IconPullRequests, label: 'Pull Requests', id: null },
   { view: 'branches', Icon: IconRepositories, label: 'Repositories', id: null },
   { view: 'settings', Icon: IconSettings, label: 'Settings', id: null },
 ];

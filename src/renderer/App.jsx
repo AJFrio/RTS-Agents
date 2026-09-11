@@ -9,7 +9,6 @@ import PluginsPage from './pages/PluginsPage.jsx';
 import DevicesPage from './pages/DevicesPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import BranchesPage from './pages/BranchesPage.jsx';
-import PullRequestsPage from './pages/PullRequestsPage.jsx';
 import JiraPage from './pages/JiraPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import TaskDetailView from './pages/TaskDetailView.jsx';
@@ -62,10 +61,8 @@ function App() {
               ? TaskDetailView
               : view === 'branches'
                 ? BranchesPage
-                : view === 'pull-requests'
-                  ? PullRequestsPage
-                  : view === 'jira'
-                    ? JiraPage
+                : view === 'jira'
+                  ? JiraPage
                     : view === 'settings'
                       ? SettingsPage
                       : DashboardPage;

@@ -112,13 +112,18 @@ function DeviceCard({ device, isLocal, queue, onSelect, selected }) {
   );
 }
 
-function DeviceDetail({ device, isLocal, queue, onBack }) {
+function DeviceDetail({ device, isLocal, queue, runs, onBack }) {
   const { state, openNewTaskModal, openTask } = useApp();
   const runtime = useRuntime();
   const tools = getTools(device);
   const repos = Array.isArray(device.repos) ? device.repos : [];
   const online = isOnline(device);
   const preferred = pickPreferredProvider(tools);
+
+  const deviceRuns = useMemo(() => {
+    if (!Array.isArray(runs)) return [];
+    return runs.filter((run) => run?.deviceId === device.id).slice(0, 20);
+  }, [runs, device.id]);
 
   const runningTasks = useMemo(() => {
     if (!isLocal) return [];
@@ -272,6 +277,35 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
             </div>
           )}
         </section>
+
+        {deviceRuns.length > 0 && (
+          <section>
+            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              Runs
+            </h4>
+            <ul className="space-y-1">
+              {deviceRuns.map((run) => (
+                <li
+                  key={run.id}
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[12px]"
+                >
+                  <StatusDot status={run.status} />
+                  <span className="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">
+                    {run.name || 'Run'}
+                  </span>
+                  <span className="shrink-0 text-[10px] text-neutral-400">
+                    {providerMeta(run.provider)?.label || run.provider || 'task'}
+                  </span>
+                  {run.updatedAt && (
+                    <span className="shrink-0 text-[10px] text-neutral-400">
+                      {relativeTime(run.updatedAt)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -283,14 +317,29 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
  * with a start-task button (DESIGN.md §2.1 creative latitude).
  */
 export default function DevicesPage() {
-  const { state, fetchComputers, loadRemoteQueueActivity } = useApp();
+  const { state, api, fetchComputers, loadRemoteQueueActivity } = useApp();
   const [selectedId, setSelectedId] = useState(state.focusedDeviceId || null);
+  const [runs, setRuns] = useState([]);
   const belowLg = useBelowLg();
 
   useEffect(() => {
     fetchComputers?.();
     loadRemoteQueueActivity?.();
   }, [fetchComputers, loadRemoteQueueActivity]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      ?.getRuns?.()
+      .then((result) => {
+        if (cancelled) return;
+        if (result?.success && Array.isArray(result.runs)) setRuns(result.runs);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
 
   useEffect(() => {
     if (state.focusedDeviceId) setSelectedId(state.focusedDeviceId);
@@ -355,6 +404,7 @@ export default function DevicesPage() {
               device={selected}
               isLocal={selected.id === state.localDeviceId}
               queue={queueByDevice.get(selected.id)}
+              runs={runs}
               onBack={() => setSelectedId(null)}
             />
           )}

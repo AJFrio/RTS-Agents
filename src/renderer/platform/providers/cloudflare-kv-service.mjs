@@ -14,6 +14,7 @@ import { createRequester } from './provider-http.mjs';
 
 const BASE_URL = '/api/cloudflare';
 const DEFAULT_NAMESPACE_TITLE = 'rtsa';
+const RUNS_MAX = 200;
 
 export function createCloudflareKvService({ storage, fetchImpl } = {}) {
   let cachedNamespaceId = null;
@@ -188,6 +189,45 @@ export function createCloudflareKvService({ storage, fetchImpl } = {}) {
   }
 
   // ----------------------------------------
+  // Run broadcasting (shared run log across devices)
+  // ----------------------------------------
+
+  /**
+   * Shared KV run log ('runs' key) — every device broadcasts runs here so any
+   * desktop or web client can list all runs across devices. Run shape:
+   * { id, deviceId, deviceName, provider, name, status, repo, prompt,
+   *   createdAt, updatedAt }.
+   */
+  async function getRuns(namespaceId) {
+    const nsId = namespaceId || (await ensureNamespaceId());
+    const runs = await getValueJson(nsId, 'runs', []);
+    return Array.isArray(runs) ? runs : [];
+  }
+
+  /** Insert or update one run by id; newest-first, capped at RUNS_MAX. */
+  async function upsertRun(namespaceId, run) {
+    if (!run?.id) throw new Error('Missing run.id for upsertRun');
+    const nsId = namespaceId || (await ensureNamespaceId());
+    const runs = await getRuns(nsId);
+    const idx = runs.findIndex((r) => r?.id === run.id);
+    let next;
+    if (idx >= 0) {
+      next = runs.map((r, i) => (i === idx ? { ...r, ...run } : r));
+    } else {
+      next = [run, ...runs];
+    }
+    next = next
+      .slice(0, RUNS_MAX)
+      .sort(
+        (a, b) =>
+          new Date(b?.updatedAt || b?.createdAt || 0).getTime() -
+          new Date(a?.updatedAt || a?.createdAt || 0).getTime()
+      );
+    await putValue(nsId, 'runs', next);
+    return next;
+  }
+
+  // ----------------------------------------
   // API keys sync methods
   // ----------------------------------------
 
@@ -230,6 +270,8 @@ export function createCloudflareKvService({ storage, fetchImpl } = {}) {
     putDeviceQueue,
     enqueueDeviceTask,
     getTasksMap,
+    getRuns,
+    upsertRun,
     pullKeys,
     pushKeys,
     testConnection,

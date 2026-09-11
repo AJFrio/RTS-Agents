@@ -17,6 +17,7 @@ jest.mock('../../src/main/services/cloudflare-kv-service', () => ({
   getDeviceQueue: jest.fn(),
   putDeviceQueue: jest.fn(),
   setDeviceTaskStatus: jest.fn(),
+  upsertRun: jest.fn(),
 }));
 
 jest.mock('../../src/main/services/antigravity-service', () => ({

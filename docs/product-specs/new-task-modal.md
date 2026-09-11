@@ -11,15 +11,22 @@ Users create new work from the New Task canvas tab (formerly a modal) with provi
 - Compact top-aligned strip (`space-y-3`, no vertical centering / `my-auto`).
   Location is Cloud / Local / Remote on desktop and Cloud / Remote on the
   web app (local CLIs cannot run in the browser). Agent chips wrap in a
-  row. Selecting an agent does not insert a Device or Repo block between
-  the chips and the prompt.
-- Device and Repository / project path live in the Composer footer as
-  text+chevron controls next to Branch / Auto-PR / Model (DESIGN.md §5).
-  The Composer itself is the shared Cursor chat box (rounded-2xl, circular
-  - and send).
+  row. Selecting an agent does not insert a Repo block between the chips
+  and the prompt.
+- **Device-first dispatch (remote)**: when Location is Remote, a Device
+  section appears above the Agent section and a device must be selected
+  first. The Agent chips then list only the harnesses the selected device
+  reports via its heartbeat `tools[0]['CLI tools']`. No device selected →
+  no harness chips ("Select a device above to see its available
+  harnesses."). The old composer-footer device pill is gone.
+- Repository / project path stays in the Composer footer as a text+chevron
+  control next to Branch / Auto-PR / Model (DESIGN.md §5). The Composer
+  itself is the shared Cursor chat box (rounded-2xl, circular - and send).
 - Stable ids for e2e: `#new-task-modal`, `#environment-*`, `#service-*`,
-  `#task-repo-search`, `#repo-dropdown`, `#task-device`, `#create-task-btn`.
+  `#task-repo-search`, `#repo-dropdown`, `#device-<deviceId>`,
+  `#create-task-btn`.
 - Validation copy stays inline. Do not reserve a large empty error panel.
+  Remote validation order: device → agent → prompt → repo.
 
 ## Provider options (desktop)
 
@@ -53,13 +60,14 @@ threads it into the same service dispatch paths.
 
 ## Acceptance criteria
 
-- [ ] Control strip is top-aligned; Device and Repo appear as composer footer
-      pills, not as mid-page sections
+- [ ] Control strip is top-aligned; Repo appears as a composer footer pill;
+      remote dispatch requires a Device section above the Agent section
 - [ ] The tab only shows providers that are configured or detected
+- [ ] Remote harness chips reflect only the selected device's reported tools
 - [ ] Model dropdown only appears when the selected harness reports models
 - [ ] Selected model reaches the CLI args / REST body / remote queue payload
 - [ ] Successful create opens the new task on the canvas and the task appears in the sidebar / recent list
-- [ ] Validation errors are shown inline (missing repo, missing key)
+- [ ] Validation errors are shown inline (missing device, missing repo, missing key)
 
 ## Implementation pointers
 

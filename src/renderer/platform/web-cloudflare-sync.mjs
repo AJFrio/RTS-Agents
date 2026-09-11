@@ -114,6 +114,33 @@ export function createCloudflareSync({ storage, kv }) {
     }
   }
 
+  /**
+   * Shared run log across devices — local runs (broadcast by each device) and
+   * remote-queue runs, newest first. Mirrors desktop 'runs:get'.
+   */
+  async function getRuns() {
+    try {
+      if (!storage.hasCloudflareConfig()) {
+        return { success: true, configured: false, runs: [] };
+      }
+
+      const namespaceId = await kv.ensureNamespaceId();
+      if (!namespaceId) {
+        return { success: true, configured: true, runs: [] };
+      }
+
+      const runs = await kv.getRuns(namespaceId);
+      return { success: true, configured: true, runs, updatedAt: new Date().toISOString() };
+    } catch (err) {
+      return {
+        success: false,
+        error: err?.message || 'Unknown error',
+        configured: storage.hasCloudflareConfig(),
+        runs: [],
+      };
+    }
+  }
+
   async function pushKeysToCloudflare() {
     try {
       if (!storage.hasCloudflareConfig()) {
@@ -156,6 +183,7 @@ export function createCloudflareSync({ storage, kv }) {
     testCloudflare,
     listComputers,
     getQueueActivity,
+    getRuns,
     pushKeysToCloudflare,
     pullKeysFromCloudflare,
   };

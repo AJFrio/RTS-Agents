@@ -14,6 +14,7 @@ module.exports = {
     ipcRenderer.invoke('cloudflare:discover-account', { apiToken }),
   listComputers: () => ipcRenderer.invoke('computers:list'),
   getQueueActivity: () => ipcRenderer.invoke('queue:get-activity'),
+  getRuns: () => ipcRenderer.invoke('runs:get'),
   pushKeysToCloudflare: () => ipcRenderer.invoke('cloudflare:push-keys'),
   pullKeysFromCloudflare: () => ipcRenderer.invoke('cloudflare:pull-keys'),
   setPolling: (enabled, interval) =>

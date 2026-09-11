@@ -16,6 +16,33 @@ class QueueProcessorService {
     return isCommandRunnable(cmd, ['--version'], { timeout: 2000 });
   }
 
+  /**
+   * Mirror a remote-queue run into the shared KV run log so any device
+   * (desktop or web) can view runs across cloud and local devices. Failures
+   * here must never break queue processing.
+   */
+  async _upsertRun(namespaceId, identity, { item, status, extra } = {}) {
+    try {
+      const nowIso = new Date().toISOString();
+      await cloudflareKvService.upsertRun(namespaceId, {
+        id: `remote:${item?.id || `${identity.id}:${nowIso}`}`,
+        remoteTaskId: item?.id || null,
+        deviceId: identity.id,
+        deviceName: identity.name,
+        provider: item?.tool || null,
+        name: item?.prompt ? String(item.prompt).substring(0, 80) : 'Remote task',
+        status,
+        repo: item?.repo?.path || null,
+        branch: item?.branch || null,
+        requestedBy: item?.requestedBy || null,
+        ...(extra || {}),
+        updatedAt: nowIso,
+      });
+    } catch (err) {
+      console.warn('Run log upsert failed:', err?.message || err);
+    }
+  }
+
   async processQueue(namespaceId) {
     if (!namespaceId) return;
     if (!configStore.hasCloudflareConfig()) return;
@@ -24,6 +51,7 @@ class QueueProcessorService {
     this.isProcessing = true;
     const identity = configStore.getOrCreateDeviceIdentity();
     const nowIso = new Date().toISOString();
+    let currentItem = null;
 
     try {
       const queue = await cloudflareKvService.getDeviceQueue(namespaceId, identity.id);
@@ -32,6 +60,7 @@ class QueueProcessorService {
       // Process a single item per tick
       const item = queue[0];
       const rest = queue.slice(1);
+      currentItem = item;
 
       await cloudflareKvService.putDeviceQueue(namespaceId, identity.id, rest);
 
@@ -47,6 +76,11 @@ class QueueProcessorService {
       };
 
       await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, baseStatus);
+      await this._upsertRun(namespaceId, identity, {
+        item,
+        status: 'starting',
+        extra: { createdAt: nowIso },
+      });
 
       const tool = item?.tool;
       if (!tool) throw new Error('Queued task missing tool');
@@ -73,6 +107,16 @@ class QueueProcessorService {
         const createdPath = await projectService.createLocalRepo({
           directory: baseDir,
           name: String(repoName),
+        });
+
+        await this._upsertRun(namespaceId, identity, {
+          item,
+          status: 'completed',
+          extra: {
+            createdAt: nowIso,
+            result: { path: createdPath, directory: baseDir, name: String(repoName) },
+            completedAt: new Date().toISOString(),
+          },
         });
 
         await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
@@ -163,6 +207,11 @@ class QueueProcessorService {
         throw new Error(`Unsupported queued tool: ${tool}`);
       }
 
+      await this._upsertRun(namespaceId, identity, {
+        item,
+        status: 'running',
+        extra: { createdAt: nowIso, startedAt: new Date().toISOString() },
+      });
       await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
         ...baseStatus,
         status: 'running',
@@ -171,6 +220,15 @@ class QueueProcessorService {
         updatedAt: new Date().toISOString(),
       });
     } catch (err) {
+      await this._upsertRun(namespaceId, identity, {
+        item: currentItem,
+        status: 'failed',
+        extra: {
+          createdAt: nowIso,
+          error: err?.message || String(err),
+          completedAt: new Date().toISOString(),
+        },
+      });
       await cloudflareKvService.setDeviceTaskStatus(namespaceId, identity.id, {
         status: 'error',
         error: err?.message || String(err),

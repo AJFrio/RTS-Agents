@@ -10,6 +10,7 @@ const https = require('https');
 const { URL } = require('url');
 
 const DEFAULT_NAMESPACE_TITLE = 'rtsa';
+const RUNS_MAX = 200;
 
 class CloudflareKvService {
   constructor() {
@@ -304,6 +305,66 @@ class CloudflareKvService {
     const tasks = await this.getTasksMap(namespaceId);
     const next = { ...tasks, [deviceId]: status };
     await this.putValue(namespaceId, 'tasks', next);
+    return next;
+  }
+
+  // ============================================
+  // Run broadcasting (shared run log across devices)
+  // ============================================
+
+  /**
+   * Shared KV run log ('runs' key) — every device broadcasts runs here so any
+   * desktop or web client can list all runs across devices. Run shape:
+   * { id, deviceId, deviceName, provider, name, status, repo, prompt,
+   *   createdAt, updatedAt }.
+   */
+  async getRuns(namespaceId) {
+    const runs = await this.getValueJson(namespaceId, 'runs', []);
+    return Array.isArray(runs) ? runs : [];
+  }
+
+  /** Insert or update one run by id; newest-first, capped at RUNS_MAX. */
+  async upsertRun(namespaceId, run) {
+    if (!run?.id) throw new Error('Missing run.id for upsertRun');
+    const runs = await this.getRuns(namespaceId);
+    const idx = runs.findIndex((r) => r?.id === run.id);
+    let next;
+    if (idx >= 0) {
+      next = runs.map((r, i) => (i === idx ? { ...r, ...run } : r));
+    } else {
+      next = [run, ...runs];
+    }
+    next = next
+      .slice(0, RUNS_MAX)
+      .sort(
+        (a, b) =>
+          new Date(b?.updatedAt || b?.createdAt || 0).getTime() -
+          new Date(a?.updatedAt || a?.createdAt || 0).getTime()
+      );
+    await this.putValue(namespaceId, 'runs', next);
+    return next;
+  }
+
+  async upsertRuns(namespaceId, incoming) {
+    if (!Array.isArray(incoming) || incoming.length === 0) return this.getRuns(namespaceId);
+    const byId = new Map();
+    for (const run of incoming) {
+      if (run?.id) byId.set(run.id, run);
+    }
+    const existing = await this.getRuns(namespaceId);
+    const merged = new Map(existing.map((r) => [r?.id, r]));
+    for (const [id, run] of byId) {
+      const prev = merged.get(id);
+      merged.set(id, prev ? { ...prev, ...run } : run);
+    }
+    const next = [...merged.values()]
+      .slice(0, RUNS_MAX)
+      .sort(
+        (a, b) =>
+          new Date(b?.updatedAt || b?.createdAt || 0).getTime() -
+          new Date(a?.updatedAt || a?.createdAt || 0).getTime()
+      );
+    await this.putValue(namespaceId, 'runs', next);
     return next;
   }
 }

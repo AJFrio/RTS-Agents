@@ -188,6 +188,49 @@ describe('QueueProcessorService', () => {
       );
     });
 
+    it('should append push/PR/merge directive when autoCreatePr is true', async () => {
+      const task = {
+        tool: 'claude-cli',
+        repo: { path: '/path/to/repo' },
+        prompt: 'test prompt',
+        autoCreatePr: true,
+        branch: 'main',
+      };
+      cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
+      claudeService.isClaudeInstalled.mockReturnValue(true);
+      claudeService.startLocalSession.mockResolvedValue({ id: 'session1' });
+
+      await queueProcessorService.processQueue('ns1');
+
+      expect(claudeService.startLocalSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectPath: '/path/to/repo',
+          prompt: expect.stringContaining('test prompt'),
+        })
+      );
+      const dispatched = claudeService.startLocalSession.mock.calls[0][0];
+      expect(dispatched.prompt).toContain('push the branch to the remote');
+      expect(dispatched.prompt).toContain('main');
+      expect(dispatched.prompt).toContain('merge it');
+    });
+
+    it('should not modify the prompt when autoCreatePr is not set', async () => {
+      const task = {
+        tool: 'claude-cli',
+        repo: { path: '/path/to/repo' },
+        prompt: 'test prompt',
+      };
+      cloudflareKvService.getDeviceQueue.mockResolvedValue([task]);
+      claudeService.isClaudeInstalled.mockReturnValue(true);
+      claudeService.startLocalSession.mockResolvedValue({ id: 'session1' });
+
+      await queueProcessorService.processQueue('ns1');
+
+      expect(claudeService.startLocalSession).toHaveBeenCalledWith(
+        expect.objectContaining({ prompt: 'test prompt' })
+      );
+    });
+
     it('should forward the requested model to the service dispatch', async () => {
       const task = {
         tool: 'opencode',

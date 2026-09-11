@@ -93,6 +93,12 @@ class QueueProcessorService {
       if (!prompt) throw new Error('Queued task missing prompt');
       if (!repoPath) throw new Error('Queued task missing repo.path');
 
+      // autoCreatePr: the agent itself lands the work when it finishes.
+      const dispatchPrompt =
+        item.autoCreatePr === true
+          ? `${prompt}\n\nWhen the task is complete: commit your changes, push the branch to the remote, open a pull request targeting "${item.branch || 'main'}", and merge it.`
+          : prompt;
+
       const cliCommands = configStore.getSetting('cliCommands') || {};
       const antigravityCmd =
         typeof cliCommands?.antigravity === 'string' ? cliCommands.antigravity : '';
@@ -109,7 +115,7 @@ class QueueProcessorService {
           throw new Error('Antigravity CLI not detected on target device');
         }
         started = await antigravityService.startSession({
-          prompt,
+          prompt: dispatchPrompt,
           projectPath: repoPath,
           command: antigravityCmd || undefined,
           model: item?.model || undefined,
@@ -119,7 +125,7 @@ class QueueProcessorService {
           throw new Error('Claude CLI not detected on target device');
         }
         started = await claudeService.startLocalSession({
-          prompt,
+          prompt: dispatchPrompt,
           projectPath: repoPath,
           command: claudeCmd || undefined,
           model: item?.model || undefined,
@@ -132,7 +138,7 @@ class QueueProcessorService {
           throw new Error('Codex CLI not detected on target device');
         }
         started = await codexService.startSession({
-          prompt,
+          prompt: dispatchPrompt,
           projectPath: repoPath,
           command: codexCmd || undefined,
           attachments,
@@ -147,7 +153,7 @@ class QueueProcessorService {
           throw new Error('OpenCode CLI not detected on target device');
         }
         started = await opencodeService.startSession({
-          prompt,
+          prompt: dispatchPrompt,
           projectPath: repoPath,
           command: opencodeCmd || undefined,
           model: item?.model || undefined,

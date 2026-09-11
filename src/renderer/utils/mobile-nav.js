@@ -15,6 +15,7 @@ export const PRIMARY_NAV_ITEMS = [
 
 export const MORE_NAV_ITEMS = [
   { view: 'plugins', label: 'Plugins' },
+  { view: 'project-management', label: 'Projects' },
   { view: 'devices', label: 'Devices' },
   { view: 'settings', label: 'Settings' },
 ];

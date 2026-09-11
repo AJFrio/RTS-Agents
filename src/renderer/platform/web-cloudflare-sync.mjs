@@ -12,6 +12,7 @@ const SYNCED_API_KEY_PROVIDERS = new Set([
   'claude',
   'github',
   'jira',
+  'linear',
 ]);
 
 export function createCloudflareSync({ storage, kv }) {

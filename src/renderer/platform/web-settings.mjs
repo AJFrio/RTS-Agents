@@ -19,6 +19,7 @@ export function createSettingsSurface(storage) {
       claude: storage.hasApiKey('claude'),
       github: storage.hasApiKey('github'),
       jira: storage.hasApiKey('jira'),
+      linear: storage.hasApiKey('linear'),
       cloudflare: storage.hasCloudflareConfig(),
     };
     const emptyPaths = [];

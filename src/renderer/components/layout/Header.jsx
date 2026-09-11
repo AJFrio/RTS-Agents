@@ -13,6 +13,7 @@ const VIEW_TITLES = {
   dashboard: 'All Tasks',
   branches: 'Repositories',
   jira: 'Jira',
+  'project-management': 'Project Management',
   settings: 'Settings',
 };
 
@@ -75,9 +76,11 @@ export default function Header() {
         ? `${github?.repos?.length || 0} Repo${(github?.repos?.length || 0) !== 1 ? 's' : ''}`
         : currentView === 'jira'
           ? `${state.jira?.issues?.length || 0} Issue${(state.jira?.issues?.length || 0) !== 1 ? 's' : ''}`
-          : ['agent', 'new-task', 'plugins', 'settings', 'task-detail'].includes(currentView)
-            ? ''
-            : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
+          : currentView === 'project-management'
+            ? `${(state.linear?.issues?.length || 0) + (state.jira?.issues?.length || 0)} Issue${(state.linear?.issues?.length || 0) + (state.jira?.issues?.length || 0) !== 1 ? 's' : ''}`
+            : ['agent', 'new-task', 'plugins', 'settings', 'task-detail'].includes(currentView)
+              ? ''
+              : `${counts.total ?? 0} Task${(counts.total ?? 0) !== 1 ? 's' : ''}`;
 
   return (
     <header className="sticky top-0 z-10 flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-background-light/90 px-3 py-2 backdrop-blur-sm dark:border-border-dark dark:bg-background-dark/90 sm:h-12 sm:flex-nowrap sm:px-6 sm:py-0">

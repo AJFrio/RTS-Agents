@@ -13,6 +13,7 @@ function registerUtilsHandlers(deps) {
     openRouterService,
     githubService,
     jiraService,
+    linearService,
     opencodeService,
     app,
     shell,
@@ -106,6 +107,7 @@ function registerUtilsHandlers(deps) {
       githubStatus,
       jiraStatus,
       openRouterStatus,
+      linearStatus,
     ] = await Promise.allSettled([
       configStore.hasApiKey('jules')
         ? julesService.testConnection()
@@ -124,6 +126,9 @@ function registerUtilsHandlers(deps) {
         : Promise.resolve({ success: false, error: 'Not configured' }),
       configStore.hasApiKey('openrouter')
         ? openRouterService.testConnection()
+        : Promise.resolve({ success: false, error: 'Not configured' }),
+      configStore.hasApiKey('linear')
+        ? linearService.testConnection()
         : Promise.resolve({ success: false, error: 'Not configured' }),
     ]);
 
@@ -230,6 +235,10 @@ function registerUtilsHandlers(deps) {
         jiraStatus.status === 'fulfilled'
           ? jiraStatus.value
           : { success: false, error: jiraStatus.reason?.message },
+      linear:
+        linearStatus.status === 'fulfilled'
+          ? linearStatus.value
+          : { success: false, error: linearStatus.reason?.message },
     };
   });
 

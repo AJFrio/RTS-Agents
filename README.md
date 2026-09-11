@@ -172,6 +172,13 @@ This app stores provider credentials in a local Electron settings store. You can
   - `read:user` (safe default for `/user`)
 - **How to get it**: GitHub settings → developer settings → personal access tokens (the app UI hints “github.com/settings/tokens (classic)”)
 
+### Linear API key (required for Linear issues in the Project Management view)
+
+- **Used for**: listing teams, listing team issues, reading issue details
+- **Where it’s sent**: `https://api.linear.app/graphql`
+- **Header**: `Authorization: <key>` (raw key, no scheme prefix)
+- **How to get it**: create a personal API key at `https://linear.app/settings/api`
+
 ---
 
 ## Local CLI Setup (Antigravity CLI, Claude CLI, Codex CLI, and OpenCode)

@@ -10,12 +10,14 @@ import DevicesPage from './pages/DevicesPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import BranchesPage from './pages/BranchesPage.jsx';
 import JiraPage from './pages/JiraPage.jsx';
+import ProjectManagementPage from './pages/ProjectManagementPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import TaskDetailView from './pages/TaskDetailView.jsx';
 import CreateRepoModal from './modals/CreateRepoModal.jsx';
 import PrModal from './modals/PrModal.jsx';
 import PullRequestRepoFilterModal from './modals/PullRequestRepoFilterModal.jsx';
 import JiraIssueModal from './modals/JiraIssueModal.jsx';
+import LinearIssueModal from './modals/LinearIssueModal.jsx';
 import ConfirmModal from './modals/ConfirmModal.jsx';
 import PastedImageModal from './modals/PastedImageModal.jsx';
 
@@ -30,6 +32,7 @@ function App() {
     closePrRepoFilter,
     closeConfirmModal,
     closeJiraIssueModal,
+    closeLinearIssueModal,
     closePastedImageModal,
   } = useApp();
   const view = state.currentView;
@@ -63,9 +66,11 @@ function App() {
                 ? BranchesPage
                 : view === 'jira'
                   ? JiraPage
-                  : view === 'settings'
-                    ? SettingsPage
-                    : DashboardPage;
+                  : view === 'project-management'
+                    ? ProjectManagementPage
+                    : view === 'settings'
+                      ? SettingsPage
+                      : DashboardPage;
 
   return (
     <>
@@ -81,6 +86,7 @@ function App() {
         onClose={closePrRepoFilter}
       />
       <JiraIssueModal issue={state.jiraIssueModal} onClose={closeJiraIssueModal} api={api} />
+      <LinearIssueModal issue={state.linearIssueModal} onClose={closeLinearIssueModal} api={api} />
       <ConfirmModal config={state.confirmModal} onClose={closeConfirmModal} />
       <PastedImageModal imageUrl={state.pastedImageModal} onClose={closePastedImageModal} />
       <AppToaster theme={toastTheme} />

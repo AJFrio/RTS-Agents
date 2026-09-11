@@ -4,16 +4,7 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
 import { IconSync } from '../components/ui/icons.jsx';
 import { statusMeta, StatusDot } from '../components/ui/status.jsx';
-
-function jiraStatusKey(status) {
-  const s = String(status || '').toLowerCase();
-  if (s.includes('done') || s.includes('closed') || s.includes('resolved')) return 'completed';
-  if (s.includes('progress') || s.includes('review') || s.includes('testing')) return 'running';
-  if (s.includes('todo') || s.includes('backlog') || s.includes('open') || s.includes('new')) {
-    return 'queued';
-  }
-  return 'idle';
-}
+import { jiraStatusKey } from '../utils/issue-status.js';
 
 export default function JiraPage() {
   const { state, dispatch, setView, api, openJiraIssueModal } = useApp();

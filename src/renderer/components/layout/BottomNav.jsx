@@ -19,6 +19,7 @@ const ICONS = {
   'new-task': IconNewTask,
   dashboard: IconTasks,
   branches: IconRepositories,
+  'project-management': IconTasks,
   plugins: IconPlugins,
   devices: IconDevices,
   settings: IconSettings,

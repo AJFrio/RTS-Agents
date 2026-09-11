@@ -14,6 +14,8 @@ interface ProxyConfig {
   authHeader: (apiKey: string) => Record<string, string>;
 }
 
+const LINEAR_GRAPHQL_URL = 'https://api.linear.app/graphql';
+
 const PROXY_CONFIGS: Record<string, ProxyConfig> = {
   jules: {
     baseUrl: 'https://jules.googleapis.com/v1alpha',
@@ -45,6 +47,10 @@ const PROXY_CONFIGS: Record<string, ProxyConfig> = {
   jira: {
     baseUrl: '',
     authHeader: () => ({}), // Auth handled specially for Jira
+  },
+  linear: {
+    baseUrl: LINEAR_GRAPHQL_URL,
+    authHeader: () => ({}), // Auth handled specially for Linear
   },
 };
 
@@ -130,6 +136,48 @@ async function handleJiraRequest(request: Request, path: string): Promise<Respon
   }
 }
 
+async function handleLinearRequest(request: Request): Promise<Response> {
+  const apiKey = request.headers.get('X-API-Key');
+
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'API key required' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+
+  try {
+    const fetchOptions: RequestInit = {
+      method: 'POST',
+      headers: {
+        Authorization: apiKey,
+        'Content-Type': 'application/json',
+      },
+    };
+
+    const body = await request.text();
+    if (body) fetchOptions.body = body;
+
+    const response = await fetch(LINEAR_GRAPHQL_URL, fetchOptions);
+    const responseBody = await response.text();
+
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'application/json',
+        ...corsHeaders(),
+      },
+    });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Linear request failed';
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    });
+  }
+}
+
 async function handleProxyRequest(
   request: Request,
   provider: string,
@@ -152,6 +200,10 @@ async function handleProxyRequest(
   // Special handling for Jira (base URL is dynamic)
   if (provider === 'jira') {
     return handleJiraRequest(request, path);
+  }
+  // Special handling for Linear (fixed GraphQL endpoint)
+  if (provider === 'linear') {
+    return handleLinearRequest(request);
   }
 
   if (!apiKey) {

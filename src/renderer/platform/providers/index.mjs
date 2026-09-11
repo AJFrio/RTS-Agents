@@ -12,6 +12,7 @@ import { createCodexService } from './codex-service.mjs';
 import { createClaudeService } from './claude-service.mjs';
 import { createGithubService } from './github-service.mjs';
 import { createJiraService } from './jira-service.mjs';
+import { createLinearService } from './linear-service.mjs';
 import { createCloudflareKvService } from './cloudflare-kv-service.mjs';
 import { createOpenRouterService } from './openrouter-service.mjs';
 import { createAgentOrchestratorService } from './agent-orchestrator-service.mjs';
@@ -26,6 +27,7 @@ export function createProviders({ storage, fetchImpl, kv = null } = {}) {
     claude: createClaudeService({ storage, fetchImpl, kv }),
     github: createGithubService({ storage, fetchImpl }),
     jira: createJiraService({ storage, fetchImpl }),
+    linear: createLinearService({ storage, fetchImpl }),
     cloudflareKv: createCloudflareKvService({ storage, fetchImpl }),
     openrouter,
     orchestrator: createAgentOrchestratorService({ openrouter, storage }),

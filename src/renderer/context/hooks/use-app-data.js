@@ -46,6 +46,7 @@ export function useAppData(api, state, dispatch) {
           openrouter: !!result.apiKeys?.openrouter,
           github: !!result.apiKeys?.github,
           jira: !!result.apiKeys?.jira && !!(result.jiraBaseUrl || ''),
+          linear: !!result.apiKeys?.linear,
         },
       });
       dispatch({

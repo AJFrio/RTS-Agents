@@ -3,6 +3,7 @@ const settingsApi = require('./api-settings');
 const utilsTasksApi = require('./api-utils-tasks');
 const githubApi = require('./api-github');
 const jiraApi = require('./api-jira');
+const linearApi = require('./api-linear');
 const projectsApi = require('./api-projects');
 
 function buildElectronApi() {
@@ -18,6 +19,7 @@ function buildElectronApi() {
     ...utilsTasksApi,
     ...githubApi,
     ...jiraApi,
+    ...linearApi,
     ...projectsApi,
   };
 }

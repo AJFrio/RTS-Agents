@@ -161,6 +161,12 @@ function looksLikeLocalPath(value) {
   return false;
 }
 
+function isDeviceOnline(device) {
+  if (device?.status === 'on') return true;
+  const heartbeat = new Date(device?.lastHeartbeat || 0).getTime();
+  return heartbeat > 0 && Date.now() - heartbeat < 6 * 60 * 1000;
+}
+
 function ControlPill({ label, value, onClick, id }) {
   return (
     <button
@@ -273,6 +279,10 @@ export default function NewTaskPage() {
   const showRepoSection = !!selectedProvider && selectedProvider !== 'claude-cloud';
   const showModelPill = !!selectedProvider && (models.length > 0 || selectedModel);
   const computersList = state.computers?.list ?? [];
+  const onlineComputersList = useMemo(
+    () => computersList.filter((device) => isDeviceOnline(device)),
+    [computersList]
+  );
 
   useEffect(() => {
     if (environment === 'remote' && fetchComputers) fetchComputers();
@@ -671,13 +681,15 @@ export default function NewTaskPage() {
                 </span>
               )}
             </h3>
-            {computersList.length === 0 ? (
+            {onlineComputersList.length === 0 ? (
               <p className="py-1 text-[13px] text-neutral-400">
-                No linked devices yet. Devices appear once their heartbeat lands in Cloudflare KV.
+                {computersList.length === 0
+                  ? 'No linked devices yet. Devices appear once their heartbeat lands in Cloudflare KV.'
+                  : 'No linked devices are online right now. Devices come online when their app is running.'}
               </p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
-                {computersList.map((device) => {
+                {onlineComputersList.map((device) => {
                   const isSelected = targetDeviceId === device.id;
                   const isLocalDevice = device.id === state.localDeviceId;
                   return (

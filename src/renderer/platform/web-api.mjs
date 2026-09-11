@@ -69,6 +69,19 @@ export function createWebApi(options = {}) {
   });
   const sync = createCloudflareSync({ storage, kv: providers.cloudflareKv });
 
+  providers.orchestrator.setCreateTaskCallback((args) =>
+    hub.createTask(args.provider, args.options || {})
+  );
+  providers.orchestrator.setListTasksCallback(
+    async () => {
+      const peeked = hub.peekAgents();
+      if (peeked) return peeked;
+      const result = await hub.getAgents({ force: true });
+      return Array.isArray(result?.agents) ? result.agents : [];
+    },
+    { peek: () => hub.peekAgents() }
+  );
+
   const tickSubscribers = new Set();
 
   /**

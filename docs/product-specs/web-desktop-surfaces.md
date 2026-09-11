@@ -33,6 +33,20 @@ Theme, polling, cloud API keys (Jules, Cursor Cloud, Claude Cloud,
 OpenRouter, GitHub, Jira), Cloudflare KV, dashboard/agent/PRs/repos,
 New Task Cloud + Remote, Devices (linked machines).
 
+## Agent tab (Janus) on web
+
+The Agent tab is not chat-only. Web Janus uses the same OpenRouter tool
+loop as desktop (`list_tasks`, `list_pull_requests`, `list_computers`,
+`start_task`, GitHub writes, surface cards). Differences:
+
+- Tasks come from the web agent hub (Jules / Cursor / Claude Cloud).
+- Devices/repos come from Cloudflare KV heartbeats, not a local FS scan.
+- `computer_id: "local"` starts a cloud harness; CLI harnesses need a
+  synced device id.
+- `create_local_repo` and `pull_repo` return an unavailable error.
+
+Contract tests: `tests/unit/web-orchestrator.verify.mjs`.
+
 ## Acceptance criteria
 
 - [ ] Web Settings has no Window mode and no Update & restart
@@ -41,9 +55,13 @@ New Task Cloud + Remote, Devices (linked machines).
 - [ ] Web Create Repository is GitHub-only
 - [ ] Desktop still shows every control above
 - [ ] `tests/unit/web-platform.verify.mjs` covers runtime flags and filters
+- [ ] Web Janus chat sends OpenRouter tools and can list tasks / PRs / devices
+- [ ] `create_local_repo` / `pull_repo` return a web-unavailable error
 
 ## Implementation pointers
 
 - `src/renderer/platform/runtime.mjs`, `src/renderer/hooks/use-runtime.js`
 - `SettingsPage.jsx`, `PluginsPage.jsx`, `NewTaskPage.jsx`, `CreateRepoModal.jsx`
 - `ServiceOnboardingModal.jsx`, `DevicesPage.jsx`
+- `src/renderer/platform/providers/agent-orchestrator-service.mjs`,
+  `src/renderer/platform/web-api.mjs`

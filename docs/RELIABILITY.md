@@ -4,7 +4,7 @@
 
 1. **Synchronous FS in main** — `claude-service` list scans now reuse per-file mtime metadata, but a first-pass still reads transcripts. Do not add more `spawnCliSync` on live IPC paths (`opencode export` is async and skipped when stream messages exist).
 2. **Full-list polling** — Periodic refresh still ships agent lists over IPC. Session-store `fs.watch` is debounced (~2s) and no longer watches user project repos. Silent ticks must not flip `refreshing`. Last-scan snapshot is persisted so restart does not wait on a full provider scan to paint the sidebar.
-3. **Orchestrator tool loop** — `agent-orchestrator.chat` is iterative with a `maxToolTurns` cap and native OpenRouter tools (JSON-in-text fallback). Read tools reuse the dashboard agent snapshot and run in parallel; `list_*` surfaces cards so Janus does not follow a list with N `show_*` calls. Web runtime is still chat-only.
+3. **Orchestrator tool loop** — `agent-orchestrator.chat` (desktop) and `agent-orchestrator-service.mjs` (web) share the same iterative loop: `maxToolTurns` cap, native OpenRouter tools, JSON-in-text fallback. Read tools reuse the dashboard agent snapshot and run in parallel; `list_*` surfaces cards so Janus does not follow a list with N `show_*` calls. Web adapters use the agent hub, GitHub worker proxy, and Cloudflare KV; local git tools return a clear unavailable error.
 
 ## Operational expectations
 

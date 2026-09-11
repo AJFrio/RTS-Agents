@@ -43,11 +43,14 @@ renders every task's transcript as a chat log on the canvas.
 
 ## Agent tab (Janus)
 
-- Cursor-style chat against `orchestrator:chat`. Assistant turns are labeled
-  **Janus**. The empty state heading ("What should we work on?") and the
-  Composer sit above the recent-task list. Placeholder: "Ask Janus to start,
-  find, or summarize work…". The model picker is an inline text+chevron
-  control inside the Composer (`variant="inline"`), not a page header.
+- Cursor-style chat against `orchestrator:chat` (desktop IPC and the web
+  adapter). Assistant turns are labeled **Janus**. The empty state heading
+  ("What should we work on?") and the Composer sit above the recent-task
+  list. Placeholder: "Ask Janus to start, find, or summarize work…". The
+  model picker is an inline text+chevron control inside the Composer
+  (`variant="inline"`), not a page header. Web Janus is fed the same tool
+  list as desktop (hub tasks, GitHub PRs, KV devices); see
+  [web-desktop-surfaces.md](web-desktop-surfaces.md).
 - Composer shell uses a masked 1px overlay ring (not CSS `border` or
   box-shadow) so rounded corners stay continuous on Chromium.
 - Consecutive Janus / transcript tool calls collapse into one **Tool
@@ -183,5 +186,6 @@ renders every task's transcript as a chat log on the canvas.
 - `src/renderer/components/settings/ServiceOnboardingModal.jsx`,
   `service-onboarding.js`
 - `src/main/services/opencode-session-parser.js` (`applySessionUpdate`)
-- `src/main/services/agent-orchestrator.js` (tools, task cards)
+- `src/main/services/agent-orchestrator.js` (desktop tools, task cards)
+- `src/renderer/platform/providers/agent-orchestrator-service.mjs` (web tools)
 - `src/main/ipc/provider-registry.js` (`sendTaskMessage` follow-up providers)

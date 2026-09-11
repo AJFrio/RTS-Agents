@@ -19,18 +19,25 @@ import { createAgentOrchestratorService } from './agent-orchestrator-service.mjs
 
 export function createProviders({ storage, fetchImpl, kv = null } = {}) {
   const openrouter = createOpenRouterService({ storage, fetchImpl });
+  const github = createGithubService({ storage, fetchImpl });
+  const cloudflareKv = createCloudflareKvService({ storage, fetchImpl });
 
   return {
     jules: createJulesService({ storage, fetchImpl }),
     cursor: createCursorService({ storage, fetchImpl }),
     codex: createCodexService({ storage, fetchImpl, kv }),
     claude: createClaudeService({ storage, fetchImpl, kv }),
-    github: createGithubService({ storage, fetchImpl }),
+    github,
     jira: createJiraService({ storage, fetchImpl }),
     linear: createLinearService({ storage, fetchImpl }),
-    cloudflareKv: createCloudflareKvService({ storage, fetchImpl }),
+    cloudflareKv,
     openrouter,
-    orchestrator: createAgentOrchestratorService({ openrouter, storage }),
+    orchestrator: createAgentOrchestratorService({
+      openrouter,
+      storage,
+      github,
+      cloudflareKv,
+    }),
   };
 }
 

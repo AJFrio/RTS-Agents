@@ -119,6 +119,10 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
     };
   }
 
+  function peekAgents() {
+    return revision > 0 ? cachedAgents : null;
+  }
+
   // ------------------------------------------------------------------
   // Polling lifecycle (desktop main.js startPolling counterpart)
   // ------------------------------------------------------------------
@@ -306,6 +310,7 @@ export function createAgentHub({ storage, providers, timers, onTick }) {
 
   return {
     getAgents,
+    peekAgents,
     getAgentDetails,
     createTask,
     sendMessage,

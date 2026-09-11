@@ -41,7 +41,7 @@ src/renderer/
 
 ## Mobile parity
 
-The web runtime (Cloudflare Worker) uses the same components. `src/renderer/platform/web-api.mjs` mirrors the `window.electronAPI` surface for browsers — keep it in sync when adding IPC methods. Gate UI with `useRuntime()` / `src/renderer/platform/runtime.mjs` so desktop-only controls (app update, window mode, local CLIs, folder picker) do not render on the website. See [product-specs/web-desktop-surfaces.md](product-specs/web-desktop-surfaces.md) and [ARCHITECTURE.md](../ARCHITECTURE.md).
+The web runtime (Cloudflare Worker) uses the same components. `src/renderer/platform/web-api.mjs` mirrors the `window.electronAPI` surface for browsers — keep it in sync when adding IPC methods. Gate UI with `useRuntime()` / `src/renderer/platform/runtime.mjs` so desktop-only controls (app update, window mode, local CLIs, folder picker) do not render on the website. Janus on web uses `agent-orchestrator-service.mjs` (same tool loop as desktop, hub/KV/GitHub adapters). See [product-specs/web-desktop-surfaces.md](product-specs/web-desktop-surfaces.md) and [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Mobile layout (<768px) is documented in [DESIGN.md](DESIGN.md) §4 and
 [product-specs/ui-shell.md](product-specs/ui-shell.md): hide the sidebar,

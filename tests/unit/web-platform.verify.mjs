@@ -1220,6 +1220,88 @@ test('web-api pushKeysToCloudflare / pullKeysFromCloudflare sync the keys KV val
 });
 
 // ---------------------------------------------------------------------------
+// web-api — Cloudflare account discovery (Detect & connect on web)
+// ---------------------------------------------------------------------------
+
+test('web-api discoverCloudflareAccount lists accounts for a pasted token', async () => {
+  const { createWebApi } = await import('../../src/renderer/platform/web-api.mjs');
+  const fetchStub = makeFetch([
+    {
+      match: urlHas('https://api.cloudflare.com/client/v4/accounts'),
+      respond: (url, opts) =>
+        opts.headers['Authorization'] === 'Bearer tok1'
+          ? jsonResponse({
+              success: true,
+              result: [
+                { id: 'acc1', name: 'Main Account' },
+                { id: 'acc2', name: 'Secondary' },
+                { junk: true },
+                { id: '', name: 'no id' },
+              ],
+            })
+          : jsonResponse({ success: false, errors: [{ message: 'denied' }] }),
+    },
+  ]);
+  const api = createWebApi({ fetchImpl: fetchStub });
+
+  // Empty/absent token → same envelope as the desktop IPC.
+  assert.deepEqual(await api.discoverCloudflareAccount(''), {
+    success: false,
+    error: 'API token is required',
+  });
+  assert.deepEqual(await api.discoverCloudflareAccount('   '), {
+    success: false,
+    error: 'API token is required',
+  });
+
+  const ok = await api.discoverCloudflareAccount(' tok1 ');
+  assert.equal(ok.success, true);
+  assert.deepEqual(ok.accounts, [
+    { id: 'acc1', name: 'Main Account' },
+    { id: 'acc2', name: 'Secondary' },
+  ]);
+  // Token is trimmed and never appears in the URL.
+  const call = fetchStub.calls[0];
+  assert.equal(call.url, 'https://api.cloudflare.com/client/v4/accounts');
+  assert.equal(call.opts.headers['Authorization'], 'Bearer tok1');
+
+  // Missing discoverCloudflareAccount would hide the Detect & connect button;
+  // expose it so the modal shows the control on web.
+  assert.equal(typeof api.discoverCloudflareAccount, 'function');
+});
+
+test('web-api discoverCloudflareAccount maps CF error envelopes to desktop output', async () => {
+  const { createWebApi } = await import('../../src/renderer/platform/web-api.mjs');
+  const api = createWebApi({
+    fetchImpl: makeFetch([
+      {
+        match: urlHas('/client/v4/accounts'),
+        respond: () =>
+          jsonResponse({
+            success: false,
+            errors: [{ message: 'Invalid API token' }],
+          }),
+      },
+    ]),
+  });
+  const first = await api.discoverCloudflareAccount('bad-token');
+  assert.equal(first.success, false);
+  assert.equal(first.error, 'Invalid API token');
+
+  // Malformed envelope (non-JSON response) → generic desktop-style error.
+  const broken = createWebApi({ fetchImpl: () => textResponse('<html>gateway</html>', 502) });
+  const second = await broken.discoverCloudflareAccount('tok');
+  assert.equal(second.success, false);
+  assert.equal(second.error, 'Could not list accounts');
+
+  // Network-level failure (CORS refused, offline) → caught, no throw.
+  const net = createWebApi({ fetchImpl: () => Promise.reject(new TypeError('Failed to fetch')) });
+  const third = await net.discoverCloudflareAccount('tok');
+  assert.equal(third.success, false);
+  assert.ok(third.error);
+});
+
+// ---------------------------------------------------------------------------
 // web-api — repositories + orchestrator
 // ---------------------------------------------------------------------------
 

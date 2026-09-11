@@ -6,7 +6,7 @@
 const projectService = require('../services/project-service');
 const acpService = require('../services/acp-service');
 
-const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'claude-cli', 'codex', 'opencode']);
+const REMOTE_TASK_PROVIDERS = new Set(['antigravity', 'claude-cli', 'codex', 'opencode', 'cursor']);
 const LOCAL_CWD_PROVIDERS = new Set(['antigravity', 'codex', 'claude-cli', 'opencode', 'cursor']);
 
 const AGENT_LIST_KEYS = [

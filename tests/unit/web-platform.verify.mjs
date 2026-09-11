@@ -1564,9 +1564,12 @@ test('web-api orchestrator models + chat go through OpenRouter', async () => {
   assert.equal(response.role, 'assistant');
   assert.equal(response.content, 'I can help with that');
 
-  // OpenRouter prefix is stripped for the wire request.
+  // OpenRouter prefix is stripped for the wire request; Janus tools ride along.
   const chatCall = fetchStub.calls.find((c) => c.url.endsWith('/chat/completions'));
-  assert.equal(JSON.parse(chatCall.opts.body).model, 'openai/gpt-4o');
+  const body = JSON.parse(chatCall.opts.body);
+  assert.equal(body.model, 'openai/gpt-4o');
+  assert.ok(Array.isArray(body.tools));
+  assert.ok(body.tools.some((tool) => tool.function?.name === 'list_tasks'));
 });
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,12 @@ import { useApp } from '../context/AppContext.jsx';
 import { normalizeCreatedTask } from '../context/app-state.js';
 import Composer from '../components/chat/Composer.jsx';
 import { getProviderDisplayName } from '../utils/format.js';
-import { getLastSelectedModel, setLastSelectedModel } from '../utils/last-selected-model.js';
+import {
+  getLastSelectedModel,
+  getLastSelectedModelForScope,
+  setLastSelectedModel,
+  setLastSelectedModelForScope,
+} from '../utils/last-selected-model.js';
 import { providerMeta, IconChevronDown } from '../components/ui/icons.jsx';
 import { useRuntime } from '../hooks/use-runtime.js';
 import { getTaskEnvironments, resolveTaskEnvironment } from '../platform/runtime.mjs';
@@ -16,11 +21,12 @@ const CLOUD_PROVIDERS = ['jules', 'cursor', 'claude-cloud'];
 const LOCAL_PROVIDERS = ['antigravity', 'cursor', 'codex', 'claude-cli', 'opencode'];
 const REMOTE_PROVIDERS = ['antigravity', 'claude-cli', 'codex', 'opencode', 'cursor'];
 
-function getCachedModels(provider) {
+function getCachedModels(provider, scopeKey = '') {
   try {
+    const suffix = scopeKey ? `::${scopeKey}` : '';
     const raw =
       typeof localStorage !== 'undefined'
-        ? localStorage.getItem(MODELS_CACHE_KEY_PREFIX + provider)
+        ? localStorage.getItem(MODELS_CACHE_KEY_PREFIX + provider + suffix)
         : null;
     if (!raw) return [];
     const parsed = JSON.parse(raw);
@@ -30,10 +36,11 @@ function getCachedModels(provider) {
   }
 }
 
-function setCachedModels(provider, models) {
+function setCachedModels(provider, models, scopeKey = '') {
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(MODELS_CACHE_KEY_PREFIX + provider, JSON.stringify(models));
+      const suffix = scopeKey ? `::${scopeKey}` : '';
+      localStorage.setItem(MODELS_CACHE_KEY_PREFIX + provider + suffix, JSON.stringify(models));
     }
   } catch {
     // Ignore storage failures; the in-session cache still applies.
@@ -168,6 +175,17 @@ function isDeviceOnline(device) {
   return heartbeat > 0 && Date.now() - heartbeat < 6 * 60 * 1000;
 }
 
+function getDeviceModelCatalog(device) {
+  const catalog = device?.modelCatalog?.providers || null;
+  return catalog && typeof catalog === 'object' && !Array.isArray(catalog) ? catalog : null;
+}
+
+function getDeviceModels(device, provider) {
+  const catalog = getDeviceModelCatalog(device);
+  const list = catalog?.[provider];
+  return Array.isArray(list) ? list : [];
+}
+
 function ControlPill({ label, value, onClick, id }) {
   return (
     <button
@@ -278,7 +296,7 @@ export default function NewTaskPage() {
     selectedProvider !== 'claude-cloud' &&
     (environment !== 'cloud' || ['jules', 'cursor'].includes(selectedProvider));
   const showRepoSection = !!selectedProvider && selectedProvider !== 'claude-cloud';
-  const showModelPill = !!selectedProvider && (models.length > 0 || selectedModel);
+  const showModelPill = !!selectedProvider && selectedProvider !== 'jules';
   const computersList = state.computers?.list ?? [];
   const onlineComputersList = useMemo(
     () => computersList.filter((device) => isDeviceOnline(device)),
@@ -355,17 +373,33 @@ export default function NewTaskPage() {
     );
   }, [remoteDeviceRepos]);
 
+  const modelScopeKey =
+    environment === 'remote' && targetDeviceId ? `remote:${targetDeviceId}` : '';
+
   useEffect(() => {
-    if (!selectedProvider || !api?.getProviderModels) {
+    if (!selectedProvider) {
       setSelectedModel('');
       setModels([]);
       return;
     }
 
-    const lastModel = getLastSelectedModel(selectedProvider);
-    setSelectedModel(lastModel);
-    setModels(getCachedModels(selectedProvider));
+    const remembered = modelScopeKey
+      ? getLastSelectedModelForScope(selectedProvider, modelScopeKey)
+      : getLastSelectedModel(selectedProvider);
+    setSelectedModel(remembered);
+    setModels(getCachedModels(selectedProvider, modelScopeKey));
 
+    if (environment === 'remote' && targetDeviceId) {
+      const device = (state.computers?.list || []).find((d) => d?.id === targetDeviceId) || null;
+      const list = getDeviceModels(device, selectedProvider);
+      if (list.length > 0) {
+        setModels(list);
+        setCachedModels(selectedProvider, list, modelScopeKey);
+      }
+      return;
+    }
+
+    if (!api?.getProviderModels) return;
     let cancelled = false;
     api
       .getProviderModels(selectedProvider)
@@ -373,11 +407,14 @@ export default function NewTaskPage() {
         if (cancelled) return;
         const list = Array.isArray(result?.models) ? result.models : [];
         setModels(list);
-        setCachedModels(selectedProvider, list);
+        setCachedModels(selectedProvider, list, modelScopeKey);
         setSelectedModel((prev) => {
           if (prev && (list.length === 0 || list.includes(prev))) return prev;
-          const remembered = getLastSelectedModel(selectedProvider);
-          if (remembered && (list.includes(remembered) || list.length === 0)) return remembered;
+          const nextRemembered = modelScopeKey
+            ? getLastSelectedModelForScope(selectedProvider, modelScopeKey)
+            : getLastSelectedModel(selectedProvider);
+          if (nextRemembered && (list.includes(nextRemembered) || list.length === 0))
+            return nextRemembered;
           return prev && list.includes(prev) ? prev : '';
         });
       })
@@ -387,7 +424,7 @@ export default function NewTaskPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedProvider, api]);
+  }, [selectedProvider, api, environment, targetDeviceId, modelScopeKey, state.computers?.list]);
 
   useEffect(() => {
     if (repoDropdownOpen && repoInputContainerRef.current) {
@@ -425,7 +462,12 @@ export default function NewTaskPage() {
     setSelectedModel(model);
     setModelSearch('');
     setModelDropdownOpen(false);
-    if (selectedProvider) setLastSelectedModel(selectedProvider, model);
+    if (!selectedProvider) return;
+    if (modelScopeKey) {
+      setLastSelectedModelForScope(selectedProvider, modelScopeKey, model);
+    } else {
+      setLastSelectedModel(selectedProvider, model);
+    }
   };
 
   const commitTypedRepoPath = (raw) => {
@@ -485,15 +527,21 @@ export default function NewTaskPage() {
       }
       return;
     }
-    if (filteredModels.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
+      if (filteredModels.length === 0) return;
       setModelHighlightedIndex((prev) => (prev + 1) % filteredModels.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
+      if (filteredModels.length === 0) return;
       setModelHighlightedIndex((prev) => (prev <= 0 ? filteredModels.length - 1 : prev - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
+      const typed = modelSearch.trim();
+      if (typed && !filteredModels.includes(typed) && modelHighlightedIndex < 0) {
+        chooseModel(typed);
+        return;
+      }
       if (modelHighlightedIndex >= 0 && modelHighlightedIndex < filteredModels.length) {
         chooseModel(filteredModels[modelHighlightedIndex]);
       }
@@ -584,7 +632,13 @@ export default function NewTaskPage() {
     }
     if (isRemote) options.targetDeviceId = targetDeviceId;
     if (selectedModel) options.model = selectedModel;
-    if (selectedProvider) setLastSelectedModel(selectedProvider, selectedModel || '');
+    if (selectedProvider) {
+      if (modelScopeKey) {
+        setLastSelectedModelForScope(selectedProvider, modelScopeKey, selectedModel || '');
+      } else {
+        setLastSelectedModel(selectedProvider, selectedModel || '');
+      }
+    }
 
     setCreating(true);
 
@@ -958,6 +1012,26 @@ export default function NewTaskPage() {
                         Harness default
                       </button>
                     </li>
+                    {modelSearch.trim() &&
+                      !filteredModels.includes(modelSearch.trim()) &&
+                      selectedModel !== modelSearch.trim() && (
+                        <li className="border-b border-border-light dark:border-border-dark">
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={false}
+                            onClick={() => chooseModel(modelSearch.trim())}
+                            className="w-full px-3 py-1.5 text-left text-[12px] text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                          >
+                            Use “{modelSearch.trim()}”
+                          </button>
+                        </li>
+                      )}
+                    {filteredModels.length === 0 && (
+                      <li className="px-3 py-2 text-[12px] text-neutral-400">
+                        No models available yet. You can still type a model id above.
+                      </li>
+                    )}
                     {filteredModels.map((m, index) => (
                       <li key={m} id={`model-option-${index}`}>
                         <button

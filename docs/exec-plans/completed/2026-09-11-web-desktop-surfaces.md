@@ -17,3 +17,4 @@ Make Cloudflare Worker deploys produce `dist/renderer` via Wrangler
 | Date | Note |
 |------|------|
 | 2026-09-11 | Implemented runtime gating and Wrangler custom build |
+| 2026-09-11 | `npm run check:web` dry-run succeeded; web/desktop surface audit passed |

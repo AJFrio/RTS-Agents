@@ -63,6 +63,45 @@ export function createWebApi(options = {}) {
 
   const tickSubscribers = new Set();
 
+  /**
+   * Discover Cloudflare accounts accessible with a pasted API token — the
+   * browser counterpart of the desktop 'cloudflare:discover-account' IPC.
+   * Same response shape as src/main/services/cloudflare-account-discovery.js
+   * so ServiceOnboardingModal renders the Detect & connect button on web.
+   * Globs softly: api.cloudflare.com allows cross-origin GETs with a token.
+   */
+  async function discoverCloudflareAccount(apiToken) {
+    const token = typeof apiToken === 'string' ? apiToken.trim() : '';
+    if (!token) return { success: false, error: 'API token is required' };
+
+    try {
+      const response = await fetchImpl('https://api.cloudflare.com/client/v4/accounts', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const envelope = await response.json().catch(() => null);
+      if (!envelope || envelope.success === false || !Array.isArray(envelope.result)) {
+        const message =
+          envelope && Array.isArray(envelope.errors) && envelope.errors[0]?.message
+            ? envelope.errors[0].message
+            : 'Could not list accounts';
+        return { success: false, error: message };
+      }
+      const accounts = envelope.result
+        .filter(
+          (entry) =>
+            entry &&
+            typeof entry.id === 'string' &&
+            entry.id.length > 0 &&
+            typeof entry.name === 'string' &&
+            entry.name.length > 0
+        )
+        .map((entry) => ({ id: entry.id, name: entry.name }));
+      return { success: true, accounts };
+    } catch (err) {
+      return { success: false, error: err?.message || 'Unknown error' };
+    }
+  }
+
   function emitRefreshTick() {
     for (const cb of tickSubscribers) {
       try {
@@ -177,8 +216,9 @@ export function createWebApi(options = {}) {
     testApiKey,
     setPolling,
 
-    // Cloudflare KV sync (computers / queue / keys / test)
+    // Cloudflare KV sync (computers / queue / keys / test / account discovery)
     testCloudflare: sync.testCloudflare,
+    discoverCloudflareAccount,
     listComputers: sync.listComputers,
     getQueueActivity: sync.getQueueActivity,
     pushKeysToCloudflare: sync.pushKeysToCloudflare,

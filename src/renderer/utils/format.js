@@ -17,20 +17,21 @@ export function getProviderDisplayName(provider) {
 }
 
 /**
- * Format time ago (1H_AGO, 2D_AGO, etc.)
+ * Relative time in the Recent Tasks style: now, 5m, 3h, 2d, then "Sep 11".
  */
-export function formatTimeAgo(date) {
-  if (!date) return '';
-  const now = new Date();
-  const then = new Date(date);
-  const seconds = Math.floor((now - then) / 1000);
-  if (seconds < 60) return 'NOW';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}M_AGO`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}H_AGO`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}D_AGO`;
-  return then
-    .toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
-    .replace(/\//g, '/');
+export function relativeTime(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d`;
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 export function getStatusStyle(status) {

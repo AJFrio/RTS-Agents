@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import JulesActivityMedia from './JulesActivityMedia.jsx';
+import { relativeTime } from '../../utils/format.js';
 
 const ACTIVITY_ICONS = {
   build: 'construction',
@@ -28,13 +29,6 @@ function getActivityTypeLabel(type) {
     .join(' ');
 }
 
-function formatFeedTime(ms) {
-  if (ms == null) return null;
-  const date = new Date(ms);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString();
-}
-
 function formatMessageTime(ms) {
   if (ms == null) return null;
   const date = new Date(ms);
@@ -49,7 +43,7 @@ function formatMessageTime(ms) {
  */
 function ActivityRow({ item, renderMessage, expandedIds, onToggleRow, showMedia, mediaApi, mediaSessionId, scrollRootRef }) {
   const raw = item.raw ?? {};
-  const time = formatFeedTime(item.timestamp);
+  const time = relativeTime(item.timestamp);
   const counts = [];
   if (raw.commands?.length > 0) counts.push(`${raw.commands.length} cmd(s)`);
   if (raw.fileChanges?.length > 0) counts.push(`${raw.fileChanges.length} file(s)`);

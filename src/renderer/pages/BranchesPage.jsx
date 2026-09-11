@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { useBelowLg } from '../hooks/use-media-query.js';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
-import { formatTimeAgo } from '../utils/format.js';
+import { relativeTime } from '../utils/format.js';
 import TaskInfoModal from '../modals/TaskInfoModal.jsx';
 import {
   IconRepositories,
@@ -293,7 +293,7 @@ export default function BranchesPage() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-                      <span>{formatTimeAgo(repo.updated_at)}</span>
+                      <span>{relativeTime(repo.updated_at)}</span>
                       <span title="Stars" className="shrink-0 font-mono tabular-nums">
                         {repo.stargazers_count ?? 0}
                       </span>
@@ -446,7 +446,7 @@ export default function BranchesPage() {
                           <div className="mt-1 truncate text-[11px] text-neutral-500 dark:text-neutral-400">
                             <span className="font-mono">{pr.head?.ref}</span> →{' '}
                             <span className="font-mono">{pr.base?.ref}</span> ·{' '}
-                            {formatTimeAgo(pr.updated_at)}
+                            {relativeTime(pr.updated_at)}
                           </div>
                         </div>
                       );

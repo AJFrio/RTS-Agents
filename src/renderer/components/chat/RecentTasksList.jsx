@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { providerMeta } from '../ui/icons.jsx';
 import { StatusDot, canvasStatusMeta } from '../ui/status.jsx';
-import { getProviderDisplayName } from '../../utils/format.js';
+import { getProviderDisplayName, relativeTime } from '../../utils/format.js';
 
 const RECENT_TASK_LIMIT = 20;
 
@@ -11,21 +11,6 @@ function shortRepo(repository) {
   const text = String(repository);
   const base = text.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
   return base || text;
-}
-
-function relativeTime(timestamp) {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return '';
-  const diff = Date.now() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d`;
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 function RecentTaskRow({ task, onOpen }) {

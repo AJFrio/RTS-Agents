@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import { IconClose } from '../components/ui/icons.jsx';
 import { useApp } from '../context/AppContext.jsx';
+import { relativeTime } from '../utils/format.js';
 
 export default function JiraIssueModal({ issue, onClose, api }) {
   const [fullIssue, setFullIssue] = useState(issue);
@@ -31,8 +32,8 @@ export default function JiraIssueModal({ issue, onClose, api }) {
   const issueType = f.issuetype?.name ?? 'Issue';
   const assignee = f.assignee?.displayName ?? 'Unassigned';
   const priority = f.priority?.name ?? '—';
-  const created = f.created ? new Date(f.created).toLocaleString() : '—';
-  const updated = f.updated ? new Date(f.updated).toLocaleString() : '—';
+  const created = f.created ? relativeTime(f.created) : '—';
+  const updated = f.updated ? relativeTime(f.updated) : '—';
   const description = f.description ?? '';
 
   return (
@@ -66,7 +67,7 @@ export default function JiraIssueModal({ issue, onClose, api }) {
               <div className="space-y-2">
                 {comments.map((c) => (
                   <div key={c.id} className="rounded-md border border-border-light bg-inset-light p-3 dark:border-border-dark dark:bg-inset-dark">
-                    <div className="mb-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">{c.author?.displayName} · {c.updated ? new Date(c.updated).toLocaleString() : ''}</div>
+                    <div className="mb-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">{c.author?.displayName} · {c.updated ? relativeTime(c.updated) : ''}</div>
                     <div className="whitespace-pre-wrap text-[13px] text-neutral-700 dark:text-neutral-300">{c.body}</div>
                   </div>
                 ))}

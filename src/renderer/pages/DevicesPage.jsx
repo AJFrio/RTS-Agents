@@ -4,6 +4,7 @@ import { useBelowLg } from '../hooks/use-media-query.js';
 import { providerMeta, IconDevices, IconArrowRight, IconClose, IconTerminal, IconChevronLeft } from '../components/ui/icons.jsx';
 import { StatusDot } from '../components/ui/status.jsx';
 import { useRuntime } from '../hooks/use-runtime.js';
+import { relativeTime } from '../utils/format.js';
 
 function isOnline(device) {
   if (device?.status === 'on') return true;
@@ -29,13 +30,6 @@ function shortRepo(path) {
   const text = String(path || '').trim();
   if (!text) return '';
   return text.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || text;
-}
-
-function formatWhen(timestamp) {
-  if (!timestamp) return '';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 function DeviceCard({ device, isLocal, queue, onSelect, selected }) {
@@ -260,7 +254,7 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
                   >
                     {queue.lastTask.status || 'unknown'}
                   </span>{' '}
-                  {queue.lastTask.updatedAt ? `· ${formatWhen(queue.lastTask.updatedAt)}` : ''}
+                  {queue.lastTask.updatedAt ? `· ${relativeTime(queue.lastTask.updatedAt)}` : ''}
                 </p>
               )}
             </div>

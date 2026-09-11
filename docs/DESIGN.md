@@ -27,7 +27,7 @@ device / repo, watch every running session, and read any task's transcript — w
 1. **Chat-first** — The Agent tab is Janus: a minimal composer that expands into
    power controls (harness, model, repo, device) only when needed. Task creation and follow-ups
    reuse the same composer surface.
-2. **Living sidebar** — Repos/Agents sections show what is running *right now*, even when collapsed.
+2. **Living sidebar** — Repos/Agents sections show what is running _right now_, even when collapsed.
    Running sessions stay visible and pulse until they finish. The same git project on local and
    cloud providers is one repo row (combined active count). Last-seen tasks appear immediately
    after restart from a local snapshot.
@@ -47,36 +47,36 @@ device / repo, watch every running session, and read any task's transcript — w
 Neutral ramp (Tailwind `neutral` + custom stops). **Blue is banned.** Accent is inverted-neutral
 (dark text on light buttons, white on dark) — there is no brand hue.
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `bg` (app/canvas) | `#fafafa` | `#0f0f0f` | Canvas background |
-| `bg-raised` (sidebar) | `#f4f4f5` | `#181818` | Sidebar, header strips |
-| `bg-card` | `#ffffff` | `#1e1e1e` | Cards, composer, modals |
-| `bg-inset` | `#f4f4f5` | `#141414` | Inset wells: code, collapsed tool bodies, thumbnails |
-| `border` | `#e5e5e5` | `#262626` | Hairline borders, dividers |
-| `border-strong` | `#d4d4d4` | `#404040` | Emphasized borders, hover edges |
-| `text` | `#171717` | `#ededed` | Primary text |
-| `text-secondary` | `#737373` | `#a0a0a0` | Secondary text |
-| `text-tertiary` | `#a3a3a3` | `#6e6e6e` | Disabled/hint text |
-| `accent-bg` | `#171717` | `#ededed` | Primary button fill |
-| `accent-text` | `#ffffff` | `#0f0f0f` | Primary button text |
+| Token                 | Light     | Dark      | Use                                                  |
+| --------------------- | --------- | --------- | ---------------------------------------------------- |
+| `bg` (app/canvas)     | `#fafafa` | `#0f0f0f` | Canvas background                                    |
+| `bg-raised` (sidebar) | `#f4f4f5` | `#181818` | Sidebar, header strips                               |
+| `bg-card`             | `#ffffff` | `#1e1e1e` | Cards, composer, modals                              |
+| `bg-inset`            | `#f4f4f5` | `#141414` | Inset wells: code, collapsed tool bodies, thumbnails |
+| `border`              | `#e5e5e5` | `#262626` | Hairline borders, dividers                           |
+| `border-strong`       | `#d4d4d4` | `#404040` | Emphasized borders, hover edges                      |
+| `text`                | `#171717` | `#ededed` | Primary text                                         |
+| `text-secondary`      | `#737373` | `#a0a0a0` | Secondary text                                       |
+| `text-tertiary`       | `#a3a3a3` | `#6e6e6e` | Disabled/hint text                                   |
+| `accent-bg`           | `#171717` | `#ededed` | Primary button fill                                  |
+| `accent-text`         | `#ffffff` | `#0f0f0f` | Primary button text                                  |
 
 Status semantics (the only chromatic colors):
 
-| State | Base | Tint | Signal |
-|---|---|---|---|
-| running | emerald-600 / emerald-400 | `bg-emerald-500/10` | pulsing dot + subtle shimmer on rows |
-| completed (good) | emerald-700 / emerald-400 | check icon, `bg-emerald-500/10` badge | done (dashboard / sidebar) |
-| completed (Agent recent list) | neutral-500 / neutral-400 | grey pill + dot | finished work on the Agent canvas |
-| queued/pending | amber-600 / amber-400 | `bg-amber-500/10` | waiting |
-| failed/stopped (bad) | red-600 / red-400 | `bg-red-500/10` | error |
-| idle/not-configured | neutral-400 | `bg-neutral-400/10` | neutral |
+| State                         | Base                      | Tint                                  | Signal                               |
+| ----------------------------- | ------------------------- | ------------------------------------- | ------------------------------------ |
+| running                       | emerald-600 / emerald-400 | `bg-emerald-500/10`                   | pulsing dot + subtle shimmer on rows |
+| completed (good)              | emerald-700 / emerald-400 | check icon, `bg-emerald-500/10` badge | done (dashboard / sidebar)           |
+| completed (Agent recent list) | neutral-500 / neutral-400 | grey pill + dot                       | finished work on the Agent canvas    |
+| queued/pending                | amber-600 / amber-400     | `bg-amber-500/10`                     | waiting                              |
+| failed/stopped (bad)          | red-600 / red-400         | `bg-red-500/10`                       | error                                |
+| idle/not-configured           | neutral-400               | `bg-neutral-400/10`                   | neutral                              |
 
 ### 3.2 Typography
 
 - Family: `Plus Jakarta Sans` (display) with Inter/system-ui fallback — unchanged from repo
   config (local Electron app; no new webfont deps). Mono: `ui-monospace, SFMono-Regular, Menlo,
-  Consolas, monospace` for repo names, branch names, commands, technical labels.
+Consolas, monospace` for repo names, branch names, commands, technical labels.
 - UI body: 13px (`text-[13px]`), secondary 12px (`text-xs`), micro labels 11px uppercase
   `tracking-wider`. Page titles 15–16px semibold. Chat body 14px. Long-form (transcript text)
   14px/1.6.
@@ -158,7 +158,7 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 ```
 
 - Expandable repo sections show first 10 tasks + "See all" (opens sessions modal for that repo).
-- Any actively running task in a repo renders *above* the collapse — even when the section is
+- Any actively running task in a repo renders _above_ the collapse — even when the section is
   collapsed — with a pulsing status dot and emerald tint.
 - Harness sections (Agents toggle) behave identically: running sessions always visible.
 

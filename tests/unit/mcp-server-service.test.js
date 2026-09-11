@@ -172,7 +172,9 @@ describe('mcp-server-service', () => {
     });
     const { port } = await startServer();
 
-    const all = textPayload(await rpcResult('tools/call', { name: 'list_agents', arguments: {} }, port));
+    const all = textPayload(
+      await rpcResult('tools/call', { name: 'list_agents', arguments: {} }, port)
+    );
     expect(all.total).toBe(3);
     expect(all.agents).toHaveLength(3);
 
@@ -245,9 +247,15 @@ describe('mcp-server-service', () => {
     };
     const { port } = await startServer(deps);
 
-    const payload = textPayload(await rpcResult('tools/call', { name: 'list_devices', arguments: {} }, port));
+    const payload = textPayload(
+      await rpcResult('tools/call', { name: 'list_devices', arguments: {} }, port)
+    );
     expect(payload.configured).toBe(true);
-    expect(payload.devices[0]).toEqual({ id: 'd1', name: 'box', taskStatus: { status: 'running' } });
+    expect(payload.devices[0]).toEqual({
+      id: 'd1',
+      name: 'box',
+      taskStatus: { status: 'running' },
+    });
   });
 
   test('unknown tool and unknown method produce errors', async () => {

@@ -1,5 +1,3 @@
-const path = require('path');
-
 // Mock external modules
 jest.mock('fs', () => ({
   existsSync: jest.fn(),

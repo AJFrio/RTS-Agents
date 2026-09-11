@@ -10,7 +10,7 @@ function agentSignature(agent) {
     agent.summary || '',
     agent.prompt || '',
     agent.repository || '',
-    agent.repoRemote || ''
+    agent.repoRemote || '',
   ].join('\0');
 }
 

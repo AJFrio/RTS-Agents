@@ -120,7 +120,7 @@ class CursorService {
     if (this.apiKey) {
       try {
         agents.push(...(await this._listCloudAgents()));
-      } catch (err) {
+      } catch {
         // Surface local sessions even when the cloud listing fails
       }
     }

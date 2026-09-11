@@ -19,7 +19,7 @@ export function createOpenRouterService({ storage, fetchImpl } = {}) {
       const apiKey = storage.getApiKey('openrouter');
       if (!apiKey) throw new Error('OpenRouter API key not configured');
       return {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://rts-agents.com', // Required by OpenRouter
         'X-Title': 'RTS Agents',
       };

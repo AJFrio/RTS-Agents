@@ -1,5 +1,4 @@
 const child_process = require('child_process');
-const fs = require('fs');
 
 // Create spy before requiring services
 const spawnSpy = jest

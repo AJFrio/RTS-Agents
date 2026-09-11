@@ -67,7 +67,9 @@ export default function FilterDropdown() {
         aria-label={activeFilterCount > 0 ? `Filters (${activeFilterCount} active)` : 'Filters'}
       >
         <span className="material-symbols-outlined text-sm">filter_list</span>
-        <span className="sm:hidden">{activeFilterCount > 0 ? `(${activeFilterCount})` : 'Filter'}</span>
+        <span className="sm:hidden">
+          {activeFilterCount > 0 ? `(${activeFilterCount})` : 'Filter'}
+        </span>
         <span className="hidden sm:inline">
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </span>

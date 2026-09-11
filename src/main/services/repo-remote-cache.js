@@ -46,7 +46,9 @@ class RepoRemoteCache {
 
   set(localPath, remote) {
     const key = normalizeLocalPath(localPath);
-    const canon = canonicalizeGitRemote(remote) || (typeof remote === 'string' && remote.includes('/') ? remote : null);
+    const canon =
+      canonicalizeGitRemote(remote) ||
+      (typeof remote === 'string' && remote.includes('/') ? remote : null);
     if (!key || !canon) return;
     this.remotes.set(key, canon);
   }

@@ -8,12 +8,12 @@
 
 ## Operational expectations
 
-| Area | Target | Notes |
-|------|--------|-------|
-| App boot | Interactive window after `ready-to-show`; sidebar hydrates last task snapshot from localStorage / `userData` | Services init after first paint; live discovery replaces the snapshot |
-| Poll interval | User-configurable (Settings) | Default ~30s; disable when not needed |
-| Cloudflare heartbeat | 5 min | Devices marked offline after ~6 min stale |
-| Provider errors | Per-provider error object in responses | UI shows Offline/Error, not silent fail |
+| Area                 | Target                                                                                                       | Notes                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| App boot             | Interactive window after `ready-to-show`; sidebar hydrates last task snapshot from localStorage / `userData` | Services init after first paint; live discovery replaces the snapshot |
+| Poll interval        | User-configurable (Settings)                                                                                 | Default ~30s; disable when not needed                                 |
+| Cloudflare heartbeat | 5 min                                                                                                        | Devices marked offline after ~6 min stale                             |
+| Provider errors      | Per-provider error object in responses                                                                       | UI shows Offline/Error, not silent fail                               |
 
 ## Failure handling
 

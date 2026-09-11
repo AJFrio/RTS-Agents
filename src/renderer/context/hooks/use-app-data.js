@@ -39,10 +39,7 @@ export function useAppData(api, state, dispatch) {
             result.cursorPaths?.length > 0 ||
             !!result.cursorCliInstalled ||
             false,
-          codex:
-            result.codexInstalled ||
-            result.codexPaths?.length > 0 ||
-            false,
+          codex: result.codexInstalled || result.codexPaths?.length > 0 || false,
           'claude-cli': result.claudeCliInstalled || result.claudePaths?.length > 0 || false,
           'claude-cloud': result.claudeCloudConfigured || !!result.apiKeys?.claude,
           opencode: !!result.opencodeInstalled || result.opencodePaths?.length > 0 || false,

@@ -26,10 +26,12 @@ export default function JiraPage() {
       const result = await api.jira.getBoards();
       if (result?.success) {
         const boards = result.boards || [];
-        const savedId = typeof localStorage !== 'undefined' ? localStorage.getItem('rts_jira_board_id') : null;
-        const selectedBoardId = savedId && boards.some((b) => String(b.id) === String(savedId))
-          ? savedId
-          : boards[0]?.id ?? null;
+        const savedId =
+          typeof localStorage !== 'undefined' ? localStorage.getItem('rts_jira_board_id') : null;
+        const selectedBoardId =
+          savedId && boards.some((b) => String(b.id) === String(savedId))
+            ? savedId
+            : (boards[0]?.id ?? null);
         dispatch({ type: 'SET_JIRA', payload: { boards, selectedBoardId, loading: false } });
         if (selectedBoardId) loadIssues(selectedBoardId);
       } else throw new Error(result?.error);
@@ -127,7 +129,9 @@ export default function JiraPage() {
           <select
             id="jira-assignee-filter"
             value={jira.selectedAssignee || ''}
-            onChange={(e) => dispatch({ type: 'SET_JIRA', payload: { selectedAssignee: e.target.value || null } })}
+            onChange={(e) =>
+              dispatch({ type: 'SET_JIRA', payload: { selectedAssignee: e.target.value || null } })
+            }
             className="max-w-[180px] cursor-pointer"
           >
             <option value="">All Users</option>

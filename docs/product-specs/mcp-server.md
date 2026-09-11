@@ -6,13 +6,13 @@ The RTS desktop app hosts an MCP (Model Context Protocol) server so external MCP
 
 ## Architecture
 
-| Piece | Location | Role |
-|-------|----------|------|
-| MCP HTTP server | `src/main/services/mcp-server-service.js` | node:http JSON-RPC endpoint, token auth, tool registry. Delegates to `provider-registry` services. No new npm dependencies. |
-| Stdio bridge | `mcp/stdio.js` | For stdio-only MCP clients: reads newline-delimited JSON-RPC on stdin, POSTs to the HTTP endpoint, writes responses to stdout. |
-| Config | `config-store` `mcpServer` section | `{ enabled, host, port, token }`. Token auto-generated (32-byte hex) on first enable. |
-| Settings IPC | `register-settings.js` | `mcp:get-info`, `mcp:set-config`, `mcp:regenerate-token`. |
-| Lifecycle | `main.js` | Starts after `initializeServices()` when enabled; stops on `window-all-closed` / `before-quit`. |
+| Piece           | Location                                  | Role                                                                                                                           |
+| --------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| MCP HTTP server | `src/main/services/mcp-server-service.js` | node:http JSON-RPC endpoint, token auth, tool registry. Delegates to `provider-registry` services. No new npm dependencies.    |
+| Stdio bridge    | `mcp/stdio.js`                            | For stdio-only MCP clients: reads newline-delimited JSON-RPC on stdin, POSTs to the HTTP endpoint, writes responses to stdout. |
+| Config          | `config-store` `mcpServer` section        | `{ enabled, host, port, token }`. Token auto-generated (32-byte hex) on first enable.                                          |
+| Settings IPC    | `register-settings.js`                    | `mcp:get-info`, `mcp:set-config`, `mcp:regenerate-token`.                                                                      |
+| Lifecycle       | `main.js`                                 | Starts after `initializeServices()` when enabled; stops on `window-all-closed` / `before-quit`.                                |
 
 ## Protocol
 
@@ -29,14 +29,14 @@ The RTS desktop app hosts an MCP (Model Context Protocol) server so external MCP
 
 ## Tools
 
-| Tool | Arguments | Behavior |
-|------|-----------|----------|
-| `list_agents` | `provider?`, `status?`, `limit?` | All agents across providers (fresh `fetchAllAgents`, not the discovery cache), with optional filters; returns `agents`, `total`, `counts`, `errors`. |
-| `get_agent_details` | `provider`, `rawId`, `filePath?` | Provider-specific detail/transcript via `getAgentDetails`. |
-| `list_repositories` | `provider?` | One provider via `fetchRepositories` or all via `fetchAllRepositories`. |
-| `dispatch_task` | `provider`, `prompt`, `projectPath?`, `repository?`, `targetDeviceId?`, `model?`, `title?` | Local dispatch on this machine; with `targetDeviceId` queues a remote task on that device through Cloudflare KV (same path as mobile remote dispatch). |
-| `send_task_message` | `provider`, `rawId`, `message` | Follow-up message for jules / cursor / claude-cloud. |
-| `list_devices` | — | Registered devices from Cloudflare KV with their latest remote task status merged in; `configured: false` when KV is not set up. |
+| Tool                | Arguments                                                                                  | Behavior                                                                                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `list_agents`       | `provider?`, `status?`, `limit?`                                                           | All agents across providers (fresh `fetchAllAgents`, not the discovery cache), with optional filters; returns `agents`, `total`, `counts`, `errors`.   |
+| `get_agent_details` | `provider`, `rawId`, `filePath?`                                                           | Provider-specific detail/transcript via `getAgentDetails`.                                                                                             |
+| `list_repositories` | `provider?`                                                                                | One provider via `fetchRepositories` or all via `fetchAllRepositories`.                                                                                |
+| `dispatch_task`     | `provider`, `prompt`, `projectPath?`, `repository?`, `targetDeviceId?`, `model?`, `title?` | Local dispatch on this machine; with `targetDeviceId` queues a remote task on that device through Cloudflare KV (same path as mobile remote dispatch). |
+| `send_task_message` | `provider`, `rawId`, `message`                                                             | Follow-up message for jules / cursor / claude-cloud.                                                                                                   |
+| `list_devices`      | —                                                                                          | Registered devices from Cloudflare KV with their latest remote task status merged in; `configured: false` when KV is not set up.                       |
 
 Tool errors surface as MCP `isError` content (e.g. unknown provider, dispatch failure) rather than transport errors.
 

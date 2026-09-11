@@ -73,7 +73,10 @@ function canonicalizeGitRemote(value) {
   try {
     const withScheme = HAS_SCHEME.test(text) ? text : `https://${text}`;
     const url = new URL(withScheme);
-    const parts = url.pathname.replace(/\.git$/i, '').split('/').filter(Boolean);
+    const parts = url.pathname
+      .replace(/\.git$/i, '')
+      .split('/')
+      .filter(Boolean);
     if (parts.length >= 2) return remoteKey(url.hostname, parts[0], parts[1]);
   } catch {
     return null;
@@ -138,10 +141,7 @@ function slimAgent(agent) {
 }
 
 function slimAgents(agents, max = 250) {
-  return (Array.isArray(agents) ? agents : [])
-    .map(slimAgent)
-    .filter(Boolean)
-    .slice(0, max);
+  return (Array.isArray(agents) ? agents : []).map(slimAgent).filter(Boolean).slice(0, max);
 }
 
 module.exports = {

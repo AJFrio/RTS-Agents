@@ -1,4 +1,7 @@
-const { sessionEvents, emitTrackedSessionUpdate } = require('../../src/main/services/session-events');
+const {
+  sessionEvents,
+  emitTrackedSessionUpdate,
+} = require('../../src/main/services/session-events');
 
 describe('session-events', () => {
   afterEach(() => {

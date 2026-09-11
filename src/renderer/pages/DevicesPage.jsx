@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { useBelowLg } from '../hooks/use-media-query.js';
-import { providerMeta, IconDevices, IconArrowRight, IconClose, IconTerminal, IconChevronLeft } from '../components/ui/icons.jsx';
+import {
+  providerMeta,
+  IconDevices,
+  IconArrowRight,
+  IconTerminal,
+  IconChevronLeft,
+} from '../components/ui/icons.jsx';
 import { StatusDot } from '../components/ui/status.jsx';
 import { useRuntime } from '../hooks/use-runtime.js';
 import { relativeTime } from '../utils/format.js';
@@ -29,7 +35,12 @@ function pickPreferredProvider(tools) {
 function shortRepo(path) {
   const text = String(path || '').trim();
   if (!text) return '';
-  return text.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || text;
+  return (
+    text
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .pop() || text
+  );
 }
 
 function DeviceCard({ device, isLocal, queue, onSelect, selected }) {
@@ -71,7 +82,10 @@ function DeviceCard({ device, isLocal, queue, onSelect, selected }) {
             )}
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
-            <StatusDot status={online ? 'running' : 'idle'} className={online ? 'status-pulse' : ''} />
+            <StatusDot
+              status={online ? 'running' : 'idle'}
+              className={online ? 'status-pulse' : ''}
+            />
             {online ? 'Online' : 'Offline'} · {device.platform || 'desktop'}
             {queueLength > 0 && ` · ${queueLength} queued`}
           </p>
@@ -108,9 +122,7 @@ function DeviceDetail({ device, isLocal, queue, onBack }) {
 
   const runningTasks = useMemo(() => {
     if (!isLocal) return [];
-    return (state.agents || []).filter(
-      (agent) => String(agent.status).toLowerCase() === 'running'
-    );
+    return (state.agents || []).filter((agent) => String(agent.status).toLowerCase() === 'running');
   }, [isLocal, state.agents]);
 
   const handleStartTask = () => {
@@ -324,7 +336,9 @@ export default function DevicesPage() {
         </div>
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-2">
-          <div className={`grid gap-3 sm:grid-cols-2 ${selected && belowLg ? 'hidden lg:grid' : ''}`}>
+          <div
+            className={`grid gap-3 sm:grid-cols-2 ${selected && belowLg ? 'hidden lg:grid' : ''}`}
+          >
             {computers.map((device) => (
               <DeviceCard
                 key={device.id}

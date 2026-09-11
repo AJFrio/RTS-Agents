@@ -14,6 +14,6 @@ Reduce main-process blocking and IPC churn during agent polling by async install
 
 ## Progress log
 
-| Date | Note |
-|------|------|
+| Date       | Note                                                                         |
+| ---------- | ---------------------------------------------------------------------------- |
 | 2026-05-26 | Implemented phases 1–3 (async I/O, fingerprint cache + fs.watch, IPC deltas) |

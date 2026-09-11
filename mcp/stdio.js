@@ -65,7 +65,9 @@ function postRpc(message) {
             return;
           }
           if (res.statusCode !== 200) {
-            reject(new Error(`RTS MCP endpoint returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
+            reject(
+              new Error(`RTS MCP endpoint returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`)
+            );
             return;
           }
           try {

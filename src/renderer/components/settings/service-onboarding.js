@@ -158,7 +158,8 @@ export async function detectAndConnectCloudflare({ api, apiToken }) {
     };
   }
 
-  const account = discover?.success && Array.isArray(discover.accounts) ? discover.accounts[0] : null;
+  const account =
+    discover?.success && Array.isArray(discover.accounts) ? discover.accounts[0] : null;
   if (!account?.id) {
     return {
       ok: false,

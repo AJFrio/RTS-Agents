@@ -14,6 +14,6 @@ Keep local ACP adapter processes alive after the first turn and wire the existin
 
 ## Progress log
 
-| Date | Note |
-|------|------|
+| Date       | Note                                                                         |
+| ---------- | ---------------------------------------------------------------------------- |
 | 2026-09-02 | Implemented multi-turn ACP client, provider follow-ups, IPC/UI, tests, specs |

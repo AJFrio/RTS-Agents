@@ -27,7 +27,7 @@ test.describe('Repository Dropdown Navigation', () => {
           apiKeys: { jules: true },
         }),
         getConnectionStatus: async () => ({}),
-        getRepositories: async (service) => {
+        getRepositories: async (_service) => {
           return {
             success: true,
             repositories: [

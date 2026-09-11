@@ -43,11 +43,7 @@ try {
         'dashboard',
         'branches',
       ]);
-      expect(MORE_NAV_ITEMS.map((item) => item.view)).toEqual([
-        'plugins',
-        'devices',
-        'settings',
-      ]);
+      expect(MORE_NAV_ITEMS.map((item) => item.view)).toEqual(['plugins', 'devices', 'settings']);
     });
 
     test('classifies primary vs more views without overlap', () => {

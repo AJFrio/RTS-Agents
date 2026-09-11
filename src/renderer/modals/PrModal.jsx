@@ -75,7 +75,8 @@ export default function PrModal({ pr, onClose, api }) {
   }, [owner, repoName, headSha, api]);
 
   const checksSummary = (() => {
-    if (!Array.isArray(checks)) return { loading: true, total: 0, passed: 0, failed: 0, pending: 0, neutral: 0 };
+    if (!Array.isArray(checks))
+      return { loading: true, total: 0, passed: 0, failed: 0, pending: 0, neutral: 0 };
     let passed = 0;
     let failed = 0;
     let pending = 0;
@@ -86,7 +87,12 @@ export default function PrModal({ pr, onClose, api }) {
         continue;
       }
       if (c.conclusion === 'success') passed += 1;
-      else if (c.conclusion === 'failure' || c.conclusion === 'timed_out' || c.conclusion === 'action_required') failed += 1;
+      else if (
+        c.conclusion === 'failure' ||
+        c.conclusion === 'timed_out' ||
+        c.conclusion === 'action_required'
+      )
+        failed += 1;
       else neutral += 1;
     }
     return { loading: false, total: checks.length, passed, failed, pending, neutral };
@@ -95,15 +101,16 @@ export default function PrModal({ pr, onClose, api }) {
   const checksIcon = checksSummary.loading
     ? { Icon: IconSync, cls: 'text-neutral-400 animate-spin' }
     : checksSummary.total === 0
-    ? { Icon: IconClock, cls: 'text-neutral-400' }
-    : checksSummary.failed > 0
-    ? { Icon: IconAlert, cls: 'text-red-600 dark:text-red-400' }
-    : checksSummary.pending > 0
-    ? { Icon: IconClock, cls: 'text-amber-600 dark:text-amber-400' }
-    : { Icon: IconCheck, cls: 'text-emerald-600 dark:text-emerald-400' };
+      ? { Icon: IconClock, cls: 'text-neutral-400' }
+      : checksSummary.failed > 0
+        ? { Icon: IconAlert, cls: 'text-red-600 dark:text-red-400' }
+        : checksSummary.pending > 0
+          ? { Icon: IconClock, cls: 'text-amber-600 dark:text-amber-400' }
+          : { Icon: IconCheck, cls: 'text-emerald-600 dark:text-emerald-400' };
 
   const checkConclusionStyle = (c) => {
-    if (c.status !== 'completed') return { Icon: IconClock, cls: 'text-amber-600 dark:text-amber-400' };
+    if (c.status !== 'completed')
+      return { Icon: IconClock, cls: 'text-amber-600 dark:text-amber-400' };
     switch (c.conclusion) {
       case 'success':
         return { Icon: IconCheck, cls: 'text-emerald-600 dark:text-emerald-400' };
@@ -165,11 +172,7 @@ export default function PrModal({ pr, onClose, api }) {
                     : 'bg-neutral-400/10 text-neutral-500 dark:text-neutral-400'
                 }`}
               >
-                {state === 'open' ? (
-                  <IconGitBranch size={10} />
-                ) : (
-                  <IconCheck size={10} />
-                )}
+                {state === 'open' ? <IconGitBranch size={10} /> : <IconCheck size={10} />}
                 {state}
               </span>
               {repoFullName && (
@@ -177,18 +180,23 @@ export default function PrModal({ pr, onClose, api }) {
                   {repoFullName}
                 </span>
               )}
-              <span id="pr-modal-number" className="font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+              <span
+                id="pr-modal-number"
+                className="font-mono text-[11px] text-neutral-400 dark:text-neutral-500"
+              >
                 #{pr.number}
               </span>
             </div>
-            <h2 id="pr-modal-title" className="mt-1.5 text-[16px] font-semibold leading-snug text-neutral-900 dark:text-neutral-100">
+            <h2
+              id="pr-modal-title"
+              className="mt-1.5 text-[16px] font-semibold leading-snug text-neutral-900 dark:text-neutral-100"
+            >
               {data?.title || 'Loading...'}
             </h2>
             {data?.user?.login && (
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                 {data.user.login} · wants to merge{' '}
-                <span className="font-mono">{data?.head?.ref ?? '—'}</span>
-                {' '}into{' '}
+                <span className="font-mono">{data?.head?.ref ?? '—'}</span> into{' '}
                 <span className="font-mono">{data?.base?.ref ?? '—'}</span>
               </p>
             )}
@@ -211,7 +219,10 @@ export default function PrModal({ pr, onClose, api }) {
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                   Source
                 </div>
-                <div id="pr-modal-head" className="truncate font-mono text-xs text-neutral-900 dark:text-neutral-100">
+                <div
+                  id="pr-modal-head"
+                  className="truncate font-mono text-xs text-neutral-900 dark:text-neutral-100"
+                >
                   {data?.head?.ref ?? '—'}
                 </div>
               </div>
@@ -222,7 +233,10 @@ export default function PrModal({ pr, onClose, api }) {
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                   Target
                 </div>
-                <div id="pr-modal-base" className="truncate font-mono text-xs text-neutral-600 dark:text-neutral-300">
+                <div
+                  id="pr-modal-base"
+                  className="truncate font-mono text-xs text-neutral-600 dark:text-neutral-300"
+                >
                   {data?.base?.ref ?? '—'}
                 </div>
               </div>
@@ -240,7 +254,10 @@ export default function PrModal({ pr, onClose, api }) {
             />
           </div>
 
-          <div id="pr-modal-checks" className="mt-5 overflow-hidden rounded-md border border-border-light dark:border-border-dark">
+          <div
+            id="pr-modal-checks"
+            className="mt-5 overflow-hidden rounded-md border border-border-light dark:border-border-dark"
+          >
             <button
               type="button"
               onClick={() => setChecksExpanded((v) => !v)}
@@ -248,41 +265,44 @@ export default function PrModal({ pr, onClose, api }) {
               className="flex w-full items-center justify-between gap-3 bg-inset-light px-3 py-2.5 text-left transition-colors hover:bg-neutral-100 disabled:cursor-default dark:bg-inset-dark dark:hover:bg-neutral-800/60"
             >
               <div className="flex min-w-0 items-center gap-2.5">
-                {(() => { const { Icon, cls } = checksIcon; return <Icon size={16} className={`shrink-0 ${cls}`} />; })()}
+                {(() => {
+                  const { Icon, cls } = checksIcon;
+                  return <Icon size={16} className={`shrink-0 ${cls}`} />;
+                })()}
                 <div className="min-w-0">
                   <div className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
                     {checksSummary.loading
                       ? 'Loading checks…'
                       : checksSummary.total === 0
-                      ? 'No checks reported for this branch'
-                      : checksSummary.failed > 0
-                      ? `${checksSummary.failed} failing`
-                      : checksSummary.pending > 0
-                      ? `${checksSummary.pending} pending`
-                      : 'All checks passed'}
+                        ? 'No checks reported for this branch'
+                        : checksSummary.failed > 0
+                          ? `${checksSummary.failed} failing`
+                          : checksSummary.pending > 0
+                            ? `${checksSummary.pending} pending`
+                            : 'All checks passed'}
                   </div>
                   {!checksSummary.loading && checksSummary.total > 0 && (
                     <div className="mt-0.5 flex items-center gap-3 text-[11px] text-neutral-500 dark:text-neutral-400">
                       <span className="flex items-center gap-1">
                         <IconCheck size={12} className="text-emerald-600 dark:text-emerald-400" />
-                        {checksSummary.passed}{' '}passed
+                        {checksSummary.passed} passed
                       </span>
                       {checksSummary.failed > 0 && (
                         <span className="flex items-center gap-1">
                           <IconAlert size={12} className="text-red-600 dark:text-red-400" />
-                          {checksSummary.failed}{' '}failed
+                          {checksSummary.failed} failed
                         </span>
                       )}
                       {checksSummary.pending > 0 && (
                         <span className="flex items-center gap-1">
                           <IconClock size={12} className="text-amber-600 dark:text-amber-400" />
-                          {checksSummary.pending}{' '}pending
+                          {checksSummary.pending} pending
                         </span>
                       )}
                       {checksSummary.neutral > 0 && (
                         <span className="flex items-center gap-1">
                           <IconClock size={12} className="text-neutral-400" />
-                          {checksSummary.neutral}{' '}other
+                          {checksSummary.neutral} other
                         </span>
                       )}
                     </div>
@@ -290,7 +310,10 @@ export default function PrModal({ pr, onClose, api }) {
                 </div>
               </div>
               {!checksSummary.loading && checksSummary.total > 0 && (
-                <IconChevronDown size={16} className={`shrink-0 text-neutral-500 transition-transform ${checksExpanded ? '' : 'rotate-180'}`} />
+                <IconChevronDown
+                  size={16}
+                  className={`shrink-0 text-neutral-500 transition-transform ${checksExpanded ? '' : 'rotate-180'}`}
+                />
               )}
             </button>
             {checksExpanded && checksSummary.total > 0 && (
@@ -302,15 +325,21 @@ export default function PrModal({ pr, onClose, api }) {
                       <div className="flex min-w-0 items-center gap-2.5">
                         <Icon size={14} className={`shrink-0 ${cls}`} />
                         <div className="min-w-0">
-                          <div className="truncate text-xs font-medium text-neutral-900 dark:text-neutral-100">{c.name}</div>
+                          <div className="truncate text-xs font-medium text-neutral-900 dark:text-neutral-100">
+                            {c.name}
+                          </div>
                           {c.appName && (
-                            <div className="truncate font-mono text-[10px] text-neutral-500 dark:text-neutral-400">{c.appName}</div>
+                            <div className="truncate font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
+                              {c.appName}
+                            </div>
                           )}
                         </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="font-mono text-[10px] uppercase text-neutral-500 dark:text-neutral-400">
-                          {c.status === 'completed' ? c.conclusion || 'neutral' : c.status.replace('_', ' ')}
+                          {c.status === 'completed'
+                            ? c.conclusion || 'neutral'
+                            : c.status.replace('_', ' ')}
                         </span>
                         {c.url && (
                           <button
@@ -339,24 +368,37 @@ export default function PrModal({ pr, onClose, api }) {
               )}
               <div>
                 <div className="text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
-                  {mergeable ? 'No conflicts with the base branch' : 'This branch has conflicts that must be resolved'}
+                  {mergeable
+                    ? 'No conflicts with the base branch'
+                    : 'This branch has conflicts that must be resolved'}
                 </div>
                 <div className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                  {mergeable ? 'Merging can be performed automatically.' : 'Resolve the conflicts on GitHub before merging.'}
+                  {mergeable
+                    ? 'Merging can be performed automatically.'
+                    : 'Resolve the conflicts on GitHub before merging.'}
                 </div>
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               {state === 'open' && (
                 <>
-                  <Button id="merge-github-btn" variant="secondary" onClick={() => api?.openExternal?.(data?.html_url)}>
+                  <Button
+                    id="merge-github-btn"
+                    variant="secondary"
+                    onClick={() => api?.openExternal?.(data?.html_url)}
+                  >
                     <IconExternal size={13} />
                     GitHub
                   </Button>
                   <Button variant="danger" onClick={handleClosePr} disabled={merging}>
                     Close PR
                   </Button>
-                  <Button id="merge-btn" variant="primary" onClick={handleMerge} disabled={!mergeable || merging}>
+                  <Button
+                    id="merge-btn"
+                    variant="primary"
+                    onClick={handleMerge}
+                    disabled={!mergeable || merging}
+                  >
                     <IconGitBranch size={13} />
                     {merging ? 'Merging…' : 'Merge'}
                   </Button>
@@ -381,7 +423,10 @@ export default function PrModal({ pr, onClose, api }) {
             <IconExternal size={12} />
             Open in browser
           </a>
-          <span id="pr-modal-meta" className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400">
+          <span
+            id="pr-modal-meta"
+            className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400"
+          >
             <IconUpdatedAt size={11} className="shrink-0" />
             Updated {relativeTime(data?.updated_at)}
           </span>

@@ -17,15 +17,15 @@ keeps cloud keys, GitHub/Jira, Cloudflare KV, and remote dispatch.
 
 ## Hidden on web
 
-| Surface | Desktop only |
-|---------|----------------|
-| Settings → Window mode | Electron window chrome |
-| Settings → Update & restart | git pull + app relaunch |
-| Plugins → local-path services | Claude Code, OpenCode, Codex, Antigravity, Cursor local roots, GitHub local roots |
-| New Task → Local | Run a CLI on this machine |
-| Create repo → This computer / remote enqueue | Local `git init` / KV enqueue stub |
-| Browse folder | Native directory dialog |
-| OpenCode Terminal | Spawn a local TUI |
+| Surface                                      | Desktop only                                                                      |
+| -------------------------------------------- | --------------------------------------------------------------------------------- |
+| Settings → Window mode                       | Electron window chrome                                                            |
+| Settings → Update & restart                  | git pull + app relaunch                                                           |
+| Plugins → local-path services                | Claude Code, OpenCode, Codex, Antigravity, Cursor local roots, GitHub local roots |
+| New Task → Local                             | Run a CLI on this machine                                                         |
+| Create repo → This computer / remote enqueue | Local `git init` / KV enqueue stub                                                |
+| Browse folder                                | Native directory dialog                                                           |
+| OpenCode Terminal                            | Spawn a local TUI                                                                 |
 
 ## Shown on both
 

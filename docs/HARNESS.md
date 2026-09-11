@@ -17,14 +17,14 @@ Mobile app (from `mobile-webapp/`): `npm run lint`, `npm run typecheck`.
 
 ## Layout
 
-| Path | Purpose |
-|------|---------|
-| [AGENTS.md](../AGENTS.md) | Entry map (~100 lines) |
-| [ARCHITECTURE.md](../ARCHITECTURE.md) | System boundaries |
-| [docs/design-docs/](design-docs/) | IPC, providers, core beliefs |
-| [docs/product-specs/](product-specs/) | Verifiable feature behavior |
-| [docs/exec-plans/](exec-plans/) | Active/completed plans + tech debt |
-| [scripts/validate-*.js](../scripts/) | Mechanical doc/architecture checks |
+| Path                                  | Purpose                            |
+| ------------------------------------- | ---------------------------------- |
+| [AGENTS.md](../AGENTS.md)             | Entry map (~100 lines)             |
+| [ARCHITECTURE.md](../ARCHITECTURE.md) | System boundaries                  |
+| [docs/design-docs/](design-docs/)     | IPC, providers, core beliefs       |
+| [docs/product-specs/](product-specs/) | Verifiable feature behavior        |
+| [docs/exec-plans/](exec-plans/)       | Active/completed plans + tech debt |
+| [scripts/validate-\*.js](../scripts/) | Mechanical doc/architecture checks |
 
 ## Agent workflow
 

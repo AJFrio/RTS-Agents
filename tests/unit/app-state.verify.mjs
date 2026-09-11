@@ -105,16 +105,12 @@ test('UPSERT_AGENT patches list and selectedTask status', () => {
 test('SET_AGENTS does not revive a newer completed row as running', () => {
   const state = {
     ...initialState,
-    agents: [
-      { id: 't1', rawId: 't1', status: 'completed', updatedAt: '2026-09-03T20:00:00.000Z' },
-    ],
+    agents: [{ id: 't1', rawId: 't1', status: 'completed', updatedAt: '2026-09-03T20:00:00.000Z' }],
   };
   const next = appReducer(state, {
     type: 'SET_AGENTS',
     payload: {
-      agents: [
-        { id: 't1', rawId: 't1', status: 'running', updatedAt: '2026-09-03T19:00:00.000Z' },
-      ],
+      agents: [{ id: 't1', rawId: 't1', status: 'running', updatedAt: '2026-09-03T19:00:00.000Z' }],
     },
   });
   assert.equal(next.agents[0].status, 'completed');

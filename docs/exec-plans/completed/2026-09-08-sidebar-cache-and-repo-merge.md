@@ -17,6 +17,6 @@ appears as both a local path and a cloud URL (local CLI + Cursor cloud).
 
 ## Progress log
 
-| Date | Note |
-|------|------|
+| Date       | Note                                                   |
+| ---------- | ------------------------------------------------------ |
 | 2026-09-08 | Implemented snapshot persist + canonical repo grouping |

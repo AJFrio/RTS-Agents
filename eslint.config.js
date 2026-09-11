@@ -1,14 +1,10 @@
 const js = require('@eslint/js');
 const globals = require('globals');
+const react = require('eslint-plugin-react');
 
 module.exports = [
   {
-    ignores: [
-      'dist/**',
-      'node_modules/**',
-      'coverage/**',
-      'tests/mocks/**',
-    ],
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'tests/mocks/**'],
   },
   js.configs.recommended,
   {
@@ -49,7 +45,12 @@ module.exports = [
         ...globals.browser,
       },
     },
+    plugins: {
+      react,
+    },
     rules: {
+      'react/jsx-uses-react': 'error',
+      'react/jsx-uses-vars': 'error',
       'no-restricted-imports': [
         'error',
         {

@@ -9,8 +9,6 @@
  */
 
 const http = require('http');
-const fs = require('fs');
-const path = require('path');
 const readline = require('readline/promises');
 
 // Services (same ones used by Electron main)
@@ -64,7 +62,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
         .map((p) => ({ name: p?.name || p?.id || 'unknown', path: p?.path || null }))
         .filter((r) => !!r.path);
     }
-  } catch (err) {
+  } catch {
     repos = [];
   }
 
@@ -151,7 +149,7 @@ async function runSetupPrompts() {
       for (const [provider, key] of Object.entries(keys || {})) {
         configStore.setApiKey(provider, key);
       }
-    } catch (_) {
+    } catch {
       // If keys are missing, headless mode can still run remote CLI tasks.
     }
 
@@ -279,7 +277,7 @@ async function shutdown() {
 
   try {
     await sendCloudflareHeartbeat({ status: 'off' });
-  } catch (_) {
+  } catch {
     // ignore
   }
 

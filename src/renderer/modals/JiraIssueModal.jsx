@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '../components/ui/Modal.jsx';
 import { IconClose } from '../components/ui/icons.jsx';
-import { useApp } from '../context/AppContext.jsx';
 import { relativeTime } from '../utils/format.js';
 
 export default function JiraIssueModal({ issue, onClose, api }) {
@@ -42,11 +41,23 @@ export default function JiraIssueModal({ issue, onClose, api }) {
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border-light px-4 py-3 dark:border-border-dark">
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-2">
-              <span id="jira-issue-modal-key" className="technical-font text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">{issue.key}</span>
-              <span className="technical-font rounded-full border border-border-light px-2 py-0.5 text-[10px] font-semibold text-neutral-600 dark:border-border-dark dark:text-neutral-300">{issueType}</span>
-              <span className="technical-font rounded-full bg-neutral-400/10 px-2 py-0.5 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">{status}</span>
+              <span
+                id="jira-issue-modal-key"
+                className="technical-font text-[11px] font-semibold text-neutral-700 dark:text-neutral-300"
+              >
+                {issue.key}
+              </span>
+              <span className="technical-font rounded-full border border-border-light px-2 py-0.5 text-[10px] font-semibold text-neutral-600 dark:border-border-dark dark:text-neutral-300">
+                {issueType}
+              </span>
+              <span className="technical-font rounded-full bg-neutral-400/10 px-2 py-0.5 text-[10px] font-semibold text-neutral-500 dark:text-neutral-400">
+                {status}
+              </span>
             </div>
-            <h2 id="jira-issue-modal-title" className="text-[15px] font-semibold leading-snug text-neutral-900 dark:text-neutral-100">
+            <h2
+              id="jira-issue-modal-title"
+              className="text-[15px] font-semibold leading-snug text-neutral-900 dark:text-neutral-100"
+            >
               {summary}
             </h2>
           </div>
@@ -60,15 +71,26 @@ export default function JiraIssueModal({ issue, onClose, api }) {
           </button>
         </div>
         <div id="jira-issue-modal-content" className="flex-1 overflow-y-auto p-4">
-          <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-neutral-700 dark:text-neutral-300">{description || 'No description.'}</div>
+          <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-neutral-700 dark:text-neutral-300">
+            {description || 'No description.'}
+          </div>
           {comments.length > 0 && (
             <div className="mt-5">
-              <h3 className="mb-2.5 text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">Comments</h3>
+              <h3 className="mb-2.5 text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
+                Comments
+              </h3>
               <div className="space-y-2">
                 {comments.map((c) => (
-                  <div key={c.id} className="rounded-md border border-border-light bg-inset-light p-3 dark:border-border-dark dark:bg-inset-dark">
-                    <div className="mb-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">{c.author?.displayName} · {c.updated ? relativeTime(c.updated) : ''}</div>
-                    <div className="whitespace-pre-wrap text-[13px] text-neutral-700 dark:text-neutral-300">{c.body}</div>
+                  <div
+                    key={c.id}
+                    className="rounded-md border border-border-light bg-inset-light p-3 dark:border-border-dark dark:bg-inset-dark"
+                  >
+                    <div className="mb-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+                      {c.author?.displayName} · {c.updated ? relativeTime(c.updated) : ''}
+                    </div>
+                    <div className="whitespace-pre-wrap text-[13px] text-neutral-700 dark:text-neutral-300">
+                      {c.body}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -95,7 +95,10 @@ export function buildConnectedServices(state) {
 
   if (apiKeys.jules) services.push('jules-cloud');
   if (apiKeys.cursor) services.push('cursor-cloud');
-  if ((state.settings?.cursorPaths || []).length > 0 || state.connectionStatus?.['cursor-cli']?.success)
+  if (
+    (state.settings?.cursorPaths || []).length > 0 ||
+    state.connectionStatus?.['cursor-cli']?.success
+  )
     services.push('cursor-local');
   if ((state.settings?.codexPaths || []).length > 0) services.push('codex-local');
   if (apiKeys.claude) services.push('claude-cloud');

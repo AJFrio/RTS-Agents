@@ -20,6 +20,6 @@ typing and clicks stay responsive.
 
 ## Progress log
 
-| Date | Note |
-|------|------|
+| Date       | Note                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | 2026-09-02 | Implemented status push, async export, watch/render/Claude scan fixes |

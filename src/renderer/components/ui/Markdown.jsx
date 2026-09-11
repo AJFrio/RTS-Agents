@@ -8,10 +8,7 @@ import { parseMarkdown } from '../../utils/markdown.js';
  * activity feed components.
  */
 export default function MarkdownText({ text, id, className = '' }) {
-  const html = useMemo(
-    () => DOMPurify.sanitize(parseMarkdown(String(text ?? ''))),
-    [text]
-  );
+  const html = useMemo(() => DOMPurify.sanitize(parseMarkdown(String(text ?? ''))), [text]);
   return (
     <div
       id={id}

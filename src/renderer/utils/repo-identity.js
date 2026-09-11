@@ -114,7 +114,10 @@ function parseRemote(original) {
     const url = new URL(withScheme);
     if (!url.hostname) return null;
     const host = url.hostname;
-    const parts = url.pathname.replace(/\.git$/i, '').split('/').filter(Boolean);
+    const parts = url.pathname
+      .replace(/\.git$/i, '')
+      .split('/')
+      .filter(Boolean);
     if (parts.length >= 2) {
       return remoteIdentity(original, host, parts[0], parts[1]);
     }
@@ -172,7 +175,11 @@ export function parseRepoIdentity(value) {
     return remoteIdentity(original, 'github.com', ownerRepo[1], ownerRepo[2]);
   }
 
-  const base = original.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || original;
+  const base =
+    original
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .pop() || original;
   const slug = slugifyRepoName(base);
   return {
     original,

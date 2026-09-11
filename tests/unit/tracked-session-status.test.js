@@ -5,12 +5,8 @@ const {
 
 describe('tracked-session-status', () => {
   test('sessionStatusSignature changes when status changes', () => {
-    const running = sessionStatusSignature([
-      { id: 'a', status: 'running', updatedAt: '1' },
-    ]);
-    const completed = sessionStatusSignature([
-      { id: 'a', status: 'completed', updatedAt: '2' },
-    ]);
+    const running = sessionStatusSignature([{ id: 'a', status: 'running', updatedAt: '1' }]);
+    const completed = sessionStatusSignature([{ id: 'a', status: 'completed', updatedAt: '2' }]);
     expect(completed).not.toBe(running);
   });
 

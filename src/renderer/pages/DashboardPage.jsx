@@ -46,7 +46,9 @@ function RemoteActivityRow({ activity }) {
     >
       <div className="flex items-center gap-2">
         <IconCloud size={14} className="shrink-0 text-neutral-500 dark:text-neutral-400" />
-        <span className="font-semibold text-neutral-900 dark:text-neutral-100">Remote activity</span>
+        <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+          Remote activity
+        </span>
         {queued > 0 && (
           <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
             {queued} queued

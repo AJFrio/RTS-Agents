@@ -1,5 +1,4 @@
 import React from 'react';
-import Button from '../ui/Button.jsx';
 import { IconFolder, IconClose } from '../ui/icons.jsx';
 
 /**

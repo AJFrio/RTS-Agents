@@ -118,7 +118,11 @@ async function getModelsForProvider(provider) {
       }
       case 'claude-cloud': {
         result = configStore.hasApiKey('claude')
-          ? { success: true, models: normalizeModelIds(await claudeService.listModels()), source: 'api' }
+          ? {
+              success: true,
+              models: normalizeModelIds(await claudeService.listModels()),
+              source: 'api',
+            }
           : { success: true, models: [], source: 'none' };
         break;
       }

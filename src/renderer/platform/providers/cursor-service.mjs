@@ -86,11 +86,14 @@ export function createCursorService({ storage, fetchImpl } = {}) {
       status: run ? mapRunStatus(run.status) : mapAgentStatus(agent.status, !!agent.latestRunId),
       prompt: '',
       repository,
-      branch: pushedBranch?.branch || agent.repos?.[0]?.startingRef || agent.target?.branchName || null,
+      branch:
+        pushedBranch?.branch || agent.repos?.[0]?.startingRef || agent.target?.branchName || null,
       prUrl: pullRequest?.prUrl || agent.target?.prUrl || null,
       createdAt: agent.createdAt ? new Date(agent.createdAt) : null,
       updatedAt:
-        run?.updatedAt || agent.updatedAt ? new Date(run?.updatedAt || agent.updatedAt || '') : null,
+        run?.updatedAt || agent.updatedAt
+          ? new Date(run?.updatedAt || agent.updatedAt || '')
+          : null,
       summary: run?.result || agent.summary || null,
       rawId: agent.id,
       webUrl: agent.url || `https://cursor.com/agents/${agent.id}`,
@@ -140,9 +143,7 @@ export function createCursorService({ storage, fetchImpl } = {}) {
     const settled = await Promise.allSettled(
       agents.map(async (agent) => normalizeAgent(agent, await getLatestRun(agent)))
     );
-    return settled
-      .filter((result) => result.status === 'fulfilled')
-      .map((result) => result.value);
+    return settled.filter((result) => result.status === 'fulfilled').map((result) => result.value);
   }
 
   async function getAgentDetails(agentId) {

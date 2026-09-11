@@ -3,7 +3,9 @@ jest.mock('../../src/main/services/http-service', () => ({
 }));
 
 const httpService = require('../../src/main/services/http-service');
-const { discoverCloudflareAccounts } = require('../../src/main/services/cloudflare-account-discovery');
+const {
+  discoverCloudflareAccounts,
+} = require('../../src/main/services/cloudflare-account-discovery');
 
 const TOKEN = 'cf-test-token-abc123';
 

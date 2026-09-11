@@ -65,7 +65,7 @@ class JiraService {
     try {
       this.validateBaseUrl(normalized);
       return normalized;
-    } catch (err) {
+    } catch {
       // Return normalized URL anyway, but validation error will be caught in request()
       return normalized;
     }
@@ -144,7 +144,7 @@ class JiraService {
     let urlObj;
     try {
       urlObj = new URL(fullUrl);
-    } catch (err) {
+    } catch {
       throw new Error(
         `Invalid URL constructed: ${fullUrl}. Base URL: ${baseUrl}, Endpoint: ${endpoint}`
       );
@@ -172,7 +172,7 @@ class JiraService {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             try {
               resolve(JSON.parse(data));
-            } catch (e) {
+            } catch {
               resolve(data);
             }
           } else {
@@ -191,7 +191,7 @@ class JiraService {
               } else if (errorData.message) {
                 errorDetails = errorData.message;
               }
-            } catch (e) {
+            } catch {
               // If we can't parse the error, use the raw data (truncated)
               errorDetails = data.length > 200 ? data.substring(0, 200) + '...' : data;
             }

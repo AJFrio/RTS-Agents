@@ -18,7 +18,7 @@ function upsertItem(array, item, options = {}) {
   const { idKey = 'id', limit = 100 } = options;
   const newArray = [...(array || [])];
 
-  const existingIndex = newArray.findIndex(i => i[idKey] === item[idKey]);
+  const existingIndex = newArray.findIndex((i) => i[idKey] === item[idKey]);
 
   if (existingIndex >= 0) {
     newArray[existingIndex] = { ...newArray[existingIndex], ...item };
@@ -34,5 +34,5 @@ function upsertItem(array, item, options = {}) {
 }
 
 module.exports = {
-  upsertItem
+  upsertItem,
 };

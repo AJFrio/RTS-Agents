@@ -160,10 +160,7 @@ test('manual verifyCloudflareConnection uses the provided account id and token',
   });
 
   assert.equal(result.ok, true);
-  assert.deepEqual(calls, [
-    ['set', 'acc-manual', 'tok-manual'],
-    ['test'],
-  ]);
+  assert.deepEqual(calls, [['set', 'acc-manual', 'tok-manual'], ['test']]);
   assert.equal(result.feedback.message, 'KV reachable');
 });
 

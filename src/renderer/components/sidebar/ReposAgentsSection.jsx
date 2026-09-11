@@ -43,12 +43,8 @@ function TaskRow({ task }) {
 
 function Section({ id, label, tasks, defaultOpen = false, onSeeAll }) {
   const [open, setOpen] = useState(defaultOpen);
-  const running = tasks.filter(
-    (task) => String(task.status).toLowerCase() === 'running'
-  );
-  const rest = tasks.filter(
-    (task) => String(task.status).toLowerCase() !== 'running'
-  );
+  const running = tasks.filter((task) => String(task.status).toLowerCase() === 'running');
+  const rest = tasks.filter((task) => String(task.status).toLowerCase() !== 'running');
   const shown = rest.slice(0, 10);
 
   return (
@@ -64,7 +60,16 @@ function Section({ id, label, tasks, defaultOpen = false, onSeeAll }) {
           aria-hidden="true"
           className={`text-neutral-400 transition-transform duration-150 ${open ? 'rotate-90' : ''}`}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="m9 6 6 6-6 6" />
           </svg>
         </span>
@@ -87,10 +92,7 @@ function Section({ id, label, tasks, defaultOpen = false, onSeeAll }) {
         </div>
       )}
 
-      <div
-        id={`section-panel-${id}`}
-        className={`${open ? '' : 'hidden'} mt-0.5 space-y-0.5 pl-3`}
-      >
+      <div id={`section-panel-${id}`} className={`${open ? '' : 'hidden'} mt-0.5 space-y-0.5 pl-3`}>
         {shown.map((task) => (
           <TaskRow key={task.id} task={task} />
         ))}
@@ -154,8 +156,8 @@ export default function ReposAgentsSection({ mode }) {
   if (groups.length === 0) {
     return (
       <p className="px-2 py-3 text-[12px] leading-relaxed text-neutral-400 dark:text-neutral-500">
-        No {mode === 'repos' ? 'repositories' : 'harnesses'} yet. Connect a
-        service in Plugins and run a task to see it here.
+        No {mode === 'repos' ? 'repositories' : 'harnesses'} yet. Connect a service in Plugins and
+        run a task to see it here.
       </p>
     );
   }

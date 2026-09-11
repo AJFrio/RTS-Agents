@@ -7,7 +7,8 @@ module.exports = {
     enqueueCreateRepo: ({ deviceId, name }) =>
       ipcRenderer.invoke('projects:enqueue-create-repo', { deviceId, name }),
     getLocalRepos: () => ipcRenderer.invoke('projects:get-local'),
-    getRepoFile: (path, fileName) => ipcRenderer.invoke('projects:get-repo-file', { path, fileName }),
-    pullRepo: (path) => ipcRenderer.invoke('projects:pull-repo', { path })
-  }
+    getRepoFile: (path, fileName) =>
+      ipcRenderer.invoke('projects:get-repo-file', { path, fileName }),
+    pullRepo: (path) => ipcRenderer.invoke('projects:pull-repo', { path }),
+  },
 };

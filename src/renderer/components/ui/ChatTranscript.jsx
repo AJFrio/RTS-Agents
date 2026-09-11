@@ -53,7 +53,8 @@ const TOOL_ICONS = {
 const MAX_RESULT_CHARS = 4000;
 
 function ToolIconFor({ name }) {
-  const Icon = TOOL_ICONS[name] || (name?.startsWith?.('mcp__') ? IconExtension : null) || IconWrench;
+  const Icon =
+    TOOL_ICONS[name] || (name?.startsWith?.('mcp__') ? IconExtension : null) || IconWrench;
   return <Icon size={13} />;
 }
 
@@ -199,7 +200,9 @@ function MessageBody({ items, isUser, renderContent, renderCards }) {
   items.forEach((message, itemIndex) => {
     if (message.thinking) {
       flushTools();
-      nodes.push(<ThinkingBlock key={`${message.id ?? itemIndex}-think`} text={message.thinking} />);
+      nodes.push(
+        <ThinkingBlock key={`${message.id ?? itemIndex}-think`} text={message.thinking} />
+      );
     }
     if (message.content) {
       flushTools();
@@ -217,9 +220,7 @@ function MessageBody({ items, isUser, renderContent, renderCards }) {
     }
     if (message.cards?.length && renderCards) {
       flushTools();
-      nodes.push(
-        <div key={`${message.id ?? itemIndex}-cards`}>{renderCards(message.cards)}</div>
-      );
+      nodes.push(<div key={`${message.id ?? itemIndex}-cards`}>{renderCards(message.cards)}</div>);
     }
   });
   flushTools();
@@ -285,7 +286,9 @@ const MessageGroup = React.memo(function MessageGroup({
           </div>
         )}
 
-        <div className={`flex max-w-[90%] flex-col gap-1 sm:max-w-[78%] ${isUser ? 'items-end' : 'items-start'}`}>
+        <div
+          className={`flex max-w-[90%] flex-col gap-1 sm:max-w-[78%] ${isUser ? 'items-end' : 'items-start'}`}
+        >
           <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
             {isUser ? 'You' : assistantLabel}
           </span>
@@ -332,8 +335,11 @@ export default function ChatTranscript({
         const day = formatDay(group.items[0].timestamp);
         const showDay = day && day !== lastDay;
         if (showDay) lastDay = day;
-        const groupKey = group.items.map((item) => item.id).filter(Boolean).join(':')
-          || `group-${groupIndex}`;
+        const groupKey =
+          group.items
+            .map((item) => item.id)
+            .filter(Boolean)
+            .join(':') || `group-${groupIndex}`;
 
         return (
           <MessageGroup

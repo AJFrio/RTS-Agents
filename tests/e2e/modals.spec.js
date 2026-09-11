@@ -78,7 +78,7 @@ test.describe('Modal Tests', () => {
           messages: [],
           activities: [{ title: 'Task started', timestamp: new Date().toISOString() }],
         }),
-        getRepositories: async (provider) => ({
+        getRepositories: async (_provider) => ({
           success: true,
           repositories: [
             {
@@ -95,8 +95,8 @@ test.describe('Modal Tests', () => {
             },
           ],
         }),
-        createTask: async (provider, options) => ({ success: true }),
-        onRefreshTick: (cb) => {
+        createTask: async (_provider, _options) => ({ success: true }),
+        onRefreshTick: (_cb) => {
           return () => {};
         },
         setApiKey: async () => {},

@@ -39,7 +39,9 @@ function NavButton({ view, label, Icon, active, onClick, ...rest }) {
       {...rest}
     >
       <Icon size={20} className={active ? 'scale-110 transition-transform' : ''} />
-      <span className={`max-w-full truncate px-0.5 text-[10px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}>
+      <span
+        className={`max-w-full truncate px-0.5 text-[10px] leading-tight ${active ? 'font-semibold' : 'font-medium'}`}
+      >
         {label}
       </span>
       {active && (

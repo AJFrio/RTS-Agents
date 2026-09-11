@@ -87,7 +87,8 @@ function appendAgentChunk(messages, text, timestamp = null) {
     const next = messages.slice();
     next[next.length - 1] = {
       ...previous,
-      content: merged.length > MAX_MERGED_CHUNK_CONTENT ? merged.slice(-MAX_MERGED_CHUNK_CONTENT) : merged,
+      content:
+        merged.length > MAX_MERGED_CHUNK_CONTENT ? merged.slice(-MAX_MERGED_CHUNK_CONTENT) : merged,
     };
     return next;
   }

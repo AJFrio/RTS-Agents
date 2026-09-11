@@ -1,5 +1,3 @@
-const https = require('https');
-
 // Mock external modules
 jest.mock('https');
 

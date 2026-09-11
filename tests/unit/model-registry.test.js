@@ -36,7 +36,6 @@ const { expectSpawnedCli } = require('./helpers/cli-spawn-assert');
 const configStore = require('../../src/main/services/config-store');
 const acpService = require('../../src/main/services/acp-service');
 const cursorService = require('../../src/main/services/cursor-service');
-const codexService = require('../../src/main/services/codex-service');
 const claudeService = require('../../src/main/services/claude-service');
 const modelRegistry = require('../../src/main/services/model-registry');
 
@@ -85,9 +84,7 @@ describe('model-registry', () => {
   });
 
   test('parses antigravity models CLI output', async () => {
-    spawn.mockImplementation(() =>
-      fakeCliChild('gemini-3.7-flash-high\nclaude-sonnet-4-6\n')
-    );
+    spawn.mockImplementation(() => fakeCliChild('gemini-3.7-flash-high\nclaude-sonnet-4-6\n'));
 
     const result = await modelRegistry.getModelsForProvider('antigravity');
 

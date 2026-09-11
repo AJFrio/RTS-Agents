@@ -60,10 +60,7 @@ export default function Composer({
 
   return (
     <div className={className}>
-      <div
-        className="composer-shell rounded-2xl bg-card-light dark:bg-card-dark"
-        onPaste={onPaste}
-      >
+      <div className="composer-shell rounded-2xl bg-card-light dark:bg-card-dark" onPaste={onPaste}>
         {attachments.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 px-3 pt-3">
             {attachments.map((att) => (
@@ -130,7 +127,10 @@ export default function Composer({
               </>
             )}
             {!onFiles && (
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-400 md:h-7 md:w-7 dark:border-neutral-600 dark:text-neutral-500" aria-hidden="true">
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-light text-neutral-400 md:h-7 md:w-7 dark:border-neutral-600 dark:text-neutral-500"
+                aria-hidden="true"
+              >
                 <IconPlus size={14} />
               </span>
             )}
@@ -148,11 +148,7 @@ export default function Composer({
                 : 'bg-neutral-200 text-neutral-400 dark:bg-neutral-700 dark:text-neutral-500'
             }`}
           >
-            {busy ? (
-              <IconSend size={14} className="animate-pulse" />
-            ) : (
-              <IconSend size={14} />
-            )}
+            {busy ? <IconSend size={14} className="animate-pulse" /> : <IconSend size={14} />}
           </button>
         </div>
       </div>

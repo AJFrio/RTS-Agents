@@ -1,4 +1,8 @@
-import { loadAgentSnapshot, saveAgentSnapshot, countsFromAgents } from '../utils/agent-snapshot-cache.js';
+import {
+  loadAgentSnapshot,
+  saveAgentSnapshot,
+  countsFromAgents,
+} from '../utils/agent-snapshot-cache.js';
 
 export const VIEWS = [
   'agent',
@@ -143,7 +147,9 @@ export function upsertAgent(agents, incoming) {
     return Array.isArray(agents) ? agents : [];
   }
   const list = Array.isArray(agents) ? agents : [];
-  const idx = list.findIndex((agent) => taskMatches(incoming, agent) || taskMatches(agent, incoming));
+  const idx = list.findIndex(
+    (agent) => taskMatches(incoming, agent) || taskMatches(agent, incoming)
+  );
   if (idx === -1) {
     const created = {
       ...incoming,
@@ -367,9 +373,7 @@ export function appReducer(state, action) {
     case 'OPEN_TASK': {
       const fromView = state.currentView;
       const previousView =
-        fromView && fromView !== 'task-detail'
-          ? fromView
-          : state.previousView || 'agent';
+        fromView && fromView !== 'task-detail' ? fromView : state.previousView || 'agent';
       return {
         ...state,
         selectedTask: action.payload,
@@ -391,9 +395,7 @@ export function appReducer(state, action) {
     case 'CLOSE_TASK': {
       const prev = state.previousView;
       const nextView =
-        typeof prev === 'string' && prev !== 'task-detail' && VIEWS.includes(prev)
-          ? prev
-          : 'agent';
+        typeof prev === 'string' && prev !== 'task-detail' && VIEWS.includes(prev) ? prev : 'agent';
       return { ...state, selectedTask: null, currentView: nextView, previousView: null };
     }
     case 'SET_SIDEBAR_WIDTH': {

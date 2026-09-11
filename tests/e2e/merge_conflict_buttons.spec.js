@@ -8,7 +8,7 @@ test.describe('Merge conflict actions', () => {
 
   test.beforeAll(async () => {
     electronApp = await electron.launch({
-      args: [path.join(__dirname, '../../main.js')]
+      args: [path.join(__dirname, '../../main.js')],
     });
   });
 
@@ -28,20 +28,25 @@ test.describe('Merge conflict actions', () => {
           settings: { theme: 'dark', pollingInterval: 30000, autoPolling: false },
           githubPaths: [],
           apiKeys: { github: true, jules: true, cursor: true, codex: true, claude: true },
-          claudeCliInstalled: true
+          claudeCliInstalled: true,
         }),
         getConnectionStatus: async () => ({
           github: { connected: true },
           cursor: { connected: true },
-          jules: { connected: true }
+          jules: { connected: true },
         }),
         onRefreshTick: () => {},
 
         getRepositories: async () => ({
           success: true,
           repositories: [
-            { id: 'repo-101', name: 'demo-repo', url: 'https://github.com/acme/demo-repo', displayName: 'DEMO-REPO' }
-          ]
+            {
+              id: 'repo-101',
+              name: 'demo-repo',
+              url: 'https://github.com/acme/demo-repo',
+              displayName: 'DEMO-REPO',
+            },
+          ],
         }),
         createTask: async () => ({ success: true }),
 
@@ -58,9 +63,9 @@ test.describe('Merge conflict actions', () => {
                 updated_at: new Date().toISOString(),
                 private: false,
                 open_issues_count: 0,
-                stargazers_count: 0
-              }
-            ]
+                stargazers_count: 0,
+              },
+            ],
           }),
           getPrs: async () => ({
             success: true,
@@ -73,9 +78,9 @@ test.describe('Merge conflict actions', () => {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 head: { ref: 'feature-1', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
-                base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } }
-              }
-            ]
+                base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
+              },
+            ],
           }),
           getPrDetails: async () => ({
             success: true,
@@ -89,14 +94,14 @@ test.describe('Merge conflict actions', () => {
               draft: false,
               mergeable: false,
               head: { ref: 'feature-1', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
-              base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } }
-            }
+              base: { ref: 'main', repo: { name: 'demo-repo', owner: { login: 'acme' } } },
+            },
           }),
           getBranches: async () => ({
             success: true,
-            branches: [{ name: 'main' }, { name: 'feature-1' }]
+            branches: [{ name: 'main' }, { name: 'feature-1' }],
           }),
-          mergePr: async () => ({ success: false, error: 'should not be called in this test' })
+          mergePr: async () => ({ success: false, error: 'should not be called in this test' }),
         },
 
         setApiKey: async () => {},
@@ -105,7 +110,7 @@ test.describe('Merge conflict actions', () => {
         openExternal: async (url) => {
           window.__openedExternal.push(url);
           return { success: true };
-        }
+        },
       };
     });
 
@@ -133,10 +138,10 @@ test.describe('Merge conflict actions', () => {
 
     // GitHub button opens PR url
     await page.click('#merge-github-btn');
-    await expect.poll(async () => {
-      return page.evaluate(() => window.__openedExternal.slice());
-    }).toContain('https://github.com/acme/demo-repo/pull/7');
-
+    await expect
+      .poll(async () => {
+        return page.evaluate(() => window.__openedExternal.slice());
+      })
+      .toContain('https://github.com/acme/demo-repo/pull/7');
   });
 });
-

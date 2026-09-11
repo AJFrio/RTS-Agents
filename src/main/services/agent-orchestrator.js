@@ -17,8 +17,29 @@ const READ_TOOLS = new Set([
   'show_repo',
   'show_pull_request',
 ]);
-const TASK_CARD_FIELDS = ['id', 'provider', 'name', 'status', 'prompt', 'repository', 'branch', 'rawId', 'filePath', 'summary', 'createdAt', 'updatedAt'];
-const PROVIDER_ENUM = ['jules', 'cursor', 'antigravity', 'codex', 'claude-cli', 'claude-cloud', 'opencode'];
+const TASK_CARD_FIELDS = [
+  'id',
+  'provider',
+  'name',
+  'status',
+  'prompt',
+  'repository',
+  'branch',
+  'rawId',
+  'filePath',
+  'summary',
+  'createdAt',
+  'updatedAt',
+];
+const PROVIDER_ENUM = [
+  'jules',
+  'cursor',
+  'antigravity',
+  'codex',
+  'claude-cli',
+  'claude-cloud',
+  'opencode',
+];
 const TASK_STATUS_ENUM = ['running', 'completed', 'failed', 'pending'];
 
 const SYSTEM_PROMPT = `You are Janus, the orchestrator for the RTS Agents system.
@@ -46,26 +67,38 @@ function functionTool(name, description, parameters) {
 }
 
 const ORCHESTRATOR_TOOLS = [
-  functionTool('list_computers', 'List this machine and any synced remote devices, with status and repo names.', {
-    type: 'object',
-    properties: {},
-  }),
-  functionTool('list_repos', 'List repositories on a computer. Use "local" or this device id for the current machine.', {
-    type: 'object',
-    properties: {
-      computer_id: { type: 'string', description: 'Device id from list_computers, or "local".' },
-    },
-    required: ['computer_id'],
-  }),
-  functionTool('list_tasks', 'List recent tasks, optionally filtered by harness, repo substring, or status.', {
-    type: 'object',
-    properties: {
-      provider: { type: 'string', enum: PROVIDER_ENUM },
-      repo: { type: 'string', description: 'Substring match on repository path or name.' },
-      status: { type: 'string', enum: TASK_STATUS_ENUM },
-      limit: { type: 'integer', description: 'Max results (default 25).' },
-    },
-  }),
+  functionTool(
+    'list_computers',
+    'List this machine and any synced remote devices, with status and repo names.',
+    {
+      type: 'object',
+      properties: {},
+    }
+  ),
+  functionTool(
+    'list_repos',
+    'List repositories on a computer. Use "local" or this device id for the current machine.',
+    {
+      type: 'object',
+      properties: {
+        computer_id: { type: 'string', description: 'Device id from list_computers, or "local".' },
+      },
+      required: ['computer_id'],
+    }
+  ),
+  functionTool(
+    'list_tasks',
+    'List recent tasks, optionally filtered by harness, repo substring, or status.',
+    {
+      type: 'object',
+      properties: {
+        provider: { type: 'string', enum: PROVIDER_ENUM },
+        repo: { type: 'string', description: 'Substring match on repository path or name.' },
+        status: { type: 'string', enum: TASK_STATUS_ENUM },
+        limit: { type: 'integer', description: 'Max results (default 25).' },
+      },
+    }
+  ),
   functionTool('start_task', 'Start a coding task on a computer and repository.', {
     type: 'object',
     properties: {
@@ -83,36 +116,54 @@ const ORCHESTRATOR_TOOLS = [
     },
     required: ['task_id'],
   }),
-  functionTool('show_device', 'Surface a clickable device card for this machine or a synced computer.', {
-    type: 'object',
-    properties: {
-      computer_id: { type: 'string', description: 'Device id from list_computers, or "local".' },
-    },
-    required: ['computer_id'],
-  }),
-  functionTool('show_repo', 'Surface a clickable repository card (local/remote path or GitHub owner/name).', {
-    type: 'object',
-    properties: {
-      computer_id: { type: 'string', description: 'Device id, or "local". Omit for GitHub remotes.' },
-      repo_path: { type: 'string', description: 'Local path or folder name on that computer.' },
-      owner: { type: 'string', description: 'GitHub owner (user or org).' },
-      repo: { type: 'string', description: 'GitHub repository name.' },
-    },
-  }),
+  functionTool(
+    'show_device',
+    'Surface a clickable device card for this machine or a synced computer.',
+    {
+      type: 'object',
+      properties: {
+        computer_id: { type: 'string', description: 'Device id from list_computers, or "local".' },
+      },
+      required: ['computer_id'],
+    }
+  ),
+  functionTool(
+    'show_repo',
+    'Surface a clickable repository card (local/remote path or GitHub owner/name).',
+    {
+      type: 'object',
+      properties: {
+        computer_id: {
+          type: 'string',
+          description: 'Device id, or "local". Omit for GitHub remotes.',
+        },
+        repo_path: { type: 'string', description: 'Local path or folder name on that computer.' },
+        owner: { type: 'string', description: 'GitHub owner (user or org).' },
+        repo: { type: 'string', description: 'GitHub repository name.' },
+      },
+    }
+  ),
   functionTool('list_github_repos', 'List GitHub repositories for the connected account.', {
     type: 'object',
     properties: {
       limit: { type: 'integer', description: 'Max results (default 25).' },
     },
   }),
-  functionTool('create_local_repo', 'Create a new local git repository under a configured scan root.', {
-    type: 'object',
-    properties: {
-      name: { type: 'string', description: 'Folder / repository name.' },
-      directory: { type: 'string', description: 'Parent directory. Defaults to the first configured GitHub path.' },
-    },
-    required: ['name'],
-  }),
+  functionTool(
+    'create_local_repo',
+    'Create a new local git repository under a configured scan root.',
+    {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Folder / repository name.' },
+        directory: {
+          type: 'string',
+          description: 'Parent directory. Defaults to the first configured GitHub path.',
+        },
+      },
+      required: ['name'],
+    }
+  ),
   functionTool('create_github_repo', 'Create a GitHub repository for the connected account.', {
     type: 'object',
     properties: {
@@ -130,15 +181,19 @@ const ORCHESTRATOR_TOOLS = [
     },
     required: ['path'],
   }),
-  functionTool('list_pull_requests', 'List pull requests. Pass owner+repo for one repository, or omit to scan recent repos.', {
-    type: 'object',
-    properties: {
-      owner: { type: 'string' },
-      repo: { type: 'string' },
-      state: { type: 'string', enum: ['open', 'closed', 'all'], description: 'Default open.' },
-      limit: { type: 'integer', description: 'Max results (default 20).' },
-    },
-  }),
+  functionTool(
+    'list_pull_requests',
+    'List pull requests. Pass owner+repo for one repository, or omit to scan recent repos.',
+    {
+      type: 'object',
+      properties: {
+        owner: { type: 'string' },
+        repo: { type: 'string' },
+        state: { type: 'string', enum: ['open', 'closed', 'all'], description: 'Default open.' },
+        limit: { type: 'integer', description: 'Max results (default 20).' },
+      },
+    }
+  ),
   functionTool('show_pull_request', 'Surface a clickable pull request card and return details.', {
     type: 'object',
     properties: {
@@ -148,25 +203,33 @@ const ORCHESTRATOR_TOOLS = [
     },
     required: ['owner', 'repo', 'pr_number'],
   }),
-  functionTool('merge_pull_request', 'Merge a pull request. Only when the user clearly asked to merge.', {
-    type: 'object',
-    properties: {
-      owner: { type: 'string' },
-      repo: { type: 'string' },
-      pr_number: { type: 'integer' },
-      method: { type: 'string', enum: ['merge', 'squash', 'rebase'] },
-    },
-    required: ['owner', 'repo', 'pr_number'],
-  }),
-  functionTool('close_pull_request', 'Close a pull request without merging. Only when the user clearly asked to close.', {
-    type: 'object',
-    properties: {
-      owner: { type: 'string' },
-      repo: { type: 'string' },
-      pr_number: { type: 'integer' },
-    },
-    required: ['owner', 'repo', 'pr_number'],
-  }),
+  functionTool(
+    'merge_pull_request',
+    'Merge a pull request. Only when the user clearly asked to merge.',
+    {
+      type: 'object',
+      properties: {
+        owner: { type: 'string' },
+        repo: { type: 'string' },
+        pr_number: { type: 'integer' },
+        method: { type: 'string', enum: ['merge', 'squash', 'rebase'] },
+      },
+      required: ['owner', 'repo', 'pr_number'],
+    }
+  ),
+  functionTool(
+    'close_pull_request',
+    'Close a pull request without merging. Only when the user clearly asked to close.',
+    {
+      type: 'object',
+      properties: {
+        owner: { type: 'string' },
+        repo: { type: 'string' },
+        pr_number: { type: 'integer' },
+      },
+      required: ['owner', 'repo', 'pr_number'],
+    }
+  ),
   functionTool('mark_pr_ready', 'Mark a draft pull request ready for review.', {
     type: 'object',
     properties: {
@@ -181,7 +244,11 @@ const ORCHESTRATOR_TOOLS = [
 function pushCard(cards, card) {
   if (!card || !Array.isArray(cards) || card.id == null) return;
   const kind = card.kind || 'task';
-  if (cards.some((existing) => (existing.kind || 'task') === kind && String(existing.id) === String(card.id))) {
+  if (
+    cards.some(
+      (existing) => (existing.kind || 'task') === kind && String(existing.id) === String(card.id)
+    )
+  ) {
     return;
   }
   cards.push({ ...card, kind });
@@ -191,19 +258,21 @@ const ACTIVE_TASK_STATUSES = new Set(['running', 'pending', 'queued']);
 const TASK_STATUS_RANK = { running: 0, pending: 1, queued: 1, failed: 2, completed: 3 };
 
 function formatTaskSnapshot(tasks) {
-  const active = (Array.isArray(tasks) ? tasks : []).filter((task) => (
-    ACTIVE_TASK_STATUSES.has(String(task.status || '').toLowerCase())
-  )).slice(0, CARD_SURFACE_LIMIT);
+  const active = (Array.isArray(tasks) ? tasks : [])
+    .filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || '').toLowerCase()))
+    .slice(0, CARD_SURFACE_LIMIT);
 
   if (active.length === 0) {
     return '\nLive dashboard snapshot: no running or pending tasks. Call list_tasks only for history, filters, or a refresh.\n';
   }
 
-  const lines = active.map((task) => {
-    const repo = task.repository ? ` @ ${task.repository}` : '';
-    const name = task.name || 'untitled';
-    return `- ${task.id} [${task.provider || '?'}] ${task.status} ${name}${repo}`;
-  }).join('\n');
+  const lines = active
+    .map((task) => {
+      const repo = task.repository ? ` @ ${task.repository}` : '';
+      const name = task.name || 'untitled';
+      return `- ${task.id} [${task.provider || '?'}] ${task.status} ${name}${repo}`;
+    })
+    .join('\n');
 
   return `\nLive dashboard snapshot (answer "what's running?" from this; list_tasks is cached if you need filters or history):\n${lines}\n`;
 }
@@ -244,9 +313,14 @@ function parseJsonToolCall(content) {
   if (!content || typeof content !== 'string') return null;
   try {
     const jsonMatch = content.match(/\{.*"tool":.*"args":.*\}/s);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : (content.trim().startsWith('{') ? content : ''));
+    const parsed = JSON.parse(
+      jsonMatch ? jsonMatch[0] : content.trim().startsWith('{') ? content : ''
+    );
     if (parsed && parsed.tool) {
-      return { tool: parsed.tool, args: parsed.args && typeof parsed.args === 'object' ? parsed.args : {} };
+      return {
+        tool: parsed.tool,
+        args: parsed.args && typeof parsed.args === 'object' ? parsed.args : {},
+      };
     }
   } catch {
     // Not valid JSON, treat as text
@@ -278,7 +352,7 @@ class AgentOrchestrator {
 
     if (configStore.hasApiKey('openrouter')) {
       try {
-        models.push(...await openRouterService.getModels());
+        models.push(...(await openRouterService.getModels()));
       } catch (err) {
         errors.push({ provider: 'openrouter', error: err.message });
       }
@@ -290,12 +364,14 @@ class AgentOrchestrator {
   extractRequestedTools(assistantMessage) {
     const native = Array.isArray(assistantMessage?.tool_calls) ? assistantMessage.tool_calls : [];
     if (native.length > 0) {
-      return native.map((call) => ({
-        id: call.id,
-        tool: call.function?.name || call.name,
-        args: parseToolArguments(call.function?.arguments ?? call.arguments),
-        native: true,
-      })).filter((call) => call.tool);
+      return native
+        .map((call) => ({
+          id: call.id,
+          tool: call.function?.name || call.name,
+          args: parseToolArguments(call.function?.arguments ?? call.arguments),
+          native: true,
+        }))
+        .filter((call) => call.tool);
     }
     const fallback = parseJsonToolCall(assistantMessage?.content || '');
     if (!fallback) return [];
@@ -310,9 +386,9 @@ class AgentOrchestrator {
   async loadTasks() {
     if (!this.listTasksCallback) return null;
     if (!this._taskListPromise) {
-      this._taskListPromise = Promise.resolve(this.listTasksCallback()).then((list) => (
+      this._taskListPromise = Promise.resolve(this.listTasksCallback()).then((list) =>
         Array.isArray(list) ? list : []
-      ));
+      );
     }
     return this._taskListPromise;
   }
@@ -324,7 +400,8 @@ class AgentOrchestrator {
       return { request, result, callId };
     };
 
-    const canParallel = requested.length > 1 && requested.every((request) => READ_TOOLS.has(request.tool));
+    const canParallel =
+      requested.length > 1 && requested.every((request) => READ_TOOLS.has(request.tool));
     if (canParallel) {
       return Promise.all(requested.map((request, index) => runOne(request, index)));
     }
@@ -348,7 +425,7 @@ class AgentOrchestrator {
     this.clearTurnCaches();
 
     let fullMessages = [...messages];
-    const systemContent = SYSTEM_PROMPT + await this.taskSnapshotNote();
+    const systemContent = SYSTEM_PROMPT + (await this.taskSnapshotNote());
     if (fullMessages.length === 0 || fullMessages[0].role !== 'system') {
       fullMessages.unshift({ role: 'system', content: systemContent });
     }
@@ -366,11 +443,14 @@ class AgentOrchestrator {
       let toolTurns = 0;
 
       if (!configStore.hasApiKey('openrouter')) {
-        return withCards({
-          role: 'assistant',
-          content: 'Please configure an OpenRouter API key in Settings to use Janus.',
-          toolCalls,
-        }, cards);
+        return withCards(
+          {
+            role: 'assistant',
+            content: 'Please configure an OpenRouter API key in Settings to use Janus.',
+            toolCalls,
+          },
+          cards
+        );
       }
 
       while (toolTurns <= maxToolTurns) {
@@ -407,36 +487,45 @@ class AgentOrchestrator {
         }
 
         if (atCap) {
-          return withCards({
-            role: 'assistant',
-            content: "I'm stuck in a loop. Here is the last result: " + JSON.stringify(lastResult),
-            toolCalls,
-          }, cards);
+          return withCards(
+            {
+              role: 'assistant',
+              content:
+                "I'm stuck in a loop. Here is the last result: " + JSON.stringify(lastResult),
+              toolCalls,
+            },
+            cards
+          );
         }
 
         const historyAssistant = requested[0].native
           ? assistantMessage
           : {
-            role: 'assistant',
-            content: assistantMessage.content || '',
-            tool_calls: requested.map((request) => ({
-              id: request.syntheticId,
-              type: 'function',
-              function: {
-                name: request.tool,
-                arguments: JSON.stringify(request.args || {}),
-              },
-            })),
-          };
+              role: 'assistant',
+              content: assistantMessage.content || '',
+              tool_calls: requested.map((request) => ({
+                id: request.syntheticId,
+                type: 'function',
+                function: {
+                  name: request.tool,
+                  arguments: JSON.stringify(request.args || {}),
+                },
+              })),
+            };
 
         conversation = [...conversation, historyAssistant, ...followUps];
       }
 
-      return withCards({ role: 'assistant', content: 'Maximum tool turns reached.', toolCalls }, cards);
-
+      return withCards(
+        { role: 'assistant', content: 'Maximum tool turns reached.', toolCalls },
+        cards
+      );
     } catch (err) {
       console.error('Orchestrator error:', err);
-      return withCards({ role: 'assistant', content: 'I encountered an error: ' + err.message, toolCalls }, cards);
+      return withCards(
+        { role: 'assistant', content: 'I encountered an error: ' + err.message, toolCalls },
+        cards
+      );
     } finally {
       this.clearTurnCaches();
     }
@@ -574,7 +663,8 @@ class AgentOrchestrator {
   async localRepos() {
     if (!this._localReposPromise) {
       const paths = configStore.getGithubPaths();
-      this._localReposPromise = projectService.getLocalRepos(Array.isArray(paths) ? paths : [])
+      this._localReposPromise = projectService
+        .getLocalRepos(Array.isArray(paths) ? paths : [])
         .then((repos) => (Array.isArray(repos) ? repos : []));
     }
     return this._localReposPromise;
@@ -686,17 +776,19 @@ class AgentOrchestrator {
 
         const namespaceId = await cloudflareKvService.ensureNamespace();
         const devices = await cloudflareKvService.getValueJson(namespaceId, 'devices', []);
-        const device = (Array.isArray(devices) ? devices : []).find((entry) => entry.id === computerId);
+        const device = (Array.isArray(devices) ? devices : []).find(
+          (entry) => entry.id === computerId
+        );
         if (!device) return { error: 'Computer not found' };
         repos = device.repos || [];
         computer = { id: device.id, name: device.name || null };
       }
 
-      this.surfaceCards(cards, Array.isArray(repos) ? repos : [], (repo) => (
+      this.surfaceCards(cards, Array.isArray(repos) ? repos : [], (repo) =>
         typeof repo === 'string'
           ? this.localRepoCard({ name: repo, path: repo }, computer)
           : this.localRepoCard(repo, computer)
-      ));
+      );
       return repos;
     } catch (err) {
       return { error: err.message };
@@ -713,14 +805,23 @@ class AgentOrchestrator {
       const provider = args.provider ? String(args.provider).toLowerCase() : null;
       const repo = args.repo ? String(args.repo).toLowerCase() : null;
       const status = args.status ? String(args.status).toLowerCase() : null;
-      const limit = Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Number(args.limit) : 25;
+      const limit =
+        Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Number(args.limit) : 25;
 
-      const filtered = sortTasksForListing(list.filter((task) => {
-        if (provider && String(task.provider || '').toLowerCase() !== provider) return false;
-        if (repo && !String(task.repository || '').toLowerCase().includes(repo)) return false;
-        if (status && String(task.status || '').toLowerCase() !== status) return false;
-        return true;
-      })).slice(0, limit);
+      const filtered = sortTasksForListing(
+        list.filter((task) => {
+          if (provider && String(task.provider || '').toLowerCase() !== provider) return false;
+          if (
+            repo &&
+            !String(task.repository || '')
+              .toLowerCase()
+              .includes(repo)
+          )
+            return false;
+          if (status && String(task.status || '').toLowerCase() !== status) return false;
+          return true;
+        })
+      ).slice(0, limit);
 
       this.surfaceCards(cards, filtered, (task) => this.cardFor(task));
 
@@ -861,7 +962,8 @@ class AgentOrchestrator {
     if (blocked) return blocked;
     try {
       const repos = await githubService.getUserRepos();
-      const limit = Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Number(args.limit) : 25;
+      const limit =
+        Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Number(args.limit) : 25;
       const sliced = (Array.isArray(repos) ? repos : []).slice(0, limit);
       this.surfaceCards(cards, sliced, (repo) => this.githubRepoCard(repo));
       return sliced.map((repo) => ({
@@ -881,7 +983,9 @@ class AgentOrchestrator {
       const paths = configStore.getGithubPaths();
       const directory = args.directory || (Array.isArray(paths) && paths[0]) || null;
       if (!directory) {
-        return { error: 'No scan root configured. Pass directory or add a repository path in Plugins.' };
+        return {
+          error: 'No scan root configured. Pass directory or add a repository path in Plugins.',
+        };
       }
       const repoPath = await projectService.createLocalRepo({ directory, name: args.name });
       const card = this.localRepoCard(
@@ -927,7 +1031,8 @@ class AgentOrchestrator {
     const blocked = this.requireGithub();
     if (blocked) return blocked;
     try {
-      const limit = Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Number(args.limit) : 20;
+      const limit =
+        Number.isFinite(Number(args.limit)) && Number(args.limit) > 0 ? Number(args.limit) : 20;
       const state = args.state || 'open';
       let prs;
       if (args.owner && args.repo) {
@@ -935,7 +1040,9 @@ class AgentOrchestrator {
       } else {
         prs = await githubService.getAllPullRequests();
         if (state !== 'all') {
-          prs = (Array.isArray(prs) ? prs : []).filter((pr) => String(pr.state || 'open') === state);
+          prs = (Array.isArray(prs) ? prs : []).filter(
+            (pr) => String(pr.state || 'open') === state
+          );
         }
       }
       const sliced = (Array.isArray(prs) ? prs : []).slice(0, limit);

@@ -24,7 +24,7 @@ class HttpService {
     let urlObj;
     try {
       urlObj = new URL(url);
-    } catch (e) {
+    } catch {
       throw new Error(`Invalid URL: ${url}`);
     }
 
@@ -54,7 +54,7 @@ class HttpService {
           if (contentType.includes('application/json')) {
             try {
               parsedData = JSON.parse(data);
-            } catch (e) {
+            } catch {
               // Keep as string if parsing fails
             }
           } else {
@@ -64,7 +64,7 @@ class HttpService {
               if (data && (data.startsWith('{') || data.startsWith('['))) {
                 parsedData = JSON.parse(data);
               }
-            } catch (e) {
+            } catch {
               // Ignore
             }
           }

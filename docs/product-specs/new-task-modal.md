@@ -9,9 +9,10 @@ Users create new work from the New Task canvas tab (formerly a modal) with provi
 ## Layout
 
 - Compact top-aligned strip (`space-y-3`, no vertical centering / `my-auto`).
-  Location is a 3-segment Cloud / Local / Remote control; agent chips wrap
-  in a row. Selecting an agent does not insert a Device or Repo block
-  between the chips and the prompt.
+  Location is Cloud / Local / Remote on desktop and Cloud / Remote on the
+  web app (local CLIs cannot run in the browser). Agent chips wrap in a
+  row. Selecting an agent does not insert a Device or Repo block between
+  the chips and the prompt.
 - Device and Repository / project path live in the Composer footer as
   text+chevron controls next to Branch / Auto-PR / Model (DESIGN.md §5).
   The Composer itself is the shared Cursor chat box (rounded-2xl, circular

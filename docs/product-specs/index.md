@@ -9,5 +9,6 @@
 | [mobile-remote-dispatch.md](mobile-remote-dispatch.md) | Verified |
 | [acp-local-dispatch.md](acp-local-dispatch.md) | Verified |
 | [sidebar-repo-cache.md](sidebar-repo-cache.md) | Implemented |
+| [web-desktop-surfaces.md](web-desktop-surfaces.md) | Implemented |
 
 Human-oriented feature list also lives in [README.md](../../README.md). Specs here are optimized for **agents implementing or verifying behavior**.

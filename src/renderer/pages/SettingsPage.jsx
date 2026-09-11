@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { useApp } from '../context/AppContext.jsx';
+import { useRuntime } from '../hooks/use-runtime.js';
 
 function ChoiceTile({ id, active, onClick, label, children }) {
   return (
@@ -30,6 +31,7 @@ function ChoiceTile({ id, active, onClick, label, children }) {
  */
 export default function SettingsPage() {
   const { state, dispatch, api } = useApp();
+  const runtime = useRuntime();
 
   const setTheme = useCallback(
     (theme) => {
@@ -79,21 +81,25 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        <label className="mb-2 mt-6 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-          Window mode
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {['windowed', 'fullscreen'].map((mode) => (
-            <ChoiceTile
-              key={mode}
-              active={state.settings.displayMode === mode}
-              onClick={() => setDisplayMode(mode)}
-              label={mode === 'windowed' ? 'Windowed' : 'Full screen'}
-            >
-              <WindowIcon mode={mode} />
-            </ChoiceTile>
-          ))}
-        </div>
+        {runtime.windowMode && (
+          <>
+            <label className="mb-2 mt-6 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              Window mode
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {['windowed', 'fullscreen'].map((mode) => (
+                <ChoiceTile
+                  key={mode}
+                  active={state.settings.displayMode === mode}
+                  onClick={() => setDisplayMode(mode)}
+                  label={mode === 'windowed' ? 'Windowed' : 'Full screen'}
+                >
+                  <WindowIcon mode={mode} />
+                </ChoiceTile>
+              ))}
+            </div>
+          </>
+        )}
       </SettingSection>
 
       <SettingSection icon={<RefreshIcon />} title="Data polling">
@@ -133,26 +139,28 @@ export default function SettingsPage() {
         />
       </SettingSection>
 
-      <SettingSection icon={<SystemIcon />} title="System">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h4 className="text-[13px] font-semibold text-neutral-800 dark:text-neutral-200">
-              Update application
-            </h4>
-            <p className="mt-0.5 text-[12px] text-neutral-500 dark:text-neutral-400">
-              Pull latest changes from GitHub and restart.
-            </p>
+      {runtime.appUpdates && (
+        <SettingSection icon={<SystemIcon />} title="System">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h4 className="text-[13px] font-semibold text-neutral-800 dark:text-neutral-200">
+                Update application
+              </h4>
+              <p className="mt-0.5 text-[12px] text-neutral-500 dark:text-neutral-400">
+                Pull latest changes from GitHub and restart.
+              </p>
+            </div>
+            <button
+              type="button"
+              id="update-app-btn"
+              onClick={updateApp}
+              className="min-h-9 w-full rounded-md bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 sm:w-auto dark:bg-neutral-100 dark:text-neutral-900"
+            >
+              Update & restart
+            </button>
           </div>
-          <button
-            type="button"
-            id="update-app-btn"
-            onClick={updateApp}
-            className="min-h-9 w-full rounded-md bg-neutral-900 px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:opacity-90 sm:w-auto dark:bg-neutral-100 dark:text-neutral-900"
-          >
-            Update & restart
-          </button>
-        </div>
-      </SettingSection>
+        </SettingSection>
+      )}
     </div>
   );
 }

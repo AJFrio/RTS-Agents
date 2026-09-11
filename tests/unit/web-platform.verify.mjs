@@ -121,6 +121,104 @@ test('storage settings and filters merge over defaults', async () => {
 });
 
 // ---------------------------------------------------------------------------
+// runtime capabilities (desktop vs web surfaces)
+// ---------------------------------------------------------------------------
+
+test('detectRuntime treats preload and e2e mocks as desktop', async () => {
+  const { detectRuntime, isDesktopRuntime, isWebRuntime, RUNTIME } = await import(
+    '../../src/renderer/platform/runtime.mjs'
+  );
+  assert.equal(detectRuntime({ electronAPI: {} }), RUNTIME.DESKTOP);
+  assert.equal(detectRuntime({ __electronAPI: {} }), RUNTIME.DESKTOP);
+  assert.equal(detectRuntime({ window: { electronAPI: { updateApp() {} } } }), RUNTIME.DESKTOP);
+  assert.equal(detectRuntime({}), RUNTIME.WEB);
+  assert.equal(isDesktopRuntime({ electronAPI: {} }), true);
+  assert.equal(isWebRuntime({}), true);
+});
+
+test('is-web.mjs re-exports the runtime helper', async () => {
+  const { isWebRuntime } = await import('../../src/renderer/platform/is-web.mjs');
+  assert.equal(isWebRuntime({ electronAPI: {} }), false);
+  assert.equal(isWebRuntime({}), true);
+});
+
+test('web capabilities hide local CLIs, app updates, and window mode', async () => {
+  const { getRuntimeCapabilities, RUNTIME } = await import('../../src/renderer/platform/runtime.mjs');
+  const web = getRuntimeCapabilities(RUNTIME.WEB);
+  assert.equal(web.web, true);
+  assert.equal(web.appUpdates, false);
+  assert.equal(web.windowMode, false);
+  assert.equal(web.localCliServices, false);
+  assert.equal(web.localFilesystem, false);
+  assert.equal(web.localTaskEnvironment, false);
+  assert.equal(web.directoryPicker, false);
+  assert.equal(web.openLocalTerminal, false);
+  assert.equal(web.createLocalRepo, false);
+
+  const desktop = getRuntimeCapabilities(RUNTIME.DESKTOP);
+  assert.equal(desktop.appUpdates, true);
+  assert.equal(desktop.localCliServices, true);
+  assert.equal(desktop.localTaskEnvironment, true);
+  assert.equal(desktop.createLocalRepo, true);
+});
+
+test('filterServicesForRuntime drops local-path plugins on web', async () => {
+  const { filterServicesForRuntime, isDesktopOnlyService, getRuntimeCapabilities, RUNTIME } =
+    await import('../../src/renderer/platform/runtime.mjs');
+  const catalog = [
+    { id: 'claude-cloud', kind: 'cloud-api-key' },
+    { id: 'claude-local', kind: 'local-path' },
+    { id: 'opencode-local', kind: 'local-path' },
+    { id: 'github-cloud', kind: 'cloud-api-key' },
+    { id: 'flagged', kind: 'cloud-api-key', desktopOnly: true },
+  ];
+  assert.equal(isDesktopOnlyService(catalog[1]), true);
+  assert.equal(isDesktopOnlyService(catalog[0]), false);
+  const web = filterServicesForRuntime(catalog, getRuntimeCapabilities(RUNTIME.WEB));
+  assert.deepEqual(
+    web.map((s) => s.id),
+    ['claude-cloud', 'github-cloud']
+  );
+  const desktop = filterServicesForRuntime(catalog, getRuntimeCapabilities(RUNTIME.DESKTOP));
+  assert.equal(desktop.length, catalog.length);
+});
+
+test('task environments and repo locations omit desktop-only options on web', async () => {
+  const {
+    getTaskEnvironments,
+    getDefaultTaskEnvironment,
+    resolveTaskEnvironment,
+    getRepoCreateLocations,
+    getRuntimeCapabilities,
+    RUNTIME,
+  } = await import('../../src/renderer/platform/runtime.mjs');
+  const web = getRuntimeCapabilities(RUNTIME.WEB);
+  const desktop = getRuntimeCapabilities(RUNTIME.DESKTOP);
+
+  assert.deepEqual(
+    getTaskEnvironments(web).map((e) => e.id),
+    ['cloud', 'remote']
+  );
+  assert.deepEqual(
+    getTaskEnvironments(desktop).map((e) => e.id),
+    ['cloud', 'local', 'remote']
+  );
+  assert.equal(getDefaultTaskEnvironment(web), 'cloud');
+  assert.equal(getDefaultTaskEnvironment(desktop), 'local');
+  assert.equal(resolveTaskEnvironment('local', web), 'cloud');
+  assert.equal(resolveTaskEnvironment('remote', web), 'remote');
+  assert.equal(resolveTaskEnvironment('local', desktop), 'local');
+  assert.deepEqual(
+    getRepoCreateLocations(web).map((e) => e.id),
+    ['github']
+  );
+  assert.deepEqual(
+    getRepoCreateLocations(desktop).map((e) => e.id),
+    ['github', 'local', 'remote']
+  );
+});
+
+// ---------------------------------------------------------------------------
 // web-api — settings surface (mirrors src/main/ipc/register-settings.js)
 // ---------------------------------------------------------------------------
 

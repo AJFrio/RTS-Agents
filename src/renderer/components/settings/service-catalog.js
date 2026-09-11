@@ -1,3 +1,7 @@
+/**
+ * Plugin catalog. `kind: 'local-path'` (and `desktopOnly: true`) services are
+ * hidden on the Cloudflare web app — they need a local filesystem / CLI.
+ */
 export const SERVICE_CATALOG = [
   {
     id: 'jules-cloud',

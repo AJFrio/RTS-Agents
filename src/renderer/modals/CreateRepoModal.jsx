@@ -3,9 +3,13 @@ import Modal from '../components/ui/Modal.jsx';
 import Button from '../components/ui/Button.jsx';
 import { IconClose, IconGitBranch, IconSync } from '../components/ui/icons.jsx';
 import { useApp } from '../context/AppContext.jsx';
+import { useRuntime } from '../hooks/use-runtime.js';
+import { getRepoCreateLocations } from '../platform/runtime.mjs';
 
 export default function CreateRepoModal({ open, onClose, api }) {
   const { state, loadSettings } = useApp();
+  const runtime = useRuntime();
+  const locations = getRepoCreateLocations(runtime);
   const [location, setLocation] = useState('github');
   const [name, setName] = useState('');
   const [githubOwner, setGithubOwner] = useState('');
@@ -89,7 +93,9 @@ export default function CreateRepoModal({ open, onClose, api }) {
             </span>
             <div>
               <h2 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">Create Repository</h2>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">GitHub, local, or remote computer</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {runtime.desktop ? 'GitHub, local, or remote computer' : 'Create a GitHub repository'}
+              </p>
             </div>
           </div>
           <button
@@ -102,18 +108,20 @@ export default function CreateRepoModal({ open, onClose, api }) {
           </button>
         </div>
         <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
-          <div>
-            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Where to create</label>
-            <select
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full"
-            >
-              <option value="github">GitHub</option>
-              <option value="local">This Computer (Local)</option>
-              <option value="remote">Remote Computer</option>
-            </select>
-          </div>
+          {locations.length > 1 && (
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Where to create</label>
+              <select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full"
+              >
+                {locations.map((item) => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Repository name</label>
             <input

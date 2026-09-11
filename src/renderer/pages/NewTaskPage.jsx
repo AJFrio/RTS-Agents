@@ -6,6 +6,8 @@ import Composer from '../components/chat/Composer.jsx';
 import { getProviderDisplayName } from '../utils/format.js';
 import { getLastSelectedModel, setLastSelectedModel } from '../utils/last-selected-model.js';
 import { providerMeta, IconChevronDown } from '../components/ui/icons.jsx';
+import { useRuntime } from '../hooks/use-runtime.js';
+import { getTaskEnvironments, resolveTaskEnvironment } from '../platform/runtime.mjs';
 
 const CACHE_KEY_PREFIX = 'rts_repo_cache_';
 const MODELS_CACHE_KEY_PREFIX = 'rts_model_cache_';
@@ -119,9 +121,11 @@ export default function NewTaskPage() {
   const { state, api, fetchComputers, loadAgents, dispatch, openTask } = useApp();
   const { initialPrompt, presetEnvironment, presetTargetDeviceId, presetPreferredProvider } =
     state.newTask || {};
+  const runtime = useRuntime();
+  const taskEnvironments = useMemo(() => getTaskEnvironments(runtime), [runtime]);
 
-  const [environment, setEnvironment] = useState(
-    presetEnvironment || state.newTask?.environment || 'cloud'
+  const [environment, setEnvironment] = useState(() =>
+    resolveTaskEnvironment(presetEnvironment || state.newTask?.environment, runtime)
   );
   const [selectedProvider, setSelectedProvider] = useState(
     presetPreferredProvider && presetEnvironment === 'remote' ? presetPreferredProvider : null
@@ -155,6 +159,16 @@ export default function NewTaskPage() {
   useEffect(() => {
     if (initialPrompt) setPrompt(initialPrompt);
   }, [initialPrompt]);
+
+  useEffect(() => {
+    const next = resolveTaskEnvironment(environment, runtime);
+    if (next !== environment) {
+      setEnvironment(next);
+      setSelectedProvider(null);
+      setSelectedRepo('');
+      setRepos([]);
+    }
+  }, [environment, runtime]);
 
   const agentsForEnv = useMemo(
     () => getAgentsForEnvironment(state, environment),
@@ -494,12 +508,8 @@ export default function NewTaskPage() {
           <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Run location
           </h3>
-          <div className="grid grid-cols-3 gap-1.5">
-            {[
-              { id: 'cloud', label: 'Cloud' },
-              { id: 'local', label: 'Local' },
-              { id: 'remote', label: 'Remote' },
-            ].map(({ id, label }) => (
+          <div className={`grid gap-1.5 ${taskEnvironments.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {taskEnvironments.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
@@ -525,6 +535,12 @@ export default function NewTaskPage() {
           {environment === 'remote' && (
             <p className="mt-1.5 text-[11px] text-neutral-400 dark:text-neutral-500">
               Remote tasks queue in Cloudflare KV and run when the machine is online.
+            </p>
+          )}
+          {runtime.web && (
+            <p className="mt-1.5 text-[11px] text-neutral-400 dark:text-neutral-500">
+              Local CLIs run in the desktop app. On the web, start cloud agents here or queue work
+              for a linked machine.
             </p>
           )}
         </section>

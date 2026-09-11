@@ -21,6 +21,7 @@ const codexService = require('./src/main/services/codex-service');
 const cursorService = require('./src/main/services/cursor-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
+const modelRegistry = require('./src/main/services/model-registry');
 
 const CLOUDFLARE_HEARTBEAT_INTERVAL_MS = 300000; // 5 minutes
 const CLOUDFLARE_QUEUE_POLL_INTERVAL_MS = 10000; // 10 seconds (faster queue consumption)
@@ -98,6 +99,32 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     availableCliTools.push('cursor CLI');
   }
 
+  let modelCatalog = null;
+  try {
+    const providersToList = [];
+    if (availableCliTools.includes('Antigravity CLI')) providersToList.push('antigravity');
+    if (availableCliTools.includes('claude CLI')) providersToList.push('claude-cli');
+    if (availableCliTools.includes('OpenCode CLI')) providersToList.push('opencode');
+    if (availableCliTools.includes('cursor CLI')) providersToList.push('cursor');
+
+    const settled = await Promise.allSettled(
+      providersToList.map((provider) => modelRegistry.getModelsForProvider(provider))
+    );
+    const providers = {};
+    settled.forEach((entry, index) => {
+      if (entry.status !== 'fulfilled') return;
+      const payload = entry.value || {};
+      if (!payload.success) return;
+      const list = Array.isArray(payload.models) ? payload.models.slice(0, 120) : [];
+      providers[providersToList[index]] = list;
+    });
+    if (Object.keys(providers).length > 0) {
+      modelCatalog = { updatedAt: nowIso, providers };
+    }
+  } catch {
+    modelCatalog = null;
+  }
+
   const device = {
     id: identity.id,
     name: identity.name,
@@ -109,6 +136,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     tools: [{ 'CLI tools': availableCliTools }],
     repos,
     reposUpdatedAt: nowIso,
+    ...(modelCatalog ? { modelCatalog } : {}),
   };
 
   await cloudflareKvService.heartbeat({

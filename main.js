@@ -21,6 +21,7 @@ const opencodeService = require('./src/main/services/opencode-service');
 const antigravityService = require('./src/main/services/antigravity-service');
 const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
 const mcpServerService = require('./src/main/services/mcp-server-service');
+const modelRegistry = require('./src/main/services/model-registry');
 const { sessionEvents } = require('./src/main/services/session-events');
 const { clearInstallStatusCache } = require('./src/main/utils/install-status');
 const acpService = require('./src/main/services/acp-service');
@@ -242,6 +243,36 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     availableCliTools.push('cursor CLI');
   }
 
+  let modelCatalog = null;
+  try {
+    const providersToList = [];
+    if (configStore.getCodexPaths().length > 0) providersToList.push('codex');
+    if (antigravityInstalled) providersToList.push('antigravity');
+    if (claudeInstalled) providersToList.push('claude-cli');
+    if (opencodeInstalled) providersToList.push('opencode');
+    if (cursorService.isCursorCliAvailable() || configStore.getCursorPaths().length > 0) {
+      providersToList.push('cursor');
+    }
+
+    const settled = await Promise.allSettled(
+      providersToList.map((provider) => modelRegistry.getModelsForProvider(provider))
+    );
+    const providers = {};
+    settled.forEach((entry, index) => {
+      if (entry.status !== 'fulfilled') return;
+      const payload = entry.value || {};
+      if (!payload.success) return;
+      const list = Array.isArray(payload.models) ? payload.models.slice(0, 120) : [];
+      providers[providersToList[index]] = list;
+    });
+    if (Object.keys(providers).length > 0) {
+      modelCatalog = { updatedAt: nowIso, providers };
+    }
+  } catch {
+    // Ignore model listing failures; device heartbeats should remain lightweight.
+    modelCatalog = null;
+  }
+
   const device = {
     id: identity.id,
     name: identity.name,
@@ -253,6 +284,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     tools: [{ 'CLI tools': availableCliTools }],
     repos,
     reposUpdatedAt: nowIso,
+    ...(modelCatalog ? { modelCatalog } : {}),
   };
 
   await cloudflareKvService.heartbeat({

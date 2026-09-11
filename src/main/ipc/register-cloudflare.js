@@ -127,6 +127,35 @@ function registerCloudflareHandlers(deps) {
     }
   });
 
+  /**
+   * Shared run log across devices — local runs (broadcast by each device) and
+   * remote-queue runs, newest first.
+   */
+  ipcMain.handle('runs:get', async () => {
+    try {
+      if (!configStore.hasCloudflareConfig()) {
+        return { success: true, configured: false, runs: [] };
+      }
+
+      const cfg = configStore.getCloudflareConfig();
+      cloudflareKvService.setConfig({ accountId: cfg.accountId, apiToken: cfg.apiToken });
+      const namespaceId = await ensureCloudflareNamespaceId();
+      if (!namespaceId) {
+        return { success: true, configured: true, runs: [] };
+      }
+
+      const runs = await cloudflareKvService.getRuns(namespaceId);
+      return { success: true, configured: true, runs, updatedAt: new Date().toISOString() };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.message,
+        configured: configStore.hasCloudflareConfig(),
+        runs: [],
+      };
+    }
+  });
+
   ipcMain.handle('computers:list', async () => {
     try {
       if (!configStore.hasCloudflareConfig()) {

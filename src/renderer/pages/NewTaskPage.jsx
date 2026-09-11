@@ -233,20 +233,20 @@ export default function NewTaskPage() {
     }
   }, [environment, runtime]);
 
-  const agentsForEnv = useMemo(
-    () =>
-      getAgentsForEnvironment(state, environment, {
-        targetDeviceId,
-        includeLocal: runtime.localTaskEnvironment,
-      }),
-    [
-      state.capabilities,
-      state.computers?.list,
-      environment,
+  const agentsForEnv = useMemo(() => {
+    if (environment === 'remote' && !targetDeviceId) return [];
+    return getAgentsForEnvironment(state, environment, {
       targetDeviceId,
-      runtime.localTaskEnvironment,
-    ]
-  );
+      includeLocal: runtime.localTaskEnvironment && targetDeviceId === state.localDeviceId,
+    });
+  }, [
+    state.capabilities,
+    state.computers?.list,
+    state.localDeviceId,
+    environment,
+    targetDeviceId,
+    runtime.localTaskEnvironment,
+  ]);
 
   const filteredRepos = useMemo(() => {
     if (!repoSearch.trim()) return repos;
@@ -539,10 +539,10 @@ export default function NewTaskPage() {
 
   const validate = () => {
     const errors = {};
+    if (environment === 'remote' && !targetDeviceId)
+      errors.device = 'Choose a device first — it determines the available harnesses.';
     if (!selectedProvider) errors.agent = 'Choose an agent before creating the task.';
     if (!prompt.trim()) errors.prompt = 'Describe what the agent should do.';
-    if (environment === 'remote' && !targetDeviceId)
-      errors.device = 'Choose the device that should run this queued task.';
     if (repoRequired && !resolvedRepoPath)
       errors.repo = 'Choose the repository or local project path for this task.';
     return errors;
@@ -634,6 +634,7 @@ export default function NewTaskPage() {
                   setSelectedProvider(null);
                   setSelectedRepo('');
                   setRepos([]);
+                  setTargetDeviceId('');
                   setFieldErrors({});
                 }}
                 aria-pressed={environment === id}
@@ -660,6 +661,56 @@ export default function NewTaskPage() {
           )}
         </section>
 
+        {environment === 'remote' && (
+          <section>
+            <h3 className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              Device
+              {currentErrors.device && (
+                <span className="font-medium normal-case tracking-normal text-red-600 dark:text-red-400">
+                  {currentErrors.device}
+                </span>
+              )}
+            </h3>
+            {computersList.length === 0 ? (
+              <p className="py-1 text-[13px] text-neutral-400">
+                No linked devices yet. Devices appear once their heartbeat lands in Cloudflare KV.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {computersList.map((device) => {
+                  const isSelected = targetDeviceId === device.id;
+                  const isLocalDevice = device.id === state.localDeviceId;
+                  return (
+                    <button
+                      key={device.id}
+                      type="button"
+                      id={`device-${device.id}`}
+                      onClick={() => {
+                        setTargetDeviceId(device.id);
+                        setSelectedProvider(null);
+                        setSelectedRepo('');
+                        setRepos([]);
+                        setFieldErrors({});
+                      }}
+                      aria-pressed={isSelected}
+                      className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
+                        isSelected
+                          ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
+                          : 'border-border-light text-neutral-600 hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800'
+                      }`}
+                    >
+                      <span className="truncate">
+                        {device.name || device.id}
+                        {isLocalDevice ? ' (this device)' : ''}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
         <section>
           <h3 className="mb-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Agent
@@ -672,7 +723,9 @@ export default function NewTaskPage() {
           <div className="flex flex-wrap gap-1.5">
             {agentsForEnv.length === 0 ? (
               <p className="py-1 text-[13px] text-neutral-400">
-                No agents are available for this run location. Connect one in Plugins.
+                {environment === 'remote' && !targetDeviceId
+                  ? 'Select a device above to see its available harnesses.'
+                  : 'No agents are available for this run location. Connect one in Plugins.'}
               </p>
             ) : (
               agentsForEnv.map((id) => {
@@ -740,37 +793,6 @@ export default function NewTaskPage() {
             autoPr ? ' · auto-PR on' : ''
           }`}
         >
-          {environment === 'remote' && (
-            <label
-              className={`inline-flex max-w-[200px] items-center gap-1 rounded-md px-1.5 py-1 text-[13px] transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-                currentErrors.device
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-neutral-500 dark:text-neutral-400'
-              }`}
-            >
-              <select
-                id="task-device"
-                value={targetDeviceId}
-                onChange={(e) => {
-                  setTargetDeviceId(e.target.value);
-                  setFieldErrors((prev) => ({ ...prev, device: null }));
-                }}
-                aria-label="Select remote device"
-                className="min-w-[4.5rem] max-w-[140px] cursor-pointer appearance-none border-0 bg-transparent p-0 text-[13px] text-inherit focus:border-transparent focus:outline-none focus:ring-0"
-              >
-                <option value="">Device</option>
-                {computersList.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.id === state.localDeviceId
-                      ? `${c.name || c.id} (this device)`
-                      : c.name || c.id}
-                  </option>
-                ))}
-              </select>
-              <IconChevronDown size={12} className="pointer-events-none shrink-0 opacity-70" />
-            </label>
-          )}
-
           {showRepoSection && (
             <div className="relative" ref={repoInputContainerRef}>
               <label

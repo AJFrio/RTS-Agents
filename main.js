@@ -15,6 +15,7 @@ const cloudflareKvService = require('./src/main/services/cloudflare-kv-service')
 const jiraService = require('./src/main/services/jira-service');
 const projectService = require('./src/main/services/project-service');
 const queueProcessorService = require('./src/main/services/queue-processor-service');
+const runBroadcasterService = require('./src/main/services/run-broadcaster-service');
 const opencodeService = require('./src/main/services/opencode-service');
 const antigravityService = require('./src/main/services/antigravity-service');
 const agentDiscoveryCache = require('./src/main/services/agent-discovery-cache');
@@ -261,6 +262,9 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     void queueProcessorService.processQueue(namespaceId).catch((err) => {
       console.warn('Cloudflare queue processing failed:', err?.message || err);
     });
+    // Keep the shared KV run log fresh: local runs are broadcast so every
+    // device (desktop or web) can see all runs across cloud and local machines.
+    void runBroadcasterService.broadcastLocalRuns({ agentDiscoveryCache, ensureCloudflareNamespaceId }).catch(() => {});
   }
 }
 
@@ -374,6 +378,11 @@ function startDiscoveryWatchers() {
   agentDiscoveryCache.startWatchers(deps, () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('agents:refresh-tick');
+    }
+    if (configStore.hasCloudflareConfig()) {
+      void runBroadcasterService
+        .broadcastLocalRuns({ agentDiscoveryCache, ensureCloudflareNamespaceId })
+        .catch(() => {});
     }
   });
 }

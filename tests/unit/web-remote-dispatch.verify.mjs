@@ -124,6 +124,76 @@ test('cloudflare-kv-service.enqueueDeviceTask passes model/attachments/autoCreat
   assert.ok(task.createdAt);
 });
 
+test('cloudflare-kv-service.upsertRun inserts and updates runs in the shared KV log', async () => {
+  const recorded = [];
+  let storedValue = null;
+  const fetchRecorder = async (url, opts = {}) => {
+    if (url.includes('/values/') && opts.method === 'PUT') {
+      recorded.push({ url, body: opts.body });
+      storedValue = opts.body;
+      return { ok: true, status: 200, text: async () => '{}', json: async () => ({}) };
+    }
+    if (url.includes('/namespaces?page=')) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () => '{}',
+        json: async () => ({
+          success: true,
+          result: [{ id: 'ns-1', title: 'rtsa' }],
+          result_info: { total_pages: 1 },
+        }),
+      };
+    }
+    if (url.includes('/values/')) {
+      return { ok: true, status: 200, text: async () => storedValue || '[]', json: async () => [] };
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  const kv = createCloudflareKvService({
+    storage: makeStorage(),
+    fetchImpl: fetchRecorder,
+  });
+
+  await kv.upsertRun(null, {
+    id: 'device-1:run-a',
+    deviceId: 'device-1',
+    provider: 'claude-cli',
+    status: 'running',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  });
+  const firstWrite = JSON.parse(recorded[recorded.length - 1].body);
+  assert.equal(firstWrite.length, 1);
+  assert.equal(firstWrite[0].id, 'device-1:run-a');
+
+  await kv.upsertRun(null, {
+    id: 'device-1:run-a',
+    deviceId: 'device-1',
+    provider: 'claude-cli',
+    status: 'completed',
+    updatedAt: '2026-01-01T00:01:00Z',
+  });
+  const secondWrite = JSON.parse(recorded[recorded.length - 1].body);
+  assert.equal(secondWrite.length, 1);
+  assert.equal(secondWrite[0].status, 'completed');
+  assert.equal(secondWrite[0].deviceId, 'device-1');
+
+  await kv.upsertRun(null, {
+    id: 'device-2:run-b',
+    deviceId: 'device-2',
+    provider: 'opencode',
+    status: 'failed',
+    createdAt: '2026-01-02T00:00:00Z',
+    updatedAt: '2026-01-02T00:00:00Z',
+  });
+  const thirdWrite = JSON.parse(recorded[recorded.length - 1].body);
+  assert.equal(thirdWrite.length, 2);
+  assert.equal(thirdWrite[0].id, 'device-2:run-b');
+  assert.equal(thirdWrite[1].id, 'device-1:run-a');
+});
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------

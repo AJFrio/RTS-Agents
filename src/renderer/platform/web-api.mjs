@@ -221,6 +221,7 @@ export function createWebApi(options = {}) {
     discoverCloudflareAccount,
     listComputers: sync.listComputers,
     getQueueActivity: sync.getQueueActivity,
+    getRuns: sync.getRuns,
     pushKeysToCloudflare: sync.pushKeysToCloudflare,
     pullKeysFromCloudflare: sync.pullKeysFromCloudflare,
 

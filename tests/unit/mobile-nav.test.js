@@ -8,10 +8,8 @@ code += `
 module.exports = {
   MD_MIN_WIDTH,
   LG_MIN_WIDTH,
-  PRIMARY_NAV_ITEMS,
-  MORE_NAV_ITEMS,
-  isPrimaryNavView,
-  isMoreNavView,
+  SIDEBAR_NAV_ITEMS,
+  isSidebarNavView,
   isListDetailView,
 };
 `;
@@ -23,10 +21,8 @@ try {
   const {
     MD_MIN_WIDTH,
     LG_MIN_WIDTH,
-    PRIMARY_NAV_ITEMS,
-    MORE_NAV_ITEMS,
-    isPrimaryNavView,
-    isMoreNavView,
+    SIDEBAR_NAV_ITEMS,
+    isSidebarNavView,
     isListDetailView,
   } = require(tempPath);
 
@@ -35,30 +31,25 @@ try {
       fs.unlinkSync(tempPath);
     });
 
-    test('keeps primary destinations including Tasks and More overflow', () => {
-      expect(PRIMARY_NAV_ITEMS).toHaveLength(4);
-      expect(PRIMARY_NAV_ITEMS.map((item) => item.view)).toEqual([
+    test('exposes every sidebar destination in one list', () => {
+      expect(SIDEBAR_NAV_ITEMS.map((item) => item.view)).toEqual([
         'agent',
         'new-task',
-        'dashboard',
-        'branches',
-      ]);
-      expect(MORE_NAV_ITEMS.map((item) => item.view)).toEqual([
         'plugins',
-        'project-management',
         'devices',
+        'branches',
+        'project-management',
         'settings',
       ]);
     });
 
-    test('classifies primary vs more views without overlap', () => {
-      expect(isPrimaryNavView('agent')).toBe(true);
-      expect(isPrimaryNavView('settings')).toBe(false);
-      expect(isMoreNavView('settings')).toBe(true);
-      expect(isMoreNavView('plugins')).toBe(true);
-      expect(isMoreNavView('project-management')).toBe(true);
-      expect(isMoreNavView('agent')).toBe(false);
-      expect(isMoreNavView('task-detail')).toBe(false);
+    test('classifies sidebar destinations including overflow views', () => {
+      expect(isSidebarNavView('agent')).toBe(true);
+      expect(isSidebarNavView('settings')).toBe(true);
+      expect(isSidebarNavView('project-management')).toBe(true);
+      expect(isSidebarNavView('plugins')).toBe(true);
+      expect(isSidebarNavView('dashboard')).toBe(false);
+      expect(isSidebarNavView('task-detail')).toBe(false);
     });
 
     test('marks stacked list/detail canvases', () => {

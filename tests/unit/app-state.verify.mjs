@@ -137,6 +137,33 @@ test('normalizeCreatedTask reads the createTask envelope', () => {
   assert.equal(normalizeCreatedTask('cursor', { success: false, error: 'nope' }), null);
 });
 
+test('SET_MOBILE_SIDEBAR_OPEN toggles the mobile drawer', () => {
+  const opened = appReducer(initialState, {
+    type: 'SET_MOBILE_SIDEBAR_OPEN',
+    payload: true,
+  });
+  assert.equal(opened.mobileSidebarOpen, true);
+  const closed = appReducer(opened, {
+    type: 'SET_MOBILE_SIDEBAR_OPEN',
+    payload: false,
+  });
+  assert.equal(closed.mobileSidebarOpen, false);
+});
+
+test('SET_VIEW and OPEN_TASK collapse the mobile drawer', () => {
+  const opened = { ...initialState, mobileSidebarOpen: true };
+  const afterView = appReducer(opened, { type: 'SET_VIEW', payload: 'settings' });
+  assert.equal(afterView.currentView, 'settings');
+  assert.equal(afterView.mobileSidebarOpen, false);
+
+  const afterTask = appReducer(opened, {
+    type: 'OPEN_TASK',
+    payload: { id: 't1', name: 'Task' },
+  });
+  assert.equal(afterTask.currentView, 'task-detail');
+  assert.equal(afterTask.mobileSidebarOpen, false);
+});
+
 test('keeps selectedTask when it is missing from the new list', () => {
   const selected = { id: 'gone', status: 'running' };
   const state = { ...initialState, selectedTask: selected, agents: [selected] };

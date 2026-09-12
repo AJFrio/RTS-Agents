@@ -12,8 +12,7 @@ New Task modal.
 
 1. **Configure**: Settings → API Command Keys → add a Linear personal API key
    (service `linear-cloud`) and/or a Jira base URL + token.
-2. **Open the tab**: desktop sidebar "Project Management"; mobile More sheet
-   "Projects" (bottom nav icon).
+2. **Open the tab**: desktop sidebar or mobile drawer "Project Management".
 3. **Select scope**: pick a Linear team and/or Jira board. The selection
    persists across visits (`rts_linear_team_id`, `rts_jira_board_id` in
    localStorage).

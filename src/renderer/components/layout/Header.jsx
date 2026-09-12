@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo } from 'react';
 import { useAppActions, useAppState } from '../../context/AppContext.jsx';
+import { useBelowMd } from '../../hooks/use-media-query.js';
 import FilterDropdown from '../ui/FilterDropdown.jsx';
-import { IconSync, IconPlus } from '../ui/icons.jsx';
+import { IconClose, IconMenu, IconSync, IconPlus } from '../ui/icons.jsx';
 import { debounce } from '../../utils/debounce.js';
 
 const VIEW_TITLES = {
@@ -34,8 +35,11 @@ export default function Header() {
     openCreateRepoModal,
     openPrRepoFilter,
     loadRemoteQueueActivity,
+    setMobileSidebarOpen,
   } = useAppActions();
-  const { currentView, counts, filters, refreshing, github, selectedTask } = state;
+  const { currentView, counts, filters, refreshing, github, selectedTask, mobileSidebarOpen } =
+    state;
+  const belowMd = useBelowMd();
 
   const handleSearch = useMemo(
     () =>
@@ -84,7 +88,20 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-10 flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-light bg-background-light/90 px-3 py-2 backdrop-blur-sm dark:border-border-dark dark:bg-background-dark/90 sm:h-12 sm:flex-nowrap sm:px-6 sm:py-0">
-      <div className="flex min-w-0 items-baseline gap-2 sm:gap-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+        {belowMd && (
+          <button
+            type="button"
+            id="mobile-nav-toggle"
+            aria-expanded={mobileSidebarOpen}
+            aria-controls="sidebar"
+            aria-label={mobileSidebarOpen ? 'Close navigation' : 'Open navigation'}
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+          >
+            {mobileSidebarOpen ? <IconClose size={18} /> : <IconMenu size={18} />}
+          </button>
+        )}
         <h2
           id="view-title"
           className="truncate text-[15px] font-semibold tracking-tight text-neutral-900 dark:text-neutral-100"

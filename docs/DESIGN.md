@@ -94,7 +94,7 @@ Hover = background tone shift + `border-strong` edge, never shadow growth.
 - Spacing base 4px. Dense: sidebar rows py-1.5 px-2; cards p-4; canvas padding p-6 with
   `max-w` content limiters on wide pages.
 - Touch targets ≥ 28px in sidebar, ≥ 32px in canvas, ≥ 44px in the mobile
-  bottom nav and More sheet.
+  drawer nav rows and header menu control.
 
 ## 4. Layout & scroll ownership
 
@@ -105,10 +105,13 @@ Hover = background tone shift + `border-strong` edge, never shadow growth.
 - **Canvas** (`main`, fluid): owns its scroll per view. Chat views (Agent, task transcript) are
   `scroll-body-shell` — scrolling message region with a Composer above the Agent recent-task
   list (or pinned at the bottom of a task transcript).
-- Mobile (<768px): sidebar hidden; canvas is full-bleed and clears
-  `--bottom-nav-offset` (4rem bar + safe-area inset) so composers and
-  list/detail panes sit above the tab bar. Bottom nav shows Agent, New Task,
-  Tasks, Repos, and **More** (Plugins, Devices, Settings).
+- Mobile (<768px): the fixed sidebar and resize handle unmount; canvas is
+  full-bleed. A header menu control (`#mobile-nav-toggle`) expands an overlay
+  drawer (`#mobile-sidebar-drawer`) with the same destinations as desktop —
+  Agent, New Task, Plugins, Devices, Repositories, Project Management,
+  Settings, plus Repos/Agents. The wordmark still opens All Tasks. Escape,
+  the scrim, the drawer close control, or choosing a destination collapses
+  the drawer.
 
 Stress contract: empty lists render an inline empty state in the canvas; long repo/task names
 truncate with ellipsis; unbroken strings (paths, tokens) `overflow-wrap: anywhere`; sidebar
@@ -143,7 +146,8 @@ sections survive 50+ repos by virtualizing nothing but scrolling their own list 
 ├──────────────────────────────┤
 │ Agent        New Task         │  nav rows, 13px, icon+label
 │ Plugins      Devices          │
-│ Repositories (open-PR badges) │
+│ Repositories                  │
+│ Project Management            │
 │ Settings                      │
 ├─ hairline divider ───────────┤
 │ [ Repos | Agents ] toggle     │  segmented control, full width

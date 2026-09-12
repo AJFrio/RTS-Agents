@@ -183,9 +183,6 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  /* Bottom nav bar (icons + labels). Offset includes the home-indicator inset. */
-  --bottom-nav-bar: 4rem;
-  --bottom-nav-offset: calc(var(--bottom-nav-bar) + var(--safe-bottom));
 }
 
 html {
@@ -230,10 +227,28 @@ textarea,
 }
 
 /* Active state for touch */
-.nav-btn:active,
-.bottom-nav button:active {
+.nav-btn:active {
   transform: scale(0.98);
   transition: transform 0.1s ease;
+}
+
+@keyframes mobile-sidebar-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.mobile-sidebar-panel {
+  animation: mobile-sidebar-in 200ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-sidebar-panel {
+    animation: none;
+  }
 }
 
 /* Running-status pulse (DESIGN.md §7 — the one ambient animation, real state only) */

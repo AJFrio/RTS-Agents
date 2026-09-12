@@ -165,6 +165,12 @@ export const IconMore = (props) => (
   </Icon>
 );
 
+export const IconMenu = (props) => (
+  <Icon {...props}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
+  </Icon>
+);
+
 export const IconExternal = (props) => (
   <Icon {...props}>
     <path d="M14 4h6v6M20 4 10 14" />

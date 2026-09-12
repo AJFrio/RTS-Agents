@@ -114,52 +114,68 @@ test.describe('Responsive Tests', () => {
     await page.waitForSelector('#app', { state: 'visible', timeout: 15000 });
   });
 
-  test('BottomNav is visible and sidebar is hidden on mobile viewport', async () => {
-    const bottomNav = page.locator('#bottom-nav');
-    await expect(bottomNav).toBeVisible();
+  test('Mobile drawer is collapsed and the bottom bar is gone', async () => {
+    await expect(page.locator('#bottom-nav')).toHaveCount(0);
+    await expect(page.locator('#sidebar')).toHaveCount(0);
 
+    const toggle = page.locator('#mobile-nav-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('Mobile drawer exposes every sidebar destination', async () => {
+    await page.locator('#mobile-nav-toggle').click();
     const sidebar = page.locator('#sidebar');
-    await expect(sidebar).toBeHidden();
+    await expect(sidebar).toBeVisible();
+    await expect(page.locator('#mobile-sidebar-drawer')).toBeVisible();
 
-    await expect(bottomNav.locator('button[data-view="dashboard"]')).toBeVisible();
-    await expect(bottomNav.locator('button[data-view="agent"]')).toBeVisible();
-    await expect(bottomNav.locator('button[data-more-toggle]')).toBeVisible();
-    await expect(bottomNav.locator('#bottom-nav-more')).toHaveCount(0);
+    for (const view of [
+      'agent',
+      'new-task',
+      'plugins',
+      'devices',
+      'branches',
+      'project-management',
+      'settings',
+    ]) {
+      await expect(sidebar.locator(`button[data-view="${view}"]`)).toBeVisible();
+    }
+    await expect(sidebar.locator('button[data-view="dashboard"]')).toBeVisible();
   });
 
-  test('BottomNav More sheet opens overflow destinations', async () => {
-    const bottomNav = page.locator('#bottom-nav');
-    await bottomNav.locator('button[data-more-toggle]').click();
-    await expect(page.locator('#bottom-nav-more')).toBeVisible();
-
-    await bottomNav.locator('button[data-view="settings"]').click();
+  test('Choosing a drawer destination navigates and collapses', async () => {
+    await page.locator('#mobile-nav-toggle').click();
+    await page.locator('#sidebar button[data-view="settings"]').click();
     await expect(page.locator('#view-title')).toHaveText('Settings');
-    await expect(page.locator('#bottom-nav-more')).toHaveCount(0);
+    await expect(page.locator('#sidebar')).toHaveCount(0);
 
-    await bottomNav.locator('button[data-more-toggle]').click();
-    await bottomNav.locator('button[data-view="devices"]').click();
+    await page.locator('#mobile-nav-toggle').click();
+    await page.locator('#sidebar button[data-view="devices"]').click();
     await expect(page.locator('#view-title')).toHaveText('Devices');
+    await expect(page.locator('#sidebar')).toHaveCount(0);
   });
 
-  test('BottomNav New Task button opens the new task page on mobile', async () => {
-    const newTaskBtn = page.locator('#bottom-nav button[data-view="new-task"]');
+  test('Drawer New Task button opens the new task page on mobile', async () => {
+    await page.locator('#mobile-nav-toggle').click();
+    const newTaskBtn = page.locator('#sidebar button[data-view="new-task"]');
     await expect(newTaskBtn).toBeVisible();
     await newTaskBtn.click();
 
     const view = page.locator('#new-task-modal');
     await expect(view).toBeVisible();
+    await expect(page.locator('#sidebar')).toHaveCount(0);
   });
 
-  test('Agent composer stays above the bottom nav on mobile', async () => {
+  test('Agent composer sits at the bottom of the mobile canvas', async () => {
     const composer = page.locator('#view-agent .composer-shell');
-    const bottomNav = page.locator('#bottom-nav');
     await expect(composer).toBeVisible();
-    await expect(bottomNav).toBeVisible();
+    await expect(page.locator('#bottom-nav')).toHaveCount(0);
 
     const composerBox = await composer.boundingBox();
-    const navBox = await bottomNav.boundingBox();
+    const viewport = page.viewportSize();
     expect(composerBox).toBeTruthy();
-    expect(navBox).toBeTruthy();
-    expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(navBox.y + 1);
+    expect(viewport).toBeTruthy();
+    expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(viewport.height + 1);
+    expect(composerBox.y + composerBox.height).toBeGreaterThan(viewport.height - 200);
   });
 });

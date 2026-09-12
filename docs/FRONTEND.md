@@ -44,7 +44,9 @@ src/renderer/
 The web runtime (Cloudflare Worker) uses the same components. `src/renderer/platform/web-api.mjs` mirrors the `window.electronAPI` surface for browsers — keep it in sync when adding IPC methods. Gate UI with `useRuntime()` / `src/renderer/platform/runtime.mjs` so desktop-only controls (app update, window mode, local CLIs, folder picker) do not render on the website. See [product-specs/web-desktop-surfaces.md](product-specs/web-desktop-surfaces.md) and [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 Mobile layout (<768px) is documented in [DESIGN.md](DESIGN.md) §4 and
-[product-specs/ui-shell.md](product-specs/ui-shell.md): hide the sidebar,
-use `#bottom-nav`, and keep canvas content above `--bottom-nav-offset`.
-List/detail pages (Repositories, Devices) drill in below the `lg`
-breakpoint. Verify light and dark at 390×844 and 320×568 after UI changes.
+[product-specs/ui-shell.md](product-specs/ui-shell.md): unmount the fixed
+sidebar, expose `#mobile-nav-toggle` in the header, and open the same
+sidebar as an overlay drawer (`#mobile-sidebar-drawer`) so every destination
+is reachable. List/detail pages (Repositories, Devices) drill in below the
+`lg` breakpoint. Verify light and dark at 390×844 and 320×568 after UI
+changes.

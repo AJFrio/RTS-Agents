@@ -1,34 +1,26 @@
 /**
- * Mobile bottom-nav destinations (DESIGN.md §4, ui-shell mobile).
- * Primary tabs stay on the bar; overflow destinations live in the More sheet.
+ * Shared sidebar destinations and responsive breakpoints
+ * (DESIGN.md §4, ui-shell mobile drawer).
  */
 
 export const MD_MIN_WIDTH = 768;
 export const LG_MIN_WIDTH = 1024;
 
-export const PRIMARY_NAV_ITEMS = [
+/** Primary destinations shown in the desktop sidebar and the mobile drawer. */
+export const SIDEBAR_NAV_ITEMS = [
   { view: 'agent', label: 'Agent' },
   { view: 'new-task', label: 'New Task' },
-  { view: 'dashboard', label: 'Tasks' },
-  { view: 'branches', label: 'Repos' },
-];
-
-export const MORE_NAV_ITEMS = [
   { view: 'plugins', label: 'Plugins' },
-  { view: 'project-management', label: 'Projects' },
   { view: 'devices', label: 'Devices' },
+  { view: 'branches', label: 'Repositories' },
+  { view: 'project-management', label: 'Project Management' },
   { view: 'settings', label: 'Settings' },
 ];
 
-const PRIMARY_VIEWS = new Set(PRIMARY_NAV_ITEMS.map((item) => item.view));
-const MORE_VIEWS = new Set(MORE_NAV_ITEMS.map((item) => item.view));
+const SIDEBAR_VIEWS = new Set(SIDEBAR_NAV_ITEMS.map((item) => item.view));
 
-export function isPrimaryNavView(view) {
-  return PRIMARY_VIEWS.has(view);
-}
-
-export function isMoreNavView(view) {
-  return MORE_VIEWS.has(view);
+export function isSidebarNavView(view) {
+  return SIDEBAR_VIEWS.has(view);
 }
 
 /**

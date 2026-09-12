@@ -23,8 +23,8 @@ renders every task's transcript as a chat log on the canvas.
   `src/renderer/context/app-state.js`).
 - Closing a task (`CLOSE_TASK`) returns to `previousView`, or Agent if none.
 - The sidebar wordmark (`data-view="dashboard"`) still opens the All Tasks
-  dashboard card grid. Mobile bottom nav keeps a Tasks tab for that view and
-  a More sheet for destinations that do not fit the five-tab bar.
+  dashboard card grid. On mobile the same wordmark lives in the expandable
+  drawer so Tasks is not a separate tab.
 
 ## Sidebar sections
 
@@ -104,20 +104,22 @@ renders every task's transcript as a chat log on the canvas.
 
 ## Mobile shell (<768px)
 
-- Sidebar and its resize handle are hidden; `#bottom-nav` is the only
-  primary navigation.
-- **Primary tabs:** Agent, New Task, Tasks (`dashboard`), Repos (`branches`),
-  More.
-- **More sheet** (`#bottom-nav-more`): Plugins, Pull Requests, Devices,
-  Settings. Opening a destination closes the sheet.
-- Canvas padding uses `--bottom-nav-offset` so Agent / New Task / task
-  follow-up composers and the Repositories list-detail pane are not covered
-  by the tab bar or the iOS home indicator.
+- The fixed sidebar and its resize handle unmount. `#mobile-nav-toggle` in
+  the header expands `#mobile-sidebar-drawer`, an overlay that reuses the
+  desktop sidebar so every destination is reachable (no bottom bar, no More
+  sheet).
+- **Drawer destinations:** Agent, New Task, Plugins, Devices, Repositories,
+  Project Management, Settings, plus the Repos/Agents sections. The wordmark
+  opens All Tasks (`dashboard`).
+- Expanding the drawer locks body scroll, focuses `#mobile-nav-close`, and
+  closes on Escape, the scrim, the close control, `SET_VIEW`, or `OPEN_TASK`.
+- Canvas no longer reserves `--bottom-nav-offset`; composers sit at the
+  bottom of the full-bleed canvas (safe-area insets still apply).
 - Repositories and Devices switch to a one-pane drill-in below `lg`
   (1024px): the list hides while a selection is open; a back control
   returns to the list.
 - Header actions wrap; dashboard search occupies its own row on narrow
-  viewports. Toasts move to `top-center` so they do not sit on the tab bar.
+  viewports. Toasts stay `top-center` so they do not cover composers.
 
 ## Service hub
 
@@ -162,14 +164,15 @@ renders every task's transcript as a chat log on the canvas.
 - [ ] Follow-ups work for jules, cursor (cloud and local ACP), claude-cloud, and local ACP tasks that report `canFollowUp`
 - [ ] No blue remains in the UI; only status colors (emerald/amber/red/grey)
       appear. Agent recent tasks: running emerald, completed grey
-- [ ] Below 768px, `#sidebar` is hidden, `#bottom-nav` shows Agent / New Task /
-      Tasks / Repos / More, and More opens Plugins, PRs, Devices, Settings
-- [ ] Mobile canvas clears `--bottom-nav-offset`; Repositories and Devices
-      drill in below `lg` with a back control
+- [ ] Below 768px, the fixed `#sidebar` is hidden, `#mobile-nav-toggle` opens
+      the drawer with every sidebar destination, and choosing a destination
+      (or Escape / scrim / close) collapses it
+- [ ] Mobile canvas is full-bleed (no bottom-nav offset); Repositories and
+      Devices drill in below `lg` with a back control
 
 ## Implementation pointers
 
-- `src/renderer/components/layout/` (Layout, Sidebar, Header, BottomNav)
+- `src/renderer/components/layout/` (Layout, Sidebar, Header, MobileSidebar)
 - `src/renderer/utils/mobile-nav.js`, `src/renderer/hooks/use-media-query.js`
 - `src/renderer/components/sidebar/ReposAgentsSection.jsx`
 - `src/renderer/utils/repo-identity.js`

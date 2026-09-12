@@ -365,6 +365,7 @@ export const initialState = {
   focusedDeviceId: null,
   sidebarWidth: getStoredSidebarWidth(),
   sidebarMode: getStoredSidebarMode(),
+  mobileSidebarOpen: false,
   newTaskModalOpen: false,
   createRepoModalOpen: false,
   prModal: null,
@@ -377,7 +378,9 @@ export const initialState = {
 export function appReducer(state, action) {
   switch (action.type) {
     case 'SET_VIEW':
-      return { ...state, currentView: action.payload };
+      return { ...state, currentView: action.payload, mobileSidebarOpen: false };
+    case 'SET_MOBILE_SIDEBAR_OPEN':
+      return { ...state, mobileSidebarOpen: Boolean(action.payload) };
     case 'SET_FOCUSED_DEVICE':
       return { ...state, focusedDeviceId: action.payload || null };
     case 'OPEN_TASK': {
@@ -390,6 +393,7 @@ export function appReducer(state, action) {
         currentView: 'task-detail',
         previousView,
         newTaskModalOpen: false,
+        mobileSidebarOpen: false,
       };
     }
     case 'UPSERT_AGENT': {

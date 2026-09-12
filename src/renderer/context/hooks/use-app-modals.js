@@ -11,6 +11,8 @@ export function useAppModals(dispatch) {
       closeTask: () => dispatch({ type: 'CLOSE_TASK' }),
       setSidebarWidth: (width) => dispatch({ type: 'SET_SIDEBAR_WIDTH', payload: width }),
       setSidebarMode: (mode) => dispatch({ type: 'SET_SIDEBAR_MODE', payload: mode }),
+      setMobileSidebarOpen: (open) =>
+        dispatch({ type: 'SET_MOBILE_SIDEBAR_OPEN', payload: open }),
       openNewTaskModal: (options) => {
         dispatch({ type: 'OPEN_NEW_TASK_MODAL', payload: options });
         dispatch({ type: 'SET_VIEW', payload: 'new-task' });

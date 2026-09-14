@@ -48,3 +48,44 @@ Cursor **Cloud Agents API** is a separate HTTP API at `/v1` (there is no Cloud v
 - `src/main/services/claude-service.js`, `codex-service.js`, `opencode-service.js`, `cursor-service.js`, `antigravity-service.js` — dispatch branches and tracked-session persistence
 - `src/renderer/components/ui/ChatTranscript.jsx` + `src/renderer/utils/transcript.js` — grouped transcript rendering
 - The official `@agentclientprotocol/sdk` is ESM-only, hence the hand-rolled CommonJS client
+
+## Implemented: legacy streaming + followups + terminal
+
+**Addendum (September 2026).** The legacy Antigravity path (no ACP adapter, or a custom CLI command set) now streams live output, accepts follow-up turns, and can hand off to an external terminal. The ACP dispatch path described above is unchanged. Everything in this section uses official `agy` flags only, so the Behavior rule still holds verbatim: Antigravity via official `agy acp` or `agy --acp` only; otherwise detached `agy --print`. No unofficial PTY wrappers.
+
+### Legacy stream-json dispatch (new tasks)
+
+- Without an adapter, a new task spawns `agy --print <prompt> --print-timeout 30m --output-format stream-json` (plus `--model <model>` when one is chosen): detached, `shell:false`, piped stdio, unref'd.
+- Each stdout line is parsed and folded into the tracked session's `streamMessages`, so task details show live output for legacy sessions too. Persist writes are debounced (1s) and renderer emits are debounced (100ms per session).
+- The child `close` event is a backstop: if no terminal `result` event arrived, the session finalizes from the exit code (0 → completed; otherwise failed with the stderr tail).
+
+### Follow-up turns on the same conversation
+
+- `sendFollowUp` on a legacy session spawns a second `agy --print <message> --print-timeout 30m --output-format stream-json --conversation <uuid>` process that reuses the conversation captured from the first turn's `init` event. The captured id is seeded into the new run's state so a re-emitted `init` can never overwrite it.
+- Rejected while a turn is running ("A turn is already in progress for this session") or when no valid conversation id was captured ("No conversation ID on this session; start a new task before following up").
+- The user message is appended to `streamMessages` (`appendUserMessage`) and the reply streams into the same transcript; the session returns to running until the new turn finalizes.
+- `canFollowUp` is `acpService.canFollowUp(...) || isValidConversationId(conversationId)`, so legacy sessions with a captured conversation id expose the composer too.
+- ACP-live sessions keep the existing ACP follow-up path (`session/prompt` on the live child) unchanged.
+
+### Terminal handoff
+
+- `openSessionInTerminal({ projectPath, conversationId })` opens the session in an external terminal: `wt.exe -d <path> agy --conversation <uuid>` on Windows with a `cmd.exe /c start` fallback, `osascript` (Terminal.app) on macOS, and `x-terminal-emulator -e` on Linux with a bare-spawn fallback. Every spawn is detached, `shell:false`, stdio ignored, unref'd.
+- An invalid or missing conversation id degrades to `agy -c` (continue the most recent conversation) instead of `--conversation`.
+- Renderer surface: IPC `utils:open-antigravity-session` with payload `{ sessionId, projectPath }`, exposed as `openAntigravitySession` in the preload and stubbed desktop-only on web.
+
+### Stream contract: 3 NDJSON event types
+
+One JSON object per stdout line. Unknown event names are ignored (forward-compat) and malformed lines never throw:
+
+- `init`: top-level `conversation_id`. Captured once into the session record; a later init cannot overwrite it.
+- `step_update`: the `step_update` payload, keyed by `step_type`:
+  - `agent_response`: `text_delta` text appended to a single flowing assistant message (token-level chunks coalesce, same as ACP)
+  - `tool`: `tool_name` + `tool_info` folded into a tool-call block (in_progress while `state` is `ACTIVE`, then completed)
+- `result`: terminal. `SUCCESS` → completed; `ERROR`, `INVALID`, `CANCELED`, `INTERRUPTED` → failed (error text from `result.error`, else the stderr tail); `WAITING` and `RUNNING` do not finalize, the close backstop resolves them by exit code.
+
+### Implementation pointers (addendum)
+
+- `src/main/services/agy-stream-parser.js`: `parseAgyStreamLine`, `applyAgyStreamEvent`, `isValidConversationId`, `AGY_CONVERSATION_ID_RE`
+- `src/main/services/antigravity-service.js`: `_spawnLegacySession`, `_spawnLegacyFollowUp`, `openSessionInTerminal`
+- `src/preload/api-utils-tasks.js` (`openAntigravitySession`) and `src/renderer/platform/web-settings.mjs` (web stub)
+- `config-schema.js`: `antigravitySessions` records gained `conversationId`, `error`, and `streamMessages`

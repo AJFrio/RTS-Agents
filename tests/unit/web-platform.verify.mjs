@@ -352,6 +352,7 @@ test('web-api local-only operations report failure without crashing', async () =
   assert.equal(await api.openDirectory(), null);
   assert.equal((await api.updateApp()).success, false);
   assert.equal((await api.openOpenCodeSession('s', '/p')).success, false);
+  assert.equal((await api.openAntigravitySession('s', '/p')).success, false);
   assert.equal((await api.projects.createLocalRepo({ name: 'x' })).success, false);
   assert.equal((await api.projects.pullRepo('/p')).success, false);
   assert.deepEqual(await api.getConnectionStatus(), {});

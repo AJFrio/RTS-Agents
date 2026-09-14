@@ -210,7 +210,9 @@ export default function TaskDetailView() {
 
   if (!task) return null;
 
-  const canOpenTerminal = task.provider === 'opencode' && api?.openOpenCodeSession;
+  const canOpenTerminal =
+    (task.provider === 'opencode' && api?.openOpenCodeSession) ||
+    (task.provider === 'antigravity' && api?.openAntigravitySession);
   const transcriptPlusPending = [
     ...messages,
     ...pendingFollowUps.map((m) => ({
@@ -260,14 +262,16 @@ export default function TaskDetailView() {
               <span className="hidden sm:inline">Go to task</span>
             </button>
           ) : null}
-          {canOpenTerminal && details?.opencodeSessionId && (
+          {canOpenTerminal && (task.provider === 'antigravity' || details?.opencodeSessionId) && (
             <button
               type="button"
               onClick={() =>
-                api.openOpenCodeSession(
-                  details.opencodeSessionId,
-                  details.projectPath || task.repository
-                )
+                task.provider === 'antigravity'
+                  ? api.openAntigravitySession(rawId, details?.projectPath || task.repository)
+                  : api.openOpenCodeSession(
+                      details.opencodeSessionId,
+                      details.projectPath || task.repository
+                    )
               }
               aria-label="Open terminal"
               className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-border-light px-2 py-1 text-[11px] font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-border-dark dark:text-neutral-400 dark:hover:bg-neutral-800"

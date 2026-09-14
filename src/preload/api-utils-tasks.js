@@ -4,6 +4,8 @@ module.exports = {
   openExternal: (url) => ipcRenderer.invoke('utils:open-external', { url }),
   openOpenCodeSession: (sessionId, projectPath) =>
     ipcRenderer.invoke('utils:open-opencode-session', { sessionId, projectPath }),
+  openAntigravitySession: (sessionId, projectPath) =>
+    ipcRenderer.invoke('utils:open-antigravity-session', { sessionId, projectPath }),
   openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
   getConnectionStatus: () => ipcRenderer.invoke('utils:get-status'),
   getRepositories: (provider) => ipcRenderer.invoke('repos:get', { provider }),

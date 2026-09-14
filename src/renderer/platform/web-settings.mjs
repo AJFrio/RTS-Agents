@@ -196,6 +196,10 @@ export function createSettingsSurface(storage) {
       return { success: false, error: 'OpenCode terminal is desktop-only' };
     },
 
+    async openAntigravitySession() {
+      return { success: false, error: 'Antigravity terminal is desktop-only' };
+    },
+
     async getConnectionStatus() {
       return {};
     },

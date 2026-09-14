@@ -27,6 +27,7 @@ main.js  →  registerAllIpcHandlers()  →  src/main/ipc/register-*.js
 | `agents:get-details`          | Provider-specific detail payload                                                |
 | `tasks:session-updated`       | Push event: live transcript/status for an ACP task (preload `onSessionUpdated`) |
 | `utils:open-opencode-session` | Launch external terminal with OpenCode TUI (`-s ses_*`) in project directory    |
+| `utils:open-antigravity-session` | Launch external terminal with Antigravity CLI (`--conversation <uuid>` or `-c`) in project directory |
 | `settings:*`                  | Keys, polling, theme, paths, filters                                            |
 | `github:*`                    | Repos, PRs, merge, ready-for-review                                             |
 | `cloudflare:*`                | KV config, heartbeat, key sync                                                  |

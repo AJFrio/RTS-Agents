@@ -160,6 +160,25 @@ describe('Security Verification - Command Injection', () => {
     });
   });
 
+  describe('AntigravityService terminal launcher', () => {
+    it('should NOT use shell: true when opening session in terminal', async () => {
+      await antigravityService.openSessionInTerminal({
+        projectPath: 'D:\\GitHub\\repo',
+        conversationId: '6a3c1f2e-9b4d-4c8a-a1e2-3f4d5c6b7a89',
+      });
+
+      const terminalCall = spawnSpy.mock.calls.find(
+        (call) =>
+          call[0] === 'wt.exe' ||
+          call[0] === 'cmd.exe' ||
+          call[0] === 'x-terminal-emulator' ||
+          call[0] === 'osascript'
+      );
+      expect(terminalCall).toBeDefined();
+      expect(terminalCall[2].shell).toBe(false);
+    });
+  });
+
   describe('QueueProcessorService', () => {
     it('should NOT use shell: true in isCommandRunnable', () => {
       queueProcessorService.isCommandRunnable('some-cmd');

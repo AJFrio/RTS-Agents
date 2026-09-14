@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const providerHealth = require('../services/provider-health');
 const acpService = require('../services/acp-service');
+const { isValidConversationId } = require('../services/agy-stream-parser');
 
 function registerUtilsHandlers(deps) {
   const {
@@ -81,6 +82,34 @@ function registerUtilsHandlers(deps) {
       return { success: false, error: err.message };
     }
   });
+
+  ipcMain.handle(
+    'utils:open-antigravity-session',
+    async (event, { sessionId, projectPath, conversationId }) => {
+      try {
+        if (!projectPath || typeof projectPath !== 'string') {
+          throw new Error('Project path is required');
+        }
+        const record = sessionId
+          ? antigravityService.getTrackedSessions().find((t) => t.id === sessionId)
+          : null;
+        const trackedId = record?.conversationId;
+        const validConversationId =
+          isValidConversationId(conversationId) || isValidConversationId(trackedId)
+            ? isValidConversationId(conversationId)
+              ? conversationId
+              : trackedId
+            : null;
+        return await antigravityService.openSessionInTerminal({
+          projectPath,
+          conversationId: validConversationId,
+        });
+      } catch (err) {
+        console.error('Error opening Antigravity session in terminal:', err);
+        return { success: false, error: err.message };
+      }
+    }
+  );
 
   /**
    * Open directory selection dialog

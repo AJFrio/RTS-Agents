@@ -162,6 +162,12 @@ const schema = {
         prompt: { type: 'string' },
         projectPath: { type: 'string' },
         status: { type: 'string' },
+        conversationId: { type: 'string' },
+        error: { type: ['string', 'null'] },
+        streamMessages: {
+          type: 'array',
+          items: { type: 'object' },
+        },
         filePath: { type: 'string' },
         acpSessionId: { type: 'string' },
         loadSession: { type: 'boolean' },

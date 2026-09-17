@@ -104,11 +104,14 @@ describe('model-registry', () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 
-  test('returns no live Codex model list (CLI-only harness)', async () => {
+  test('returns the curated static list for codex (both dispatch paths honor model)', async () => {
     const result = await modelRegistry.getModelsForProvider('codex');
 
-    expect(result.models).toEqual([]);
-    expect(result.source).toBe('none');
+    expect(result.success).toBe(true);
+    expect(result.source).toBe('static');
+    expect(result.models).toContain('gpt-5-codex');
+    expect(result.models.length).toBeGreaterThan(1);
+    expect(spawn).not.toHaveBeenCalled();
   });
 
   test('normalizes cursor cloud model payloads when a key is configured', async () => {

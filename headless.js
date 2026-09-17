@@ -72,13 +72,16 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   const antigravityCmd =
     typeof cliCommands?.antigravity === 'string' ? cliCommands.antigravity : '';
   const claudeCmd = typeof cliCommands?.claude === 'string' ? cliCommands.claude : '';
+  const codexCmd = typeof cliCommands?.codex === 'string' ? cliCommands.codex : '';
   const opencodeCmd = typeof cliCommands?.opencode === 'string' ? cliCommands.opencode : '';
 
-  const [antigravityInstalled, claudeInstalled, opencodeInstalled] = await Promise.all([
-    antigravityService.isAntigravityInstalled(),
-    claudeService.isClaudeInstalled(),
-    opencodeService.isOpenCodeInstalled(),
-  ]);
+  const [antigravityInstalled, claudeInstalled, codexInstalled, opencodeInstalled] =
+    await Promise.all([
+      antigravityService.isAntigravityInstalled(),
+      claudeService.isClaudeInstalled(),
+      codexService.isCodexInstalled(),
+      opencodeService.isOpenCodeInstalled(),
+    ]);
 
   const availableCliTools = [];
   if (antigravityInstalled || queueProcessorService.isCommandRunnable(antigravityCmd || 'agy')) {
@@ -86,6 +89,9 @@ async function sendCloudflareHeartbeat({ status } = {}) {
   }
   if (claudeInstalled || queueProcessorService.isCommandRunnable(claudeCmd || 'claude')) {
     availableCliTools.push('claude CLI');
+  }
+  if (codexInstalled || queueProcessorService.isCommandRunnable(codexCmd || 'codex')) {
+    availableCliTools.push('Codex CLI');
   }
   if (
     opencodeInstalled ||
@@ -104,6 +110,7 @@ async function sendCloudflareHeartbeat({ status } = {}) {
     const providersToList = [];
     if (availableCliTools.includes('Antigravity CLI')) providersToList.push('antigravity');
     if (availableCliTools.includes('claude CLI')) providersToList.push('claude-cli');
+    if (availableCliTools.includes('Codex CLI')) providersToList.push('codex');
     if (availableCliTools.includes('OpenCode CLI')) providersToList.push('opencode');
     if (availableCliTools.includes('cursor CLI')) providersToList.push('cursor');
 

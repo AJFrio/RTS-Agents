@@ -7,6 +7,21 @@ const cursorService = require('./cursor-service');
 const claudeService = require('./claude-service');
 
 const CLAUDE_CLI_MODELS = ['default', 'sonnet', 'opus', 'haiku', 'fable', 'best', 'opusplan'];
+// Codex CLI has no stable `codex models` list subcommand, so the catalog is
+// curated like CLAUDE_CLI_MODELS. Entries must stay valid `--model` values
+// for `codex exec` and the codex-acp adapter (both dispatch paths honor
+// options.model). `gpt-5-codex` first: it matches CODEX_DEFAULT_MODEL.
+const CODEX_MODELS = [
+  'gpt-5-codex',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+  'gpt-5.5',
+  'gpt-5.4',
+  'gpt-5.4-mini',
+  'gpt-5.3-codex',
+  'gpt-5.3-codex-spark',
+];
 const CLI_LIST_TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_MODELS = 200;
@@ -112,10 +127,9 @@ async function getModelsForProvider(provider) {
         result = { success: true, ...listed };
         break;
       }
-      case 'codex': {
-        result = { success: true, models: [], source: 'none' };
+      case 'codex':
+        result = { success: true, models: [...CODEX_MODELS], source: 'static' };
         break;
-      }
       case 'claude-cloud': {
         result = configStore.hasApiKey('claude')
           ? {
@@ -149,6 +163,7 @@ function clearModelCache() {
 
 module.exports = {
   CLAUDE_CLI_MODELS,
+  CODEX_MODELS,
   clearModelCache,
   getModelsForProvider,
   parseCliModelLines,

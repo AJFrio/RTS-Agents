@@ -42,7 +42,7 @@ Create tasks from the UI, with provider-specific options:
 - **Codex CLI**: choose a local Git repo path, start a detached `codex exec` session
 - **Claude CLI**: start a detached `claude` CLI session in a local repo
 - **Claude Cloud**: prompt-only (no repository required)
-- **Model selection** (optional): pick from the models each harness reports — live lists for OpenCode (`opencode models`), Antigravity (`agy models`), and Cursor, API lists for Claude cloud, documented aliases for Claude CLI. Leave on "Harness default" to skip. Jules is not supported (its API has no model field).
+- **Model selection** (optional): pick from the models each harness reports — live lists for OpenCode (`opencode models`), Antigravity (`agy models`), and Cursor, API lists for Claude cloud, documented aliases for Claude CLI and curated Codex CLI ids (both `codex exec --model` and ACP dispatch honor the choice). Leave on "Harness default" to skip. Jules is not supported (its API has no model field).
 
 ### GitHub “Branches” view
 
